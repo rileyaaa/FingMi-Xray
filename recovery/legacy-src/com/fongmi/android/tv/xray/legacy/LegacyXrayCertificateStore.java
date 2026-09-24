@@ -84,6 +84,31 @@ public final class LegacyXrayCertificateStore {
         }
     }
 
+    public static void resetAll(Context context) throws Exception {
+        // The shipped reset path constructs the current store first, which also
+        // attempts the legacy migration, then clears both locations.
+        LegacyXrayCertificateStore current = new LegacyXrayCertificateStore(context);
+        clearPins(
+                context.getSharedPreferences(
+                        LEGACY_PREFS,
+                        Context.MODE_PRIVATE));
+        current.clearPins();
+        deleteEncryptionKey();
+    }
+
+    private static void clearPins(SharedPreferences prefs) {
+        SharedPreferences.Editor editor = prefs.edit();
+        for (String key : prefs.getAll().keySet()) {
+            if (key.startsWith(PIN_PREFIX)) {
+                editor.remove(key);
+            }
+        }
+        if (!editor.commit()) {
+            throw new IllegalStateException(
+                    "Hysteria2 certificate pins were not removed");
+        }
+    }
+
     public static void deleteEncryptionKey() throws Exception {
         KeyStore keyStore = KeyStore.getInstance("AndroidKeyStore");
         keyStore.load(null);
