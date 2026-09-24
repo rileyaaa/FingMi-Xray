@@ -51,6 +51,48 @@ public final class LibXrayBridge {
         throw new JSONException("Xray conversion returned invalid data");
     }
 
+    public String probeHysteria2Certificate(
+            String server,
+            int port,
+            String serverName,
+            int timeoutMs) throws Exception {
+        String sha256 = invokeObject(
+                "probeHysteria2Certificate",
+                new JSONObject()
+                        .put("server", server)
+                        .put("port", port)
+                        .put("serverName", serverName)
+                        .put("timeout", timeoutMs))
+                .optString("sha256", "");
+        if (!sha256.matches("(?i)[0-9a-f]{64}")) {
+            throw new JSONException("Hysteria2 certificate probe returned an invalid fingerprint");
+        }
+        return sha256.toLowerCase(java.util.Locale.ROOT);
+    }
+
+    public String probeTlsCertificate(
+            String server,
+            int port,
+            String serverName,
+            String fingerprint,
+            JSONArray alpn,
+            int timeoutMs) throws Exception {
+        String sha256 = invokeObject(
+                "probeTLSCertificate",
+                new JSONObject()
+                        .put("server", server)
+                        .put("port", port)
+                        .put("serverName", serverName)
+                        .put("fingerprint", fingerprint)
+                        .put("alpn", alpn)
+                        .put("timeout", timeoutMs))
+                .optString("sha256", "");
+        if (!sha256.matches("(?i)[0-9a-f]{64}")) {
+            throw new JSONException("TLS certificate probe returned an invalid fingerprint");
+        }
+        return sha256.toLowerCase(java.util.Locale.ROOT);
+    }
+
     public void validateConfig(JSONObject config) throws Exception {
         invoke("testXray", new JSONObject().put("xrayJson", config.toString()));
     }
