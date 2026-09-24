@@ -33,6 +33,12 @@ jobs:
           storePassword=placeholder
           EOF
 
+      - name: Fetch libXray
+        shell: bash
+        run: |
+          chmod +x scripts/fetch-libxray.sh
+          scripts/fetch-libxray.sh
+
       - name: Compile Xray module
         shell: bash
         run: |
