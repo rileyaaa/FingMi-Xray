@@ -13,8 +13,12 @@ import com.fingmi.xray.session.XraySettingsController;
 import com.fingmi.xray.util.XrayErrorSanitizer;
 import com.fongmi.android.tv.R;
 import com.fongmi.android.tv.databinding.ActivitySettingXrayBinding;
+import com.fongmi.android.tv.event.XrayImportEvent;
 import com.fongmi.android.tv.ui.base.BaseActivity;
 import com.fongmi.android.tv.utils.Notify;
+
+import org.greenrobot.eventbus.Subscribe;
+import org.greenrobot.eventbus.ThreadMode;
 
 public final class SettingXrayActivity extends BaseActivity
         implements XraySettingsController.Listener {
@@ -142,6 +146,22 @@ public final class SettingXrayActivity extends BaseActivity
         } catch (Exception ignored) {
             return false;
         }
+    }
+
+    @Subscribe(threadMode = ThreadMode.MAIN)
+    public void onXrayImportEvent(XrayImportEvent event) {
+        if (event == null || event.link() == null || event.link().isBlank()) return;
+
+        if (mOperationId != Long.MIN_VALUE && mOperation != XrayOperation.RESET_SECURITY) {
+            mXray.cancel();
+            clearOperation();
+            Notify.dismiss();
+        }
+
+        String link = event.link().trim();
+        mBinding.link.setText(link);
+        mBinding.link.setSelection(mBinding.link.length());
+        Notify.show(R.string.xray_phone_received);
     }
 
     private String readLink() {
