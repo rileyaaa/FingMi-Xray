@@ -6,7 +6,7 @@ EXPECTED_SHA256="28b7dc9d6cc8455fcca5cbd56e387003a7bfb558128651a64899dc3a8ccff66
 URL="https://github.com/XTLS/libXray/releases/download/v${VERSION}/libxray-android.zip"
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-DEST="$ROOT/xray/libs"
+DEST="$ROOT/libxray/libs"
 TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"' EXIT
 
