@@ -1,0 +1,71 @@
+name: Recovery bootstrap source
+
+on:
+  push:
+    branches:
+      - recovery/xray-modularization
+    paths:
+      - ".github/workflows/recovery-bootstrap-source.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  bootstrap:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout recovery branch
+        uses: actions/checkout@v4
+        with:
+          ref: recovery/xray-modularization
+          fetch-depth: 0
+
+      - name: Fetch exact FongMi 5.6.0 baseline
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf /tmp/fongmi-upstream
+          git init /tmp/fongmi-upstream
+          cd /tmp/fongmi-upstream
+          git remote add origin https://github.com/FongMi/TV.git
+          git fetch --depth=1 origin 1a19fee278fa2234da725d61a53bf59b69fe9127
+          git checkout --detach FETCH_HEAD
+
+      - name: Populate recovery branch
+        shell: bash
+        run: |
+          set -euo pipefail
+          rsync -a             --exclude '.git/'             --exclude '.github/'             --exclude 'README.md'             /tmp/fongmi-upstream/ ./
+
+          cat > docs/recovery/UPSTREAM_BASELINE.md <<'EOF'
+          # Upstream baseline
+
+          The recovery branch is bootstrapped from:
+
+          - repository: FongMi/TV
+          - commit: 1a19fee278fa2234da725d61a53bf59b69fe9127
+          - app versionCode: 560
+          - app versionName: 5.6.0
+
+          The project-level README from FingMi-Xray is intentionally retained.
+          Xray reconstruction and modularization are applied on top of this exact baseline.
+          EOF
+
+      - name: Commit baseline
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          if git diff --cached --quiet; then
+            echo "Baseline already present"
+            exit 0
+          fi
+          git commit -m "recovery: bootstrap FongMi 5.6.0 source baseline"
+          git fetch origin recovery/xray-modularization
+          git rebase origin/recovery/xray-modularization
+          git push origin HEAD:recovery/xray-modularization
