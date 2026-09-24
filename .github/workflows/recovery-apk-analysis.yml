@@ -3,7 +3,7 @@ name: Recovery APK analysis
 on:
   push:
     branches:
-      - recovery/xray-modularization
+      - main
     paths:
       - ".github/workflows/recovery-apk-analysis.yml"
       - "recovery/input/**"
@@ -27,7 +27,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
         with:
-          ref: recovery/xray-modularization
+          ref: main
 
       - name: Set up Java
         uses: actions/setup-java@v4
@@ -144,6 +144,6 @@ jobs:
             exit 0
           fi
           git commit -m "recovery: analyze published APK [skip ci]"
-          git fetch origin recovery/xray-modularization
-          git rebase origin/recovery/xray-modularization
-          git push origin HEAD:recovery/xray-modularization
+          git fetch origin main
+          git rebase origin/main
+          git push origin HEAD:main
