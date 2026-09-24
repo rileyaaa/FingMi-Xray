@@ -6,6 +6,8 @@ on:
       - main
     paths:
       - "xray/**"
+      - "app/build.gradle"
+      - "app/src/leanback/**"
       - "libxray/**"
       - "scripts/fetch-libxray.sh"
       - "settings.gradle"
@@ -45,8 +47,8 @@ jobs:
           chmod +x scripts/fetch-libxray.sh
           scripts/fetch-libxray.sh
 
-      - name: Compile Xray module
+      - name: Compile Xray and TV app
         shell: bash
         run: |
           chmod +x gradlew
-          ./gradlew :xray:assembleDebug --stacktrace
+          ./gradlew :xray:assembleDebug :app:assembleLeanbackArm64_v8aDebug --stacktrace
