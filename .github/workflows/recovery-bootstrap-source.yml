@@ -3,7 +3,7 @@ name: Recovery bootstrap source
 on:
   push:
     branches:
-      - recovery/xray-modularization
+      - main
     paths:
       - ".github/workflows/recovery-bootstrap-source.yml"
   workflow_dispatch:
@@ -20,7 +20,7 @@ jobs:
       - name: Checkout recovery branch
         uses: actions/checkout@v4
         with:
-          ref: recovery/xray-modularization
+          ref: main
           fetch-depth: 0
 
       - name: Fetch exact FongMi 5.6.0 baseline
@@ -66,6 +66,6 @@ jobs:
             exit 0
           fi
           git commit -m "recovery: bootstrap FongMi 5.6.0 source baseline"
-          git fetch origin recovery/xray-modularization
-          git rebase origin/recovery/xray-modularization
-          git push origin HEAD:recovery/xray-modularization
+          git fetch origin main
+          git rebase origin/main
+          git push origin HEAD:main
