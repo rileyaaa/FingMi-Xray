@@ -22,6 +22,7 @@ android {
 }
 
 dependencies {
+    implementation fileTree(dir: "libs", include: ["*.aar"])
     implementation libs.okhttp
     coreLibraryDesugaring libs.desugar
 }
