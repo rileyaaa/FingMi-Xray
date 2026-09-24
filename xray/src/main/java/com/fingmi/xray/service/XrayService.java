@@ -78,8 +78,10 @@ public final class XrayService extends Service {
     public void onCreate() {
         super.onCreate();
         bridge = new LibXrayBridge();
-        configFactory = new XrayConfigFactory(bridge);
         certificatePins = new XrayCertificatePins(this);
+        XrayShareLinkSecurity shareLinkSecurity =
+                new XrayShareLinkSecurity(bridge, certificatePins);
+        configFactory = new XrayConfigFactory(bridge, shareLinkSecurity);
     }
 
     @Override
