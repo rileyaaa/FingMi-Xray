@@ -129,7 +129,7 @@ public final class XrayConfigFactory {
         return config;
     }
 
-    private static JSONObject dnsServer(String address) {
+    private static JSONObject dnsServer(String address) throws JSONException {
         return new JSONObject()
                 .put("address", address)
                 .put("unexpectedIPs", reservedNetworks());
