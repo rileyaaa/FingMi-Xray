@@ -65,7 +65,16 @@ jobs:
         run: |
           set -euo pipefail
           rm -rf recovery/work/jadx-out
-          recovery/work/jadx/bin/jadx             --deobf             --comments-level warn             -d recovery/work/jadx-out             recovery/work/fingmi.apk
+          set +e
+          recovery/work/jadx/bin/jadx \
+            --deobf \
+            --comments-level warn \
+            -d recovery/work/jadx-out \
+            recovery/work/fingmi.apk
+          jadx_status=$?
+          set -e
+          echo "JADX exit code: $jadx_status"
+          test -d recovery/work/jadx-out/sources
 
       - name: Build focused recovery report
         shell: bash
