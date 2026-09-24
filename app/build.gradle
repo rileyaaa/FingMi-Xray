@@ -104,6 +104,7 @@ dependencies {
     implementation project(':catvod')
     implementation project(':chaquo')
     implementation project(':quickjs')
+    implementation project(':xray')
     implementation libs.appcompat
     implementation libs.lifecycle.service
     implementation libs.media
