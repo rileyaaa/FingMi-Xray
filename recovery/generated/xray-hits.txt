@@ -685,10 +685,10 @@ recovery/work/jadx-out/sources/p000/ch0.java:32:                Thread thread3 =
 recovery/work/jadx-out/sources/p000/ez3.java:27:        this.f5412j.m4231d(this, "Xray service process died");
 recovery/work/jadx-out/sources/p000/ez3.java:32:        this.f5412j.m4231d(this, "Xray service binding died");
 recovery/work/jadx-out/sources/p000/ez3.java:37:        this.f5412j.m4231d(this, "Xray service returned no binder");
-recovery/work/jadx-out/sources/p000/ez3.java:60:                    IInterface iInterfaceQueryLocalInterface = iBinder.queryLocalInterface("com.fongmi.android.tv.xray.IXrayService");
-recovery/work/jadx-out/sources/p000/ez3.java:74:                    hz3Var.m4231d(this, "Xray service connection died");
-recovery/work/jadx-out/sources/p000/ez3.java:84:        this.f5412j.m4231d(this, "Xray service disconnected");
-recovery/work/jadx-out/sources/p000/ez3.java:88:        return "XrayBindConnection{" + this.f5409c + '}';
+recovery/work/jadx-out/sources/p000/ez3.java:59:                IInterface iInterfaceQueryLocalInterface = iBinder.queryLocalInterface("com.fongmi.android.tv.xray.IXrayService");
+recovery/work/jadx-out/sources/p000/ez3.java:73:                hz3Var.m4231d(this, "Xray service connection died");
+recovery/work/jadx-out/sources/p000/ez3.java:80:        this.f5412j.m4231d(this, "Xray service disconnected");
+recovery/work/jadx-out/sources/p000/ez3.java:84:        return "XrayBindConnection{" + this.f5409c + '}';
 recovery/work/jadx-out/sources/p000/et1.java:4:import com.fongmi.android.p002tv.xray.XrayService;
 recovery/work/jadx-out/sources/p000/et1.java:34:        XrayService xrayService = (XrayService) this.f5231h;
 recovery/work/jadx-out/sources/p000/et1.java:35:        int i = XrayService.f3215n;
