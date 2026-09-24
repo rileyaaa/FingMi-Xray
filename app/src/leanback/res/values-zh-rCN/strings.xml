@@ -17,4 +17,30 @@
     <string name="push_clip">推送剪贴板内容</string>
     <string name="push_info">使用手机扫描二维码，或于浏览器访问地址\n<xliff:g name="name">%s</xliff:g></string>
 
+
+    <!-- Xray -->
+    <string name="xray_changed_retry">连接测试期间 Xray 设置已修改，请重新测试。</string>
+    <string name="xray_delete">删除</string>
+    <string name="xray_deleted">Xray 配置已删除</string>
+    <string name="xray_error">Xray 错误</string>
+    <string name="xray_link">分享链接</string>
+    <string name="xray_link_hint">VLESS、VMess、Trojan、Shadowsocks 或 Hysteria 2 链接</string>
+    <string name="xray_live_required">请先选择直播频道再开启 Xray</string>
+    <string name="xray_not_configured">未配置</string>
+    <string name="xray_off">Xray 关</string>
+    <string name="xray_on">Xray 开</string>
+    <string name="xray_phone_import">手机导入</string>
+    <string name="xray_phone_received">已收到 Xray 链接，请确认后保存</string>
+    <string name="xray_phone_scan_info">手机扫码后在浏览器粘贴完整 Xray 分享链接并发送到电视\n%s</string>
+    <string name="xray_public_http_required">当前直播协议无法保证完整通过 Xray</string>
+    <string name="xray_save">保存</string>
+    <string name="xray_saved">Xray 配置已保存</string>
+    <string name="xray_setting">Xray 设置</string>
+    <string name="xray_starting">Xray 启动中</string>
+    <string name="xray_test">测试连接</string>
+    <string name="xray_test_success">连接成功，%1$d 毫秒</string>
+    <string name="xray_udp">UDP</string>
+    <string name="xray_vod_public_http_required">当前点播协议无法保证完整通过 Xray</string>
+    <string name="xray_vod_required">请先开始点播播放再开启 Xray</string>
+
 </resources>
