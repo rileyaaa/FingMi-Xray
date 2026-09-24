@@ -1,23 +1,7 @@
 name: Recovery module build
 
 on:
-  push:
-    branches:
-      - main
-    paths:
-      - "xray/**"
-      - "app/build.gradle"
-      - "app/src/leanback/**"
-      - "libxray/**"
-      - "scripts/fetch-libxray.sh"
-      - "settings.gradle"
-      - "gradle/wrapper/**"
-      - ".github/workflows/recovery-build.yml"
   workflow_dispatch:
-
-concurrency:
-  group: xray-build-${{ github.ref }}
-  cancel-in-progress: true
 
 jobs:
   xray:
