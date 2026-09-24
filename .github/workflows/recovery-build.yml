@@ -1,0 +1,39 @@
+name: Recovery module build
+
+on:
+  push:
+    branches:
+      - recovery/xray-modularization
+    paths:
+      - "xray/**"
+      - "settings.gradle"
+      - ".github/workflows/recovery-build.yml"
+  workflow_dispatch:
+
+jobs:
+  xray:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Configure local properties
+        shell: bash
+        run: |
+          cat > local.properties <<'EOF'
+          storeFile=/tmp/fingmi-recovery-placeholder.jks
+          keyAlias=placeholder
+          storePassword=placeholder
+          EOF
+
+      - name: Compile Xray module
+        shell: bash
+        run: |
+          chmod +x gradlew
+          ./gradlew :xray:assembleDebug --stacktrace
