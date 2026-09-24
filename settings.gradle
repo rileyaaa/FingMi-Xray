@@ -26,3 +26,4 @@ include ':chaquo'
 include ':quickjs'
 rootProject.name = "TV"
 include ':libxray'
+include ':xray'
