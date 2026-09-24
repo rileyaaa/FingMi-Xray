@@ -9,6 +9,7 @@ import android.os.RemoteException;
 import com.fingmi.xray.config.XrayConfigFactory;
 import com.fingmi.xray.core.LibXrayBridge;
 import com.fingmi.xray.security.XrayCertificatePins;
+import com.fingmi.xray.security.XrayShareLinkSecurity;
 import com.fingmi.xray.util.XrayErrorSanitizer;
 
 import org.json.JSONObject;
