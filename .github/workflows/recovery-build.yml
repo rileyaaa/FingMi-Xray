@@ -13,6 +13,10 @@ on:
       - ".github/workflows/recovery-build.yml"
   workflow_dispatch:
 
+concurrency:
+  group: xray-build-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   xray:
     runs-on: ubuntu-latest
