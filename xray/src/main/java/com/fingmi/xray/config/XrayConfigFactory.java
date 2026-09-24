@@ -6,6 +6,11 @@ import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import java.net.URI;
+import java.net.URLDecoder;
+import java.nio.charset.StandardCharsets;
+import java.util.Locale;
+
 public final class XrayConfigFactory {
 
     public static final String PROXY_TAG = "fongmi-xray-proxy";
@@ -54,6 +59,7 @@ public final class XrayConfigFactory {
 
         String normalized = XrayShareLinkNormalizer.normalize(shareLink);
         JSONObject converted = bridge.convertShareLink(normalized);
+        patchLiteralPlusCredential(normalized, converted);
         JSONObject config = new JSONObject(converted.toString());
 
         JSONArray outbounds = config.optJSONArray("outbounds");
@@ -127,6 +133,63 @@ public final class XrayConfigFactory {
 
         config.put("log", new JSONObject().put("loglevel", "warning"));
         return config;
+    }
+
+    private static void patchLiteralPlusCredential(String shareLink, JSONObject converted)
+            throws JSONException {
+        int colon = shareLink.indexOf(':');
+        if (colon <= 0) return;
+
+        String scheme = shareLink.substring(0, colon).toLowerCase(Locale.ROOT);
+        if (!scheme.equals("trojan")
+                && !scheme.equals("hy2")
+                && !scheme.equals("hysteria2")) {
+            return;
+        }
+
+        String authority = URI.create(shareLink).getRawAuthority();
+        if (authority == null) return;
+        int at = authority.lastIndexOf('@');
+        if (at < 0) return;
+
+        String credential = URLDecoder.decode(
+                authority.substring(0, at).replace("+", "%2B"),
+                StandardCharsets.UTF_8);
+        if (!credential.contains("+")) return;
+
+        JSONArray outbounds = converted.optJSONArray("outbounds");
+        if (outbounds == null || outbounds.length() != 1) {
+            throw new JSONException("Xray conversion returned an invalid outbound count");
+        }
+
+        JSONObject outbound = outbounds.optJSONObject(0);
+        if (outbound == null) {
+            throw new JSONException("Xray conversion returned an invalid outbound");
+        }
+
+        String protocol = outbound.optString("protocol").toLowerCase(Locale.ROOT);
+        if (scheme.equals("trojan")) {
+            if (!protocol.equals("trojan")) {
+                throw new JSONException("Trojan conversion returned the wrong protocol");
+            }
+            JSONObject settings = outbound.optJSONObject("settings");
+            if (settings == null) {
+                throw new JSONException("Trojan conversion returned invalid settings");
+            }
+            settings.put("password", credential);
+            return;
+        }
+
+        if (!protocol.equals("hysteria")) {
+            throw new JSONException("Hysteria2 conversion returned the wrong protocol");
+        }
+        JSONObject streamSettings = outbound.optJSONObject("streamSettings");
+        JSONObject hysteriaSettings =
+                streamSettings == null ? null : streamSettings.optJSONObject("hysteriaSettings");
+        if (hysteriaSettings == null) {
+            throw new JSONException("Hysteria2 conversion returned invalid settings");
+        }
+        hysteriaSettings.put("auth", credential);
     }
 
     private static JSONObject dnsServer(String address) throws JSONException {
