@@ -3,7 +3,7 @@ name: Recovery module build
 on:
   push:
     branches:
-      - recovery/xray-modularization
+      - main
     paths:
       - "xray/**"
       - "settings.gradle"
