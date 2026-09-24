@@ -23,6 +23,14 @@ function setting() {
     doAction('setting', { text: $('#setting_text').val(), name: $('#setting_name').val() });
 }
 
+function sendXray() {
+    const link = $('#xray_link').val().trim();
+    if (!link) return;
+    doAction('xray', { link });
+    $('#xray_link').val('');
+    warnToast('已发送到电视');
+}
+
 function sendDanmaku() {
     const text = $('#danmaku_text').val().trim();
     if (!text) return;
