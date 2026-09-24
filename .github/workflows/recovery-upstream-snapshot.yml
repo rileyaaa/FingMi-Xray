@@ -3,7 +3,7 @@ name: Recovery upstream snapshot
 on:
   push:
     branches:
-      - recovery/xray-modularization
+      - main
     paths:
       - ".github/workflows/recovery-upstream-snapshot.yml"
   workflow_dispatch:
