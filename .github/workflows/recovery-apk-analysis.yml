@@ -1,0 +1,138 @@
+name: Recovery APK analysis
+
+on:
+  push:
+    branches:
+      - recovery/xray-modularization
+    paths:
+      - ".github/workflows/recovery-apk-analysis.yml"
+      - "recovery/input/**"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  analyze:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    env:
+      APK_URL: https://github.com/rileyaaa/FingMi-Xray/releases/download/v5.6.0-xray.5/FongMi-Xray-TV-v5.6.0-xray.5-arm64-v8a.apk
+      APK_SHA256: b5ac05193c1e19809fc7ffb3048f7d75aaa2124eace9953d669f4a81a477c21d
+      JADX_VERSION: 1.5.6
+      JADX_SHA256: 545ea2be9c242511bc145755cf4bda2485ade42966e096f8b4d3da2a230e8974
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: recovery/xray-modularization
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Download APK
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p recovery/work
+          curl -fL --retry 3 --retry-delay 2 "$APK_URL" -o recovery/work/fingmi.apk
+          echo "$APK_SHA256  recovery/work/fingmi.apk" | sha256sum -c -
+
+      - name: Download JADX
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -fL --retry 3 --retry-delay 2             "https://github.com/skylot/jadx/releases/download/v${JADX_VERSION}/jadx-${JADX_VERSION}.zip"             -o recovery/work/jadx.zip
+          echo "$JADX_SHA256  recovery/work/jadx.zip" | sha256sum -c -
+          unzip -q recovery/work/jadx.zip -d recovery/work/jadx
+          chmod +x recovery/work/jadx/bin/jadx
+
+      - name: Inventory APK
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p recovery/generated
+          unzip -l recovery/work/fingmi.apk > recovery/generated/apk-entries.txt
+          unzip -Z1 recovery/work/fingmi.apk | grep -E '^lib/|classes[0-9]*\.dex$|AndroidManifest\.xml$'             > recovery/generated/apk-important-entries.txt || true
+
+      - name: Decompile with JADX
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf recovery/work/jadx-out
+          recovery/work/jadx/bin/jadx             --deobf             --comments-level warn             -d recovery/work/jadx-out             recovery/work/fingmi.apk
+
+      - name: Build focused recovery report
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p recovery/generated/focused-sources
+
+          if [ -f recovery/work/jadx-out/resources/AndroidManifest.xml ]; then
+            cp recovery/work/jadx-out/resources/AndroidManifest.xml recovery/generated/AndroidManifest.xml
+          fi
+
+          grep -RIlE             'Xray|xray|libXray|LibXray|VLESS|vless|VMess|vmess|Trojan|trojan|Hysteria|hysteria|SOCKS|socks'             recovery/work/jadx-out/sources recovery/work/jadx-out/resources             2>/dev/null | sort > recovery/generated/xray-related-files.txt || true
+
+          grep -RInE             'Xray|xray|libXray|LibXray|VLESS|vless|VMess|vmess|Trojan|trojan|Hysteria|hysteria|SOCKS|socks'             recovery/work/jadx-out/sources recovery/work/jadx-out/resources             2>/dev/null | head -n 5000 > recovery/generated/xray-hits.txt || true
+
+          while IFS= read -r file; do
+            case "$file" in
+              recovery/work/jadx-out/sources/*)
+                rel="${file#recovery/work/jadx-out/sources/}"
+                mkdir -p "recovery/generated/focused-sources/$(dirname "$rel")"
+                cp "$file" "recovery/generated/focused-sources/$rel"
+                ;;
+            esac
+          done < recovery/generated/xray-related-files.txt
+
+          source_count=$(find recovery/work/jadx-out/sources -type f 2>/dev/null | wc -l | tr -d ' ')
+          focused_count=$(find recovery/generated/focused-sources -type f 2>/dev/null | wc -l | tr -d ' ')
+          dex_count=$(unzip -Z1 recovery/work/fingmi.apk | grep -Ec '^classes([0-9]+)?\.dex$' || true)
+          so_count=$(unzip -Z1 recovery/work/fingmi.apk | grep -Ec '^lib/.+\.so$' || true)
+
+          cat > recovery/generated/report.md <<EOF
+          # APK recovery report
+
+          Generated automatically from the published FingMi-Xray APK.
+
+          - Release: v5.6.0-xray.5
+          - ABI analyzed: arm64-v8a
+          - APK SHA-256: `$APK_SHA256`
+          - JADX: `$JADX_VERSION`
+          - Decompiled source files: $source_count
+          - Focused Xray-related source files: $focused_count
+          - DEX files: $dex_count
+          - Native .so entries: $so_count
+          - Upstream baseline: FongMi/TV `1a19fee278fa2234da725d61a53bf59b69fe9127` (5.6.0)
+
+          The files under `focused-sources/` are unreviewed decompiler output.
+          They are evidence for reconstruction, not the final maintained source tree.
+          EOF
+
+      - name: Upload full JADX output
+        uses: actions/upload-artifact@v4
+        with:
+          name: fingmi-jadx-arm64-v5.6.0-xray.5
+          path: recovery/work/jadx-out
+          retention-days: 14
+          compression-level: 6
+
+      - name: Commit focused recovery evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add recovery/generated
+          if git diff --cached --quiet; then
+            echo "No generated changes"
+            exit 0
+          fi
+          git commit -m "recovery: analyze published APK [skip ci]"
+          git push origin HEAD:recovery/xray-modularization
