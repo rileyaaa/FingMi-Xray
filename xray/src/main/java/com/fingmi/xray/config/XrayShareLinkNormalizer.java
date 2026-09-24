@@ -19,7 +19,7 @@ public final class XrayShareLinkNormalizer {
     private static final Set<String> SUPPORTED =
             Set.of("vless", "vmess", "trojan", "ss", "hy2", "hysteria2");
     private static final Pattern VMESS_PORT = Pattern.compile(
-            "\\"port\\"\\s*:\\s*(?:\\"([+-]?\\d+)\\"|([+-]?\\d+(?:\\.\\d+)?(?:[eE][+-]?\\d+)?))");
+            "\"port\"\\s*:\\s*(?:\"([+-]?\\d+)\"|([+-]?\\d+(?:\\.\\d+)?(?:[eE][+-]?\\d+)?))");
     private static final Pattern SHA256 = Pattern.compile("(?i)[0-9a-f]{64}");
 
     private XrayShareLinkNormalizer() {
