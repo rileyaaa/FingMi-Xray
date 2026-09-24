@@ -6,6 +6,8 @@ on:
       - main
     paths:
       - "xray/**"
+      - "libxray/**"
+      - "scripts/fetch-libxray.sh"
       - "settings.gradle"
       - "gradle/wrapper/**"
       - ".github/workflows/recovery-build.yml"
