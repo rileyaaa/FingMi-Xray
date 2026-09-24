@@ -1,6 +1,7 @@
 package com.fingmi.xray.config;
 
 import com.fingmi.xray.core.LibXrayBridge;
+import com.fingmi.xray.security.XrayShareLinkSecurity;
 
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -49,15 +50,18 @@ public final class XrayConfigFactory {
     };
 
     private final LibXrayBridge bridge;
+    private final XrayShareLinkSecurity security;
 
-    public XrayConfigFactory(LibXrayBridge bridge) {
+    public XrayConfigFactory(LibXrayBridge bridge, XrayShareLinkSecurity security) {
         this.bridge = bridge;
+        this.security = security;
     }
 
     public JSONObject create(int socksPort, String shareLink, boolean udp) throws Exception {
         if (socksPort <= 0) throw new IllegalArgumentException("A positive SOCKS port is required");
 
         String normalized = XrayShareLinkNormalizer.normalize(shareLink);
+        normalized = security.secure(normalized);
         JSONObject converted = bridge.convertShareLink(normalized);
         patchLiteralPlusCredential(normalized, converted);
         JSONObject config = new JSONObject(converted.toString());
