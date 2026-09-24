@@ -25,4 +25,3 @@ include ':catvod'
 include ':chaquo'
 include ':quickjs'
 rootProject.name = "TV"
-include ':xray'

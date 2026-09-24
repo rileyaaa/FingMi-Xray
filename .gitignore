@@ -9,4 +9,3 @@
 lib-*.aar
 /Release
 /docs
-/xray/libs/*.aar
