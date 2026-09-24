@@ -42,35 +42,39 @@ public final class ez3 implements ServiceConnection, IBinder.DeathRecipient {
         j91 j91Var;
         hz3 hz3Var = this.f5412j;
         synchronized (hz3Var) {
-            if (this != hz3Var.f7572e) {
-                try {
-                    hz3Var.f7568a.unbindService(this);
-                } catch (IllegalArgumentException unused) {
-                }
-                return;
-            }
-            App.m1883c(this.f5410h);
-            hz3Var.f7576i = false;
-            this.f5411i = iBinder;
-            int i = uz3.f18804e;
-            if (iBinder == null) {
-                j91Var = null;
-            } else {
-                IInterface iInterfaceQueryLocalInterface = iBinder.queryLocalInterface("com.fongmi.android.tv.xray.IXrayService");
-                if (iInterfaceQueryLocalInterface == null || !(iInterfaceQueryLocalInterface instanceof j91)) {
-                    i91 i91Var = new i91();
-                    i91Var.f7864d = iBinder;
-                    j91Var = i91Var;
-                } else {
-                    j91Var = (j91) iInterfaceQueryLocalInterface;
-                }
-            }
-            hz3Var.f7570c = j91Var;
             try {
-                iBinder.linkToDeath(this, 0);
-                hz3Var.m4229b();
-            } catch (RemoteException unused2) {
-                hz3Var.m4231d(this, "Xray service connection died");
+                if (this != hz3Var.f7572e) {
+                    try {
+                        hz3Var.f7568a.unbindService(this);
+                    } catch (IllegalArgumentException unused) {
+                    }
+                    return;
+                }
+                App.m1883c(this.f5410h);
+                hz3Var.f7576i = false;
+                this.f5411i = iBinder;
+                int i = uz3.f18804e;
+                if (iBinder == null) {
+                    j91Var = null;
+                } else {
+                    IInterface iInterfaceQueryLocalInterface = iBinder.queryLocalInterface("com.fongmi.android.tv.xray.IXrayService");
+                    if (iInterfaceQueryLocalInterface == null || !(iInterfaceQueryLocalInterface instanceof j91)) {
+                        i91 i91Var = new i91();
+                        i91Var.f7864d = iBinder;
+                        j91Var = i91Var;
+                    } else {
+                        j91Var = (j91) iInterfaceQueryLocalInterface;
+                    }
+                }
+                hz3Var.f7570c = j91Var;
+                try {
+                    iBinder.linkToDeath(this, 0);
+                    hz3Var.m4229b();
+                } catch (RemoteException unused2) {
+                    hz3Var.m4231d(this, "Xray service connection died");
+                }
+            } catch (Throwable th) {
+                throw th;
             }
         }
     }
