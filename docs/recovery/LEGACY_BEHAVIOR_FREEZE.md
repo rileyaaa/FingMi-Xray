@@ -1,6 +1,6 @@
 # Legacy behavior freeze
 
-This document freezes behavior recovered from the shipped `v5.6.0-xray.5` arm64 APK.
+This document freezes behavior recovered from both published `v5.6.0-xray.5` APKs. The armeabi-v7a build is the primary runtime baseline (the deployed ABI); arm64-v8a is used as a cross-check.
 
 The rule for the recovery phase is simple:
 
