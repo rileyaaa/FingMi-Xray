@@ -16,11 +16,10 @@ import java.util.regex.Pattern;
 /**
  * Behavior-oriented reconstruction of the shipped node normalizer (R8 name: a04).
  *
- * JADX has several visibly impossible/inverted predicates after R8. Predicates
- * whose surrounding control flow proves the intended branch are documented
- * inline. The remaining authority port-hopping predicate was verified directly
- * against the published v7 and v8 DEX: both ',' and '-' indexOf hits branch to
- * the hopping rewrite, while neither hit branches back to the unchanged path.
+ * JADX has several visibly impossible/inverted predicates after R8. All known
+ * repaired predicates in this class have now been checked directly against the
+ * published v7 and v8 DEX. The comments below retain the relevant decompiler
+ * failure mode so later refactors do not accidentally "restore" the bad JADX.
  */
 public final class LegacyXrayShareLinkNormalizer {
 
@@ -382,9 +381,9 @@ public final class LegacyXrayShareLinkNormalizer {
         String obfs = obfsIndex < 0 ? null : parts.get(obfsIndex).value;
         String password = passwordIndex < 0 ? null : parts.get(passwordIndex).value;
 
-        // JADX emits the impossible "obfs == null && !obfs.isEmpty()".
-        // The following password-without-type branch and all supported obfs
-        // validation require the non-null/non-empty branch below.
+        // DEX-verified: a null obfs value skips this block; for non-null values,
+        // String.isEmpty()==false enters the validation block. JADX emitted the
+        // impossible "obfs == null && !obfs.isEmpty()".
         if (obfs != null && !obfs.isEmpty()) {
             String lower = obfs.toLowerCase(Locale.ROOT);
             if (!obfs.equals(lower)) {
@@ -474,9 +473,9 @@ public final class LegacyXrayShareLinkNormalizer {
             String portValue = matcher.group(1) != null ? matcher.group(1) : matcher.group(2);
             try {
                 BigDecimal port = new BigDecimal(portValue).stripTrailingZeros();
-                // JADX shows scale <= 0 as invalid, which would reject every
-                // ordinary integral VMess port (including 443). The port must
-                // instead be invalid only when a fractional scale remains.
+                // DEX-verified: BigDecimal.scale() is followed by if-gtz to
+                // the invalid-port branch. Integral values (scale <= 0) remain
+                // valid here; JADX inverted this comparison.
                 if (port.scale() > 0
                         || port.compareTo(BigDecimal.ONE) < 0
                         || port.compareTo(BigDecimal.valueOf(65_535L)) > 0) {
@@ -513,9 +512,8 @@ public final class LegacyXrayShareLinkNormalizer {
             if (close + 1 == endpoint.length()) {
                 return new HostPort(userInfo + endpoint, null);
             }
-            // JADX shows ':' here as the error branch, but the next statement
-            // consumes close + 2 as the port start. Therefore '[host]:port'
-            // is the valid form and any other trailing character is invalid.
+            // DEX-verified: charAt(close + 1) is compared with ':' and if-ne
+            // jumps to the invalid-port branch. '[host]:port' is the valid form.
             if (endpoint.charAt(close + 1) != ':') {
                 throw new IllegalArgumentException("Xray link port is invalid");
             }
@@ -526,9 +524,9 @@ public final class LegacyXrayShareLinkNormalizer {
 
         int lastColon = endpoint.lastIndexOf(':');
         if (lastColon < 0) return new HostPort(userInfo + endpoint, null);
-        // JADX shows a single ':' as invalid, which would reject every normal
-        // host:port authority. Multiple unbracketed colons are the invalid
-        // case; a single colon is then split into host prefix and port.
+        // DEX-verified: indexOf(':') is compared with lastIndexOf(':') and
+        // if-ne jumps to the invalid-port branch. A single colon is valid;
+        // multiple unbracketed colons are rejected.
         if (endpoint.indexOf(':') != lastColon) {
             throw new IllegalArgumentException("Xray link port is invalid");
         }
