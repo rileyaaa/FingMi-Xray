@@ -156,6 +156,7 @@ public class VodPlaybackController {
         if (!state.hasFlags()) return;
         Flag selected = resolveFlag(item);
         if (!force && selected.isSelected()) return;
+        host.resetXrayForPlaybackChange();
         clearPreload();
         for (Flag flag : state.getFlags()) flag.setSelected(selected);
         host.renderFlagSelection(selected);
@@ -166,6 +167,7 @@ public class VodPlaybackController {
 
     public void selectEpisode(Episode item) {
         if (!state.hasFlags()) return;
+        host.resetXrayForPlaybackChange();
         saveCurrentHistory();
         Flag selected = state.getFlag();
         for (Flag flag : state.getFlags()) flag.toggle(flag == selected, item);
@@ -223,6 +225,7 @@ public class VodPlaybackController {
 
     private void switchSource(Vod item, boolean autoFallback) {
         state.setAutoFallback(autoFallback);
+        host.resetXrayForPlaybackChange();
         saveCurrentHistory();
         clearPreload();
         state.clearPlayRequest();
@@ -255,6 +258,7 @@ public class VodPlaybackController {
     }
 
     public void refresh() {
+        host.resetXrayForPlaybackChange();
         saveCurrentHistory();
         clearPreload();
         host.stopPlaybackForRefresh();
