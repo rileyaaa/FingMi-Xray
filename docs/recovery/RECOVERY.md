@@ -28,8 +28,9 @@ Recover the maintainable source for the published `v5.6.0-xray.5` APK and refact
 5. Move Xray ownership into an Android library module.
 6. Keep app-side changes limited to adapter/integration points.
 7. Once the recovery layer passes static review, build locally if the Android
-   toolchain is available, then verify behavior before modularizing Xray. Ask
-   the project owner before spending GitHub Actions minutes.
+   toolchain is available, then verify behavior before modularizing Xray. The
+   owner granted two no-ask opportunities for necessary GitHub Actions runs;
+   see `WORKLOG.md` for the remaining count and dependency gates.
 
 ## Important behavior that must survive reconstruction
 
@@ -61,4 +62,5 @@ Recovery work is recorded directly on `main`, as requested by the project
 owner. The faithful recovery source stays under `recovery/legacy-src/` until
 its APK behavior and integration points are fully checked. Compilation follows
 that static gate; use the local toolchain if possible. GitHub Actions remain
-manual-only and require the owner's advance approval.
+manual-only, with no-ask runs limited to the owner's two opportunities recorded
+in `WORKLOG.md`.

@@ -30,6 +30,15 @@ rm -rf "$WORK_DIR/.git"
 # reconstructed from v5.6.0-xray.5.
 cp -a "$OVERLAY/." "$WORK_DIR/"
 
+# FongMi keeps its custom player lib-*.aar files out of Git. When a developer
+# supplies the matching binaries locally, retain them in the disposable
+# faithful workspace; the upstream checkout cannot provide them by itself.
+for player_aar in "$ROOT"/app/libs/lib-*.aar; do
+  [ -f "$player_aar" ] || continue
+  mkdir -p "$WORK_DIR/app/libs"
+  cp -a "$player_aar" "$WORK_DIR/app/libs/"
+done
+
 # The readable legacy Xray implementation itself is deliberately kept outside
 # the upstream-shaped overlay. Install it into the original app package only
 # for the faithful build workspace.
