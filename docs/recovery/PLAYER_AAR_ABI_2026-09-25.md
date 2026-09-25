@@ -30,6 +30,8 @@ python3 scripts/restore-published-ffmpegjni.py --candidate /path/to/FingMi-media
 
 本轮只有历史 JADX ZIP，没有可在 shell 下载且独立核总 SHA 的两份原始 APK；用 JADX ZIP 冒充 APK 的负例已被输入哈希校验拒绝，**尚未运行真实替换或通过新 AAR 构建**。取得原 APK 后应再对新 AAR 运行 `check-player-ffmpegjni-against-published.py --aar-dir`（放入临时目录）并核候选的其他依赖，再决定如何安全安装入本地 `app/libs/`。
 
+另外用 `recovery/legacy-tests/test_restore_ffmpegjni.py` 的纯 Python 假 APK/AAR 跑了成功路径：只替换两件 JNI，`classes.jar` 逐字节不动。首轮测试暴露 `ZipFile.writestr(ZipInfo, ...)` 会原地改变源 entry 的 CRC/size，使后续源读取报 `Bad CRC-32`；已用 `copy(info)` 写新包、按名称惰性读取未替换项修复。测试随后通过。**假包测试只证明重包算法，不证明已取得/核实发布 APK 或真实 AAR 安装。**
+
 ## 复核命令
 
 ```bash

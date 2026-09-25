@@ -6,6 +6,7 @@ the candidate AAR or install the result into app/libs automatically.
 """
 
 import argparse
+from copy import copy
 import hashlib
 from io import BytesIO
 from pathlib import Path
@@ -72,13 +73,16 @@ def main() -> None:
             output = BytesIO()
             with ZipFile(output, "w") as target:
                 for info in source.infolist():
-                    target.writestr(info, replacement.get(info.filename,
-                                                         source.read(info.filename)))
+                    # writestr updates the passed ZipInfo CRC/size in place;
+                    # retain the source object's metadata for verification.
+                    data = (replacement[info.filename] if info.filename in replacement
+                            else source.read(info.filename))
+                    target.writestr(copy(info), data)
             with ZipFile(BytesIO(output.getvalue())) as restored:
                 if set(restored.namelist()) != set(names) or len(restored.namelist()) != len(names):
                     raise ValueError("restored AAR entry set changed")
                 for name in names:
-                    wanted = replacement.get(name, source.read(name))
+                    wanted = replacement[name] if name in replacement else source.read(name)
                     if restored.read(name) != wanted:
                         raise ValueError(f"unexpected entry change: {name}")
         args.to.write_bytes(output.getvalue())
