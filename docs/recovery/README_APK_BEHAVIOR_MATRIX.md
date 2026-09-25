@@ -123,7 +123,7 @@
 | 防止旧首页请求晚到覆盖新页面 | recovery 前取消 RESULT future | legacy `SiteViewModel.cancelResultRequest()` | ✅ |
 | 等系统网络稳定再重新请求 | 每 500ms；连续 2 次 INTERNET；最多约 12 次 | legacy `HomeActivity` | ✅ |
 | 不误杀允许继续的后台媒体播放 | Home recovery 只替换 normal API client，不 reset player client | legacy `OkHttp.resetApiNetworkForResume()` | ✅ |
-| DLNA 服务随真正前后台/SCREEN 状态收口 | `gn3` start/stop DLNARendererService | `TvNetworkLifecycle` | 🟨 |
+| DLNA 服务随真正前后台/SCREEN 状态收口 | `gn3` + SCREEN_ON/OFF receiver 已用 v7 APK 逐段核对 | `TvNetworkLifecycle` | ✅ |
 
 ## 资源 / Manifest / UI 补丁
 
