@@ -375,6 +375,19 @@ public class PlayerManager implements ParseCallback {
         if (spec != null) rebuildEngineForXrayTransition();
     }
 
+    /**
+     * Equivalent to the shipped VideoActivity.m2050O1()/Live reset path:
+     * forget Xray for the next playback identity without rebuilding the
+     * current engine immediately. The next start sees an engine/port mismatch
+     * and rebuilds exactly once.
+     */
+    public synchronized void resetXrayForNextPlayback() {
+        xrayRestore = null;
+        if (xrayPort == 0) return;
+        xrayPort = 0;
+        clearPreload();
+    }
+
     public void setEngine(int targetEngine) {
         PlayerSetting.putEngine(targetEngine);
         if (isEmpty() || PlayerEngineFactory.matches(engine, spec, xrayPort)) return;
