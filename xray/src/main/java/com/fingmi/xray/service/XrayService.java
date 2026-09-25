@@ -255,8 +255,13 @@ public final class XrayService extends Service {
     private void resetSecurityInternal(long operationId, IXrayCallback callback) {
         try {
             ensureOperationCurrent(operationId);
-            certificatePins.clear();
-            ensureOperationCurrent(operationId);
+            XrayCertificatePins.resetAll(this);
+            synchronized (this) {
+                certificatePins = new XrayCertificatePins(this);
+                configFactory = new XrayConfigFactory(
+                        bridge,
+                        new XrayShareLinkSecurity(bridge, certificatePins));
+            }
             send(callback, operationId, XrayOperation.RESET_SECURITY, true, 0, -1L, "");
         } catch (Exception error) {
             send(

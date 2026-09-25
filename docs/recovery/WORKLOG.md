@@ -123,3 +123,4 @@
 - 本轮继续比较实验性 `xray/` 的分享链接归一化器与双 ABI DEX 已校正的恢复类，发现 Hysteria2 参数/编码/默认端口顺序及 VMess fragment 处理漂移。将实验类代码对齐恢复类，仅替换包和类名；规范化后逐字节一致。`XRAY_MODULE_BOUNDARY_2026-09-25.md` 留存限制；仍未编译、运行或正式迁移。未开启新的 Actions。
 - 继续静态对照实验模块 `XrayService`：修正 VALIDATE/TEST 端口分配及配置创建的重试作用域，START/STOP 无法投递时用带精确 ID 的 cancel 门防止旧操作直接杀死新会话，线程 daemon 设置同发布恢复层。`XrayShareLinkSecurity` 修复旧存储 pin 的大小写比较、WebSocket SNI 后备键的精确匹配、IPv6 地址筛选；其他传输安全查询重写仍有差异，已记模块边界。未编译、未跑设备。
 - 核 `XrayConfigFactory` 与发布版恢复类：单出口、私网黑洞、DNS 服务器、SOCKS 入站规则的常量和顺序静态吻合；补齐证书安全处理后的第二次归一化。传输安全类原有较多查询重写偏差，现以已核 DEX 的恢复类实现为基准，适配模块包/类及 bridge 的 JSONArray 参数；规范化适配后的源码逐字节一致。仍有实验配置额外的端口早停与 AIDL descriptor 等门槛。无新 Actions、Java 编译或电视设备回归。
+- 对照证书存储发现实验类原先静默吞掉迁移异常、重置时双存储与密钥清理顺序不同；已将 `XrayCertificatePins` 适配为恢复层 `LegacyXrayCertificateStore` 同实现，`XrayService.resetSecurityInternal` 改按原版调用 `resetAll(this)` 并重建依赖。仅静态核对；原始 APK 字节码的结论及后续模块测试门槛见模块边界文档。无新 AC。

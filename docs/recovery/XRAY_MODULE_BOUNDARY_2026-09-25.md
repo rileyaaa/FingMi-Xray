@@ -44,3 +44,5 @@
 实验性 `XrayService` 已把 VALIDATE/TEST 的端口分配、配置创建纳入原版同样的绑定错误重试区间；START/STOP 回调无法投递且清理失败时改为带 operation ID 的 `cancelInternal`，旧回调不会直接杀掉新会话；工作线程设为 daemon，与恢复层一致。`XrayShareLinkSecurity` 对齐了证书存储值原样 ASCII 比较、WebSocket `type`/`host` 的精确小写键和 IPv6 字面地址检查。这是局部静态对齐，实验模块的证书重置、查询重写、AIDL descriptor 以及完整配置等仍须核对；没有编译或设备验证。
 
 续查配置生成时，实验类原先少一次证书处理后的链接归一化，已对齐恢复层。实验传输安全类的查询重写与恢复类差异包括证书已有值时的键规范化、原始百分号字节保留、Hysteria2 空查询问号、TLS `security` 值小写及 IPv6 字面值；现以恢复类源码对齐，只适配模块包/类型与 `LibXrayBridge` 的 JSONArray ALPN 参数，适配后静态逐字节核对一致。配置构造本身仍有 `socksPort <= 0` 的实验性额外早停；模块其余依赖、AIDL/Manifest、APK 构建和设备行为未验。
+
+证书存储 `XrayCertificatePins` 现直接适配 `LegacyXrayCertificateStore`（仅模块包/类名变化），其迁移和重置时的存储提交顺序、错误传播及 Android Keystore 删除与已核恢复层相同。实验 `XrayService.resetSecurityInternal` 调用该 `resetAll()` 并重建存储与安全配置帮助对象，静态控制流对齐。AIDL 协议、资源/Manifest 连接、编译和 TV 真机仍待验。
