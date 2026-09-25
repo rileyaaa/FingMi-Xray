@@ -56,3 +56,4 @@
 - 2026-09-25 设置页导入/销毁可能误杀服务：普通设置页手机导入调用 `XraySettingsController.cancel()`，销毁 `close()` 也调用 cancel；恢复层在两处只清本地代际并解绑，45 秒超时才精确向远端取消。按恢复控制流调整导入与 close，超时仍保留精确 operation ID cancel。静态校验调用点，真实进程竞争待验。
 - 2026-09-25 实验节点密文读回绕过兼容归一化：`XrayPreferences.getShareLink()` 原只 trim 解密结果，恢复版在读回时调用 `LegacyXrayShareLinkNormalizer.normalize`。现对齐存储类及保存入口，保持偏好名称与 Keystore alias 不变；需拿已保存旧链接的真机验证。
 - 2026-09-25 普通 app 待机网络恢复缺口：当前 Home/OkHttp/OkDns/BaseLoader 不含已验证的发布版网络代际及清理链路。将 recovery overlay 的 5 文件（含新 `TvNetworkLifecycle`）接入普通 app，`OkHttp.resetApiNetworkForResume()` 保留播放器客户端，Spider 清理后才开始网络稳定轮询；原 Home 的 DLNA 调用由生命周期类接管。静态文件核对，未编译/真机复现。
+- 2026-09-25 普通 app 网络恢复接线的缺符号：Home 加入 `mViewModel.cancelResultRequest()` 后，普通 `SiteViewModel` 尚未有该方法；恢复覆盖层已有 `tasks.cancel(TaskType.RESULT)`。已补相同方法，静态检查其他新增调用/权限，未运行 Java/Gradle 编译。

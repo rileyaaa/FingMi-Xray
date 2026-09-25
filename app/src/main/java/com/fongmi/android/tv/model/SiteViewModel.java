@@ -84,6 +84,15 @@ public class SiteViewModel extends ViewModel {
         });
     }
 
+    /**
+     * Recovered HomeActivity network-generation transition: invalidate the
+     * in-flight RESULT request so a response from the stale socket generation
+     * cannot overwrite the freshly reloaded home data.
+     */
+    public void cancelResultRequest() {
+        tasks.cancel(TaskType.RESULT);
+    }
+
     public void stopSearch() {
         searches.stop();
     }
