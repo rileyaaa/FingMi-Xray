@@ -8,6 +8,8 @@ import com.fongmi.android.tv.bean.Sub;
 import com.fongmi.android.tv.player.effect.PlayerEffect;
 import com.fongmi.android.tv.player.media.PlaySpec;
 
+import okhttp3.OkHttpClient;
+
 /**
  * FongMi 5.6.0 PlayerEngine reconstructed with the shipped FingMi-Xray delta.
  */
@@ -27,6 +29,14 @@ public interface PlayerEngine {
      */
     default int getXrayPort() {
         return 0;
+    }
+
+    /**
+     * Final APK exposes the per-session proxy client through the active Exo engine.
+     * Non-Xray/non-Exo engines return null.
+     */
+    default OkHttpClient getXrayHttpClient() {
+        return null;
     }
 
     void release();
