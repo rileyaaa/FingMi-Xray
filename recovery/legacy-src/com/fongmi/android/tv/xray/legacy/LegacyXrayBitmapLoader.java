@@ -87,7 +87,10 @@ public final class LegacyXrayBitmapLoader implements BitmapLoader {
     }
 
     private static boolean isLocal(Uri uri) {
-        if (uri == null) return true;
+        // DEX-verified in rf2.e(Uri): a null Uri leaves the local flag false.
+        // This means it is blocked while Xray is active and otherwise tracked
+        // with the cancellable remote-artwork futures.
+        if (uri == null) return false;
 
         String scheme = uri.getScheme();
         if (scheme == null || scheme.isBlank()) return true;
