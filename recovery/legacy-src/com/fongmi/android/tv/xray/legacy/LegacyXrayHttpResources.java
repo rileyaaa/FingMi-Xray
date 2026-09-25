@@ -25,7 +25,15 @@ public final class LegacyXrayHttpResources implements AutoCloseable {
                         1,
                         5L,
                         TimeUnit.SECONDS,
-                        new LinkedBlockingQueue<>());
+                        new LinkedBlockingQueue<>(),
+                        runnable -> {
+                            Thread thread =
+                                    new Thread(
+                                            runnable,
+                                            "XrayProxyCleanup");
+                            thread.setDaemon(true);
+                            return thread;
+                        });
         CLEANUP_EXECUTOR.allowCoreThreadTimeOut(true);
     }
 
