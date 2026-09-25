@@ -256,6 +256,8 @@ public final class LegacyXrayShareLinkNormalizer {
     }
 
     private static String normalizeHysteria2(String value) {
+        // Match the final APK's transformation order exactly:
+        // authority hopping -> mport -> default :443 -> pinSHA256 -> obfs.
         value = normalizeHysteriaAuthorityPortHopping(value);
 
         List<QueryPart> parts = parseQuery(rawQuery(value));
@@ -272,6 +274,8 @@ public final class LegacyXrayShareLinkNormalizer {
             }
             validatePortExpression(mport.value);
 
+            // Final a04 preserves the original raw mport value byte-for-byte
+            // and only renames the key to ports.
             int equals = mport.raw.indexOf('=');
             parts.set(
                     mportIndex,
@@ -281,6 +285,10 @@ public final class LegacyXrayShareLinkNormalizer {
                             mport.value,
                             true));
         }
+
+        value = replaceRawQuery(value, joinRawQuery(parts));
+        value = ensureHysteriaDefaultPort(value);
+        parts = parseQuery(rawQuery(value));
 
         int pcsIndex = firstIndex(parts, "pcs");
         int pinIndex = uniqueIndex(
@@ -302,12 +310,13 @@ public final class LegacyXrayShareLinkNormalizer {
             }
             parts.set(
                     pinIndex,
-                    QueryPart.encoded("pcs", fingerprint.toLowerCase(Locale.ROOT)));
+                    QueryPart.encoded(
+                            "pcs",
+                            fingerprint.toLowerCase(Locale.ROOT)));
         }
 
         validateHysteriaObfuscation(parts);
-        value = replaceRawQuery(value, joinRawQuery(parts));
-        return ensureHysteriaDefaultPort(value);
+        return replaceRawQuery(value, joinRawQuery(parts));
     }
 
     private static String normalizeHysteriaAuthorityPortHopping(String value) {
@@ -332,7 +341,15 @@ public final class LegacyXrayShareLinkNormalizer {
                 + rewrittenAuthority
                 + value.substring(range.end);
         parts = parseQuery(rawQuery(rewritten));
-        parts.add(0, QueryPart.encoded("ports", hostPort.port));
+        // a04 inserts the original expression literally ("ports=" + raw),
+        // not through URLEncoder. Commas/hyphens therefore remain unchanged.
+        parts.add(
+                0,
+                new QueryPart(
+                        "ports=" + hostPort.port,
+                        "ports",
+                        hostPort.port,
+                        true));
         return replaceRawQuery(rewritten, joinRawQuery(parts));
     }
 
