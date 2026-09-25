@@ -14,6 +14,43 @@ public final class LegacyXrayPlaybackAddress {
     private LegacyXrayPlaybackAddress() {
     }
 
+    /**
+     * Raw live-channel URLs have one extra rule in the shipped APK. HTTP(S)
+     * .strm links and YouTube URLs are indirections which must first be
+     * resolved by FongMi; they cannot be proxied directly before a real
+     * playback session exists. Non-HTTP public RTSP/RTSPT URLs remain valid.
+     */
+    public static boolean isDirectLiveSourceSupported(String value) {
+        if (!isSupportedPublicAddress(value)) return false;
+
+        try {
+            URI uri = URI.create(value.trim());
+            String scheme =
+                    uri.getScheme() == null
+                            ? ""
+                            : uri.getScheme().toLowerCase(Locale.ROOT);
+
+            if (!"http".equals(scheme) && !"https".equals(scheme)) {
+                return true;
+            }
+
+            String path =
+                    uri.getPath() == null
+                            ? ""
+                            : uri.getPath().toLowerCase(Locale.ROOT);
+            String host =
+                    uri.getHost() == null
+                            ? ""
+                            : uri.getHost().toLowerCase(Locale.ROOT);
+
+            return !path.endsWith(".strm")
+                    && !host.contains("youtube.com")
+                    && !host.contains("youtu.be");
+        } catch (IllegalArgumentException ignored) {
+            return false;
+        }
+    }
+
     public static boolean isSupportedPublicAddress(String value) {
         if (isBlank(value)) return false;
 
