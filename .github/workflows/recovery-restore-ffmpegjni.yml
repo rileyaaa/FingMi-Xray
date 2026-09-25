@@ -1,4 +1,4 @@
-name: Restore published FFmpeg JNI
+name: Prepare faithful native dependencies
 
 on:
   workflow_dispatch:
@@ -59,10 +59,39 @@ jobs:
             sha256sum recovery/work/restored/lib-decoder-ffmpeg-release.aar
           } > recovery/work/restored/RESTORE_MANIFEST.txt
 
-      - name: Upload checked decoder AAR only
+      - name: Fetch pinned official libXray AAR
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash scripts/fetch-libxray.sh
+          test -s libxray/libs/libXray.aar
+          python3 - <<'PY'
+          from io import BytesIO
+          from pathlib import Path
+          from runpy import run_path
+          from zipfile import ZipFile
+
+          methods = run_path('scripts/check-player-java-api.py')['class_methods']
+          with ZipFile(Path('libxray/libs/libXray.aar')) as aar:
+              with ZipFile(BytesIO(aar.read('classes.jar'))) as jar:
+                  actual = methods(jar.read('libXray/LibXray.class'))
+              expected = ('invoke', '(Ljava/lang/String;)Ljava/lang/String;')
+              if expected not in actual:
+                  raise SystemExit('official libXray AAR lacks invoke(String): String')
+              for abi in ('armeabi-v7a', 'arm64-v8a'):
+                  if f'jni/{abi}/libgojni.so' not in aar.namelist():
+                      raise SystemExit(f'official libXray AAR lacks libgojni.so for {abi}')
+          print('libXray Java entry and both native ABIs present')
+          PY
+          sha256sum libxray/libs/libXray.aar \
+            >> recovery/work/restored/RESTORE_MANIFEST.txt
+
+      - name: Upload checked AAR dependencies only
         uses: actions/upload-artifact@v4
         with:
-          name: fingmi-published-ffmpegjni-restored
-          path: recovery/work/restored/
+          name: fingmi-faithful-native-dependencies
+          path: |
+            recovery/work/restored/
+            libxray/libs/libXray.aar
           retention-days: 7
           if-no-files-found: error

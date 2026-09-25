@@ -114,4 +114,7 @@
 
 - 子源北京时间 21:22 明确授权将上轮已准备的改动推送 `main`，并从该时刻重新计一小时工作。上轮自动审批曾拒绝推进默认分支，收到这次明确授权后，远端 `main` 已快进至 `8bf5bc228dedf3f390512ac5a8d4ce282b63acf1`，含安全导入器、假包正反例、完整候选原生条目清点和 77 个 ViewBinding 名称静态核对；远端 ref 已验证。
 - 继续以恢复层播放接线及固定上游 `ExoUtil` 为依据，扩大候选 AAR Java 接口检查：从 8 类/38 项扩至 12 类/50 项精确 JVM 描述符。真实固定候选 ZIP 上脚本通过；新增预加载和 FongMi 定制渲染入口。仍为精选签名，无 Android SDK/Gradle 编译和设备验收，双 ABI 的 FFmpeg JNI 差异未解决。
-- 已准备仅 `workflow_dispatch` 的 `.github/workflows/recovery-restore-ffmpegjni.yml`，不含 push/schedule：Actions runner 下载发布 v7/v8 原 APK和已核的播放器候选工件，逐份 SHA-256 检查后调用现有重包脚本；再通过 JNI 门，仅上传新 decoder AAR 与哈希清单，不上传约 275 MB 原 APK。该流程还**未运行**，因此不声称已有真实修复包；本轮没有新增 AC 消耗。YAML 静态解析确认只允许手动触发、只授予 contents/actions read、四步含产物非空门；真实 Actions 下载与产物仍待获准运行后验证。
+- 已准备仅 `workflow_dispatch` 的 `.github/workflows/recovery-restore-ffmpegjni.yml`，不含 push/schedule：Actions runner 下载发布 v7/v8 原 APK和已核的播放器候选工件，逐份 SHA-256 检查后调用现有重包脚本；再通过 JNI 门，仅上传新 decoder AAR、固定官方 libXray AAR 与哈希清单，不上传约 275 MB 原 APK。该流程还**未运行**，因此不声称已有真实修复包；本轮没有新增 AC 消耗。YAML 静态解析确认只允许手动触发、只授予 contents/actions read、五步含两件 AAR 非空门；真实 Actions 下载与产物仍待获准运行后验证。
+- 对候选 `DefaultPreloadManager.class` 额外解析 class 文件 `super_class`，确认为 `BasePreloadManager`；这与新增六个继承调用签名相互印证，仍不等于整套 Java 编译。
+- 已合并 libXray 下载到同一条待手动触发的准备工作流：调用项目既有 `fetch-libxray.sh` 核官方 v26.7.28 ZIP 的固定 SHA，提取 AAR、核非空并记录 AAR SHA；节省未来单独一次下载依赖的 Actions 运行。YAML 静态核查为五步且无自动触发；**尚未真正下载或编译**，任何失败不得记作依赖齐备。
+- 同一手动工作流在官方 libXray ZIP 哈希校验后还静态核 `libXray.LibXray.invoke(String):String` 的 class 描述符，以及两 ABI 的 `libgojni.so` 条目；避免取回“包名相似但主入口或 v7 native 缺失”的 AAR。该新门仅检查存在和签名，**未证实原生内容与发布 APK 同字节，工作流仍未运行**。官方 v26.7.28 GitHub Release 所报 `libxray-android.zip` SHA 与 `fetch-libxray.sh` 固定值相同。

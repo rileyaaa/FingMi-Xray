@@ -146,8 +146,11 @@
 1. 对所有 legacy 源码做一次统一静态编译/签名检查，修掉恢复过程中产生的 API 名称漂移。
 2. ✅ `LegacyXrayShareLinkNormalizer` 的最后一个 decompiler-repaired 条件已用 v7/v8 原始 DEX 指令验证；当前无 `DEX_VERIFY` 残留。
 3. 将 legacy 资源/Manifest/Java 补丁组装成一套真正可构建的 5.6.0 TV faithful variant。
-4. 首次 faithful build 在充分静态核验且编译依赖齐备后集中运行；优先本地。用户已授予两次必要的免询问 AC/Actions 尝试，实际消耗和阻塞见 `WORKLOG.md`，避免无效消耗额度。
+4. 首次 faithful build 在充分静态核验且编译依赖齐备后集中运行；优先本地。最初两次免询问 AC 机会已用尽，随后获准的第三轮成功取回候选播放器 AAR；之后是否再运行应按 `WORKLOG.md` 的授权与依赖门槛判断。
 5. 用发布 APK 做行为回归：节点兼容、启动/停止、切集、切台、换源、换播放器、后台/待机恢复、进程死亡、失败/超时、证书 pin。
 6. faithful build 通过后，再把行为逐块迁移到当前 `:xray` 模块；每迁移一块必须由本矩阵对应的回归项兜底。
 
 > README 是设计意图和用户可见行为的重要依据，但当 README 与 APK 在细节上不一致时，以最终发布 APK 的实际运行逻辑为准。
+
+
+2026-09-25 静态门槛补核：六个 TV Activity 的 77 个 ViewBinding 引用均有布局 ID；候选播放器 12 类/50 项精选 Java 签名匹配，双 ABI 各 11 件候选播放器原生库中唯一 `libffmpegJNI.so` 与已核发布来源的历史清单不符。手动恢复 JNI 工作流已准备但未运行，故 faithful APK 与设备回归仍未通过。详见 `PLAYER_AAR_ABI_2026-09-25.md`。
