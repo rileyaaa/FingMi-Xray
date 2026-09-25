@@ -20,6 +20,7 @@ JADX 的 `gn3`/屏幕广播链路表明亮屏或 Activity 重回前台会推进�
 
 - 发布版 `yz3` 负责会话代际、待完成的 stop 与 start 超时；`vz3` 调度清理超时 `1500L` 和启动超时 `30000L`。恢复的 `LegacyXraySessionController` 两个限时值与此相同。
 - 发布版 `XrayService` START/STOP 的操作代际检查、销毁时失效代际、异步 stop、最多等待 3 秒及销毁独立 `:xray` 进程，和恢复层的既有生命周期方向一致。这只是选取关键路径核对，尚未宣称节点配置、Binder 回调、所有并发竞态或 APK 行为完全一致。
+- 原始 v7 DEX `XrayService.e`（JADX `m2091e`）的 `code_off=5376512`：`0x1d`/`0x26` 的 `AtomicLong.compareAndSet` 只在匹配操作代际时继续，`0x31`/`0x38` 置无效代际，`0x3f` 调用 `Process.killProcess`。`XrayService.onDestroy` 的 `code_off=5376300`：`0x0b`/`0x14` 失效两门，`0x1f` 提交 stop 任务，`0x22` shutdown，`0x29` awaitTermination（传入 3 秒），`0x2f` 或中断分支 `0x47` shutdownNow，最终 `0x3c`/`0x52` killProcess。这些是发布版在进程收口上的直接 DEX 证据；恢复层保留相同顺序。
 - 发布版 `hz3`/`ez3`/`dz3` 的服务绑定、Binder 死亡/断开、5 秒绑定超时、回调代际检查，以及 `uz3` 操作 1–6 的 Binder 分发，已与 `LegacyXrayServiceClient`/`XrayService` 逐路径静态比对。晚到的旧回调在主线程再次比较绑定代际；恢复层也在派发时捕获代际、在主线程比较后转发。此项不代表并发设备实测。
 
 ### 配置工厂出口计数条件：v7/v8 原始 DEX 消除 JADX 歧义

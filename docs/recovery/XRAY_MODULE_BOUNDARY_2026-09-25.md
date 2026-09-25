@@ -15,6 +15,8 @@
 
 这不是文件数即完成度：恢复覆盖层还有 51 个上游覆盖文件、24 个独立 Xray Java 与 2 个 AIDL；其中大量上游文件包含非 Xray 的历史改动，不能直接全部移走或把整个 FongMi fork 称作模块。
 
+目前实验性 `xray/src/main/aidl/com/fingmi/xray/service/IXrayService.aidl` 与 faithful 的 `recovery/legacy-src/aidl/com/fongmi/android/tv/xray/IXrayService.aidl` 具有相同的六种方法形状，但 **Binder interface descriptor 包名不同**。发布版 `uz3`/`dz3` 的 descriptor 是 `com.fongmi.android.tv.xray.IXrayService` / `.IXrayCallback`；迁移不能把“参数一样”误当作二进制协议兼容。第一阶段优先沿用 faithful 包名/AIDL，若将来改 descriptor，必须成对更换服务与客户端并单独回归 Binder 进程死亡、超时和旧回调。
+
 ## 最小、可回滚的迁移顺序
 
 1. 先满足 faithful 基线门槛：验证固定上游源码与 AAR、取得 libXray AAR、APK 编译，并按行为矩阵在 TV 上跑关键路径；记录基线 SHA 和结果。
