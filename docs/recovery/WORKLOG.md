@@ -80,3 +80,4 @@
 - 用户要求继续推进约一小时，并在北京时间约 20:50 暂停供其检查额度；工作期间持续把记录写入项目。本节为本轮第一处可交接检查点。没有开启新的 AC/Actions；最初两次免询问机会仍为 0/2。
 - 重新取回已保存的发布版 v7 完整 JADX 工件 `10847466987` 和 v7/v8 原始 DEX 工件 `10847337361`。`l61` 首页网络检查在重新排队后，原始 DEX 以 `goto` 直接返回；`yd0` 旧 OkHttp 客户端依次 cancelAll、evictAll、shutdown。恢复实现与两者一致，不依据易误读的 JADX 伪代码制造改动。Xray `vz3` 的 stop/start 超时分别为 1500/30000 ms；初核 `yz3` 会话和 XrayService 独立进程销毁路径与恢复层关键点一致。逐项 DEX 定位、结论和未覆盖边界见 `XRAY_NETWORK_DEX_AUDIT_2026-09-25.md`。
 - 接续任务：深入查 Binder 掉线/回调及会话竞态，优先有原始字节码证据的偏差；其次扩大候选 AAR Java/资源检查。本轮目前仍无 libXray AAR、APK 编译或设备验证，不能宣称恢复完成。
+- 继续逐条核 `hz3`、`ez3`、`dz3`、`uz3`：绑定超时、死亡/断线事件、旧回调代际检查、Binder 1–6 操作分发与恢复层静态一致。新建 `scripts/inspect-published-dex.py` 直接定位 v7/v8 原始 DEX 指令，对 `XrayService.b` 两次 `outbounds` 数量判断分别证实 null 和 length≠1 均跳错误分支，排除 JADX 错误的 `!= null ||` 伪代码；细节写入 `XRAY_NETWORK_DEX_AUDIT_2026-09-25.md`。工具已通过 Python 语法检查并在双 ABI 工件实际运行；它不是完整反汇编器。无代码语义改动、无 AC 或 APK 编译。

@@ -38,3 +38,4 @@
 每次写：日期；症状/触发条件；发布 APK、原 README 或运行日志证据；根因；改动文件和 `main` 提交；已执行的静态/编译/设备检查；尚未验证的风险。不要把反编译工具的推断记成确认的运行行为。
 
 - 2026-09-25 原始 DEX 纠偏记录：v7 `Ll61;->run` 在 post 下一轮检查之后有 `goto` 直达 `return-void`，避免把 JADX 展示的 fallthrough 误判为首页提前加载；v7 `Lyd0;->run` 可直接核到 `cancelAll`→`evictAll`→`shutdown`。当前 faithful 恢复代码与这两点吻合，无需改写；Xray `vz3` 的 1500/30000 ms 亦与现有会话控制器一致。详见 `XRAY_NETWORK_DEX_AUDIT_2026-09-25.md`，验证级别仍是静态 DEX 对照，非编译/设备验证。
+- 2026-09-25 双 ABI 配置条件复核：发布版 `XrayService.b` 的 v7/v8 原始 DEX 中 `0x6a9`/`0x712` 检查空数组，`0x6b0`/`0x719` 检查数量不为 1，均跳异常分支。恢复的 `LegacyXrayRuntimeConfigFactory` 两处 `outbounds == null || length != 1` 正确；JADX 这里出现错误的 `!= null ||` 与空分支。已新增 `scripts/inspect-published-dex.py` 使可复核，证据见 `XRAY_NETWORK_DEX_AUDIT_2026-09-25.md`。静态双 ABI 实证，无设备验证。
