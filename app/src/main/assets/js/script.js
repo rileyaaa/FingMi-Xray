@@ -269,7 +269,7 @@ function warnToast(msg) {
 }
 
 function showPanel(id) {
-    for (let i = 1; i <= 5; i++) {
+    for (let i = 1; i <= 6; i++) {
         document.getElementById('panel' + i).classList.toggle('active', i === id);
         document.getElementById('tab' + i).classList.toggle('active', i === id);
     }
