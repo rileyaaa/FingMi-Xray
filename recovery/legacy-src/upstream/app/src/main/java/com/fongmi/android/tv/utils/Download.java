@@ -10,17 +10,26 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.InterruptedIOException;
 import java.util.concurrent.Future;
 
+import okhttp3.Call;
 import okhttp3.OkHttpClient;
 import okhttp3.Response;
 
+/**
+ * FongMi 5.6.0 Download reconstructed with the shipped network-ownership
+ * changes used by Xray-aware subtitle/XML downloads.
+ */
 public class Download {
 
     private final File file;
     private final String url;
+
     private Callback callback;
     private Future<?> future;
+    private volatile Call currentCall;
+    private volatile boolean cancelled;
     private OkHttpClient client;
     private long maxBytes;
     private String tag;
@@ -42,8 +51,7 @@ public class Download {
     }
 
     /**
-     * Shipped Xray delta: metadata downloads can be bound to the active
-     * per-session SOCKS OkHttpClient.
+     * Final APK ji0.f9200g: bind this download to an explicit network client.
      */
     public Download client(OkHttpClient client) {
         this.client = client;
@@ -66,49 +74,138 @@ public class Download {
     }
 
     public Download cancel() {
-        if (future != null) future.cancel(true);
-        if (client == null) OkHttp.cancel(tag);
-        else OkHttp.cancel(client, tag);
+        cancelled = true;
+
+        Future<?> task = future;
+        if (task != null) task.cancel(true);
+
+        Call call = currentCall;
+        if (call != null) call.cancel();
+
+        if (client == null) {
+            OkHttp.cancel(tag);
+        } else {
+            OkHttp.cancel(client, tag);
+        }
+
         future = null;
+        currentCall = null;
         return this;
     }
 
     private void doInBackground() {
-        try (Response res = (client == null
-                ? OkHttp.newCall(url, tag)
-                : OkHttp.newCall(client, url, tag)).execute()) {
-            download(res.body().byteStream(), getLength(res));
-            if (callback != null) App.post(() -> callback.success(file));
-        } catch (Exception e) {
+        if (isCancelled()) {
             Path.clear(file);
-            if (callback != null) App.post(() -> callback.error(e.getMessage()));
-            else throw new RuntimeException(e.getMessage(), e);
+            return;
         }
-    }
 
-    private void download(InputStream is, double length) throws IOException {
-        if (length > maxBytes) throw new IOException("Download size limit exceeded");
-        try (BufferedInputStream input = new BufferedInputStream(is); FileOutputStream os = new FileOutputStream(Path.create(file))) {
-            byte[] buffer = new byte[16384];
-            int readBytes;
-            long totalBytes = 0;
-            while ((readBytes = input.read(buffer)) != -1) {
-                if (Thread.interrupted()) return;
-                totalBytes += readBytes;
-                if (totalBytes > maxBytes) throw new IOException("Download size limit exceeded");
-                os.write(buffer, 0, readBytes);
-                if (length <= 0) continue;
-                int progress = (int) (totalBytes / length * 100.0);
-                if (callback != null) App.post(() -> callback.progress(progress));
+        Call call =
+                client == null
+                        ? OkHttp.newCall(url, tag)
+                        : OkHttp.newCall(client, url, tag);
+        currentCall = call;
+
+        try {
+            if (isCancelled()) {
+                call.cancel();
+                Path.clear(file);
+                return;
+            }
+
+            try (Response response = call.execute()) {
+                download(
+                        response.body().byteStream(),
+                        getLength(response));
+
+                if (!cancelled && callback != null) {
+                    App.post(() -> callback.success(file));
+                }
+            }
+        } catch (Exception error) {
+            Path.clear(file);
+
+            if (!cancelled) {
+                if (callback != null) {
+                    App.post(
+                            () ->
+                                    callback.error(
+                                            error.getMessage()));
+                } else {
+                    throw new RuntimeException(
+                            error.getMessage(),
+                            error);
+                }
+            }
+        } finally {
+            if (currentCall == call) {
+                currentCall = null;
             }
         }
     }
 
-    private double getLength(Response res) {
+    private void download(
+            InputStream inputStream,
+            double length) throws IOException {
+        if (length > maxBytes) {
+            throw new IOException(
+                    "Download size limit exceeded");
+        }
+
+        try (BufferedInputStream input =
+                        new BufferedInputStream(inputStream);
+                FileOutputStream output =
+                        new FileOutputStream(Path.create(file))) {
+            byte[] buffer = new byte[16384];
+            long totalBytes = 0;
+
+            while (true) {
+                int readBytes = input.read(buffer);
+                if (readBytes == -1) return;
+
+                if (isCancelled()) {
+                    throw new InterruptedIOException(
+                            "Download cancelled");
+                }
+
+                totalBytes += readBytes;
+                if (totalBytes > maxBytes) {
+                    throw new IOException(
+                            "Download size limit exceeded");
+                }
+
+                output.write(
+                        buffer,
+                        0,
+                        readBytes);
+
+                if (length <= 0 || callback == null) {
+                    continue;
+                }
+
+                int progress =
+                        (int) (totalBytes / length * 100.0);
+                App.post(
+                        () ->
+                                callback.progress(
+                                        progress));
+            }
+        }
+    }
+
+    private boolean isCancelled() {
+        return cancelled
+                || Thread.currentThread().isInterrupted();
+    }
+
+    private double getLength(Response response) {
         try {
-            String header = res.header(HttpHeaders.CONTENT_LENGTH);
-            return header != null ? Double.parseDouble(header) : -1;
-        } catch (Exception e) {
+            String header =
+                    response.header(
+                            HttpHeaders.CONTENT_LENGTH);
+            return header == null
+                    ? -1
+                    : Double.parseDouble(header);
+        } catch (Exception ignored) {
             return -1;
         }
     }
