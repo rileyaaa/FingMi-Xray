@@ -30,6 +30,7 @@ import com.fongmi.android.tv.App;
 import com.fongmi.android.tv.setting.PreloadSetting;
 import com.fongmi.android.tv.utils.FileUtil;
 import com.fongmi.android.tv.xray.legacy.LegacyXrayHttpResources;
+import com.fongmi.android.tv.xray.legacy.LegacyXraySchemeGuardDataSource;
 import com.github.catvod.net.OkHttp;
 import com.github.catvod.utils.Path;
 
@@ -228,12 +229,23 @@ public class ExoMediaSourceFactory
 
     private DataSource.Factory getDataSourceFactory() {
         if (dataSourceFactory == null) {
+            DataSource.Factory upstream =
+                    new DefaultDataSource.Factory(
+                            App.get(),
+                            getHttpDataSourceFactory());
+
+            if (xrayPort > 0) {
+                DataSource.Factory delegate = upstream;
+                upstream =
+                        () ->
+                                new LegacyXraySchemeGuardDataSource(
+                                        delegate.createDataSource());
+            }
+
+            DataSource.Factory finalUpstream = upstream;
             dataSourceFactory =
                     () ->
-                            getCacheDataSource(
-                                            new DefaultDataSource.Factory(
-                                                    App.get(),
-                                                    getHttpDataSourceFactory()))
+                            getCacheDataSource(finalUpstream)
                                     .createDataSource();
         }
         return dataSourceFactory;
