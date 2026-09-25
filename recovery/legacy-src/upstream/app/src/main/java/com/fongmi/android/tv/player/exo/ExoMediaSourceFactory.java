@@ -228,26 +228,32 @@ public class ExoMediaSourceFactory
     }
 
     private DataSource.Factory getDataSourceFactory() {
-        if (dataSourceFactory == null) {
-            DataSource.Factory upstream =
-                    new DefaultDataSource.Factory(
-                            App.get(),
-                            getHttpDataSourceFactory());
+        if (dataSourceFactory != null) return dataSourceFactory;
 
-            if (xrayPort > 0) {
-                DataSource.Factory delegate = upstream;
-                upstream =
-                        () ->
-                                new LegacyXraySchemeGuardDataSource(
-                                        delegate.createDataSource());
-            }
+        DataSource.Factory upstream =
+                new DefaultDataSource.Factory(
+                        App.get(),
+                        getHttpDataSourceFactory());
 
-            DataSource.Factory finalUpstream = upstream;
+        if (xrayPort > 0) {
+            // Exact shipped nq0 constructor split:
+            // Xray playback does NOT use the shared Exo disk cache. It wraps
+            // the direct DefaultDataSource with the Xray scheme guard so a
+            // previously cached direct-play segment cannot satisfy a Xray
+            // session without traversing the session network boundary.
+            DataSource.Factory delegate = upstream;
             dataSourceFactory =
                     () ->
-                            getCacheDataSource(finalUpstream)
+                            new LegacyXraySchemeGuardDataSource(
+                                    delegate.createDataSource());
+        } else {
+            // Baseline FongMi behavior: direct playback remains cache-backed.
+            dataSourceFactory =
+                    () ->
+                            getCacheDataSource(upstream)
                                     .createDataSource();
         }
+
         return dataSourceFactory;
     }
 
