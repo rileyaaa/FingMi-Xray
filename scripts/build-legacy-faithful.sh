@@ -3,7 +3,7 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 WORK_DIR="${FINGMI_LEGACY_WORK_DIR:-$ROOT/recovery/work/fingmi-faithful-5.6.0}"
-TASK="${FINGMI_LEGACY_GRADLE_TASK:-:app:assembleLeanbackArm64_v8aDebug}"
+TASK="${FINGMI_LEGACY_GRADLE_TASK:-:app:assembleLeanbackArmeabi_v7aDebug}"
 
 "$ROOT/scripts/prepare-legacy-faithful.sh"
 
