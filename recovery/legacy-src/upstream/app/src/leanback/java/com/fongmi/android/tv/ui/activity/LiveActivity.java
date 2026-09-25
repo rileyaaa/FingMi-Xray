@@ -78,12 +78,10 @@ import com.github.catvod.net.OkHttp;
 import org.greenrobot.eventbus.Subscribe;
 import org.greenrobot.eventbus.ThreadMode;
 
-import java.net.URI;
 import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
-import java.util.Locale;
 
 import okhttp3.OkHttpClient;
 
@@ -255,7 +253,7 @@ public class LiveActivity extends PlaybackActivity implements GroupAdapter.OnCli
     }
 
     private void onLiveParsed(Live live) {
-        mViewModel.parseXml(live);
+        mViewModel.parseXml(live, xrayMetadataClient());
         setGroup(live);
         setWidth(live);
     }
@@ -441,7 +439,11 @@ public class LiveActivity extends PlaybackActivity implements GroupAdapter.OnCli
     }
 
     private void onPlayer() {
-        PlayerEngineDialog.show(this, mBinding.control.action.player, player());
+        PlayerEngineDialog.show(
+                this,
+                mBinding.control.action.player,
+                player(),
+                this::resetXrayForPlaybackChange);
         hideControl();
     }
 
@@ -476,8 +478,9 @@ public class LiveActivity extends PlaybackActivity implements GroupAdapter.OnCli
                             player().getUrl());
         } else {
             supported =
-                    isSupportedUnresolvedLiveAddress(
-                            mChannel.getCurrent());
+                    LegacyXrayPlaybackAddress
+                            .isDirectLiveSourceSupported(
+                                    mChannel.getCurrent());
         }
 
         if (!supported) {
@@ -490,38 +493,6 @@ public class LiveActivity extends PlaybackActivity implements GroupAdapter.OnCli
         mXrayPendingChannelResume = !existingPlayback;
         mXrayStartedFromExistingPlayback = existingPlayback;
         mXray.start();
-    }
-
-    private boolean isSupportedUnresolvedLiveAddress(String value) {
-        if (!LegacyXrayPlaybackAddress.isSupportedPublicAddress(value)) {
-            return false;
-        }
-
-        try {
-            URI uri = URI.create(value.trim());
-            String scheme =
-                    uri.getScheme() == null
-                            ? ""
-                            : uri.getScheme().toLowerCase(Locale.ROOT);
-            if (!"http".equals(scheme) && !"https".equals(scheme)) {
-                return true;
-            }
-
-            String path =
-                    uri.getPath() == null
-                            ? ""
-                            : uri.getPath().toLowerCase(Locale.ROOT);
-            String host =
-                    uri.getHost() == null
-                            ? ""
-                            : uri.getHost().toLowerCase(Locale.ROOT);
-
-            return !path.endsWith(".strm")
-                    && !host.contains("youtube.com")
-                    && !host.contains("youtu.be");
-        } catch (IllegalArgumentException ignored) {
-            return false;
-        }
     }
 
     private OkHttpClient xrayMetadataClient() {
@@ -578,16 +549,16 @@ public class LiveActivity extends PlaybackActivity implements GroupAdapter.OnCli
         mXrayPendingChannelResume = false;
         mXrayStartedFromExistingPlayback = false;
 
-        if (service() == null || !isOwner()) return;
-
-        cancelXrayMetadataRequests();
-
+        // Stop the private Core/Binder session even if PlaybackService has
+        // already disconnected.
         if (mXray != null
                 && mXray.state() != LegacyXraySessionListener.OFF) {
             mXray.stop();
         }
 
-        if (!player().hasPlaySpec()) return;
+        if (service() == null || !isOwner()) return;
+
+        cancelXrayMetadataRequests();
 
         if (!preservePlayback && player().getXrayPort() > 0) {
             getPlayerView().setDanmakuSource(null);
@@ -637,7 +608,7 @@ public class LiveActivity extends PlaybackActivity implements GroupAdapter.OnCli
             if (mXrayPendingChannelResume) {
                 mXrayPendingChannelResume = false;
                 player().setXrayPort(socksPort, false);
-                mLive.resumeChannelAfterXrayStart(mChannel);
+                mLive.resumeChannelAfterXrayStart();
             } else {
                 player().setXrayPort(socksPort, true);
             }
@@ -969,7 +940,9 @@ public class LiveActivity extends PlaybackActivity implements GroupAdapter.OnCli
     }
 
     private void onXmlParsed(boolean success) {
-        if (mChannel != null && success) mViewModel.getEpg(mChannel);
+        if (mChannel != null && success) {
+            mViewModel.getEpg(mChannel, xrayMetadataClient());
+        }
     }
 
     private void stopPlayer() {
