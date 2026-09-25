@@ -215,7 +215,10 @@ public final class LegacyXrayRuntimeConfigFactory {
         if (!credential.contains("+")) return;
 
         JSONArray outbounds = converted.optJSONArray("outbounds");
-        // DEX_VERIFY: JADX inverts the null/count predicate here.
+        // JADX decompiles this predicate as "outbounds != null || length != 1",
+        // which cannot admit any valid one-outbound config and would dereference
+        // null on the missing-array path. The surrounding getJSONObject(0)
+        // control flow confirms the shipped condition is null-or-count-invalid.
         if (outbounds == null || outbounds.length() != 1) {
             throw new JSONException(
                     "Xray conversion returned an invalid outbound count");
