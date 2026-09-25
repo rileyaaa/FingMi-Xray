@@ -1,5 +1,7 @@
 package com.fongmi.android.tv.xray.legacy;
 
+import org.json.JSONArray;
+
 import java.net.InetAddress;
 import java.net.URI;
 import java.net.URLDecoder;
@@ -277,51 +279,24 @@ public final class LegacyXrayTransportSecurity {
         String value = raw == null ? "" : raw.trim();
         if (value.isEmpty()) return result;
 
-        // The APK first tries a JSON string array when the value starts with '['.
-        // A small local parser is used here to keep this recovered layer independent
-        // from org.json; malformed arrays fall back to comma splitting like the APK.
-        if (value.startsWith("[") && value.endsWith("]")) {
-            List<String> jsonStrings = parseSimpleJsonStringArray(value);
-            if (jsonStrings != null) return jsonStrings;
+        // Exact shipped behavior: when the value starts with '[', first try
+        // Android's JSONArray parser and collect optString(i).trim() values.
+        // Any JSON parse failure falls back to comma splitting.
+        if (value.startsWith("[")) {
+            try {
+                JSONArray array = new JSONArray(value);
+                for (int index = 0; index < array.length(); index++) {
+                    String item = array.optString(index).trim();
+                    if (!item.isEmpty()) result.add(item);
+                }
+                return result;
+            } catch (Exception ignored) {
+                // Fall through to the shipped comma-splitting fallback.
+            }
         }
 
         for (String part : value.split(",", -1)) {
             String trimmed = part.trim();
-            if (!trimmed.isEmpty()) result.add(trimmed);
-        }
-        return result;
-    }
-
-    private static List<String> parseSimpleJsonStringArray(String value) {
-        List<String> result = new ArrayList<>();
-        int index = 1;
-        while (index < value.length() - 1) {
-            while (index < value.length() - 1
-                    && Character.isWhitespace(value.charAt(index))) index++;
-            if (index >= value.length() - 1) return result;
-            if (value.charAt(index) == ',') {
-                index++;
-                continue;
-            }
-            if (value.charAt(index) != '"') return null;
-
-            StringBuilder item = new StringBuilder();
-            index++;
-            boolean escaped = false;
-            while (index < value.length() - 1) {
-                char c = value.charAt(index++);
-                if (escaped) {
-                    item.append(c);
-                    escaped = false;
-                } else if (c == '\\') {
-                    escaped = true;
-                } else if (c == '"') {
-                    break;
-                } else {
-                    item.append(c);
-                }
-            }
-            String trimmed = item.toString().trim();
             if (!trimmed.isEmpty()) result.add(trimmed);
         }
         return result;
