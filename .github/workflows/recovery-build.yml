@@ -27,8 +27,8 @@ jobs:
       - name: Upload recovered debug APK
         uses: actions/upload-artifact@v4
         with:
-          name: fingmi-faithful-leanback-arm64-debug
-          path: recovery/work/fingmi-faithful-5.6.0/app/build/outputs/apk/leanback/arm64_v8a/debug/*.apk
+          name: fingmi-faithful-leanback-armeabi-v7a-debug
+          path: recovery/work/fingmi-faithful-5.6.0/app/build/outputs/apk/leanback/armeabi_v7a/debug/*.apk
           if-no-files-found: error
           retention-days: 7
           compression-level: 0
