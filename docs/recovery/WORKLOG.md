@@ -16,7 +16,7 @@
 - 发布 APK：v7 SHA-256 `cacc7a90ce082adf955fc80a444b54f8cc86d5b5c3ac7acb13d1392b59928bda`；v8 SHA-256 `b5ac05193c1e19809fc7ffb3048f7d75aaa2124eace9953d669f4a81a477c21d`。固定上游 FongMi/TV commit `1a19fee278fa2234da725d61a53bf59b69fe9127`，libXray `v26.7.28`。
 - 静态恢复：`recovery/legacy-src/upstream/` 覆盖 51 文件（其中 `app/src` 46 文件）；另有 24 个 Xray Java 和 2 个 AIDL。`docs/recovery/README_APK_BEHAVIOR_MATRIX.md`、`LEGACY_BEHAVIOR_FREEZE.md`、`DEEP_AUDIT_2026-09-25.md` 记录逐项证据。v7 完整 JADX 已取回，对重要类与 v8 逐项对照；修复了数据源 `open` 失败后 `close` 清理顺序。
 - 用 `FINGMI_LEGACY_SOURCE_ONLY=1` 可只组装上游加恢复覆盖层；已核对覆盖文件逐字节一致，未运行 Gradle。静态导入和 Xray 资源名检查通过；**方法签名、生成的 view binding、完整 Gradle 依赖、运行行为未核完**，不能称已彻底还原。
-- 本地目前只有 Java 17 JRE，无 Android SDK、Gradle 缓存。FongMi 将自制播放器 `lib-*.aar` 排除在 Git 外；原有 5 个 `*-release.aar` 未提供所需 Media3/mpv 类。AC 第三轮已取回 16 个官方源码构建的候选 AAR，外层 ZIP 已持久保存并可用仓库脚本验证/导入 `app/libs/`；`libXray.aar` 尚未完整下载；候选 AAR 的 38 个精选公开 Java 方法签名已核，十个 v7 播放器 `.so` 与发布 APK 逐字节相同；完整 Java ABI 和忠实 APK 编译仍待核验。
+- 本地目前只有 Java 17 JRE，无 Android SDK、Gradle 缓存。FongMi 将自制播放器 `lib-*.aar` 排除在 Git 外；原有 5 个 `*-release.aar` 未提供所需 Media3/mpv 类。AC 第三轮已取回 16 个官方源码构建的候选 AAR，外层 ZIP 已持久保存并可用仓库脚本验证/导入 `app/libs/`；`libXray.aar` 尚未完整下载；候选 AAR 的 12 类/50 项精选 Java 方法签名已核；每个 ABI 的 11 件候选播放器 `.so` 中十件与已校验发布 APK 的历史清单同 SHA，仅 `libffmpegJNI.so` 不同。手动 JNI 修复工作流已备而未运行；libXray AAR、完整 Java ABI 和忠实 APK 编译仍待核验。
 - 历史 Actions 的 v7 完整 JADX 工件 `10847466987`；v7/v8 DEX 工件 `10847337361`；历史 v8 JADX `10825963688`。此前红灯原因是反编译后处理，不等同于 JADX 失败。工件 ID 仅作溯源；本地 scratch 随会话可能丢失。
 
 ## 2026-09-25 本次进展
