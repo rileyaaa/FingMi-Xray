@@ -21,7 +21,6 @@ jobs:
       V8_APK_SHA256: b5ac05193c1e19809fc7ffb3048f7d75aaa2124eace9953d669f4a81a477c21d
       JADX_VERSION: 1.5.6
       JADX_SHA256: 545ea2be9c242511bc145755cf4bda2485ade42966e096f8b4d3da2a230e8974
-      BAKSMALI_VERSION: 2.5.2
 
     steps:
       - name: Checkout
@@ -52,8 +51,6 @@ jobs:
           echo "$JADX_SHA256  recovery/work/tools/jadx.zip" | sha256sum -c -
           unzip -q recovery/work/tools/jadx.zip -d recovery/work/tools/jadx
           chmod +x recovery/work/tools/jadx/bin/jadx
-
-          curl -fL --retry 3 --retry-delay 2             "https://github.com/JesusFreke/smali/releases/download/v${BAKSMALI_VERSION}/baksmali-${BAKSMALI_VERSION}.jar"             -o recovery/work/tools/baksmali.jar
 
       - name: Compare APK and DEX contents
         shell: bash
@@ -144,40 +141,72 @@ jobs:
           echo "JADX v7 exit code: $status" | tee recovery/evidence/reports/jadx-v7-status.txt
           test -d recovery/evidence/jadx-v7/sources
 
-      - name: Extract targeted smali from v7 and v8
+      - name: Extract targeted DEX bytecode from v7 and v8
         shell: bash
         run: |
           set -euo pipefail
-          targets='Lp000/a04; Lp000/th2; Lp000/nq0; Lp000/pz3; Lp000/or2; Lp000/yz3; Lp000/hz3; Lp000/lu2; Lp000/kz3; Lp000/j81; Lp000/x82; Lcom/fongmi/android/tv/xray/XrayService;'
+          sdk_root="${ANDROID_SDK_ROOT:-${ANDROID_HOME:-}}"
+          test -n "$sdk_root"
+          DEXDUMP="$(find "$sdk_root/build-tools" -type f -name dexdump | sort -V | tail -n 1)"
+          test -x "$DEXDUMP"
+          echo "Using $DEXDUMP" | tee recovery/evidence/reports/dexdump-tool.txt
+
+          cat > recovery/work/extract_dexdump.py <<'PY'
+          import re
+          import sys
+          from pathlib import Path
+
+          targets = {
+              "Lp000/a04;",
+              "Lp000/th2;",
+              "Lp000/nq0;",
+              "Lp000/pz3;",
+              "Lp000/or2;",
+              "Lp000/yz3;",
+              "Lp000/hz3;",
+              "Lp000/lu2;",
+              "Lp000/kz3;",
+              "Lp000/j81;",
+              "Lp000/x82;",
+              "Lcom/fongmi/android/tv/xray/XrayService;",
+          }
+
+          abi, dex_name, out_dir, location_path = sys.argv[1:5]
+          text = sys.stdin.read()
+          starts = [m.start() for m in re.finditer(r"(?m)^Class #\\d+ -$", text)]
+          starts.append(len(text))
+          out = Path(out_dir)
+          out.mkdir(parents=True, exist_ok=True)
+
+          found = 0
+          with Path(location_path).open("a", encoding="utf-8") as loc:
+              for i in range(len(starts) - 1):
+                  section = text[starts[i]:starts[i + 1]]
+                  m = re.search(r"Class descriptor\\s*:\\s*'([^']+)'", section)
+                  if not m or m.group(1) not in targets:
+                      continue
+                  desc = m.group(1)
+                  safe = desc.strip("L;").replace("/", "__")
+                  (out / f"{safe}.dexdump.txt").write_text(section, encoding="utf-8")
+                  loc.write(f"{desc} -> {dex_name}\\n")
+                  found += 1
+          print(f"{abi} {dex_name}: extracted {found} target classes", file=sys.stderr)
+          PY
+
           for abi in v7 v8; do
-            mkdir -p "recovery/evidence/smali-${abi}"
-            : > "recovery/evidence/reports/${abi}-class-location.txt"
+            out="recovery/evidence/dexdump-${abi}"
+            loc="recovery/evidence/reports/${abi}-class-location.txt"
+            mkdir -p "$out"
+            : > "$loc"
             for dex in recovery/evidence/${abi}-dex/classes*.dex; do
-              list="${dex}.classes"
-              java -jar recovery/work/tools/baksmali.jar list classes "$dex" > "$list"
-              match=0
-              for target in $targets; do
-                if grep -Fxq "$target" "$list"; then
-                  echo "$target -> $(basename "$dex")" >> "recovery/evidence/reports/${abi}-class-location.txt"
-                  match=1
-                fi
-              done
-              if [ "$match" -eq 0 ]; then
-                continue
-              fi
-              tmp="recovery/work/smali-${abi}-$(basename "$dex" .dex)"
-              rm -rf "$tmp"
-              java -jar recovery/work/tools/baksmali.jar disassemble "$dex" -o "$tmp"
-              for rel in                 p000/a04.smali                 p000/th2.smali                 p000/nq0.smali                 p000/pz3.smali                 p000/or2.smali                 p000/yz3.smali                 p000/hz3.smali                 p000/lu2.smali                 p000/kz3.smali                 p000/j81.smali                 p000/x82.smali                 com/fongmi/android/tv/xray/XrayService.smali
-              do
-                if [ -f "$tmp/$rel" ]; then
-                  mkdir -p "recovery/evidence/smali-${abi}/$(dirname "$rel")"
-                  cp "$tmp/$rel" "recovery/evidence/smali-${abi}/$rel"
-                fi
-              done
-              rm -rf "$tmp" "$list"
+              "$DEXDUMP" -d -f -h "$dex" | python3 recovery/work/extract_dexdump.py                 "$abi" "$(basename "$dex")" "$out" "$loc"
             done
           done
+
+          test -s recovery/evidence/reports/v7-class-location.txt
+          test -s recovery/evidence/reports/v8-class-location.txt
+          test -f recovery/evidence/dexdump-v7/p000__a04.dexdump.txt
+          test -f recovery/evidence/dexdump-v8/p000__a04.dexdump.txt
 
       - name: Upload v7 full JADX evidence
         uses: actions/upload-artifact@v4
@@ -194,8 +223,8 @@ jobs:
           path: |
             recovery/evidence/v7-dex
             recovery/evidence/v8-dex
-            recovery/evidence/smali-v7
-            recovery/evidence/smali-v8
+            recovery/evidence/dexdump-v7
+            recovery/evidence/dexdump-v8
             recovery/evidence/reports
           retention-days: 3
           compression-level: 6
