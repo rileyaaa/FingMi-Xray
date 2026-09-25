@@ -16,6 +16,7 @@ import androidx.media3.datasource.cache.CacheDataSource;
 import androidx.media3.datasource.cache.LeastRecentlyUsedCacheEvictor;
 import androidx.media3.datasource.cache.SimpleCache;
 import androidx.media3.datasource.okhttp.OkHttpDataSource;
+import androidx.media3.exoplayer.drm.DefaultDrmSessionManagerProvider;
 import androidx.media3.exoplayer.drm.DrmSessionManagerProvider;
 import androidx.media3.exoplayer.rtsp.RtspMediaSource;
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory;
@@ -71,6 +72,20 @@ public class ExoMediaSourceFactory
                 new DefaultMediaSourceFactory(
                         getDataSourceFactory(),
                         getExtractorsFactory());
+
+        if (this.xrayPort > 0) {
+            // Final APK nq0 installs a dedicated DRM provider only for the
+            // Xray session. License/key HTTP requests must traverse the same
+            // guarded direct DataSource as media traffic instead of falling
+            // back to Media3's default direct HTTP stack.
+            DefaultDrmSessionManagerProvider drmProvider =
+                    new DefaultDrmSessionManagerProvider();
+            drmProvider.setDrmHttpDataSourceFactory(
+                    getDataSourceFactory());
+            this.defaultMediaSourceFactory
+                    .setDrmSessionManagerProvider(
+                            drmProvider);
+        }
     }
 
     static MediaSourceFactorySupplier supplier() {
