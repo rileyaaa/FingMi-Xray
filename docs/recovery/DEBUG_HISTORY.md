@@ -23,6 +23,7 @@
 - 上游官方说明 `lib-*.aar` 播放器依赖不入 Git；已有 5 个 `*-release.aar` 不提供所需 Media3/mpv 类。AC 可以提供 SDK/JDK 环境，但若未解决二进制依赖，直接再次构建只会重现缺依赖，不能凭空生成兼容的 AAR。
 - 后续查到 **FongMi/media** 的 `release-1.11.0-fongmi` 分支确实包含 `MpvPlayer`、`DecodeTrackSelector` 和 `MediaSourceFactorySupplier` 源码；已固定目前分支提交 `3c2cbe8ac742c2fe15eff52f03eeb3b1b648848d`（2026-08-12），距离 FongMi/TV 5.6.0 固定源码提交（2026-08-07）约五天。`recovery-player-aars.yml` 用 AC 编译这些候选 AAR。它们是否与 **2026-08-07 发布版 ABI** 完全兼容尚未证明，且 `MpvLibrary` 另需 `mpv`、`player` 原生库；不能只看三个类存在就宣布依赖解决。
 - 第一轮 AC `36123159162`（2026-09-25）在 `android-actions/setup-android@v3` 中执行 `sdkmanager tools` 失败：`Failed to find package 'tools'`；Gradle 阶段被跳过，上传的工件 `10858679185` 仅有空清单，没有任何 AAR。已删除该 action 的调用，改用 runner 已安装的 SDK cmdline-tools；本次消耗一次机会。发布 APK `mr0` 的版本字符串为 `AndroidXMedia3/1.11.0`，与待编译分支基本版本吻合。
+- 第二轮 AC `36123459832` 已进入 Media3 Gradle 编译阶段；结果待记录。两次免询问机会已耗尽。v7 JADX 工件仍包含 10 个原始播放器/FFmpeg 原生库，`extract-v7-player-native.py` 对各文件的 SHA-256 实证核验通过；这为后续 v7 运行依赖提供可复现的提取路径，尚未完成 Java AAR 与原生库的 ABI 验证。
 - 本地有固定上游的 Git 对象时，可用 `FINGMI_LEGACY_UPSTREAM_GIT_DIR=/path/to/pinned/object-store FINGMI_LEGACY_SOURCE_ONLY=1 FINGMI_LEGACY_WORK_DIR=/tmp/faithful-review bash scripts/prepare-legacy-faithful.sh`。此模式不下载 libXray、不执行 Gradle。
 
 ## 后续调试记录格式
