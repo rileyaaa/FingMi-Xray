@@ -14,6 +14,8 @@
 
 JADX 的 `gn3`/屏幕广播链路表明亮屏或 Activity 重回前台会推进网络代际并管理 DLNA；首页网络检查和 `la2`/`ha2` DoH 清理需与此配合。恢复层分别放在 `TvNetworkLifecycle`、Home 和 HTTP/DNS 适配中；这些是 app 的网络恢复行为，不应整体移入 Xray 模块。
 
+进一步核对 `HomeActivity.m1976O0`（发布版）与恢复的 `HomeActivity.checkNetworkGeneration()`：仅把普通 API 客户端置空，保留独立播放器客户端；按当前 DoH supplier/配置刷新 DoH，异步清理旧客户端；使用 `RunnableC0541f7` 在 Jar/JS/Python Spider 清理完成后才把首页检查排入主线程。`l61` 网络检查要求连续两次 `NET_CAPABILITY_INTERNET`，最多重新排队 12 次、每次 500 ms；超限后继续刷新首页，即使网络能力仍未恢复。这符合恢复层 `mStableNetworkChecks`、`mRecoveryChecks` 的门槛；**不能误写成必须等到网络真正可用才刷新**。退出或 Activity 销毁期间不再启动此轮首页加载。`gn3` 第一 Activity 启动及亮屏代际控制与恢复的 `TvNetworkLifecycle` 也一致。以上是静态对照，没有长时间待机设备验证。
+
 ## Xray 会话及服务：本轮已核静态点
 
 - 发布版 `yz3` 负责会话代际、待完成的 stop 与 start 超时；`vz3` 调度清理超时 `1500L` 和启动超时 `30000L`。恢复的 `LegacyXraySessionController` 两个限时值与此相同。
