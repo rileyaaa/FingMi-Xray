@@ -1028,7 +1028,11 @@ public class VideoActivity extends PlaybackActivity implements VodPlaybackHost, 
     }
 
     private void onPlayer() {
-        PlayerEngineDialog.show(this, mBinding.control.action.player, player());
+        PlayerEngineDialog.show(
+                this,
+                mBinding.control.action.player,
+                player(),
+                this::resetXrayForPlaybackChange);
         hideControl();
     }
 
