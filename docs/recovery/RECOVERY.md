@@ -7,7 +7,8 @@ Recover the maintainable source for the published `v5.6.0-xray.5` APK and refact
 ## Trusted baselines
 
 - FingMi release: `v5.6.0-xray.5`
-- arm64 APK SHA-256: `b5ac05193c1e19809fc7ffb3048f7d75aaa2124eace9953d669f4a81a477c21d`
+- primary armeabi-v7a APK SHA-256: `cacc7a90ce082adf955fc80a444b54f8cc86d5b5c3ac7acb13d1392b59928bda`
+- cross-check arm64-v8a APK SHA-256: `b5ac05193c1e19809fc7ffb3048f7d75aaa2124eace9953d669f4a81a477c21d`
 - upstream FongMi/TV commit: `1a19fee278fa2234da725d61a53bf59b69fe9127`
 - upstream version at that commit: `5.6.0` / versionCode `560`
 - libXray tag: `v26.7.28`
