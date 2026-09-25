@@ -104,9 +104,9 @@ public final class XrayShareLinkSecurity {
 
         String serverName = firstValueIgnoreCase(query, "sni");
         if (serverName.isEmpty()) {
-            String type = lower(firstValueIgnoreCase(query, "type"));
+            String type = firstValue(query, "type");
             if (type.equals("ws") || type.equals("websocket")) {
-                serverName = firstValueIgnoreCase(query, "host");
+                serverName = firstValue(query, "host");
             }
         }
 
@@ -151,14 +151,13 @@ public final class XrayShareLinkSecurity {
             throw new IllegalStateException("Stored " + kind + " certificate fingerprint is invalid");
         }
 
-        String normalizedStored = stored.toLowerCase(Locale.ROOT);
         if (!MessageDigest.isEqual(
-                normalizedStored.getBytes(StandardCharsets.US_ASCII),
+                stored.getBytes(StandardCharsets.US_ASCII),
                 normalizedObserved.getBytes(StandardCharsets.US_ASCII))) {
             throw new IllegalStateException(
                     kind + " server certificate changed; delete the saved Xray configuration before trusting the new certificate");
         }
-        return normalizedStored;
+        return stored;
     }
 
     private static String replaceSecurityQuery(
@@ -254,6 +253,9 @@ public final class XrayShareLinkSecurity {
 
     private static boolean isIpLiteral(String host) {
         if (host.indexOf(':') >= 0) {
+            if (host.indexOf('%') >= 0 || !host.matches("(?i)^[0-9a-f:.]+$")) {
+                return false;
+            }
             try {
                 InetAddress.getByName(host);
                 return true;

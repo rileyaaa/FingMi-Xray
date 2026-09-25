@@ -100,11 +100,12 @@ public final class XrayService extends Service {
 
             Exception bindError = null;
             for (int attempt = 0; attempt < 3; attempt++) {
-                int port = bridge.getFreePort();
-                JSONObject config = configFactory.create(port, shareLink, udp);
                 try {
+                    int port = bridge.getFreePort();
+                    JSONObject config = configFactory.create(port, shareLink, udp);
                     ensureOperationCurrent(operationId);
                     bridge.validateConfig(config);
+                    ensureOperationCurrent(operationId);
                     ensureOperationCurrent(operationId);
                     send(callback, operationId, XrayOperation.VALIDATE, true, 0, -1L, "");
                     return;
@@ -131,9 +132,9 @@ public final class XrayService extends Service {
 
             Exception bindError = null;
             for (int attempt = 0; attempt < 3; attempt++) {
-                int port = bridge.getFreePort();
-                JSONObject config = configFactory.create(port, shareLink, udp);
                 try {
+                    int port = bridge.getFreePort();
+                    JSONObject config = configFactory.create(port, shareLink, udp);
                     ensureOperationCurrent(operationId);
                     bridge.validateConfig(config);
                     ensureOperationCurrent(operationId);
@@ -193,7 +194,7 @@ public final class XrayService extends Service {
                         return;
                     }
 
-                    if (!stopCoreQuietly()) killPrivateProcess();
+                    if (!stopCoreQuietly()) cancelInternal(XrayOperation.START, operationId);
                     return;
                 } catch (Exception error) {
                     bindError = error;
@@ -220,7 +221,7 @@ public final class XrayService extends Service {
                     0,
                     -1L,
                     message);
-            if (!cleaned || !delivered) killPrivateProcess();
+            if (!cleaned || !delivered) cancelInternal(XrayOperation.START, operationId);
         }
     }
 
@@ -247,7 +248,7 @@ public final class XrayService extends Service {
                     0,
                     -1L,
                     "Xray cleanup required process reset: " + errorMessage(error));
-            if (!delivered) killPrivateProcess();
+            if (!delivered) cancelInternal(XrayOperation.STOP, operationId);
         }
     }
 
@@ -406,7 +407,7 @@ public final class XrayService extends Service {
         @Override
         public Thread newThread(Runnable runnable) {
             Thread thread = new Thread(runnable, "fingmi-xray");
-            thread.setDaemon(false);
+            thread.setDaemon(true);
             return thread;
         }
     }

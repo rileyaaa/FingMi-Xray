@@ -121,3 +121,4 @@
 - 对照已按发布版恢复的 `LegacyXraySessionController`/`LegacyXrayServiceClient` 和尚未接入的实验性 `xray/`，发现三处可证实漂移并局部修正实验模块：旧 STOP 超时时新 START 已 RUNNING 应跳过 cancel/disconnect；当前 STOP 成功应断开 Binder；START 成功结果后仍要保留 active operation ID，以便 Binder 后续死亡能报告给会话并清理状态。另对齐当前连接失败时的旧 cleanup timeout 清除。改动只在实验性 `xray/` 模块，faithful 基准未动；以源码控制流静态对照，未编译/设备回归，**不能把这记成正式模块迁移完成**。详细风险见 `DEBUG_HISTORY.md` 与 `XRAY_MODULE_BOUNDARY_2026-09-25.md`。
 
 - 本轮继续比较实验性 `xray/` 的分享链接归一化器与双 ABI DEX 已校正的恢复类，发现 Hysteria2 参数/编码/默认端口顺序及 VMess fragment 处理漂移。将实验类代码对齐恢复类，仅替换包和类名；规范化后逐字节一致。`XRAY_MODULE_BOUNDARY_2026-09-25.md` 留存限制；仍未编译、运行或正式迁移。未开启新的 Actions。
+- 继续静态对照实验模块 `XrayService`：修正 VALIDATE/TEST 端口分配及配置创建的重试作用域，START/STOP 无法投递时用带精确 ID 的 cancel 门防止旧操作直接杀死新会话，线程 daemon 设置同发布恢复层。`XrayShareLinkSecurity` 修复旧存储 pin 的大小写比较、WebSocket SNI 后备键的精确匹配、IPv6 地址筛选；其他传输安全查询重写仍有差异，已记模块边界。未编译、未跑设备。

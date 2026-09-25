@@ -38,3 +38,7 @@
 ## 分享链接归一化器的静态对齐（实验模块）
 
 把 `xray/.../XrayShareLinkNormalizer.java` 的实现与双 ABI 原始 DEX 校正过的 `LegacyXrayShareLinkNormalizer.java` 对齐，仅替换包名和类名；核对归一化后的源码逐字节相同。原实验实现对 Hysteria2 重复 `ports`、`mport` 百分号原始字节、默认端口与 pin/obfs 顺序、authority hopping 的逗号编码，以及 VMess base64 片段存在行为漂移。此改动仍未接入 app；没有 Java 编译或真机验证。迁移前还须核 AIDL descriptor 和其余配置/服务依赖。
+
+## 服务与传输安全的后续静态核对
+
+实验性 `XrayService` 已把 VALIDATE/TEST 的端口分配、配置创建纳入原版同样的绑定错误重试区间；START/STOP 回调无法投递且清理失败时改为带 operation ID 的 `cancelInternal`，旧回调不会直接杀掉新会话；工作线程设为 daemon，与恢复层一致。`XrayShareLinkSecurity` 对齐了证书存储值原样 ASCII 比较、WebSocket `type`/`host` 的精确小写键和 IPv6 字面地址检查。这是局部静态对齐，实验模块的证书重置、查询重写、AIDL descriptor 以及完整配置等仍须核对；没有编译或设备验证。
