@@ -63,6 +63,12 @@ EXPECTED = {
         },
     },
     "lib-exoplayer-release.aar": {
+        EXO + "DefaultLoadControl$Builder": {
+            ("setPlayerTargetBufferBytes", "(Ljava/lang/String;I)Landroidx/media3/exoplayer/DefaultLoadControl$Builder;"),
+        },
+        EXO + "DefaultRenderersFactory": {
+            ("setDolbyVisionOutputPolicy", "(I)Landroidx/media3/exoplayer/DefaultRenderersFactory;"),
+        },
         EXO + "trackselection/DecodeTrackSelector": {
             ("<init>", "(Landroid/content/Context;)V"),
             ("setRendererDecodePreferences", "(II)V"),
@@ -72,10 +78,24 @@ EXPECTED = {
             ("setDataSourceFactory", "(Landroidx/media3/datasource/DataSource$Factory;)Landroidx/media3/exoplayer/source/preload/MediaSourceFactorySupplier;"),
         },
         EXO + "source/preload/DefaultPreloadManager$Builder": {
+            ("<init>", "(Landroid/content/Context;Landroidx/media3/exoplayer/source/preload/TargetPreloadStatusControl;)V"),
+            ("build", "()Landroidx/media3/exoplayer/source/preload/DefaultPreloadManager;"),
+            ("buildExoPlayer", "(Landroidx/media3/exoplayer/ExoPlayer$Builder;)Landroidx/media3/exoplayer/ExoPlayer;"),
             ("setMediaSourceFactorySupplier", "(Landroidx/media3/exoplayer/source/preload/MediaSourceFactorySupplier;)Landroidx/media3/exoplayer/source/preload/DefaultPreloadManager$Builder;"),
             ("setRenderersFactory", "(Landroidx/media3/exoplayer/RenderersFactory;)Landroidx/media3/exoplayer/source/preload/DefaultPreloadManager$Builder;"),
             ("setTrackSelectorFactory", "(Landroidx/media3/exoplayer/trackselection/TrackSelector$Factory;)Landroidx/media3/exoplayer/source/preload/DefaultPreloadManager$Builder;"),
             ("setLoadControl", "(Landroidx/media3/exoplayer/LoadControl;)Landroidx/media3/exoplayer/source/preload/DefaultPreloadManager$Builder;"),
+        },
+        EXO + "source/preload/DefaultPreloadManager$PreloadStatus": {
+            ("specifiedRangeLoaded", "(JJ)Landroidx/media3/exoplayer/source/preload/DefaultPreloadManager$PreloadStatus;"),
+        },
+        EXO + "source/preload/BasePreloadManager": {
+            ("add", "(Landroidx/media3/common/MediaItem;Ljava/lang/Object;)V"),
+            ("addListener", "(Landroidx/media3/exoplayer/source/preload/PreloadManagerListener;)V"),
+            ("getMediaSource", "(Landroidx/media3/common/MediaItem;)Landroidx/media3/exoplayer/source/MediaSource;"),
+            ("invalidate", "()V"),
+            ("remove", "(Landroidx/media3/common/MediaItem;)Z"),
+            ("release", "()V"),
         },
     },
 }
@@ -142,6 +162,7 @@ def main() -> None:
     if hashlib.sha256(args.artifact.read_bytes()).hexdigest() != ARTIFACT_SHA256:
         parser.error("Candidate ZIP differs from the verified AC artifact")
     count = 0
+    class_count = sum(len(classes) for classes in EXPECTED.values())
     with ZipFile(args.artifact) as artifact:
         for aar_name, classes in EXPECTED.items():
             with ZipFile(BytesIO(artifact.read(aar_name))) as aar:
@@ -152,7 +173,7 @@ def main() -> None:
                         if missing:
                             parser.error(f"{class_name}: missing {sorted(missing)}")
                         count += len(required)
-    print(f"EXACT: {count} selected public Java method descriptors across 8 player classes")
+    print(f"EXACT: {count} selected public Java method descriptors across {class_count} player classes")
     print("Class presence and selected signatures do not establish complete build compatibility.")
 
 

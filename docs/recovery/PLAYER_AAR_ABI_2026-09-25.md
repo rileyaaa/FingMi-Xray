@@ -65,3 +65,7 @@ python3 scripts/check-player-ffmpegjni-against-published.py --aar-dir app/libs
 ## 候选 AAR 原生条目完整清点（续查）
 
 从 AC 下载的候选 ZIP（总 SHA-256 已核）遍历全部 16 个 AAR 的 `jni/armeabi-v7a/` 与 `jni/arm64-v8a/`，以历史 APK 分析工件 `10847337361` 中的 `reports/apk-diff.json` 为发布版逐文件清单对照。该清单由工作流在校验两份原 APK 总 SHA 之后生成；本轮仍未自行取回原 APK，因此其来源链是已核工作流工件，而非本次独立的原 APK 复验。每个 ABI 在候选 AAR 中各有 **11 件 `.so`**：10 件 SHA 相同、1 件不同、0 件只存在候选侧。唯一差异均为 `lib-decoder-ffmpeg-release.aar` 中的 `libffmpegJNI.so`。以前的“第十件以外的其他 AAR 原生库尚未核对”已收束为这件明确阻塞；这不涉及 libXray AAR、原有五个第三方 AAR 或完整 APK 运行行为。
+
+## TV 播放器接线增量接口核查
+
+根据恢复覆盖层 `ExoPlayerSession`、`ExoMediaSourceFactory` 和固定上游 `ExoUtil` 的直接调用，扩大 `check-player-java-api.py` 的精确 JVM 描述符清单：增加预加载 Builder 构造、`build`/`buildExoPlayer`、预加载范围、`BasePreloadManager` 六个会话方法，以及负载/渲染器的 FongMi 扩展入口。现在对真实固定候选 ZIP 实测 **12 个类、50 个精选公开方法签名全部匹配**（之前为 8 类、38 项）。新增签名是基于实际源码调用补足，仍不是所有方法的兼容证明；JNI 差异、libXray、Android 编译和设备回归不因此解除。

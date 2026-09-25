@@ -109,3 +109,8 @@
 - 本轮另从历史双 ABI APK 清单工件 `10847337361` 遍历候选 16 件 AAR 的所有 `jni/{ABI}/*.so`：每个 ABI 各 11 件，10 件匹配、1 件 `libffmpegJNI.so` 不匹配、无额外未对照的候选播放器 `.so`。清单生成前的工作流已核发布 APK 总 SHA，但本轮仍未取得独立原 APK；该结果未解除 JNI 阻塞。详情见 `PLAYER_AAR_ABI_2026-09-25.md`。
 - 使用真实的 44,336,768 字节候选 ZIP 再核总 SHA `0ed42581...` 与 16 件 AAR；把未经修复的候选 decoder 当 `--restored-decoder` 传入新导入器，预期被 v8 JNI 哈希拒绝（退出码 2），导入前停止。这是真实候选的负向验证，正向真实替换仍需原 APK。
 - 静态 ViewBinding 名称核对：从恢复覆盖层六个 TV Activity (`Push/Home/Video/SettingXray/Live/Setting`) 提取 `mBinding.*` 共 77 个实际引用字段，对应布局优先选恢复覆盖 XML、没有覆盖时选固定仓库已有 XML；将 Android ID 的 snake_case 映射成 ViewBinding camelCase 后，六个布局均无缺名字段（3/6/24/7/9/28）。此检查仅证实字段名和 ID，尚未运行 Android ViewBinding 生成、Java 字段类型或资源合并验证。
+
+## 2026-09-25 续接（本轮获准写入 main）
+
+- 子源北京时间 21:22 明确授权将上轮已准备的改动推送 `main`，并从该时刻重新计一小时工作。上轮自动审批曾拒绝推进默认分支，收到这次明确授权后，远端 `main` 已快进至 `8bf5bc228dedf3f390512ac5a8d4ce282b63acf1`，含安全导入器、假包正反例、完整候选原生条目清点和 77 个 ViewBinding 名称静态核对；远端 ref 已验证。
+- 继续以恢复层播放接线及固定上游 `ExoUtil` 为依据，扩大候选 AAR Java 接口检查：从 8 类/38 项扩至 12 类/50 项精确 JVM 描述符。真实固定候选 ZIP 上脚本通过；新增预加载和 FongMi 定制渲染入口。仍为精选签名，无 Android SDK/Gradle 编译和设备验收，双 ABI 的 FFmpeg JNI 差异未解决。
