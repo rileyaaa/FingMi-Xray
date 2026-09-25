@@ -360,7 +360,11 @@ public class PlayerManager implements ParseCallback {
         rebuildEngineForXrayTransition();
 
         if (snapshot != null) {
-            engine.start(spec, snapshot.positionMs());
+            // Final APK th2.m9338y(): resume through PlayerManager's normal
+            // start path rather than calling the engine directly. This keeps
+            // UA normalization, track/init state, danmaku notification,
+            // prepare callback and the 15-second playback timeout intact.
+            startCurrent(snapshot.positionMs());
             snapshot.restore(player);
         }
     }
