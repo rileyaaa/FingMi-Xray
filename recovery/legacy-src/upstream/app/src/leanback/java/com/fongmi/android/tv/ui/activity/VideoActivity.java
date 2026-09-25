@@ -28,6 +28,7 @@ import androidx.media3.ui.PlayerView;
 import androidx.recyclerview.widget.RecyclerView;
 import androidx.viewbinding.ViewBinding;
 
+import com.bumptech.glide.Glide;
 import com.bumptech.glide.request.transition.Transition;
 import com.fongmi.android.tv.App;
 import com.fongmi.android.tv.Constant;
@@ -127,6 +128,7 @@ public class VideoActivity extends PlaybackActivity implements VodPlaybackHost, 
     private Runnable mR3;
     private Runnable mR4;
     private History mHistory;
+    private CustomTarget<Drawable> mArtworkTarget;
     private LegacyXraySessionController mXray;
     private boolean xrayPlaybackReady;
     private boolean fullscreen;
@@ -1105,6 +1107,10 @@ public class VideoActivity extends PlaybackActivity implements VodPlaybackHost, 
             OkHttp.cancelAll();
             mVod.clearPreloadForXray();
 
+            if (mArtworkTarget != null) {
+                Glide.with(this).clear(mArtworkTarget);
+            }
+
             if (player().getXrayPort() == 0) {
                 getPlayerView().setDanmakuSource(null);
             }
@@ -1242,17 +1248,37 @@ public class VideoActivity extends PlaybackActivity implements VodPlaybackHost, 
     }
 
     private void setArtwork() {
-        ImgUtil.load(this, mHistory.getVodPic(), new CustomTarget<>() {
-            @Override
-            public void onResourceReady(@NonNull Drawable resource, @Nullable Transition<? super Drawable> transition) {
-                mBinding.player.setDefaultArtwork(resource);
-            }
+        if (mArtworkTarget != null) {
+            Glide.with(this).clear(mArtworkTarget);
+        }
 
-            @Override
-            public void onLoadFailed(@Nullable Drawable errorDrawable) {
-                mBinding.player.setDefaultArtwork(errorDrawable);
-            }
-        });
+        if (service() != null
+                && isOwner()
+                && player().hasXraySession()) {
+            return;
+        }
+
+        if (mArtworkTarget == null) {
+            mArtworkTarget = new CustomTarget<>() {
+                @Override
+                public void onResourceReady(
+                        @NonNull Drawable resource,
+                        @Nullable Transition<? super Drawable> transition) {
+                    mBinding.player.setDefaultArtwork(resource);
+                }
+
+                @Override
+                public void onLoadFailed(
+                        @Nullable Drawable errorDrawable) {
+                    mBinding.player.setDefaultArtwork(errorDrawable);
+                }
+            };
+        }
+
+        ImgUtil.load(
+                this,
+                mHistory.getVodPic(),
+                mArtworkTarget);
     }
 
     private void setPartAdapter() {
@@ -1591,6 +1617,9 @@ public class VideoActivity extends PlaybackActivity implements VodPlaybackHost, 
 
     @Override
     protected void onDestroy() {
+        if (mArtworkTarget != null) {
+            Glide.with(this).clear(mArtworkTarget);
+        }
         if (mXray != null) mXray.dispose();
         mClock.release();
         saveHistory(true);
