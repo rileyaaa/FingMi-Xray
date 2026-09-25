@@ -28,7 +28,9 @@ public final class LegacyLibXrayApi implements LegacyXrayProbeApi {
         }
 
         String error = response.optString("error");
-        if (error == null || error.trim().isEmpty()) {
+        // DEX-verified in s11.q: blankness is tested code point by code point
+        // with Character.isWhitespace(), not with String.trim().
+        if (isBlank(error)) {
             error = "Xray operation failed";
         }
         throw new IllegalStateException(error);
@@ -125,12 +127,24 @@ public final class LegacyLibXrayApi implements LegacyXrayProbeApi {
         JSONObject result = results.getJSONObject(0);
         if (!result.optBoolean("success")) {
             String error = result.optString("error");
-            if (error == null || error.trim().isEmpty()) {
+            // DEX-verified in et1.c: preserve any non-whitespace error text;
+            // only an all-Character.isWhitespace() value falls back.
+            if (isBlank(error)) {
                 error = "Xray connectivity test failed";
             }
             throw new IllegalStateException(error);
         }
         return result.optLong("delay", -1L);
+    }
+
+    private static boolean isBlank(String value) {
+        if (value == null) return true;
+        for (int offset = 0; offset < value.length();) {
+            int codePoint = value.codePointAt(offset);
+            if (!Character.isWhitespace(codePoint)) return false;
+            offset += Character.charCount(codePoint);
+        }
+        return true;
     }
 
     @Override
