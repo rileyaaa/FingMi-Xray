@@ -18,8 +18,9 @@ import java.util.regex.Pattern;
  *
  * JADX has several visibly impossible/inverted predicates after R8. Predicates
  * whose surrounding control flow proves the intended branch are documented
- * inline. The authority port-hopping predicate remains marked DEX_VERIFY until
- * it is checked against DEX/smali evidence.
+ * inline. The remaining authority port-hopping predicate was verified directly
+ * against the published v7 and v8 DEX: both ',' and '-' indexOf hits branch to
+ * the hopping rewrite, while neither hit branches back to the unchanged path.
  */
 public final class LegacyXrayShareLinkNormalizer {
 
@@ -326,8 +327,9 @@ public final class LegacyXrayShareLinkNormalizer {
         if (range == null) return value;
 
         HostPort hostPort = splitHostPort(range.authority);
-        // DEX_VERIFY: JADX damages the comma/hyphen predicate at this point.
-        // The surrounding transformation is only coherent for a hopping expression.
+        // DEX-verified against both published ABIs. In a04.f the two indexOf(I)
+        // results are each followed by if-gez to the same hopping block; only
+        // when neither ',' nor '-' is present does execution jump past it.
         if (hostPort.port == null || (!hostPort.port.contains(",") && !hostPort.port.contains("-"))) {
             return value;
         }
