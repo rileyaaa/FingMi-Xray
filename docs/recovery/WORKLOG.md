@@ -74,3 +74,9 @@
 - 新增 `scripts/check-player-native-against-v7.py`，从现有 `extract-v7-player-native.py` 读取已核的发布版十个原生库 SHA-256；对候选 `lib-mpvplayer-release.aar` 与 `lib-decoder-ffmpeg-release.aar` 内 `jni/armeabi-v7a/` 逐文件对照，**10/10 完全同 SHA-256**，其中 `libmpv.so`、`libplayer.so`、FFmpeg 七件和 `libc++_shared.so`。额外 `.so` 尚未据此证明。脚本实测通过。
 - 新增 `scripts/check-player-java-api.py`，解析 AAR 的真实 `classes.jar` Java class 方法表，对固定 FongMi/TV 5.6.0 使用的八个播放器类核 38 项公开方法的精确 JVM 描述符；**38/38 匹配**，坏 class 头负例也被拒。详情和限制见 `PLAYER_AAR_ABI_2026-09-25.md`。这只是选取接口和 v7 十个原生库，不等于完整兼容、faithful APK 已编译或设备通过。
 - 本轮无新的 AC/Actions 运行；最初免询问额度剩余 0/2，第三轮已按用户随后明确指示完成。下一步继续 Xray 优先的忠实恢复、待机网络恢复复查，补齐 libXray 与构建条件后再考虑 faithful APK 编译；独立模块重构仍未开始正式迁移。
+
+## 2026-09-25 续接（Xray 与待机网络的原始 DEX 再核）
+
+- 用户要求继续推进约一小时，并在北京时间约 20:50 暂停供其检查额度；工作期间持续把记录写入项目。本节为本轮第一处可交接检查点。没有开启新的 AC/Actions；最初两次免询问机会仍为 0/2。
+- 重新取回已保存的发布版 v7 完整 JADX 工件 `10847466987` 和 v7/v8 原始 DEX 工件 `10847337361`。`l61` 首页网络检查在重新排队后，原始 DEX 以 `goto` 直接返回；`yd0` 旧 OkHttp 客户端依次 cancelAll、evictAll、shutdown。恢复实现与两者一致，不依据易误读的 JADX 伪代码制造改动。Xray `vz3` 的 stop/start 超时分别为 1500/30000 ms；初核 `yz3` 会话和 XrayService 独立进程销毁路径与恢复层关键点一致。逐项 DEX 定位、结论和未覆盖边界见 `XRAY_NETWORK_DEX_AUDIT_2026-09-25.md`。
+- 接续任务：深入查 Binder 掉线/回调及会话竞态，优先有原始字节码证据的偏差；其次扩大候选 AAR Java/资源检查。本轮目前仍无 libXray AAR、APK 编译或设备验证，不能宣称恢复完成。
