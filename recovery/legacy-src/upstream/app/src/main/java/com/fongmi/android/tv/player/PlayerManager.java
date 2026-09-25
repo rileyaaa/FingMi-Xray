@@ -346,6 +346,15 @@ public class PlayerManager implements ParseCallback {
         xrayRestore = null;
         xrayPort = normalized;
 
+        // Final APK: before installing a Xray port, PlaybackService cancels
+        // player-adjacent network work (danmaku/subtitle/MediaSession artwork)
+        // which may still be using the previous network path.
+        if (normalized > 0) {
+            callback.onXrayTransitionStarted();
+        }
+
+        clearPreload();
+
         if (spec == null) return;
 
         rebuildEngineForXrayTransition();
@@ -371,6 +380,7 @@ public class PlayerManager implements ParseCallback {
                 ? null
                 : new XrayRestore(spec, PlaybackSnapshot.capture(player));
         xrayPort = 0;
+        clearPreload();
 
         if (spec != null) rebuildEngineForXrayTransition();
     }
@@ -742,6 +752,14 @@ public class PlayerManager implements ParseCallback {
         void onDanmakuEnabledChanged(boolean enabled);
 
         void onDanmakuSent(String text);
+
+        /**
+         * Called immediately after the requested Xray port becomes active and
+         * before the engine is rebuilt. The shipped PlaybackService uses this
+         * boundary to cancel player-adjacent network work from the old path.
+         */
+        default void onXrayTransitionStarted() {
+        }
     }
 
     private record PendingPreload(PlaySpec spec, long startPositionMs) {
