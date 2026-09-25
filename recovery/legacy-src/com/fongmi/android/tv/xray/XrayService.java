@@ -31,7 +31,15 @@ public final class XrayService extends Service {
     private static final long NO_SESSION = Long.MIN_VALUE;
 
     private final ExecutorService executor =
-            Executors.newSingleThreadExecutor();
+            Executors.newSingleThreadExecutor(
+                    runnable -> {
+                        Thread thread =
+                                new Thread(
+                                        runnable,
+                                        "fongmi-xray-core");
+                        thread.setDaemon(true);
+                        return thread;
+                    });
 
     private final LegacyXrayGenerationGate sessionGate =
             new LegacyXrayGenerationGate();
