@@ -48,3 +48,13 @@ In R8 class `a04.f`:
 Therefore the recovered predicate is confirmed: an authority port is treated as
 a hopping expression iff it contains `,` **or** `-`. The contradictory JADX
 condition is decompiler damage, not shipped behavior.
+
+## Xray data-source close after failed open
+
+The v7 JADX `or2.mo2561i` method sets its open flag immediately before
+calling the delegated `DataSource.open`. Its `close` method checks that flag,
+clears it, and closes the delegate. The legacy reconstruction previously set
+the flag after `delegate.open` returned; if the delegate threw, cleanup would
+be skipped. `LegacyXraySchemeGuardDataSource.open` now sets the flag before
+delegation to preserve the shipped cleanup path. This was a static v7 source
+comparison; runtime behavior remains untested pending the authorized build.

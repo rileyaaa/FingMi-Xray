@@ -53,9 +53,8 @@ public final class LegacyXraySchemeGuardDataSource implements DataSource {
                     "Unsupported data source scheme while Xray is enabled");
         }
 
-        long result = delegate.open(dataSpec);
         opened = true;
-        return result;
+        return delegate.open(dataSpec);
     }
 
     @Override
