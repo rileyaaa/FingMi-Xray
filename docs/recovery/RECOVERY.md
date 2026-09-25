@@ -27,8 +27,9 @@ Recover the maintainable source for the published `v5.6.0-xray.5` APK and refact
 4. Re-implement the FingMi changes in readable code.
 5. Move Xray ownership into an Android library module.
 6. Keep app-side changes limited to adapter/integration points.
-7. Once the recovery layer passes static review and the user approves the first
-   faithful build, build and functionally verify it before modularizing Xray.
+7. Once the recovery layer passes static review, build locally if the Android
+   toolchain is available, then verify behavior before modularizing Xray. Ask
+   the project owner before spending GitHub Actions minutes.
 
 ## Important behavior that must survive reconstruction
 
@@ -58,6 +59,6 @@ Where an APK class is substantially identical to FongMi 5.6.0, keep the upstream
 
 Recovery work is recorded directly on `main`, as requested by the project
 owner. The faithful recovery source stays under `recovery/legacy-src/` until
-its APK behavior and integration points are fully checked. The first faithful
-build requires the owner's separate approval; routine recovery commits do not
-run GitHub Actions.
+its APK behavior and integration points are fully checked. Compilation follows
+that static gate; use the local toolchain if possible. GitHub Actions remain
+manual-only and require the owner's advance approval.

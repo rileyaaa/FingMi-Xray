@@ -58,3 +58,19 @@ the flag after `delegate.open` returned; if the delegate threw, cleanup would
 be skipped. `LegacyXraySchemeGuardDataSource.open` now sets the flag before
 delegation to preserve the shipped cleanup path. This was a static v7 source
 comparison; runtime behavior remains untested pending the authorized build.
+
+## Static faithful-overlay interface inventory
+
+The source overlay contains 46 upstream-shaped files. Together with the
+separate readable Xray implementation, it contains 62 Java files. A static
+import inventory against the local FongMi-derived source found no missing
+project class imports: the two `IXray*` imports are supplied by the recovery
+AIDL files, while the two `PlayerEngine.Type.*` imports are static enum
+members. Resource-name inspection found no missing Xray-specific IDs or
+strings. It cannot verify method signatures, generated view binding, or
+Gradle integration; those remain part of the faithful-variant static gate.
+
+This execution environment has Java but no configured Android SDK or local
+Gradle cache. Do not run a build merely to discover these expected toolchain
+gaps. The owner authorized local compilation after thorough recovery review;
+ask before using GitHub Actions instead.
