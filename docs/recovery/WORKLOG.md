@@ -9,14 +9,14 @@
 - 仓库：`rileyaaa/FingMi-Xray`，只维护 `main`；恢复丢失的 `v5.6.0-xray.5` 源码，再把 Xray 从 FongMi 5.6.0 的改动中拆成独立模块和少量适配点，便于日后跟进上游。
 - 行为证据顺序：已发布 APK（首选 armeabi-v7a；arm64-v8a 交叉核对）→ 最初的 `README.md` 产品意图 → 当前恢复代码。README 包含手动开启且只作用于当前媒体播放、VOD/直播各自会话、切集/台/源/地址/播放器时重置、独立 `:xray` 进程、节点导入/测试、电视待机网络恢复等要求。
 - 待机网络/DNS/DoH 恢复属于 app 自身，不应误迁入 Xray 模块。`recovery/legacy-src/` 是发布版行为基准；现在的 `xray/` 和正常 `app/` 尚未完成迁移，不能替代基准。
-- 用户希望先做彻底的静态恢复核对，再尝试编译整套 APK；依赖 AAR 可先用 AC 编译并拉回核验，本地具备环境时优先本地编译。2026-09-25 用户另给 **两次无需再问的 AC 机会**，均已实际运行；截至本日志最新记录剩余 **0/2**，第三次须取得新授权。此前要求节省 Actions 额度。
+- 用户希望先做彻底的静态恢复核对，再尝试编译整套 APK；依赖 AAR 可先用 AC 编译并拉回核验，本地具备环境时优先本地编译。2026-09-25 用户另给 **两次无需再问的 AC 机会**，均已实际运行；截至本日志最新记录剩余 **0/2**；第三轮在随后明确指示下运行成功。此前要求节省 Actions 额度，未来运行仍须明确用途。
 
 ## 当前状态（2026-09-25）
 
 - 发布 APK：v7 SHA-256 `cacc7a90ce082adf955fc80a444b54f8cc86d5b5c3ac7acb13d1392b59928bda`；v8 SHA-256 `b5ac05193c1e19809fc7ffb3048f7d75aaa2124eace9953d669f4a81a477c21d`。固定上游 FongMi/TV commit `1a19fee278fa2234da725d61a53bf59b69fe9127`，libXray `v26.7.28`。
 - 静态恢复：`recovery/legacy-src/upstream/` 覆盖 51 文件（其中 `app/src` 46 文件）；另有 24 个 Xray Java 和 2 个 AIDL。`docs/recovery/README_APK_BEHAVIOR_MATRIX.md`、`LEGACY_BEHAVIOR_FREEZE.md`、`DEEP_AUDIT_2026-09-25.md` 记录逐项证据。v7 完整 JADX 已取回，对重要类与 v8 逐项对照；修复了数据源 `open` 失败后 `close` 清理顺序。
 - 用 `FINGMI_LEGACY_SOURCE_ONLY=1` 可只组装上游加恢复覆盖层；已核对覆盖文件逐字节一致，未运行 Gradle。静态导入和 Xray 资源名检查通过；**方法签名、生成的 view binding、完整 Gradle 依赖、运行行为未核完**，不能称已彻底还原。
-- 本地目前只有 Java 17 JRE，无 Android SDK、Gradle 缓存。FongMi 将自制播放器 `lib-*.aar` 排除在 Git 外；原有 5 个 `*-release.aar` 未提供所需 Media3/mpv 类。AC 第三轮已取回 16 个官方源码构建的候选 AAR，外层 ZIP 已持久保存并可用仓库脚本验证/导入 `app/libs/`；`libXray.aar` 尚未完整下载，方法/原生 ABI 和忠实 APK 编译仍待核验。
+- 本地目前只有 Java 17 JRE，无 Android SDK、Gradle 缓存。FongMi 将自制播放器 `lib-*.aar` 排除在 Git 外；原有 5 个 `*-release.aar` 未提供所需 Media3/mpv 类。AC 第三轮已取回 16 个官方源码构建的候选 AAR，外层 ZIP 已持久保存并可用仓库脚本验证/导入 `app/libs/`；`libXray.aar` 尚未完整下载；候选 AAR 的 38 个精选公开 Java 方法签名已核，十个 v7 播放器 `.so` 与发布 APK 逐字节相同；完整 Java ABI 和忠实 APK 编译仍待核验。
 - 历史 Actions 的 v7 完整 JADX 工件 `10847466987`；v7/v8 DEX 工件 `10847337361`；历史 v8 JADX `10825963688`。此前红灯原因是反编译后处理，不等同于 JADX 失败。工件 ID 仅作溯源；本地 scratch 随会话可能丢失。
 
 ## 2026-09-25 本次进展
@@ -61,9 +61,16 @@
 ## 下一步
 
 1. 持续对照 APK 核验剩余 API 方法签名、资源绑定、媒体播放会话和节点兼容；发现偏差时先修 faithful 层并附字节码定位。阶段进度见 `PROGRESS.md`。
-2. 从保存的候选包用 `scripts/import-player-aar-candidate.py` 还原本地依赖，核验 FongMi/media 候选 AAR 的完整方法及原生 ABI；准备好 libXray、JDK/SDK、Gradle 后在静态恢复核对充分的基础上编译 faithful APK。
+2. 从保存的候选包用 `scripts/import-player-aar-candidate.py` 还原本地依赖；v7 十个原生库和 38 项精选 Java 签名已核，下一步扩大到完整 Java/资源联合核查；准备好 libXray、JDK/SDK、Gradle 后在静态恢复核对充分的基础上编译 faithful APK。
 3. 基准可编译且行为验证后，将 Xray 核心收束至独立模块，app 仅保留 VOD/直播/播放器与设置的适配点，做同一份行为矩阵回归。
 
 ## 每次交接应更新
 
 追加日期、`main` 提交号、变更和证据、实际编译/设备验证结果（或明确未做）、未解决问题、接下来最可执行的任务，以及剩余免询问 AC 次数。产品需求改动同步更新 `PROJECT_REQUIREMENTS.md`，修复写 `DEBUG_HISTORY.md`，阶段变化更新 `PROGRESS.md`。不要把本地 scratch 路径当作持久位置。
+
+## 2026-09-25 续接（候选 AAR 静态 ABI 实证）
+
+- 用户问是否停止并要求继续：上一轮最终回复后确实没有后台持续任务，本轮重新开始工作。会话本地 scratch 已清空，未把临时文件当作仓库丢失；远端 `main` 原 SHA `303f121bf64d730f0784c592df6689562e497426` 可读。上轮持久保存的 44,336,768 字节 AAR 候选包已重新取回并以原 ZIP SHA-256 验证。固定 FongMi/TV Git 对象和 JADX ZIP 本轮未恢复，本轮也未执行 Gradle。
+- 新增 `scripts/check-player-native-against-v7.py`，从现有 `extract-v7-player-native.py` 读取已核的发布版十个原生库 SHA-256；对候选 `lib-mpvplayer-release.aar` 与 `lib-decoder-ffmpeg-release.aar` 内 `jni/armeabi-v7a/` 逐文件对照，**10/10 完全同 SHA-256**，其中 `libmpv.so`、`libplayer.so`、FFmpeg 七件和 `libc++_shared.so`。额外 `.so` 尚未据此证明。脚本实测通过。
+- 新增 `scripts/check-player-java-api.py`，解析 AAR 的真实 `classes.jar` Java class 方法表，对固定 FongMi/TV 5.6.0 使用的八个播放器类核 38 项公开方法的精确 JVM 描述符；**38/38 匹配**，坏 class 头负例也被拒。详情和限制见 `PLAYER_AAR_ABI_2026-09-25.md`。这只是选取接口和 v7 十个原生库，不等于完整兼容、faithful APK 已编译或设备通过。
+- 本轮无新的 AC/Actions 运行；最初免询问额度剩余 0/2，第三轮已按用户随后明确指示完成。下一步继续 Xray 优先的忠实恢复、待机网络恢复复查，补齐 libXray 与构建条件后再考虑 faithful APK 编译；独立模块重构仍未开始正式迁移。

@@ -31,6 +31,8 @@
 - 用真实工件执行导入脚本、预检和 `FINGMI_LEGACY_SOURCE_ONLY=1` 的离线组装，核对 21 个 AAR 在 `app/libs/` 与组装工作树中 SHA-256 逐个一致。组装成功不等同于 Android 编译。
 - 本地有固定上游的 Git 对象时，可用 `FINGMI_LEGACY_UPSTREAM_GIT_DIR=/path/to/pinned/object-store FINGMI_LEGACY_SOURCE_ONLY=1 FINGMI_LEGACY_WORK_DIR=/tmp/faithful-review bash scripts/prepare-legacy-faithful.sh`。此模式不下载 libXray、不执行 Gradle。
 
+- 2026-09-25 候选 AAR ABI 续查：从持久保存的真实工件重新核 SHA-256，并用 `check-player-native-against-v7.py` 读取既有发布版 APK 证据，对 10 个 v7 播放器 `.so` 全部核得字节完全相同；用 `check-player-java-api.py` 对固定 TV 5.6.0 使用的八个播放器类核 38 个公开方法精确 JVM 描述符全部通过。此结果消除了十份原生库的具体版本疑虑，但只覆盖精选 Java 接口，完整 API/运行逻辑、libXray 和 APK 编译/设备仍待查；未新跑 AC。细节见 `PLAYER_AAR_ABI_2026-09-25.md`。
+
 ## 后续调试记录格式
 
 每次写：日期；症状/触发条件；发布 APK、原 README 或运行日志证据；根因；改动文件和 `main` 提交；已执行的静态/编译/设备检查；尚未验证的风险。不要把反编译工具的推断记成确认的运行行为。
