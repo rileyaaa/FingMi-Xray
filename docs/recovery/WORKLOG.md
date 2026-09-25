@@ -130,3 +130,4 @@
 - 接线状态更正：普通 `settings.gradle`、`app/build.gradle` 已纳入 `:xray`，普通设置页直接 import 模块，模块 Manifest 声明独立服务；本轮实验模块修改可能影响普通 app。固定上游 faithful 组装设置不含 `:xray`，其 leanback Manifest 用恢复版服务，所以 faithful 源码基准仍独立。已更正 `XRAY_MODULE_BOUNDARY_2026-09-25.md` 的“未接入 app”说法；没有运行普通 app 或 faithful APK 编译。
 - 深入核 `XrayServiceClient`：把连接编号与回调有效代际拆开，避免失败后立即新绑使旧操作的失败通知被误吞；过期连接失败分支补解绑，绑定超时限制于仍等待 service 的状态，异常走恢复层同一 `fromException`。只做源码竞态推演，未做 Binder 真机/编译验证。
 - 核普通 app `SettingXrayActivity` 导入与实验 `XraySettingsController`：原导入/页面销毁均可能调用服务端远端 cancel；恢复版仅本地代际失效和断连，超时才精确远端 cancel。新增 `abandon()`，导入改用它，`close()` 去掉远端取消，超时保持 cancel 并递增 ID。已确认普通设置页调用方和控制器方法签名；未编译或跑设备。
+- 比较普通 app 已依赖的 `XrayPreferences` 与恢复的 `LegacyXrayConfigStore`：实验读旧加密链接只 trim，恢复版重新 normalize；保存校验及失败文本也不同。以恢复实现对齐存储类，仅适配包/类名；设置控制器保存交给存储归一化，静态逐字节核对通过。已有存储数据需真实 Android Keystore 设备回归。

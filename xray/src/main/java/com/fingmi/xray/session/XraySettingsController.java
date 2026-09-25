@@ -56,7 +56,7 @@ public final class XraySettingsController implements XrayServiceClient.Listener,
         assertMainThread();
         ensureOpen();
         if (activeOperation != XrayOperation.RESET_SECURITY) {
-            preferences.save(XrayShareLinkNormalizer.normalize(shareLink), udp);
+            preferences.save(shareLink, udp);
         }
     }
 
