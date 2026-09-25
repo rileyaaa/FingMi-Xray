@@ -26,6 +26,9 @@
 - 第二轮 AC `36123459832` 已进入 Media3 Gradle 编译阶段，编译结果见下一条；两次免询问机会已耗尽。v7 JADX 工件仍包含 10 个原始播放器/FFmpeg 原生库，`extract-v7-player-native.py` 对各文件的 SHA-256 实证核验通过；这为后续 v7 运行依赖提供可复现的提取路径，尚未完成 Java AAR 与原生库的 ABI 验证。
 - 第二轮 `36123459832` 的真实结果：固定 FongMi/media 源码 **484 个 Gradle 任务全部通过，BUILD SUCCESSFUL in 4m 15s**。工作流红灯来自工件脚本误用 `libraries/*/build/outputs/aar`，上游实际可按 `-PexternalBuildDir=buildout` 明确输出到仓库根 `buildout/lib-*/outputs/aar/`。上传的只有空清单，AAR 没有被拉回。已更正检索路径、显式固定输出目录，同时关掉 push 自动触发；修正尚待运行验证，第三次运行须另行授权。
 - 在本地合成 `buildout/lib-mpvplayer/outputs/aar/lib-mpvplayer-release.aar`（含 `classes.jar` 的三个占位类），直接跑修正的清单脚本，确认路径扫描、复制、哈希和三类检测成功；实际 Gradle 输出与真实方法签名仍须从下一轮 AAR 工件核实。
+- 静态检查待机恢复链路时发现 `BaseLoader.clear(Runnable)` 新增了 `App.post(onComplete)`，却没有 `com.fongmi.android.tv.App` 导入；同包没有 `App` 定义，会造成 Java 未解析符号。已补导入。依据源码包名与现存其他引用校核；尚未运行 Android 编译。
+- 第三轮 `36124817040` 成功，工件 `10859533459` 中 16 个 AAR 逐项 SHA-256 与构建清单一致；`lib-mpvplayer-release.aar`、`lib-exoplayer-release.aar` 中检出三种代表类；导入项目本地忽略的 `app/libs/` 后预检 21 个 AAR 通过。外层 ZIP SHA-256 `0ed42581af11ac7163ebde148b318807c244e2a318f40c41d33f50b70bf967ee`，已另外持久保存；新增导入脚本验证总 hash、清单和所有文件 hash，避免新会话误拿错 AAR。方法签名、完整 ABI 和整套 APK 构建仍未验证。
+- 用真实工件执行导入脚本、预检和 `FINGMI_LEGACY_SOURCE_ONLY=1` 的离线组装，核对 21 个 AAR 在 `app/libs/` 与组装工作树中 SHA-256 逐个一致。组装成功不等同于 Android 编译。
 - 本地有固定上游的 Git 对象时，可用 `FINGMI_LEGACY_UPSTREAM_GIT_DIR=/path/to/pinned/object-store FINGMI_LEGACY_SOURCE_ONLY=1 FINGMI_LEGACY_WORK_DIR=/tmp/faithful-review bash scripts/prepare-legacy-faithful.sh`。此模式不下载 libXray、不执行 Gradle。
 
 ## 后续调试记录格式
