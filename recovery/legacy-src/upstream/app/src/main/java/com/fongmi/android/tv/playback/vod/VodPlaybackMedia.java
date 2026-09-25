@@ -31,6 +31,10 @@ public final class VodPlaybackMedia {
             Episode episode,
             Consumer<Danmaku> set,
             Consumer<Danmaku> add) {
+        // Final APK cancels the previous request before evaluating whether the
+        // new item even needs an automatic danmaku search.
+        DanmakuApi.cancel();
+
         if (!DanmakuApi.canSearch()) return -1;
         if (VodConfig.get().getSite(result.getKey()).getDanmaku() == 0) return -1;
 
