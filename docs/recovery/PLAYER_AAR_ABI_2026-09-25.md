@@ -69,3 +69,5 @@ python3 scripts/check-player-ffmpegjni-against-published.py --aar-dir app/libs
 ## TV 播放器接线增量接口核查
 
 根据恢复覆盖层 `ExoPlayerSession`、`ExoMediaSourceFactory` 和固定上游 `ExoUtil` 的直接调用，扩大 `check-player-java-api.py` 的精确 JVM 描述符清单：增加预加载 Builder 构造、`build`/`buildExoPlayer`、预加载范围、`BasePreloadManager` 六个会话方法，以及负载/渲染器的 FongMi 扩展入口。现在对真实固定候选 ZIP 实测 **12 个类、50 个精选公开方法签名全部匹配**（之前为 8 类、38 项）。新增签名是基于实际源码调用补足，仍不是所有方法的兼容证明；JNI 差异、libXray、Android 编译和设备回归不因此解除。
+
+为避免本地网络不能获取两份原 APK，项目另备手动工作流 `recovery-restore-ffmpegjni.yml`：在有权限的 runner 核三个总 SHA 后运行同一重包脚本，工件仅保留重包后的 decoder AAR 和 SHA 清单。它目前未启动；若之后运行成功，拉回 AAR 后仍须本地复核 JNI、非 JNI 条目及完整依赖，不能把 workflow 配置本身当作完成证明。
