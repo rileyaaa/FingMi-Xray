@@ -61,6 +61,7 @@ import com.fongmi.android.tv.playback.vod.VodPlaybackController;
 import com.fongmi.android.tv.playback.vod.VodPlaybackHost;
 import com.fongmi.android.tv.playback.vod.VodPlaybackMedia;
 import com.fongmi.android.tv.player.media.PlaySpec;
+import com.fongmi.android.tv.player.extractor.Source;
 import com.fongmi.android.tv.service.PlaybackService;
 import com.fongmi.android.tv.setting.DanmakuSetting;
 import com.fongmi.android.tv.setting.PlayerSetting;
@@ -130,6 +131,7 @@ public class VideoActivity extends PlaybackActivity implements VodPlaybackHost, 
     private History mHistory;
     private CustomTarget<Drawable> mArtworkTarget;
     private LegacyXraySessionController mXray;
+    private int mDanmakuRequestId = -1;
     private boolean xrayPlaybackReady;
     private boolean fullscreen;
     private boolean useParse;
@@ -576,7 +578,14 @@ public class VideoActivity extends PlaybackActivity implements VodPlaybackHost, 
 
     @Override
     public void loadDanmaku(Result result, History history, Episode episode) {
-        VodPlaybackMedia.searchDanmaku(result, history, episode, player()::setDanmaku, player()::addDanmaku);
+        mDanmakuRequestId =
+                VodPlaybackMedia.searchDanmaku(
+                        player().getHttpClient(OkHttp.player()),
+                        result,
+                        history,
+                        episode,
+                        player()::setDanmaku,
+                        player()::addDanmaku);
     }
 
     @Override
@@ -1104,6 +1113,7 @@ public class VideoActivity extends PlaybackActivity implements VodPlaybackHost, 
             // cancel ordinary HTTP calls, clear Exo preload state, then swap
             // the active engine onto the returned SOCKS port.
             mViewModel.cancelXrayTransitionRequests();
+            Source.get().stop();
             OkHttp.cancelAll();
             mVod.clearPreloadForXray();
 
@@ -1623,7 +1633,8 @@ public class VideoActivity extends PlaybackActivity implements VodPlaybackHost, 
         if (mXray != null) mXray.dispose();
         mClock.release();
         saveHistory(true);
-        DanmakuApi.cancel();
+        DanmakuApi.cancel(mDanmakuRequestId);
+        mDanmakuRequestId = -1;
         RefreshEvent.keep();
         App.removeCallbacks(mR1, mR2, mR3, mR4);
         super.onDestroy();
