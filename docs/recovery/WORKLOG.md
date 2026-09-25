@@ -51,6 +51,7 @@
 - 第二轮最终结果：`36123459832` 的 `Compile upstream player libraries` **BUILD SUCCESSFUL in 4m 15s（484 个任务）**；随后清单脚本只查 `libraries/*/build/outputs/aar/`，但上游使用 `buildout/outputs/aar/`，故找不到编出的 AAR，工件未包含 AAR，工作流总体为 failure。真实问题是**后处理找错路径**，不是源码编译失败。工作流已改查 `buildout` 并移除 push 触发，防止自动花掉第三次；后续如需重跑，需要新的用户授权。
 - 工件路径修复已额外按上游 `build.gradle.kts` 明确传入 `-PexternalBuildDir=buildout`，固定到仓库根目录 `buildout/lib-*/outputs/aar/`；同时支持模块本地输出路径、检查同名 AAR 冲突。此修正只做静态核对，尚未在 AC 复跑。项目根目录 `AGENTS.md` 指向本日志；**以后每次 Work 或 Chat 改动工程都同步更新 `WORKLOG.md`，涉及需求、排错或阶段变化时同步对应 Markdown，并上传到仓库 `main`**。
 - 用 PyYAML 解析工作流确认仅 `workflow_dispatch`；在本地临时目录伪造一个符合 `buildout/lib-mpvplayer/outputs/aar/` 的 AAR，执行工作流原样清单脚本，验证能收集 AAR、列出三种目标类并写 SHA-256 清单。这只验证收集脚本，不等于真实候选 AAR 的类和 ABI 核验。
+- 已将上述修复和项目记录推送到远端 `main` 提交 `59e699627bf1880317134749c6844958296bee07`，其 Git tree 与本地 `d70396c5ddc4609a08e90594bc8dcd0681f1ba79` 一致。用户随后再次明确 AC 用于编译 AAR 并要求继续工作，本轮据此授权再次运行修正的 AAR 工作流。暂时重新开启仅工作流文件路径的 push 触发，运行结束立即移除并把实际工件、验证范围与错误更新在本日志中；**本次授权只用于 AAR 收集，不代表整套 APK 已恢复完成**。
 - 从已有 v7 JADX 完整工件的 `resources/lib/armeabi-v7a/` 发现 `libmpv.so`、`libplayer.so` 及其 FFmpeg 依赖，`readelf -d` 验证 `libplayer` 依赖 `libmpv`、`libavcodec`、`libswscale` 等。新增 `scripts/extract-v7-player-native.py`，可接受原发布 APK（先核总 SHA-256）或已有 JADX ZIP（逐个核 10 个原生库 SHA-256），只向显式 `--to` 目录导出这十个 v7 播放器原生库；已用现存 JADX 工件实测全部通过。未把提取的二进制文件提交至 Git，也未运行 app 编译。
 
 ## 下一步

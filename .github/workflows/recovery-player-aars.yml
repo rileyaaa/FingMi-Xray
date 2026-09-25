@@ -2,6 +2,10 @@ name: Build pinned FongMi Media3 player AARs
 
 on:
   workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/recovery-player-aars.yml
 
 permissions:
   contents: read
