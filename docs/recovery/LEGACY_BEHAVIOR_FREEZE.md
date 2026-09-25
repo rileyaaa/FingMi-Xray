@@ -162,34 +162,57 @@ The cleanup executor has:
 
 Before starting Xray from the playback menu the shipped build requires:
 
-- playback screen is ready
-- Xray is configured/eligible
-- ExoPlayer is the usable engine path
-- current media address is public HTTP(S)
+- the current player has reached READY at least once
+- there is a current playback session / PlaySpec
+- the current resolved media destination is public
+- supported destination schemes are `http`, `https`, `rtsp`, and `rtspt`
+
+Xray playback itself is Exo-only. If the normal session is using another
+engine, installing the Xray SOCKS port is an engine boundary and rebuilds the
+session as Exo rather than silently proxying an unsupported engine.
 
 When Xray becomes running:
 
-- cancel normal global client requests
-- reset the current playback selection/session
-- release the current player if needed
-- recreate playback with the returned Xray SOCKS port
+- cancel stale VOD DETAIL / PLAYBACK / PRELOAD jobs
+- cancel ordinary global HTTP calls which belong to the old network path
+- clear Exo next-item preload state
+- clear the current asynchronous artwork request
+- install the returned SOCKS port
+- rebuild the engine only when the engine/port boundary actually changes
+- preserve the current playback snapshot when the transition requests it
 
-When Xray errors while a player is using the Xray port:
+While a VOD Xray session is requested or active, new artwork requests are
+suppressed. This prevents image traffic from racing across the old and new
+network paths.
 
-- release player resources
+When Xray errors after its port was installed:
+
 - drop the Xray-backed engine/network resources
-- surface the error
+- preserve the playback snapshot for the normal-network rebuild
+- surface the playback error
 
-Stop/reset hooks include:
+The old Xray session is not inherited by:
 
-- playback/source reset
-- new intent
-- playback error/reset path
-- engine/player transitions
-- onStop
-- onDestroy
+- next/previous episode
+- automatic next episode
+- line/flag changes
+- source changes
+- refresh / actual playback-address changes
+- player-engine changes
+- playback end
+- new intent / new video
+- playback error/reset
+- leaving the playback screen
 
-`onDestroy()` disposes the Xray session controller.
+Opening the player-engine dialog alone does not stop Xray. The final APK runs
+the reset callback only when the selected engine actually changes.
+
+`onStop()` always stops the private Xray session. If FongMi is intentionally
+keeping normal playback alive in the background, the player snapshot can be
+preserved while the Xray port itself is removed.
+
+`onDestroy()` clears outstanding artwork work and disposes the Xray session
+controller.
 
 ## Live integration
 
@@ -197,22 +220,106 @@ Stop/reset hooks include:
 
 The same session is not automatically inherited across channel/source changes.
 
-Before Xray start, the selected live source must be public HTTP(S).
+For an already resolved playback session, the resolved URL must be a public
+`http`, `https`, `rtsp`, or `rtspt` destination.
+
+When no resolved playback session exists yet, the raw channel URL has an extra
+compatibility rule:
+
+- public RTSP/RTSPT may be used directly
+- HTTP(S) `.strm` indirections are not started through Xray yet
+- YouTube/youtu.be HTTP(S) indirections are not started through Xray yet
+
+Those indirections must first be resolved by FongMi into the real media URL.
+
+Live metadata is part of the session network boundary. EPG/XML metadata requests
+receive the current playback HTTP client; when Xray changes state, metadata
+calls are cancelled on both the normal client and the session client. Only the
+EPG/XML tasks are cancelled -- the active live URL-resolution task is preserved
+where the shipped continuation requires it.
 
 When Xray becomes running:
 
-- live artwork/loading state is reset
-- current player is recreated with the Xray SOCKS port
-- if startup interrupted a pending channel switch, the channel switch is resumed after the new engine is ready
+- cancel stale live metadata jobs/calls
+- suppress channel-logo and current-logo Glide requests
+- clear the current artwork request
+- install the returned SOCKS port
+- refresh EPG/XML through the session client
+
+There are two distinct startup paths:
+
+1. **Existing playback** -- install the SOCKS port with playback preservation.
+2. **Channel still resolving** -- install the SOCKS port without replaying the
+   old item, then resubmit the pending live/catch-up request with
+   `resetXray=false`. This avoids immediately killing the Xray session that
+   just finished starting.
+
+If startup fails while an ordinary live stream was already playing, the Xray
+error is reported without turning that still-valid direct stream into a
+full-screen playback failure.
 
 Live reset hooks include:
 
 - channel change
 - source/line change
-- live player reset
-- playback error path
+- whole live-config change
+- player-engine change
+- playback end/error/reset
 - onStop
 - onDestroy
+
+Player-engine reset is callback-based just like VOD: merely opening the engine
+dialog does not stop Xray.
+
+## Android TV foreground / standby network recovery
+
+This is a separate stability fix from Xray itself and must survive the later
+module refactor.
+
+The shipped TV build maintains a foreground/network generation:
+
+- all activities stopped, or `SCREEN_OFF`, marks a background/screen-off
+  transition
+- the next foreground start increments the generation
+- `SCREEN_ON` also increments it when an activity is still started
+- HomeActivity records the generation and checks it from both `onResume()`
+  and `onWindowFocusChanged(true)`
+
+When HomeActivity sees a new generation it does not immediately reuse the old
+network stack. The recovered sequence is:
+
+1. invalidate the stale home-result request
+2. detach the old **normal API** OkHttp client from the singleton
+3. reset the DNS/DoH transport while preserving the selected DoH configuration
+4. asynchronously cancel the old API client's calls
+5. evict its connection pool
+6. shut down its Dispatcher executor
+7. destroy cached Jar / JavaScript / Python Spider runtimes
+8. only after that cleanup finishes, start network-stability polling
+9. poll every 500 ms
+10. require two consecutive checks with
+    `NET_CAPABILITY_INTERNET`
+11. stop waiting after roughly 12 checks (~6 seconds)
+12. reload Home only if the foreground generation is still the same
+
+The dedicated player client is deliberately not reset by this Home recovery
+path. That preserves a normal background playback session when the app's
+background-playback setting allows it.
+
+DoH owns a separate OkHttpClient. A network-generation change destroys that
+transport too, but retains either the lazy DoH supplier or the concrete selected
+DoH configuration so the next lookup can rebuild DoH rather than silently
+falling back to system DNS.
+
+The APK uses a serialized daemon cleanup executor named:
+
+`TvNetworkCleanup`
+
+The decompiler damaged the try/catch edges around the three OkHttp cleanup
+operations. The recovered implementation intentionally performs all three
+operations -- cancel calls, evict pooled connections, and shut down the
+Dispatcher executor -- which is consistent with the surrounding lifecycle and
+the README's documented stale-Socket/DNS recovery intent.
 
 ## Share-link storage
 
