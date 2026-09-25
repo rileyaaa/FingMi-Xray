@@ -1,0 +1,101 @@
+name: Build pinned FongMi Media3 player AARs
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/recovery-player-aars.yml
+
+permissions:
+  contents: read
+
+jobs:
+  player-aars:
+    runs-on: ubuntu-latest
+    timeout-minutes: 50
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          repository: FongMi/media
+          ref: 3c2cbe8ac742c2fe15eff52f03eeb3b1b648848d
+          path: media
+          persist-credentials: false
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - uses: android-actions/setup-android@v3
+
+      - name: Prepare Android platform
+        run: sdkmanager --install 'platforms;android-36' 'build-tools;36.0.0'
+
+      - name: Compile upstream player libraries
+        working-directory: media
+        shell: bash
+        run: |
+          set -euo pipefail
+          ./gradlew --no-daemon \
+            :lib-common:assembleRelease \
+            :lib-database:assembleRelease \
+            :lib-datasource:assembleRelease \
+            :lib-datasource-okhttp:assembleRelease \
+            :lib-extractor:assembleRelease \
+            :lib-exoplayer:assembleRelease \
+            :lib-exoplayer-rtsp:assembleRelease \
+            :lib-exoplayer-hls:assembleRelease \
+            :lib-exoplayer-dash:assembleRelease \
+            :lib-exoplayer-smoothstreaming:assembleRelease \
+            :lib-decoder-ffmpeg:assembleRelease \
+            :lib-effect:assembleRelease \
+            :lib-mpvplayer:assembleRelease \
+            :lib-session:assembleRelease \
+            :lib-ui:assembleRelease \
+            :lib-ui-danmaku:assembleRelease
+
+      - name: Inventory compiled AARs and required classes
+        if: always()
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          from io import BytesIO
+          from zipfile import ZipFile
+          import hashlib
+          import shutil
+          source = Path('media')
+          dest = Path('player-aars')
+          dest.mkdir(exist_ok=True)
+          required = {
+              'androidx/media3/mpvplayer/MpvPlayer.class',
+              'androidx/media3/exoplayer/trackselection/DecodeTrackSelector.class',
+              'androidx/media3/exoplayer/source/preload/MediaSourceFactorySupplier.class',
+          }
+          found = set()
+          lines = ['FongMi/media @ 3c2cbe8ac742c2fe15eff52f03eeb3b1b648848d']
+          for path in sorted(source.glob('libraries/*/build/outputs/aar/*-release.aar')):
+              target = dest / path.name
+              shutil.copy2(path, target)
+              with ZipFile(path) as archive:
+                  with ZipFile(BytesIO(archive.read('classes.jar'))) as classes:
+                      found.update(required.intersection(classes.namelist()))
+              lines.append(f'{hashlib.sha256(target.read_bytes()).hexdigest()}  {target.name}')
+          lines += ['', 'Required classes found:'] + sorted(found)
+          lines += ['', 'Required classes missing:'] + sorted(required - found)
+          (dest / 'BUILD_MANIFEST.txt').write_text('\n'.join(lines) + '\n')
+          print('\n'.join(lines))
+          if required - found:
+              raise SystemExit('Compiled output lacks player prerequisites')
+          PY
+
+      - name: Upload compiled player libraries
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fongmi-media3-aar-candidate-1.11.0
+          path: player-aars/
+          if-no-files-found: warn
+          retention-days: 14
+          compression-level: 0

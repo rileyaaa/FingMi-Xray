@@ -40,6 +40,12 @@
 - 官方 FongMi README 说明播放器配套 `lib-*.aar` 不纳入 Git。Actions 并不会自带这些二进制；先找与固定 5.6.0 配套的正确来源，或确定可复现构建方法，再安排有意义的编译。
 - 新增 `scripts/check-faithful-player-aars.py`，`build-legacy-faithful.sh` 在下载 libXray / 拉上游 / 运行 Gradle 前执行。实测现有 5 个 AAR 的内嵌 `classes.jar` 都不含 `MpvPlayer`、`DecodeTrackSelector`、`MediaSourceFactorySupplier`；预检以退出码 1 报具体缺类，构建入口也确实提前退出。通过预检仅代表代表性类存在，并非全部 ABI/方法签名兼容。
 
+## 2026-09-25 续接（核心优先级与 AC 编译 AAR）
+
+- 子源确认前一轮的 Markdown 已在远端项目，要求 Work/Chat 任何修改均持续写项目记录。明确核心目标优先级：**Xray 功能第一；部分电视长期后台/待机网络恢复第二**。已写入 `PROJECT_REQUIREMENTS.md`。
+- 子源明确 AC 用来**编译播放器 AAR**，编译后拉回项目；因此先做独立的播放器依赖构建，不把 AAR 的编译混同于整套 APK faithful 完成。
+- 在 FongMi 官方 `media` 仓库发现 `release-1.11.0-fongmi` 分支的三个所需类源码；固定候选提交 `3c2cbe8ac742c2fe15eff52f03eeb3b1b648848d`（2026-08-12），而已固定 FongMi/TV 5.6.0 上游提交日期为 2026-08-07。新工作流 `.github/workflows/recovery-player-aars.yml` 从固定源码编译 Media3/mpv AAR、保存 SHA-256 清单与产物，属于**待核验版本兼容的候选**。FongMi 当前官方 README 仍说明 `lib-*.aar` 未纳入 Git；其 `MpvLibrary` 还加载 `mpv`/`player` 原生库。AC 实际运行、工件 ID、错误、剩余免询问次数要在运行后记录；未开始前仍为 **2/2**。
+
 ## 下一步
 
 1. 持续对照 APK 核验剩余 API 方法签名、资源绑定、媒体播放会话和节点兼容；发现偏差时先修 faithful 层并附字节码定位。阶段进度见 `PROGRESS.md`。
