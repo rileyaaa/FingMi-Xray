@@ -128,3 +128,4 @@
 - 核服务回调的错误去敏与代际门：实验代际门算法与恢复层相同；实验去敏器此前漏掉 JSON 引号敏感值处理及 1024 字符上限。现用恢复层去敏实现适配模块类名，并保留旧的 Throwable 兼容入口；服务异常调用 `fromException`。仅源码静态检查，未运行模块。
 - 审查未执行的手动 `recovery-restore-ffmpegjni.yml`：发现仓库为私有，原脚本以裸 `curl` 请求 Release 网页资产可能无法使用 `GITHUB_TOKEN`。改为 runner 上的 `gh release download` 精确匹配两份已在 Release 元数据核实的 APK 名称，再对整包 SHA-256 验证；候选 Actions 外层 ZIP 仍经带 token 的 API 下载并核固定哈希。PyYAML 静态核五步及仅 `workflow_dispatch`；没有触发运行，也没有得到真 APK。
 - 接线状态更正：普通 `settings.gradle`、`app/build.gradle` 已纳入 `:xray`，普通设置页直接 import 模块，模块 Manifest 声明独立服务；本轮实验模块修改可能影响普通 app。固定上游 faithful 组装设置不含 `:xray`，其 leanback Manifest 用恢复版服务，所以 faithful 源码基准仍独立。已更正 `XRAY_MODULE_BOUNDARY_2026-09-25.md` 的“未接入 app”说法；没有运行普通 app 或 faithful APK 编译。
+- 深入核 `XrayServiceClient`：把连接编号与回调有效代际拆开，避免失败后立即新绑使旧操作的失败通知被误吞；过期连接失败分支补解绑，绑定超时限制于仍等待 service 的状态，异常走恢复层同一 `fromException`。只做源码竞态推演，未做 Binder 真机/编译验证。

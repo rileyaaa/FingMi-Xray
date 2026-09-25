@@ -56,3 +56,5 @@
 普通 `settings.gradle` 包含 `:xray`，`app/build.gradle` 有 `implementation project(':xray')`，普通 leanback `SettingXrayActivity` 直接调用模块归一化器、设置控制器和错误去敏器；模块 Manifest 声明 `com.fingmi.xray.service.XrayService` 在 `:xray` 进程。故本轮对实验模块的修正可能影响普通 app 的 Xray 功能，不能称“未接入 app”。
 
 `recovery/legacy-src/upstream/settings.gradle` 只包含 app/catvod/chaquo/quickjs/libxray，faithful 的 leanback Manifest 声明 `com.fongmi.android.tv.xray.XrayService`，服务源在 `recovery/legacy-src/com/fongmi/android/tv/xray/`。因此**普通 app 模块的修改不等于 faithful 基准已变更或迁移完成**。两条构建路径均尚未在本地编译，普通 app 的 UI/会话/播放器接线也未完成整体验证。
+
+服务客户端续查：实验实现原把新绑定与回调有效性共用 `connectionGeneration`；旧绑定失败后如新绑定先于主线程失败通知，通知会被吞掉。现分设 `callbackGeneration`，仅断连/失败时失效旧回调；新绑定仍用独立编号识别连接。旧连接失败分支补解绑，绑定超时仅在仍处于 binding 且尚无 service 时执行。与恢复的 `LegacyXrayServiceClient` 静态控制流对照，未做线程竞态或真机测试。

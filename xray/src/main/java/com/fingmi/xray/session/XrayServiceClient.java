@@ -54,6 +54,7 @@ final class XrayServiceClient {
     private Request pending;
     private XrayConnection connection;
     private long connectionGeneration;
+    private long callbackGeneration;
     private long activeOperationId = NO_OPERATION;
     private boolean binding;
 
@@ -103,7 +104,7 @@ final class XrayServiceClient {
         if (request == null || service == null) return;
 
         activeOperationId = request.operationId;
-        long generation = connectionGeneration;
+        long generation = callbackGeneration;
         IXrayCallback callback = new IXrayCallback.Stub() {
             @Override
             public void onResult(
@@ -140,13 +141,13 @@ final class XrayServiceClient {
             }
             request.onDispatched.run();
         } catch (Exception error) {
-            failLocked(connection, XrayErrorSanitizer.sanitize(error));
+            failLocked(connection, XrayErrorSanitizer.fromException(error));
         }
     }
 
     private void deliverResult(long generation, XrayResult result) {
         synchronized (this) {
-            if (generation != connectionGeneration) return;
+            if (generation != callbackGeneration) return;
         }
         listener.onResult(result);
     }
@@ -154,6 +155,10 @@ final class XrayServiceClient {
     private synchronized void failLocked(XrayConnection expected, String message) {
         if (expected != null && expected != connection) {
             expected.detach();
+            try {
+                context.unbindService(expected);
+            } catch (IllegalArgumentException ignored) {
+            }
             return;
         }
 
@@ -162,10 +167,10 @@ final class XrayServiceClient {
         disconnectLocked();
 
         if (failedOperationId != NO_OPERATION) {
-            long generation = connectionGeneration;
+            long generation = callbackGeneration;
             main.post(() -> {
                 synchronized (XrayServiceClient.this) {
-                    if (generation != connectionGeneration) return;
+                    if (generation != callbackGeneration) return;
                 }
                 listener.onConnectionFailure(
                         failedOperationId,
@@ -176,6 +181,7 @@ final class XrayServiceClient {
 
     private void disconnectLocked() {
         connectionGeneration++;
+        callbackGeneration++;
         pending = null;
         activeOperationId = NO_OPERATION;
 
@@ -270,8 +276,8 @@ final class XrayServiceClient {
 
     private void onBindTimeout(XrayConnection expected) {
         synchronized (this) {
-            if (expected != connection) return;
-            failLocked(expected, "Xray service bind timed out");
+            if (expected != connection || !binding || service != null) return;
+            failLocked(expected, "Xray service connection timed out");
         }
     }
 }
