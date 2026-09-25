@@ -16,8 +16,10 @@ import java.util.regex.Pattern;
 /**
  * Behavior-oriented reconstruction of the shipped node normalizer (R8 name: a04).
  *
- * JADX has a few visibly impossible/inverted predicates after R8. Those specific
- * predicates are marked DEX_VERIFY and will be replaced from smali evidence.
+ * JADX has several visibly impossible/inverted predicates after R8. Predicates
+ * whose surrounding control flow proves the intended branch are documented
+ * inline. The authority port-hopping predicate remains marked DEX_VERIFY until
+ * it is checked against DEX/smali evidence.
  */
 public final class LegacyXrayShareLinkNormalizer {
 
@@ -378,8 +380,9 @@ public final class LegacyXrayShareLinkNormalizer {
         String obfs = obfsIndex < 0 ? null : parts.get(obfsIndex).value;
         String password = passwordIndex < 0 ? null : parts.get(passwordIndex).value;
 
-        // DEX_VERIFY: JADX emits the impossible condition
-        // "obfs == null && !obfs.isEmpty()" here.
+        // JADX emits the impossible "obfs == null && !obfs.isEmpty()".
+        // The following password-without-type branch and all supported obfs
+        // validation require the non-null/non-empty branch below.
         if (obfs != null && !obfs.isEmpty()) {
             String lower = obfs.toLowerCase(Locale.ROOT);
             if (!obfs.equals(lower)) {
@@ -469,7 +472,9 @@ public final class LegacyXrayShareLinkNormalizer {
             String portValue = matcher.group(1) != null ? matcher.group(1) : matcher.group(2);
             try {
                 BigDecimal port = new BigDecimal(portValue).stripTrailingZeros();
-                // DEX_VERIFY: JADX shows the scale comparison inverted.
+                // JADX shows scale <= 0 as invalid, which would reject every
+                // ordinary integral VMess port (including 443). The port must
+                // instead be invalid only when a fractional scale remains.
                 if (port.scale() > 0
                         || port.compareTo(BigDecimal.ONE) < 0
                         || port.compareTo(BigDecimal.valueOf(65_535L)) > 0) {
@@ -506,7 +511,9 @@ public final class LegacyXrayShareLinkNormalizer {
             if (close + 1 == endpoint.length()) {
                 return new HostPort(userInfo + endpoint, null);
             }
-            // DEX_VERIFY: JADX shows this comparison inverted.
+            // JADX shows ':' here as the error branch, but the next statement
+            // consumes close + 2 as the port start. Therefore '[host]:port'
+            // is the valid form and any other trailing character is invalid.
             if (endpoint.charAt(close + 1) != ':') {
                 throw new IllegalArgumentException("Xray link port is invalid");
             }
@@ -517,7 +524,9 @@ public final class LegacyXrayShareLinkNormalizer {
 
         int lastColon = endpoint.lastIndexOf(':');
         if (lastColon < 0) return new HostPort(userInfo + endpoint, null);
-        // DEX_VERIFY: JADX shows the single-colon comparison inverted.
+        // JADX shows a single ':' as invalid, which would reject every normal
+        // host:port authority. Multiple unbracketed colons are the invalid
+        // case; a single colon is then split into host prefix and port.
         if (endpoint.indexOf(':') != lastColon) {
             throw new IllegalArgumentException("Xray link port is invalid");
         }
