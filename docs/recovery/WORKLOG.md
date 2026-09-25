@@ -19,11 +19,14 @@
 
 ## 2026-09-25 本次进展
 
+已推送至 `main`：`3ac6223d74c0f5577c46f8f3b3ae22834d499224`（交接日志、恢复文档和本地 AAR 组装入口）。
+
 1. 重查发布版 `nq0` → `C1872zo` → `uc0` 的 DRM 路径：Xray 会话为 DRM license HTTP 单独设置 `DataSource.Factory`。Media3 官方 `DefaultDrmSessionManagerProvider.setDrmHttpDataSourceFactory` 参数正是 `DataSource.Factory`，因此恢复代码这里没有先前怀疑的参数类型错误；没有做无依据的 DRM 改写。发布版的 `nq0.mo615e` 空实现也与恢复层保持一致。
 2. 对照发布版 `or2`、`jz3` 与恢复的 `LegacyXraySchemeGuardDataSource`：允许的 8 种 scheme、空白 scheme、失败时 cleanup 顺序均已覆盖；此轮未发现新的实证偏差。
 3. `prepare-legacy-faithful.sh` 现在把仓库本地 `app/libs/lib-*.aar`（如果开发者提供）复制到临时组装树。此前仅覆盖 Git 内文件，这些被上游 `.gitignore` 忽略的播放器依赖不会进入忠实编译目录。
 4. 本日志承接每次会话的工作。旧的 `SESSION_2026-09-25.md` 只有一句概要；后续应将新增结论、阻塞、实际 AC 消耗和提交号持续写在此处。
 5. `bash -n scripts/prepare-legacy-faithful.sh` 和 `git diff --check` 通过。准备以本地临时 AAR 验证完整组装时，shell 到 `github.com` 的 DNS 被环境限制，`git fetch` 在复制阶段之前失败；临时探针已清理。因此本轮没有宣称组装脚本通过端到端验证，也未运行编译或 Actions。
+6. 增加仓库根目录 `AGENTS.md`，指向此日志和行为矩阵，让新会话先取到准确状态。复查 `pz3` 与 `LegacyXrayHttpResources` 的 SOCKS 未解析地址、连接池、独立 dispatcher 和网络拦截器初始化，未发现新的实证偏差。
 
 ## 下一步
 
