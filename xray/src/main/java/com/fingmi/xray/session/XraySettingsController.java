@@ -107,6 +107,14 @@ public final class XraySettingsController implements XrayServiceClient.Listener,
         serviceClient.cancel(operation, operationId);
     }
 
+    public void abandon() {
+        assertMainThread();
+        if (closed) return;
+        clearActive();
+        XrayOperationIds.next();
+        serviceClient.disconnect();
+    }
+
     @Override
     public void onResult(XrayResult result) {
         assertMainThread();
@@ -150,8 +158,8 @@ public final class XraySettingsController implements XrayServiceClient.Listener,
         assertMainThread();
         if (closed) return;
         closed = true;
-        cancel();
-        main.removeCallbacks(timeout);
+        clearActive();
+        XrayOperationIds.next();
         serviceClient.disconnect();
     }
 
@@ -172,6 +180,7 @@ public final class XraySettingsController implements XrayServiceClient.Listener,
         long operationId = activeOperationId;
         int operation = activeOperation;
         clearActive();
+        XrayOperationIds.next();
         serviceClient.cancel(operation, operationId);
 
         if (listener != null) {

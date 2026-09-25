@@ -153,7 +153,7 @@ public final class SettingXrayActivity extends BaseActivity
         if (event == null || event.link() == null || event.link().isBlank()) return;
 
         if (mOperationId != Long.MIN_VALUE && mOperation != XrayOperation.RESET_SECURITY) {
-            mXray.cancel();
+            mXray.abandon();
             clearOperation();
             Notify.dismiss();
         }

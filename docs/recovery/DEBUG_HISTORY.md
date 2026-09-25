@@ -53,3 +53,4 @@
 - 2026-09-25 实验 libXray 桥的返回值及错误漂移：`invokeObject` 将错误数据兜底为空对象或解析 JSON 字符串，转换也接受字符串；发布版均严格要求 JSONObject。旧桥过早 trim/去敏错误可能改变 bind 错误重试，已改按发布版空白码点检测与原始异常传播，外层结果再去敏。只静态核对。
 - 2026-09-25 实验错误去敏漂移：旧 `XrayErrorSanitizer` 只替换分享链接/UUID/普通键值，未逐字符遮盖 JSON 字符串敏感值，也不截断长错误；恢复版 `kz3` 的结果标记及空白异常回退不同。实验实现改由已核恢复类适配，服务异常改用 `fromException`，保留 Throwable 入口避免模块其他调用者的签名变化。尚未编译。
 - 2026-09-25 实验 Binder 客户端代际竞态：原 `connectionGeneration` 同时标识服务绑定与结果回调，失败 `disconnectLocked()` 后排队的通知若遇新 `execute()` 增代，会静默丢失。恢复层有独立 `callbackGeneration` 与 `bindSequence`。实验实现分离两代际，过期失败连接先解除绑定，并限制 bind timeout 的状态。仅静态推演，线程调度及设备未验证。
+- 2026-09-25 设置页导入/销毁可能误杀服务：普通设置页手机导入调用 `XraySettingsController.cancel()`，销毁 `close()` 也调用 cancel；恢复层在两处只清本地代际并解绑，45 秒超时才精确向远端取消。按恢复控制流调整导入与 close，超时仍保留精确 operation ID cancel。静态校验调用点，真实进程竞争待验。
