@@ -22,6 +22,8 @@ import java.time.ZoneId;
 import java.util.concurrent.Callable;
 import java.util.function.Consumer;
 
+import okhttp3.OkHttpClient;
+
 public class LiveViewModel extends ViewModel {
 
     private final MutableLiveData<PlaybackResult<LivePlayRequest>> playback;
@@ -85,11 +87,27 @@ public class LiveViewModel extends ViewModel {
     }
 
     public void parseXml(Live item) {
-        execute(TaskType.XML, () -> LiveApi.parseXml(item), xml::postValue, error -> xml.postValue(false));
+        parseXml(item, null);
+    }
+
+    public void parseXml(Live item, OkHttpClient client) {
+        execute(
+                TaskType.XML,
+                () -> LiveApi.parseXml(item, client),
+                xml::postValue,
+                error -> xml.postValue(false));
     }
 
     public void getEpg(Channel item) {
-        execute(TaskType.EPG, () -> LiveApi.getEpg(item, zoneId), epg::postValue, error -> epg.postValue(new Epg()));
+        getEpg(item, null);
+    }
+
+    public void getEpg(Channel item, OkHttpClient client) {
+        execute(
+                TaskType.EPG,
+                () -> LiveApi.getEpg(item, zoneId, client),
+                epg::postValue,
+                error -> epg.postValue(new Epg()));
     }
 
     public void getUrl(LivePlayRequest request) {
