@@ -1,6 +1,6 @@
 # Xray 独立重构边界（设计检查点，尚未迁移）
 
-日期：2026-09-25。目标不是换一套功能，而是在忠实恢复的发布版行为可编译、可回归后，把 Xray 与持续变化的 FongMi app 代码分离。原始 `README.md` 是功能意图，发布 APK 是已发版行为基准；`recovery/legacy-src/` 暂不作为未来架构直接发布。当前 `xray/` 是早期实验模块，不是忠实恢复完成品。
+日期：2026-09-25。目标不是换一套功能，而是在忠实恢复的发布版行为可编译、可回归后，把 Xray 与持续变化的 FongMi app 代码分离。原始 `README.md` 是功能意图，发布 APK 是已发版行为基准；`recovery/legacy-src/` 暂不作为未来架构直接发布。当前 `xray/` 是普通 app 工程已依赖的早期实验模块，不是忠实恢复完成品；固定上游的 faithful 组装采用原始 app/service/AIDL，不包含 `:xray`。
 
 ## 以实际依赖确定代码归属
 
@@ -37,7 +37,7 @@
 
 ## 分享链接归一化器的静态对齐（实验模块）
 
-把 `xray/.../XrayShareLinkNormalizer.java` 的实现与双 ABI 原始 DEX 校正过的 `LegacyXrayShareLinkNormalizer.java` 对齐，仅替换包名和类名；核对归一化后的源码逐字节相同。原实验实现对 Hysteria2 重复 `ports`、`mport` 百分号原始字节、默认端口与 pin/obfs 顺序、authority hopping 的逗号编码，以及 VMess base64 片段存在行为漂移。此改动仍未接入 app；没有 Java 编译或真机验证。迁移前还须核 AIDL descriptor 和其余配置/服务依赖。
+把 `xray/.../XrayShareLinkNormalizer.java` 的实现与双 ABI 原始 DEX 校正过的 `LegacyXrayShareLinkNormalizer.java` 对齐，仅替换包名和类名；核对归一化后的源码逐字节相同。原实验实现对 Hysteria2 重复 `ports`、`mport` 百分号原始字节、默认端口与 pin/obfs 顺序、authority hopping 的逗号编码，以及 VMess base64 片段存在行为漂移。普通 app 已依赖 `:xray`，该改动会影响普通 app 的 Xray 路径；没有 Java 编译或真机验证。迁移前还须核 AIDL descriptor 和其余配置/服务依赖。
 
 ## 服务与传输安全的后续静态核对
 
@@ -50,3 +50,9 @@
 `LibXrayBridge` 的 Xray invoke 返回结构也已收紧到发布版：对象结果必须是 JSONObject，分享链接转换不得接受 JSON 字符串或用空对象替代错误；原始错误按 Unicode 代码点的空白判断后向上抛，末端服务再负责去敏。旧实验桥提前 trim/去敏可能改变端口绑定失败重试的异常文本。此次仍是源码静态对照，真实 libXray AAR 与 Android 编译尚缺。
 
 实验错误去敏器之前缺少发布版针对 JSON 引号内敏感值的逐字符遮盖和 1024 字符截断，替换标记也不同。已适配恢复类，并保留 `sanitize(Throwable)` 兼容入口；服务异常走 `fromException`，与恢复层相同。代际门的 compareAndSet / invalidate 行为静态一致，仅名称与访问级别不同，未改。
+
+## 两条构建路径的接线澄清
+
+普通 `settings.gradle` 包含 `:xray`，`app/build.gradle` 有 `implementation project(':xray')`，普通 leanback `SettingXrayActivity` 直接调用模块归一化器、设置控制器和错误去敏器；模块 Manifest 声明 `com.fingmi.xray.service.XrayService` 在 `:xray` 进程。故本轮对实验模块的修正可能影响普通 app 的 Xray 功能，不能称“未接入 app”。
+
+`recovery/legacy-src/upstream/settings.gradle` 只包含 app/catvod/chaquo/quickjs/libxray，faithful 的 leanback Manifest 声明 `com.fongmi.android.tv.xray.XrayService`，服务源在 `recovery/legacy-src/com/fongmi/android/tv/xray/`。因此**普通 app 模块的修改不等于 faithful 基准已变更或迁移完成**。两条构建路径均尚未在本地编译，普通 app 的 UI/会话/播放器接线也未完成整体验证。
