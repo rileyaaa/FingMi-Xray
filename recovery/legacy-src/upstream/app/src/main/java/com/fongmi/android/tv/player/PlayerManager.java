@@ -1,5 +1,6 @@
 package com.fongmi.android.tv.player;
 
+import com.github.catvod.net.OkHttp;
 import android.net.Uri;
 import android.text.TextUtils;
 
@@ -317,7 +318,11 @@ public class PlayerManager implements ParseCallback {
     public OkHttpClient getHttpClient(OkHttpClient defaultClient) {
         if (engine != null && engine.getXrayPort() > 0) {
             OkHttpClient client = engine.getXrayHttpClient();
-            return client != null ? client : defaultClient;
+            // Exact th2.m9321h() fallback: if the Exo Xray engine reports a
+            // positive port but its dedicated resources are unexpectedly null,
+            // fall back to the global player client rather than the caller's
+            // arbitrary default client.
+            return client != null ? client : OkHttp.player();
         }
         if (xrayPort <= 0) return defaultClient;
         throw new IllegalStateException("Xray session requires ExoPlayerEngine");
