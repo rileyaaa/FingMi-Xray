@@ -121,7 +121,7 @@ public class SubtitleApi {
             Consumer<SubtitleSearchPage> success,
             Consumer<Exception> error) {
         search(
-                OkHttp.player(),
+                OkHttp.client(),
                 keyword,
                 pos,
                 success,
@@ -162,7 +162,7 @@ public class SubtitleApi {
             Consumer<List<SubtitleSearchItem>> success,
             Consumer<Exception> error) {
         detail(
-                OkHttp.player(),
+                OkHttp.client(),
                 id,
                 success,
                 error,
@@ -200,7 +200,7 @@ public class SubtitleApi {
             Consumer<List<SubtitleSearchItem>> success,
             Consumer<Exception> error) {
         loadArchive(
-                OkHttp.player(),
+                OkHttp.client(),
                 item,
                 success,
                 error,
