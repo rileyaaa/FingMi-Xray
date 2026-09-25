@@ -22,6 +22,14 @@
 
 `scripts/build-legacy-faithful.sh` 已在来源准备/Gradle 之前串联此 JNI 核验作为早停门；因此目前的候选 AAR **有意不能通过 faithful 构建入口**，直到二进制差异有据解决。它没有在本机运行完整 Android 编译（当前无 Android SDK/Gradle），只对构建脚本做语法检查并单独实测该核验门返回 1。
 
+新增 `scripts/restore-published-ffmpegjni.py`，要求同时提供原始 v7/v8 发布 APK 和固定 AC 候选 ZIP，先严格核三份文件的总 SHA-256、两件原 JNI 的逐文件 SHA，然后只重包候选 decoder AAR 中两个 ABI 的 `libffmpegJNI.so`，核其余 ZIP entry 字节不变，写入**不存在**的新目标文件。不会自动覆盖 `app/libs/` 中任何文件。命令示例：
+
+```bash
+python3 scripts/restore-published-ffmpegjni.py --candidate /path/to/FingMi-media3-player-AARs-1.11.0-candidate.zip --v7-apk /path/to/published-v7.apk --v8-apk /path/to/published-v8.apk --to /path/to/new-lib-decoder-ffmpeg-release.aar
+```
+
+本轮只有历史 JADX ZIP，没有可在 shell 下载且独立核总 SHA 的两份原始 APK；用 JADX ZIP 冒充 APK 的负例已被输入哈希校验拒绝，**尚未运行真实替换或通过新 AAR 构建**。取得原 APK 后应再对新 AAR 运行 `check-player-ffmpegjni-against-published.py --aar-dir`（放入临时目录）并核候选的其他依赖，再决定如何安全安装入本地 `app/libs/`。
+
 ## 复核命令
 
 ```bash
