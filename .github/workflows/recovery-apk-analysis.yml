@@ -173,7 +173,7 @@ jobs:
 
           abi, dex_name, out_dir, location_path = sys.argv[1:5]
           text = sys.stdin.read()
-          starts = [m.start() for m in re.finditer(r"(?m)^Class #\\d+ -$", text)]
+          starts = [m.start() for m in re.finditer(r"(?m)^\\s*Class #\\d+ -\\s*$", text)]
           starts.append(len(text))
           out = Path(out_dir)
           out.mkdir(parents=True, exist_ok=True)
@@ -209,6 +209,7 @@ jobs:
           test -f recovery/evidence/dexdump-v8/p000__a04.dexdump.txt
 
       - name: Upload v7 full JADX evidence
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: fingmi-v7-jadx-v5.6.0-xray.5
@@ -217,6 +218,7 @@ jobs:
           compression-level: 6
 
       - name: Upload dual-ABI DEX and smali evidence
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: fingmi-v7-v8-dex-smali-v5.6.0-xray.5
