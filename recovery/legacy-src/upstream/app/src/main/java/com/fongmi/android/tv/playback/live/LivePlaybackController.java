@@ -60,8 +60,22 @@ public class LivePlaybackController {
         }
     }
 
-    public void resumeChannelAfterXrayStart(Channel channel) {
-        selectChannel(channel, false);
+    /**
+     * Reconstructs the shipped continuation after Xray starts while the
+     * channel has no active player session yet. Re-submit the existing
+     * pending/playing request when it still matches the channel; otherwise
+     * synthesize a fresh live request. Crucially, resetXray=false.
+     */
+    public void resumeChannelAfterXrayStart() {
+        Channel channel = state.getChannel();
+        if (channel == null) return;
+
+        LivePlayRequest request = state.getActiveRequest();
+        if (request == null || !request.matches(channel)) {
+            request = LivePlayRequest.live(channel, C.TIME_UNSET);
+        }
+
+        requestPlayback(request, true, false);
     }
 
     public boolean selectEpg(EpgData data) {
