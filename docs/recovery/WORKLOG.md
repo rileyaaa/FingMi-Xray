@@ -126,3 +126,4 @@
 - 对照证书存储发现实验类原先静默吞掉迁移异常、重置时双存储与密钥清理顺序不同；已将 `XrayCertificatePins` 适配为恢复层 `LegacyXrayCertificateStore` 同实现，`XrayService.resetSecurityInternal` 改按原版调用 `resetAll(this)` 并重建依赖。仅静态核对；原始 APK 字节码的结论及后续模块测试门槛见模块边界文档。无新 AC。
 - 比较 `LibXrayBridge` 与恢复的 `LegacyLibXrayApi`：实验桥原先宽容接受字符串或空对象，且在 `invoke`/ping 阶段 trim/去敏错误；发布版要求 JSONObject，并以 `Character.isWhitespace` 按代码点判断空错。已定点修正，保留在外层回调去敏以免改变绑定失败判断。只做源代码静态对照，仍无真实 libXray AAR 或 Android 构建。
 - 核服务回调的错误去敏与代际门：实验代际门算法与恢复层相同；实验去敏器此前漏掉 JSON 引号敏感值处理及 1024 字符上限。现用恢复层去敏实现适配模块类名，并保留旧的 Throwable 兼容入口；服务异常调用 `fromException`。仅源码静态检查，未运行模块。
+- 审查未执行的手动 `recovery-restore-ffmpegjni.yml`：发现仓库为私有，原脚本以裸 `curl` 请求 Release 网页资产可能无法使用 `GITHUB_TOKEN`。改为 runner 上的 `gh release download` 精确匹配两份已在 Release 元数据核实的 APK 名称，再对整包 SHA-256 验证；候选 Actions 外层 ZIP 仍经带 token 的 API 下载并核固定哈希。PyYAML 静态核五步及仅 `workflow_dispatch`；没有触发运行，也没有得到真 APK。

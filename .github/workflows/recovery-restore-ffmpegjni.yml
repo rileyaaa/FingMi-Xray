@@ -25,13 +25,15 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p recovery/work/verified recovery/work/restored
-          base="https://github.com/rileyaaa/FingMi-Xray/releases/download/v5.6.0-xray.5"
-          curl -fL --retry 3 --retry-delay 2 \
-            "$base/FongMi-Xray-TV-v5.6.0-xray.5-armeabi-v7a.apk" \
-            -o recovery/work/verified/v7.apk
-          curl -fL --retry 3 --retry-delay 2 \
-            "$base/FongMi-Xray-TV-v5.6.0-xray.5-arm64-v8a.apk" \
-            -o recovery/work/verified/v8.apk
+          gh release download v5.6.0-xray.5 \
+            --repo rileyaaa/FingMi-Xray \
+            --pattern 'FongMi-Xray-TV-v5.6.0-xray.5-armeabi-v7a.apk' \
+            --pattern 'FongMi-Xray-TV-v5.6.0-xray.5-arm64-v8a.apk' \
+            --dir recovery/work/verified
+          mv recovery/work/verified/FongMi-Xray-TV-v5.6.0-xray.5-armeabi-v7a.apk \
+            recovery/work/verified/v7.apk
+          mv recovery/work/verified/FongMi-Xray-TV-v5.6.0-xray.5-arm64-v8a.apk \
+            recovery/work/verified/v8.apk
           curl -fL --retry 3 --retry-delay 2 \
             -H "Authorization: Bearer ${GH_TOKEN}" \
             'https://api.github.com/repos/rileyaaa/FingMi-Xray/actions/artifacts/10859533459/zip' \

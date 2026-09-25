@@ -73,3 +73,7 @@ python3 scripts/check-player-ffmpegjni-against-published.py --aar-dir app/libs
 为避免本地网络不能获取两份原 APK，项目另备手动工作流 `recovery-restore-ffmpegjni.yml`：在有权限的 runner 核三个总 SHA 后运行同一重包脚本，工件只保留重包后的 decoder AAR、同一轮按固定 ZIP SHA 获取的官方 libXray AAR 和 SHA 清单。它目前未启动；若之后运行成功，拉回 AAR 后仍须本地复核 JNI、非 JNI 条目及完整依赖，不能把 workflow 配置本身当作完成证明。
 
 增量核对还解析了候选 `DefaultPreloadManager.class` 的 `super_class` 常量池索引，确认为 `BasePreloadManager`；上面六个预加载会话方法确实可由恢复层的 `DefaultPreloadManager` 实例继承。此为类文件结构核对，仍不代替 javac/Gradle 编译。
+
+### 手动恢复工件的获取方式（2026-09-25 复核）
+
+仅手动的 `recovery-restore-ffmpegjni.yml` 使用 `GH_TOKEN` 配合 `gh release download` 精确匹配发布版 v7/v8 两份 APK，然后核各自完整 SHA-256；候选 AAR ZIP 走已有 Actions artifact API，另核原 ZIP 哈希。私有仓库的裸 Release 网页 `curl` 已从未运行的工作流移除。该工作流尚未派发，因而任何实际下载、重包和 libXray 获取结果都仍待验证。
