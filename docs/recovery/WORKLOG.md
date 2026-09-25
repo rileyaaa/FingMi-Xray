@@ -91,3 +91,10 @@
 - 将第十一件 JNI 严格核验接入 `scripts/build-legacy-faithful.sh` 的已存在播放器类预检之后、上游源码准备/Gradle 之前。`bash -n` 通过，针对真实候选 JNI 的独立脚本按预期返回 1；未在当前缺 SDK/Gradle 的机器运行整套构建入口。尝试从固定 tag 的原始 arm64 APK 做只读 HTTP HEAD，当前 shell 到 github.com 10 秒超时，故 v8 仍只有历史 JADX 工件的来源链，不谎称独立原 APK 复核。详细约束见 `PLAYER_AAR_ABI_2026-09-25.md`。
 - 新增 `scripts/restore-published-ffmpegjni.py` 作为未来从**原始**双 ABI 发布 APK 修复 decoder AAR 的安全入口：分别核 APK 总 SHA/原 JNI SHA 和候选 ZIP SHA，只重包两 ABI 对应 JNI，核其他 AAR ZIP 条目逐字节不变，并拒绝覆盖已有目标。Python 语法检查通过；把历史 JADX ZIP 错当 APK 输入的负例正确拒绝且未输出文件。当前没有可用原 APK（shell 到 github.com 超时），故尚未实测成功替换，未修改本地 `app/libs` 或运行 faithful APK 编译。说明与后续命令见 `PLAYER_AAR_ABI_2026-09-25.md`。
 - 给 `restore-published-ffmpegjni.py` 增加纯 Python 假 APK/AAR 正向回归 `recovery/legacy-tests/test_restore_ffmpegjni.py`。首次实测发现 `ZipFile.writestr` 会修改原始 `ZipInfo` 的 CRC/size，导致重包后用同一 ZipInfo 读源文件时触发 `Bad CRC-32`；已改写入 `copy(info)`，并惰性读取未替换 entry。回归随后 1/1 通过（两 JNI 替换且 classes.jar 不变）。这仍不是原 APK 或 Gradle 验证。现在到用户约定暂停时间前继续归档状态，不新跑 AC。
+
+## 2026-09-25 一小时工作检查点（北京时间约 20:50 暂停）
+
+- 本轮截至检查点的远端 `main` 为 `c5db33bccee5b1186fb4e6c86eb97cfc95ac8b9b`；依次提交原 DEX 的 Xray/待机网络证据、双 ABI 原生库对照、模块边界设计、FFmpeg JNI 阻塞及安全重包/回归脚本。以下检查点自身提交号以远端 `main` 最新值为准。
+- **最重要的待处理阻塞**：候选 AAR 的 `libffmpegJNI.so` 两个 ABI 都与发布版不同；`build-legacy-faithful.sh` 的早停门会拒绝它。脚本 `restore-published-ffmpegjni.py` 已有假包成功路径与错误来源负例，但没有原始 v7/v8 APK，尚未在真实包上运行。不能跳过它宣称 faithful APK 已编译。
+- 下一轮从本文件和 `PLAYER_AAR_ABI_2026-09-25.md`、`XRAY_NETWORK_DEX_AUDIT_2026-09-25.md`、`XRAY_MODULE_BOUNDARY_2026-09-25.md` 接手。先获取两份原始发布 APK，并以固定总 SHA 核验；在此之前**不要**对历史 JADX ZIP 当原 APK 重包。取得后运行重包脚本到全新路径，确认新 AAR 的 FFmpeg JNI 双 ABI SHA、其他条目不变，再决定如何导入本地 `app/libs`。之后仍需 libXray AAR、完整 Java/资源检查、faithful APK 编译及电视设备回归；过门后才开始正式模块迁移。
+- 一小时内未启动新的 AC/Actions；最初两个免询问机会仍为 0/2。当前执行环境仅有 JDK 17，无 Android SDK/Gradle，因此没有声称本地 Android 编译。按用户约定暂停，等其检查额度后再续。
