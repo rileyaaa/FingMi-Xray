@@ -164,6 +164,25 @@ public final class XraySessionController implements XrayServiceClient.Listener, 
             state = XraySessionListener.RUNNING;
             socksPort = result.socksPort;
             notifyState(XraySessionListener.RUNNING, socksPort, "");
+            return;
+        }
+
+        if (result.operation == XrayOperation.STOP) {
+            cleanupOperationId = NO_OPERATION;
+            main.removeCallbacks(cleanupTimeout);
+
+            if (result.success) {
+                serviceClient.disconnect();
+                return;
+            }
+
+            String message = XrayErrorSanitizer.sanitize(result.message);
+            if (state == XraySessionListener.IDLE) {
+                notifyState(XraySessionListener.IDLE, 0, message);
+            } else {
+                fail(message);
+            }
+            serviceClient.cancel(XrayOperation.STOP, result.operationId);
         }
     }
 
@@ -181,6 +200,9 @@ public final class XraySessionController implements XrayServiceClient.Listener, 
         }
 
         if (operationId != currentOperationId) return;
+
+        cleanupOperationId = NO_OPERATION;
+        main.removeCallbacks(cleanupTimeout);
 
         if (!disposed
                 && (state == XraySessionListener.STARTING
@@ -211,10 +233,14 @@ public final class XraySessionController implements XrayServiceClient.Listener, 
         if (operationId == NO_OPERATION) return;
 
         cleanupOperationId = NO_OPERATION;
-        if (!disposed && state == XraySessionListener.STARTING) {
-            fail("Previous Xray session cleanup timed out");
+        // A newer START may already be RUNNING. Its live Binder connection
+        // must not be disconnected by the previous STOP timeout.
+        if (state != XraySessionListener.RUNNING) {
+            if (!disposed && state == XraySessionListener.STARTING) {
+                fail("Previous Xray session cleanup timed out");
+            }
+            serviceClient.cancel(XrayOperation.STOP, operationId);
         }
-        serviceClient.cancel(XrayOperation.STOP, operationId);
     }
 
     private void onStartupTimeout() {

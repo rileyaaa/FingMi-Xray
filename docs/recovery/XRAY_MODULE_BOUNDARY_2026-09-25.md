@@ -29,3 +29,8 @@
 - 当前未编译 faithful APK、未跑 TV；没有发布 APK 运行等价证明。不能直接启用实验性 `xray/` 替换 24 类恢复基准。
 - 现有两个 ABI 各十个播放器原生库与候选 AAR 同 SHA-256，但 38 项 Java 方法仅是选取检查；资源和完整 Java/原生 API、`libXray.aar` 未完成。
 - 需明确 Android Gradle module 的 AIDL 生成、Manifest 的 `:xray` 合并、libXray 二进制来源及上游 FongMi 与本模块的依赖方向；目前此文只固定归属和验收门槛，不宣称已有新接口或完成迁移。
+
+
+## 实验模块会话收尾的静态对齐（仍未迁移）
+
+对照发布版行为恢复层，本轮发现并修正当前 `xray/` 中旧 STOP 超时误断新 RUNNING 会话、STOP 成功后不主动断 Binder、START 成功后过早丢失 active ID 致 Binder 死亡无法通知会话三项问题；当前连接失败也清除旧 cleanup timer。修改只改善实验模块局部控制流，**不表示它能替换 faithful 源码**。尤其 AIDL descriptor 仍不同，配置/安全/网络路径尚需独立比对，Android 编译与电视回归未做。

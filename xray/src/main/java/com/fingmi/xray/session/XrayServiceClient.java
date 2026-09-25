@@ -147,7 +147,6 @@ final class XrayServiceClient {
     private void deliverResult(long generation, XrayResult result) {
         synchronized (this) {
             if (generation != connectionGeneration) return;
-            if (result.operationId == activeOperationId) activeOperationId = NO_OPERATION;
         }
         listener.onResult(result);
     }
@@ -177,7 +176,6 @@ final class XrayServiceClient {
 
     private void disconnectLocked() {
         connectionGeneration++;
-        Request ignoredPending = pending;
         pending = null;
         activeOperationId = NO_OPERATION;
 
