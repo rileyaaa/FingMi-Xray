@@ -1,9 +1,6 @@
 name: Recovery APK analysis
 
 on:
-  push:
-    paths:
-      - ".github/workflows/recovery-apk-analysis.yml"
   workflow_dispatch:
 
 permissions:
