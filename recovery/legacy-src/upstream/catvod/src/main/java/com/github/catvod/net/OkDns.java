@@ -102,8 +102,16 @@ public class OkDns implements Dns {
     @NonNull
     @Override
     public List<InetAddress> lookup(@NonNull String hostname) throws UnknownHostException {
-        Supplier<Doh> supplier = this.supplier;
-        if (supplier != null) initDoh(supplier);
+        synchronized (this) {
+            if (doh == null) {
+                Supplier<Doh> lazy = supplier;
+                if (lazy != null) {
+                    initDoh(lazy);
+                } else if (currentDoh != null) {
+                    rebuildDoh(currentDoh);
+                }
+            }
+        }
         return (doh != null ? doh : Dns.SYSTEM).lookup(get(hostname));
     }
 
