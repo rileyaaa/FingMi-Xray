@@ -55,9 +55,8 @@ public class LivePlaybackController {
         if (restore) {
             restorePlaybackIfNeeded();
         } else {
-            if (resetXray) host.resetXrayForPlaybackChange();
             state.clearPlayback();
-            requestLive();
+            requestLive(resetXray);
         }
     }
 
@@ -165,10 +164,9 @@ public class LivePlaybackController {
     private void switchLine(boolean next, boolean show) {
         Channel channel = state.getChannel();
         if (channel == null || channel.isOnly()) return;
-        host.resetXrayForPlaybackChange();
         channel.switchLine(next);
         host.renderLineSelection(channel, show);
-        requestLive();
+        requestLive(true);
     }
 
     private void moveChannel(int delta) {
@@ -222,21 +220,35 @@ public class LivePlaybackController {
     }
 
     private void requestLive() {
+        requestLive(true);
+    }
+
+    private void requestLive(boolean resetXray) {
         Channel channel = state.getChannel();
         if (channel == null) return;
         LiveConfig.get().setKeep(channel);
-        requestPlayback(LivePlayRequest.live(channel, C.TIME_UNSET), true);
+        requestPlayback(
+                LivePlayRequest.live(channel, C.TIME_UNSET),
+                true,
+                resetXray);
     }
 
     private boolean requestCatchup(EpgData data, long startPositionMs) {
         Channel channel = state.getChannel();
         if (channel == null) return false;
-        requestPlayback(LivePlayRequest.catchup(channel, data, startPositionMs), false);
+        requestPlayback(
+                LivePlayRequest.catchup(channel, data, startPositionMs),
+                false,
+                true);
         return true;
     }
 
-    private void requestPlayback(LivePlayRequest request, boolean showProgress) {
+    private void requestPlayback(
+            LivePlayRequest request,
+            boolean showProgress,
+            boolean resetXray) {
         if (!host.isPlaybackServiceReady()) return;
+        if (resetXray) host.resetXrayForPlaybackChange();
         state.setPendingRequest(request);
         host.stopPlaybackForRefresh();
         publishPlaybackMetadata(getEpgData(request));
