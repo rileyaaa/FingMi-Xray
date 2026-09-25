@@ -45,6 +45,7 @@ import com.google.common.net.HttpHeaders;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Function;
 
 import okhttp3.OkHttpClient;
 
@@ -320,6 +321,18 @@ public class PlayerManager implements ParseCallback {
         }
         if (xrayPort <= 0) return defaultClient;
         throw new IllegalStateException("Xray session requires ExoPlayerEngine");
+    }
+
+    /**
+     * Reconstructs the synchronized th2 client hand-off used by subtitle and
+     * danmaku request creation. The action creates its Call while the same
+     * lock that protects Xray engine/port transitions is still held, so it
+     * cannot capture a client that is being torn down between lookup and use.
+     */
+    public synchronized <T> T withHttpClient(
+            OkHttpClient defaultClient,
+            Function<OkHttpClient, T> action) {
+        return action.apply(getHttpClient(defaultClient));
     }
 
     /**
