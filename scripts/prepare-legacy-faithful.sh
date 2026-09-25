@@ -1,0 +1,79 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+UPSTREAM_COMMIT="1a19fee278fa2234da725d61a53bf59b69fe9127"
+WORK_DIR="${FINGMI_LEGACY_WORK_DIR:-$ROOT/recovery/work/fingmi-faithful-5.6.0}"
+OVERLAY="$ROOT/recovery/legacy-src/upstream"
+
+command -v git >/dev/null 2>&1 || {
+  echo "git is required" >&2
+  exit 1
+}
+
+if [ ! -f "$ROOT/libxray/libs/libXray.aar" ]; then
+  echo "libXray.aar is missing; fetching the pinned official build..."
+  "$ROOT/scripts/fetch-libxray.sh"
+fi
+
+rm -rf "$WORK_DIR"
+mkdir -p "$WORK_DIR"
+
+git -C "$WORK_DIR" init -q
+git -C "$WORK_DIR" remote add origin https://github.com/FongMi/TV.git
+git -C "$WORK_DIR" fetch -q --depth=1 origin "$UPSTREAM_COMMIT"
+git -C "$WORK_DIR" checkout -q --detach FETCH_HEAD
+rm -rf "$WORK_DIR/.git"
+
+# Overlay every FongMi source/resource/build file whose final APK behavior was
+# reconstructed from v5.6.0-xray.5.
+cp -a "$OVERLAY/." "$WORK_DIR/"
+
+# The readable legacy Xray implementation itself is deliberately kept outside
+# the upstream-shaped overlay. Install it into the original app package only
+# for the faithful build workspace.
+mkdir -p "$WORK_DIR/app/src/main/java/com/fongmi/android/tv/xray"
+cp -a   "$ROOT/recovery/legacy-src/com/fongmi/android/tv/xray/."   "$WORK_DIR/app/src/main/java/com/fongmi/android/tv/xray/"
+
+mkdir -p "$WORK_DIR/app/src/main/aidl"
+cp -a   "$ROOT/recovery/legacy-src/aidl/."   "$WORK_DIR/app/src/main/aidl/"
+
+mkdir -p "$WORK_DIR/libxray/libs"
+cp   "$ROOT/libxray/libs/libXray.aar"   "$WORK_DIR/libxray/libs/libXray.aar"
+
+# app/build.gradle reads signing keys from local.properties even for a debug
+# configuration. Preserve a developer's SDK settings when available, while
+# providing harmless placeholders for release-only signing fields.
+if [ -f "$ROOT/local.properties" ]; then
+  cp "$ROOT/local.properties" "$WORK_DIR/local.properties"
+else
+  : > "$WORK_DIR/local.properties"
+fi
+
+ensure_property() {
+  local key="$1"
+  local value="$2"
+  if ! grep -q "^$key=" "$WORK_DIR/local.properties" 2>/dev/null; then
+    printf '%s=%s\n' "$key" "$value" >> "$WORK_DIR/local.properties"
+  fi
+}
+
+ensure_property storeFile /tmp/fingmi-recovery-placeholder.jks
+ensure_property keyAlias placeholder
+ensure_property storePassword placeholder
+
+chmod +x "$WORK_DIR/gradlew"
+
+cat <<EOF
+Prepared faithful recovery workspace:
+  $WORK_DIR
+
+Upstream:
+  FongMi/TV@$UPSTREAM_COMMIT
+
+Recovered APK identity:
+  versionCode 56005
+  versionName 5.6.0-xray.5
+
+No files under the normal app/:xray refactor tree were modified.
+EOF
