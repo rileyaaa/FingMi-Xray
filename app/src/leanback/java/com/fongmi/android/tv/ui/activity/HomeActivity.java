@@ -3,6 +3,9 @@ package com.fongmi.android.tv.ui.activity;
 import android.annotation.SuppressLint;
 import android.app.SearchManager;
 import android.content.Intent;
+import android.net.ConnectivityManager;
+import android.net.Network;
+import android.net.NetworkCapabilities;
 import android.os.Bundle;
 import android.text.TextUtils;
 import android.view.KeyEvent;
@@ -26,6 +29,7 @@ import com.fongmi.android.tv.Product;
 import com.fongmi.android.tv.R;
 import com.fongmi.android.tv.Updater;
 import com.fongmi.android.tv.api.config.LiveConfig;
+import com.fongmi.android.tv.api.loader.BaseLoader;
 import com.fongmi.android.tv.api.config.VodConfig;
 import com.fongmi.android.tv.api.config.WallConfig;
 import com.fongmi.android.tv.bean.Cache;
@@ -44,9 +48,9 @@ import com.fongmi.android.tv.event.RefreshEvent;
 import com.fongmi.android.tv.event.ServerEvent;
 import com.fongmi.android.tv.impl.Callback;
 import com.fongmi.android.tv.model.SiteViewModel;
+import com.fongmi.android.tv.network.TvNetworkLifecycle;
 import com.fongmi.android.tv.player.extractor.Source;
 import com.fongmi.android.tv.server.Server;
-import com.fongmi.android.tv.service.DLNARendererService;
 import com.fongmi.android.tv.service.PlaybackService;
 import com.fongmi.android.tv.ui.adapter.BaseDiffCallback;
 import com.fongmi.android.tv.ui.base.BaseActivity;
@@ -90,6 +94,15 @@ public class HomeActivity extends BaseActivity implements CustomTitleView.Listen
     private Result mResult;
     private Clock mClock;
 
+    private long mNetworkGeneration;
+    private long mRecoveryGeneration;
+    private int mRecoveryChecks;
+    private int mStableNetworkChecks;
+    private boolean mNetworkRecovering;
+
+    private final Runnable mNetworkRecoveryCheck =
+            this::checkRecoveredNetworkStability;
+
     private Site getHome() {
         return VodConfig.get().getHome();
     }
@@ -117,11 +130,13 @@ public class HomeActivity extends BaseActivity implements CustomTitleView.Listen
 
     @Override
     protected void initView(Bundle savedInstanceState) {
+        TvNetworkLifecycle.get(getApplication());
+        mNetworkGeneration = TvNetworkLifecycle.generation();
+
         mResult = Result.empty();
         mClock = Clock.create(mBinding.clock);
         mBinding.progressLayout.showProgress();
         PermissionUtil.requestNotify(this);
-        DLNARendererService.start(this);
         Updater.create().start(this);
         setRecyclerView();
         setViewModel();
@@ -451,10 +466,105 @@ public class HomeActivity extends BaseActivity implements CustomTitleView.Listen
         return super.dispatchKeyEvent(event);
     }
 
+    private void checkNetworkGeneration() {
+        long generation = TvNetworkLifecycle.generation();
+        if (generation == mNetworkGeneration || mNetworkRecovering) return;
+
+        mNetworkRecovering = true;
+        mRecoveryGeneration = generation;
+        mRecoveryChecks = 0;
+        mStableNetworkChecks = 0;
+
+        mBinding.progressLayout.showProgress();
+
+        if (mViewModel != null) {
+            mViewModel.cancelResultRequest();
+        }
+
+        // Exact shipped scope: reset the normal API client + DNS/DoH
+        // transport, but do not tear down the dedicated player client.
+        OkHttp.resetApiNetworkForResume();
+
+        // Spider runtimes can hold their own stale sockets/HTTP state.
+        // Network polling starts only after all runtimes have been destroyed.
+        BaseLoader.get().clear(() -> {
+            if (isFinishing() || isDestroyed()) {
+                mNetworkRecovering = false;
+                return;
+            }
+            App.post(mNetworkRecoveryCheck);
+        });
+    }
+
+    private void checkRecoveredNetworkStability() {
+        if (isFinishing() || isDestroyed()) {
+            mNetworkRecovering = false;
+            return;
+        }
+
+        if (TvNetworkLifecycle.generation() != mRecoveryGeneration) {
+            mNetworkRecovering = false;
+            checkNetworkGeneration();
+            return;
+        }
+
+        boolean internetAvailable = hasInternetCapability();
+        mStableNetworkChecks =
+                internetAvailable
+                        ? mStableNetworkChecks + 1
+                        : 0;
+
+        if (mStableNetworkChecks < 2 && mRecoveryChecks < 12) {
+            mRecoveryChecks++;
+            App.post(mNetworkRecoveryCheck, 500L);
+            return;
+        }
+
+        long completedGeneration = mRecoveryGeneration;
+        mNetworkGeneration = completedGeneration;
+        mNetworkRecovering = false;
+
+        if (TvNetworkLifecycle.generation() == completedGeneration) {
+            showContent();
+            getVideo();
+        }
+
+        // A second screen-off/background transition may have occurred while
+        // cleanup was in progress. Handle the newest generation immediately.
+        checkNetworkGeneration();
+    }
+
+    private boolean hasInternetCapability() {
+        try {
+            ConnectivityManager connectivity =
+                    (ConnectivityManager)
+                            getSystemService(CONNECTIVITY_SERVICE);
+            if (connectivity == null) return false;
+
+            Network network = connectivity.getActiveNetwork();
+            if (network == null) return false;
+
+            NetworkCapabilities capabilities =
+                    connectivity.getNetworkCapabilities(network);
+            return capabilities != null
+                    && capabilities.hasCapability(
+                            NetworkCapabilities.NET_CAPABILITY_INTERNET);
+        } catch (RuntimeException ignored) {
+            return false;
+        }
+    }
+
     @Override
     protected void onResume() {
         super.onResume();
         mClock.start();
+        checkNetworkGeneration();
+    }
+
+    @Override
+    public void onWindowFocusChanged(boolean hasFocus) {
+        super.onWindowFocusChanged(hasFocus);
+        if (hasFocus) checkNetworkGeneration();
     }
 
     @Override
@@ -479,7 +589,8 @@ public class HomeActivity extends BaseActivity implements CustomTitleView.Listen
 
     @Override
     protected void onDestroy() {
-        DLNARendererService.stop(this);
+        App.removeCallbacks(mNetworkRecoveryCheck);
+        mNetworkRecovering = false;
         LiveConfig.get().clear();
         VodConfig.get().clear();
         AppDatabase.backup();

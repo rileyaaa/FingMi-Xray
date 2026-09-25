@@ -23,20 +23,65 @@ public class OkDns implements Dns {
 
     private final ConcurrentHashMap<String, String> map;
     private volatile Supplier<Doh> supplier;
+    private volatile Doh currentDoh;
     private volatile DnsOverHttps doh;
+    private volatile OkHttpClient dohClient;
 
     public OkDns() {
         this.map = new ConcurrentHashMap<>();
     }
 
     public synchronized void setDoh(Doh item) {
-        HttpUrl url = HttpUrl.parse(item.getUrl());
-        this.doh = url == null ? null : new DnsOverHttps.Builder().client(new OkHttpClient()).url(url).bootstrapDnsHosts(item.getHosts()).build();
-        this.supplier = null;
+        currentDoh = item;
+        supplier = null;
+        rebuildDoh(item);
     }
 
     public synchronized void setDoh(Supplier<Doh> supplier) {
+        currentDoh = null;
         this.supplier = supplier;
+        rebuildDoh(null);
+    }
+
+    /**
+     * Recovered TV resume behavior (R8 ha2).
+     *
+     * If DoH is still lazy, discard its stale transport and keep the supplier
+     * for the next lookup. If a concrete DoH selection is already active,
+     * rebuild it immediately with a fresh OkHttpClient.
+     */
+    public synchronized void resetForNetworkChange() {
+        if (supplier != null) rebuildDoh(null);
+        else rebuildDoh(currentDoh);
+    }
+
+    public synchronized void resetAndClear() {
+        Supplier<Doh> oldSupplier = supplier;
+        Doh oldDoh = currentDoh;
+        rebuildDoh(null);
+        supplier = oldSupplier;
+        currentDoh = oldDoh;
+        map.clear();
+    }
+
+    private void rebuildDoh(Doh item) {
+        OkHttpClient oldClient = dohClient;
+        doh = null;
+        dohClient = null;
+
+        if (item != null) {
+            HttpUrl url = HttpUrl.parse(item.getUrl());
+            if (url != null) {
+                dohClient = new OkHttpClient();
+                doh = new DnsOverHttps.Builder()
+                        .client(dohClient)
+                        .url(url)
+                        .bootstrapDnsHosts(item.getHosts())
+                        .build();
+            }
+        }
+
+        OkHttp.cleanupClientAsync(oldClient);
     }
 
     public void clear() {
@@ -57,13 +102,24 @@ public class OkDns implements Dns {
     @NonNull
     @Override
     public List<InetAddress> lookup(@NonNull String hostname) throws UnknownHostException {
-        Supplier<Doh> supplier = this.supplier;
-        if (supplier != null) initDoh(supplier);
+        synchronized (this) {
+            if (doh == null) {
+                Supplier<Doh> lazy = supplier;
+                if (lazy != null) {
+                    initDoh(lazy);
+                } else if (currentDoh != null) {
+                    rebuildDoh(currentDoh);
+                }
+            }
+        }
         return (doh != null ? doh : Dns.SYSTEM).lookup(get(hostname));
     }
 
     private synchronized void initDoh(Supplier<Doh> supplier) {
         if (supplier != this.supplier) return;
-        setDoh(supplier.get());
+        Doh item = supplier.get();
+        currentDoh = item;
+        this.supplier = null;
+        rebuildDoh(item);
     }
 }

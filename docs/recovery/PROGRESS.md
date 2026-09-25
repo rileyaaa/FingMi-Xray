@@ -21,3 +21,5 @@
 2026-09-25 静态补核：恢复层六个 TV Activity 中 77 个 `mBinding` 字段引用，逐项能在相应布局 ID 中找到；候选播放器 16 个 AAR 共双 ABI 各 11 件 `.so`，对照已校验原 APK 的历史清单，各 ABI 仅 `libffmpegJNI.so` 一件不匹配。两项只收缩静态检查范围，未改变上表的 faithful 编译/设备/模块迁移状态。
 
 2026-09-25 增量：候选播放器 AAR 的精选 Java 签名核查从 8 类/38 项扩至 12 类/50 项，在真实固定 ZIP 上通过。此为静态依赖核查的范围增加，faithful APK 编译、实机回归、Xray 正式迁移仍未完成。
+
+- 2026-09-25 普通 app 的第二优先级接线：把已按发布 APK 静态核的 TV 网络代际、Home 恢复轮询、API/DNS/DoH 重建及 Spider 清理完成回调接入当前 app/catvod；源文件与 `recovery/legacy-src/upstream/` 对应版本一致。此项是源码接线，非 Android 编译或电视长待机测试。

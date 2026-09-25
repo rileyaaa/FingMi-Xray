@@ -2,6 +2,7 @@ package com.fongmi.android.tv.api.loader;
 
 import android.text.TextUtils;
 
+import com.fongmi.android.tv.App;
 import com.fongmi.android.tv.api.config.LiveConfig;
 import com.fongmi.android.tv.api.config.VodConfig;
 import com.fongmi.android.tv.bean.Live;
@@ -48,10 +49,23 @@ public class BaseLoader {
     }
 
     public void clear() {
+        clear(null);
+    }
+
+    /**
+     * Recovered TV network-resume ordering: stale Jar/JS/Python spider
+     * runtimes are destroyed off the main thread, and only after that cleanup
+     * completes may HomeActivity start waiting for a stable network again.
+     */
+    public void clear(Runnable onComplete) {
         Task.execute(() -> {
-            jarLoader.clear();
-            pyLoader.clear();
-            jsLoader.clear();
+            try {
+                jarLoader.clear();
+                pyLoader.clear();
+                jsLoader.clear();
+            } finally {
+                if (onComplete != null) App.post(onComplete);
+            }
         });
     }
 
