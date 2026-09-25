@@ -20,6 +20,8 @@
 
 `lib-decoder-ffmpeg` 的 `FfmpegLibrary.class` 引用 `ffmpegJNI`，不能按“没被用到”处理。`readelf -Ws` 核对两边公开导出集合：v7 各 783、v8 各 781，集合相同；但 `.text` 和 `.rodata` 哈希都不同，v7 文件长度也差 16 字节，**不能推断实现或运行行为一致**。`scripts/check-player-ffmpegjni-against-published.py` 的候选实测如预期退出 1；在将候选 AAR 用于 faithful APK 构建前，应先从已核原 APK 来源重取两 ABI 对应 JNI，决定是重包 AAR 还是用有据可核的 Gradle packaging 替换，复验完整 SHA，并补充原生调用/设备测试。不得静默用目前候选 JNI 宣称忠实构建。v8 来源链仍按上节限制标注。
 
+`scripts/build-legacy-faithful.sh` 已在来源准备/Gradle 之前串联此 JNI 核验作为早停门；因此目前的候选 AAR **有意不能通过 faithful 构建入口**，直到二进制差异有据解决。它没有在本机运行完整 Android 编译（当前无 Android SDK/Gradle），只对构建脚本做语法检查并单独实测该核验门返回 1。
+
 ## 复核命令
 
 ```bash
