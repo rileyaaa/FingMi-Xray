@@ -61,3 +61,7 @@ python3 scripts/check-player-ffmpegjni-against-published.py --aar-dir app/libs
 ```
 
 导入器会重新核固定候选工件及 16 件原 AAR，只允许 decoder AAR 的两件 `libffmpegJNI.so` 从候选变为发布版 SHA-256；`classes.jar` 及其他条目必须逐字节不变。`--restored-decoder` 本身只核条目与哈希，原 APK 的总 SHA 来源校验由前一步重包器负责。2026-09-25 本步骤仅用纯 Python 假包正反例验证，尚未执行真实导入或 APK 编译；原始 APK 在当前工作环境未取到。
+
+## 候选 AAR 原生条目完整清点（续查）
+
+从 AC 下载的候选 ZIP（总 SHA-256 已核）遍历全部 16 个 AAR 的 `jni/armeabi-v7a/` 与 `jni/arm64-v8a/`，以历史 APK 分析工件 `10847337361` 中的 `reports/apk-diff.json` 为发布版逐文件清单对照。该清单由工作流在校验两份原 APK 总 SHA 之后生成；本轮仍未自行取回原 APK，因此其来源链是已核工作流工件，而非本次独立的原 APK 复验。每个 ABI 在候选 AAR 中各有 **11 件 `.so`**：10 件 SHA 相同、1 件不同、0 件只存在候选侧。唯一差异均为 `lib-decoder-ffmpeg-release.aar` 中的 `libffmpegJNI.so`。以前的“第十件以外的其他 AAR 原生库尚未核对”已收束为这件明确阻塞；这不涉及 libXray AAR、原有五个第三方 AAR 或完整 APK 运行行为。

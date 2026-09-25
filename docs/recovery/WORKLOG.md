@@ -106,3 +106,6 @@
 - `scripts/import-player-aar-candidate.py` 新增可选 `--restored-decoder /path/to/new-lib-decoder-ffmpeg-release.aar`。导入前仍严格核固定候选 ZIP/清单和 16 个原始 AAR；若提供替换的 decoder AAR，检查 ZIP entry 顺序/数量无变化、两个 JNI 的 SHA-256 等于发布版记录、其余每个条目的内容与候选逐字节相同。所有验证结束后才写本地 `app/libs/`。默认不提供参数的导入行为维持原样，默认候选仍会被构建前 JNI 门拒绝。此参数不能代替从固定 SHA 原始 APK 执行 `restore-published-ffmpegjni.py` 的来源核验。
 - 新增 `recovery/legacy-tests/test_import_restored_decoder.py`：纯 Python 假包正例通过，非 JNI Java 字节码篡改、错误 JNI、额外条目均被拒。原有 `test_restore_ffmpegjni.py` 再跑 1/1 通过，导入核验测试 1/1 通过；Python 语法检查通过。**这不是对真实发布 APK 或真实候选 AAR 的端到端重包/导入验证。**
 - 下一步仍优先取原始 v7/v8 APK，核固定总 SHA，再执行真实重包、校验/导入。其后补 libXray AAR、完整接口/资源检查与 faithful APK 编译。独立 Xray 模块正式迁移仍须经过基准编译和关键行为回归。
+- 本轮另从历史双 ABI APK 清单工件 `10847337361` 遍历候选 16 件 AAR 的所有 `jni/{ABI}/*.so`：每个 ABI 各 11 件，10 件匹配、1 件 `libffmpegJNI.so` 不匹配、无额外未对照的候选播放器 `.so`。清单生成前的工作流已核发布 APK 总 SHA，但本轮仍未取得独立原 APK；该结果未解除 JNI 阻塞。详情见 `PLAYER_AAR_ABI_2026-09-25.md`。
+- 使用真实的 44,336,768 字节候选 ZIP 再核总 SHA `0ed42581...` 与 16 件 AAR；把未经修复的候选 decoder 当 `--restored-decoder` 传入新导入器，预期被 v8 JNI 哈希拒绝（退出码 2），导入前停止。这是真实候选的负向验证，正向真实替换仍需原 APK。
+- 静态 ViewBinding 名称核对：从恢复覆盖层六个 TV Activity (`Push/Home/Video/SettingXray/Live/Setting`) 提取 `mBinding.*` 共 77 个实际引用字段，对应布局优先选恢复覆盖 XML、没有覆盖时选固定仓库已有 XML；将 Android ID 的 snake_case 映射成 ViewBinding camelCase 后，六个布局均无缺名字段（3/6/24/7/9/28）。此检查仅证实字段名和 ID，尚未运行 Android ViewBinding 生成、Java 字段类型或资源合并验证。

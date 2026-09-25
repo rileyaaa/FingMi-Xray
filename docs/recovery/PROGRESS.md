@@ -16,3 +16,6 @@
 1. AC 可先编译缺失播放器 AAR，作为解决依赖的前置工作；拉回后必须核验符号和固定版本兼容性，APK faithful 编译仍在静态核验后进行。AC/Actions 的两次免询问机会剩余数见 `WORKLOG.md`。
 2. 即使接下来开展不依赖二进制的模块接口设计，也不能宣称行为恢复完成或用实验模块代替 faithful 基准。
 3. 进度变动应同时更新本表、`WORKLOG.md`；每个具体修复追加到 `DEBUG_HISTORY.md`，需求变化更新 `PROJECT_REQUIREMENTS.md`。
+
+
+2026-09-25 静态补核：恢复层六个 TV Activity 中 77 个 `mBinding` 字段引用，逐项能在相应布局 ID 中找到；候选播放器 16 个 AAR 共双 ABI 各 11 件 `.so`，对照已校验原 APK 的历史清单，各 ABI 仅 `libffmpegJNI.so` 一件不匹配。两项只收缩静态检查范围，未改变上表的 faithful 编译/设备/模块迁移状态。
