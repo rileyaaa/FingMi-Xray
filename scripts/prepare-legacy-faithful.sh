@@ -5,15 +5,16 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 UPSTREAM_COMMIT="1a19fee278fa2234da725d61a53bf59b69fe9127"
 WORK_DIR="${FINGMI_LEGACY_WORK_DIR:-$ROOT/recovery/work/fingmi-faithful-5.6.0}"
 OVERLAY="$ROOT/recovery/legacy-src/upstream"
+SOURCE_ONLY="${FINGMI_LEGACY_SOURCE_ONLY:-0}"
 
 command -v git >/dev/null 2>&1 || {
   echo "git is required" >&2
   exit 1
 }
 
-if [ ! -f "$ROOT/libxray/libs/libXray.aar" ]; then
+if [ "$SOURCE_ONLY" != 1 ] && [ ! -f "$ROOT/libxray/libs/libXray.aar" ]; then
   echo "libXray.aar is missing; fetching the pinned official build..."
-  "$ROOT/scripts/fetch-libxray.sh"
+  bash "$ROOT/scripts/fetch-libxray.sh"
 fi
 
 rm -rf "$WORK_DIR"
@@ -38,8 +39,10 @@ cp -a   "$ROOT/recovery/legacy-src/com/fongmi/android/tv/xray/."   "$WORK_DIR/ap
 mkdir -p "$WORK_DIR/app/src/main/aidl"
 cp -a   "$ROOT/recovery/legacy-src/aidl/."   "$WORK_DIR/app/src/main/aidl/"
 
-mkdir -p "$WORK_DIR/libxray/libs"
-cp   "$ROOT/libxray/libs/libXray.aar"   "$WORK_DIR/libxray/libs/libXray.aar"
+if [ -f "$ROOT/libxray/libs/libXray.aar" ]; then
+  mkdir -p "$WORK_DIR/libxray/libs"
+  cp "$ROOT/libxray/libs/libXray.aar" "$WORK_DIR/libxray/libs/libXray.aar"
+fi
 
 # app/build.gradle reads signing keys from local.properties even for a debug
 # configuration. Preserve a developer's SDK settings when available, while
@@ -77,3 +80,7 @@ Recovered APK identity:
 
 No files under the normal app/:xray refactor tree were modified.
 EOF
+
+if [ "$SOURCE_ONLY" = 1 ]; then
+  echo "Source-only review: no Gradle task ran and missing AAR files were not fetched."
+fi

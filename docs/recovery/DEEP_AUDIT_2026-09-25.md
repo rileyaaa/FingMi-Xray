@@ -61,7 +61,7 @@ comparison; runtime behavior remains untested pending the authorized build.
 
 ## Static faithful-overlay interface inventory
 
-The source overlay contains 46 upstream-shaped files. Together with the
+The app source portion of the overlay contains 46 files. Together with the
 separate readable Xray implementation, it contains 62 Java files. A static
 import inventory against the local FongMi-derived source found no missing
 project class imports: the two `IXray*` imports are supplied by the recovery
@@ -74,3 +74,23 @@ This execution environment has Java but no configured Android SDK or local
 Gradle cache. Do not run a build merely to discover these expected toolchain
 gaps. The owner authorized local compilation after thorough recovery review;
 ask before using GitHub Actions instead.
+
+## Faithful source preparation without a build
+
+FongMi/TV at `1a19fee` was fetched locally, then the 51-file overlay, 24
+readable Xray Java files and two AIDL files were laid over it. The resulting
+tree has no unresolved project class imports in Xray-touched source, and its
+Xray-specific resource references are present. `exo_progress` belongs to the
+external Media3 dependency. Generated binding fields and method signatures
+still require independent checks.
+
+The pinned upstream tree and the recovery overlay do not contain the custom
+Media3/mpv player AARs under `app/libs/`; FongMi's current build instructions
+explicitly state that `lib-*.aar` player dependencies are excluded from Git.
+The Java sources reference custom `androidx.media3.mpvplayer` classes, so
+neither a local build nor a GitHub Actions build can be assumed ready merely
+after fetching `libXray.aar`. Preserve this as an external dependency gate.
+
+For repeatable static review, `FINGMI_LEGACY_SOURCE_ONLY=1` now skips the
+libXray download in `prepare-legacy-faithful.sh`. The build script rejects
+that flag instead of attempting an incomplete build.
