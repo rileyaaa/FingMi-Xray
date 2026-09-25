@@ -167,12 +167,15 @@ public final class SubtitleSearchDialog extends BaseBottomSheetDialog implements
         scroller.endLoading(hasMore());
 
         requestId =
-                SubtitleApi.detail(
-                        player.getHttpClient(OkHttp.client()),
-                        item.getId(),
-                        this::showItems,
-                        this::onError,
-                        this::onXrayTransitionCancelled);
+                player.withHttpClient(
+                        OkHttp.client(),
+                        client ->
+                                SubtitleApi.detail(
+                                        client,
+                                        item.getId(),
+                                        this::showItems,
+                                        this::onError,
+                                        this::onXrayTransitionCancelled));
     }
 
     private void applySub(SubtitleSearchItem item) {
@@ -191,12 +194,15 @@ public final class SubtitleSearchDialog extends BaseBottomSheetDialog implements
         scroller.endLoading(hasMore());
 
         requestId =
-                SubtitleApi.loadArchive(
-                        player.getHttpClient(OkHttp.client()),
-                        item,
-                        this::showArchive,
-                        this::onError,
-                        this::onXrayTransitionCancelled);
+                player.withHttpClient(
+                        OkHttp.client(),
+                        client ->
+                                SubtitleApi.loadArchive(
+                                        client,
+                                        item,
+                                        this::showArchive,
+                                        this::onError,
+                                        this::onXrayTransitionCancelled));
     }
 
     private boolean loadMore() {
@@ -213,13 +219,16 @@ public final class SubtitleSearchDialog extends BaseBottomSheetDialog implements
         updateBackCallback();
 
         requestId =
-                SubtitleApi.search(
-                        player.getHttpClient(OkHttp.client()),
-                        keyword,
-                        nextPos,
-                        this::onSearch,
-                        this::onSearchError,
-                        this::onXrayTransitionCancelled);
+                player.withHttpClient(
+                        OkHttp.client(),
+                        client ->
+                                SubtitleApi.search(
+                                        client,
+                                        keyword,
+                                        nextPos,
+                                        this::onSearch,
+                                        this::onSearchError,
+                                        this::onXrayTransitionCancelled));
     }
 
     private void onXrayTransitionCancelled() {
