@@ -51,7 +51,6 @@ import com.fongmi.android.tv.model.SiteViewModel;
 import com.fongmi.android.tv.network.TvNetworkLifecycle;
 import com.fongmi.android.tv.player.extractor.Source;
 import com.fongmi.android.tv.server.Server;
-import com.fongmi.android.tv.service.DLNARendererService;
 import com.fongmi.android.tv.service.PlaybackService;
 import com.fongmi.android.tv.ui.adapter.BaseDiffCallback;
 import com.fongmi.android.tv.ui.base.BaseActivity;
@@ -592,7 +591,6 @@ public class HomeActivity extends BaseActivity implements CustomTitleView.Listen
     protected void onDestroy() {
         App.removeCallbacks(mNetworkRecoveryCheck);
         mNetworkRecovering = false;
-        DLNARendererService.stop(this);
         LiveConfig.get().clear();
         VodConfig.get().clear();
         AppDatabase.backup();
