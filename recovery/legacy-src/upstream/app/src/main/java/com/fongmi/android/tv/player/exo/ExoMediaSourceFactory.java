@@ -1,8 +1,6 @@
 package com.fongmi.android.tv.player.exo;
 
 import android.net.Uri;
-import android.text.TextUtils;
-
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.media3.common.C;
@@ -219,7 +217,12 @@ public class ExoMediaSourceFactory
 
                 String userAgent =
                         headers.get("User-Agent");
-                if (!TextUtils.isEmpty(userAgent)) {
+                if (userAgent != null
+                        && userAgent.codePoints()
+                                .anyMatch(
+                                        codePoint ->
+                                                !Character.isWhitespace(
+                                                        codePoint))) {
                     factory.setUserAgent(userAgent);
                 }
                 return factory.createMediaSource(
