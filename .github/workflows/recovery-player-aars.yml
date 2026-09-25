@@ -2,10 +2,6 @@ name: Build pinned FongMi Media3 player AARs
 
 on:
   workflow_dispatch:
-  push:
-    branches: [main]
-    paths:
-      - .github/workflows/recovery-player-aars.yml
 
 permissions:
   contents: read
@@ -42,7 +38,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          ./gradlew --no-daemon \
+          ./gradlew --no-daemon -PexternalBuildDir=buildout \
             :lib-common:assembleRelease \
             :lib-database:assembleRelease \
             :lib-datasource:assembleRelease \
@@ -80,8 +76,19 @@ jobs:
           }
           found = set()
           lines = ['FongMi/media @ 3c2cbe8ac742c2fe15eff52f03eeb3b1b648848d']
-          for path in sorted(source.glob('libraries/*/build/outputs/aar/*-release.aar')):
+          aar_paths = sorted(set(
+              source.glob('libraries/*/buildout/outputs/aar/*-release.aar')
+          ) | set(
+              source.glob('buildout/lib-*/outputs/aar/*-release.aar')
+          ) | set(
+              source.glob('libraries/*/build/outputs/aar/*-release.aar')
+          ))
+          if not aar_paths:
+              raise SystemExit('Gradle succeeded but no AAR under buildout/*/outputs/aar')
+          for path in aar_paths:
               target = dest / path.name
+              if target.exists() and target.read_bytes() != path.read_bytes():
+                  raise SystemExit(f'Conflicting AAR basename: {path.name}')
               shutil.copy2(path, target)
               with ZipFile(path) as archive:
                   with ZipFile(BytesIO(archive.read('classes.jar'))) as classes:

@@ -9,14 +9,14 @@
 - 仓库：`rileyaaa/FingMi-Xray`，只维护 `main`；恢复丢失的 `v5.6.0-xray.5` 源码，再把 Xray 从 FongMi 5.6.0 的改动中拆成独立模块和少量适配点，便于日后跟进上游。
 - 行为证据顺序：已发布 APK（首选 armeabi-v7a；arm64-v8a 交叉核对）→ 最初的 `README.md` 产品意图 → 当前恢复代码。README 包含手动开启且只作用于当前媒体播放、VOD/直播各自会话、切集/台/源/地址/播放器时重置、独立 `:xray` 进程、节点导入/测试、电视待机网络恢复等要求。
 - 待机网络/DNS/DoH 恢复属于 app 自身，不应误迁入 Xray 模块。`recovery/legacy-src/` 是发布版行为基准；现在的 `xray/` 和正常 `app/` 尚未完成迁移，不能替代基准。
-- 用户希望先做彻底的静态恢复核对，再尝试编译；可在本地具备环境和依赖时编译。2026-09-25 用户另给 **两次无需再问的机会**；记录为最多两次必要的 AC/Actions 尝试额度，仍应先说明验证目标、确认源码与依赖就绪，且每实际启动一次才扣一次。此前要求节省 Actions 额度。未消耗：**2/2**。
+- 用户希望先做彻底的静态恢复核对，再尝试编译整套 APK；依赖 AAR 可先用 AC 编译并拉回核验，本地具备环境时优先本地编译。2026-09-25 用户另给 **两次无需再问的 AC 机会**，均已实际运行；截至本日志最新记录剩余 **0/2**，第三次须取得新授权。此前要求节省 Actions 额度。
 
 ## 当前状态（2026-09-25）
 
 - 发布 APK：v7 SHA-256 `cacc7a90ce082adf955fc80a444b54f8cc86d5b5c3ac7acb13d1392b59928bda`；v8 SHA-256 `b5ac05193c1e19809fc7ffb3048f7d75aaa2124eace9953d669f4a81a477c21d`。固定上游 FongMi/TV commit `1a19fee278fa2234da725d61a53bf59b69fe9127`，libXray `v26.7.28`。
 - 静态恢复：`recovery/legacy-src/upstream/` 覆盖 51 文件（其中 `app/src` 46 文件）；另有 24 个 Xray Java 和 2 个 AIDL。`docs/recovery/README_APK_BEHAVIOR_MATRIX.md`、`LEGACY_BEHAVIOR_FREEZE.md`、`DEEP_AUDIT_2026-09-25.md` 记录逐项证据。v7 完整 JADX 已取回，对重要类与 v8 逐项对照；修复了数据源 `open` 失败后 `close` 清理顺序。
 - 用 `FINGMI_LEGACY_SOURCE_ONLY=1` 可只组装上游加恢复覆盖层；已核对覆盖文件逐字节一致，未运行 Gradle。静态导入和 Xray 资源名检查通过；**方法签名、生成的 view binding、完整 Gradle 依赖、运行行为未核完**，不能称已彻底还原。
-- 本地目前只有 Java 17 JRE，无 Android SDK、Gradle 缓存。FongMi 将自制播放器 `lib-*.aar` 排除在 Git 外；所附 5 个 `*-release.aar` 未提供 `androidx.media3.mpvplayer` 等所需类；libXray AAR 也尚未完整下载。仅启动 Actions 不能解决缺失的播放器 AAR。
+- 本地目前只有 Java 17 JRE，无 Android SDK、Gradle 缓存。FongMi 将自制播放器 `lib-*.aar` 排除在 Git 外；所附 5 个 `*-release.aar` 未提供 `androidx.media3.mpvplayer` 等所需类；libXray AAR 也尚未完整下载。AC 已成功编译官方分支的播放器源码，但由于收集路径错误 AAR 尚未取回；修正后的工作流待授权再次运行。
 - 历史 Actions 的 v7 完整 JADX 工件 `10847466987`；v7/v8 DEX 工件 `10847337361`；历史 v8 JADX `10825963688`。此前红灯原因是反编译后处理，不等同于 JADX 失败。工件 ID 仅作溯源；本地 scratch 随会话可能丢失。
 
 ## 2026-09-25 本次进展
@@ -47,13 +47,16 @@
 - 在 FongMi 官方 `media` 仓库发现 `release-1.11.0-fongmi` 分支的三个所需类源码；固定候选提交 `3c2cbe8ac742c2fe15eff52f03eeb3b1b648848d`（2026-08-12），而已固定 FongMi/TV 5.6.0 上游提交日期为 2026-08-07。新工作流 `.github/workflows/recovery-player-aars.yml` 从固定源码编译 Media3/mpv AAR、保存 SHA-256 清单与产物，属于**待核验版本兼容的候选**。FongMi 当前官方 README 仍说明 `lib-*.aar` 未纳入 Git；其 `MpvLibrary` 还加载 `mpv`/`player` 原生库。AC 实际运行、工件 ID、错误、剩余免询问次数要在运行后记录；未开始前仍为 **2/2**。
 - 已实际运行第一轮 AC：`36123159162`，对应远端 `main` 提交 `e18c30397e7d48b8db8275dc89299c923a8d633e`；源码 checkout 与 JDK21 成功，`android-actions/setup-android@v3` 在安装旧 SDK `tools` 包时失败（`Failed to find package 'tools'`），**没有执行 Gradle，没有生成 AAR**。运行虽失败但已使用一次免询问机会，剩余 **1/2**。修复：使用 runner 现有 SDK cmdline-tools 安装 platform36，移除该 setup action；下一轮再验证实际编译。
 - v7 发布 APK 的 `mr0` 内可见 `AndroidXMedia3/1.11.0`，与官方候选分支的 Media3 `1.11.0` 基本版本相符；**这不足以证明 2026-08-12 的源码完全兼容 2026-08-07 发布版的定制 ABI**，拉回 AAR 后仍需接口与原生库核验。
-- 第二轮 AC `36123459832` 对应远端 `main` 提交 `1b2ba0227a2b30b2da134bd5e5891ad60fd0121d`，已越过 SDK 安装并进入 Gradle 编译。**两次免询问机会均已实际启动，剩余 0/2**；本轮结果仍在等待，请读本节后续更新，勿未经授权开启第三轮。
+- 第二轮 AC `36123459832` 对应远端 `main` 提交 `1b2ba0227a2b30b2da134bd5e5891ad60fd0121d`。**两次免询问机会均已实际启动，剩余 0/2**；勿未经授权开启第三轮。
+- 第二轮最终结果：`36123459832` 的 `Compile upstream player libraries` **BUILD SUCCESSFUL in 4m 15s（484 个任务）**；随后清单脚本只查 `libraries/*/build/outputs/aar/`，但上游使用 `buildout/outputs/aar/`，故找不到编出的 AAR，工件未包含 AAR，工作流总体为 failure。真实问题是**后处理找错路径**，不是源码编译失败。工作流已改查 `buildout` 并移除 push 触发，防止自动花掉第三次；后续如需重跑，需要新的用户授权。
+- 工件路径修复已额外按上游 `build.gradle.kts` 明确传入 `-PexternalBuildDir=buildout`，固定到仓库根目录 `buildout/lib-*/outputs/aar/`；同时支持模块本地输出路径、检查同名 AAR 冲突。此修正只做静态核对，尚未在 AC 复跑。项目根目录 `AGENTS.md` 指向本日志；**以后每次 Work 或 Chat 改动工程都同步更新 `WORKLOG.md`，涉及需求、排错或阶段变化时同步对应 Markdown，并上传到仓库 `main`**。
+- 用 PyYAML 解析工作流确认仅 `workflow_dispatch`；在本地临时目录伪造一个符合 `buildout/lib-mpvplayer/outputs/aar/` 的 AAR，执行工作流原样清单脚本，验证能收集 AAR、列出三种目标类并写 SHA-256 清单。这只验证收集脚本，不等于真实候选 AAR 的类和 ABI 核验。
 - 从已有 v7 JADX 完整工件的 `resources/lib/armeabi-v7a/` 发现 `libmpv.so`、`libplayer.so` 及其 FFmpeg 依赖，`readelf -d` 验证 `libplayer` 依赖 `libmpv`、`libavcodec`、`libswscale` 等。新增 `scripts/extract-v7-player-native.py`，可接受原发布 APK（先核总 SHA-256）或已有 JADX ZIP（逐个核 10 个原生库 SHA-256），只向显式 `--to` 目录导出这十个 v7 播放器原生库；已用现存 JADX 工件实测全部通过。未把提取的二进制文件提交至 Git，也未运行 app 编译。
 
 ## 下一步
 
 1. 持续对照 APK 核验剩余 API 方法签名、资源绑定、媒体播放会话和节点兼容；发现偏差时先修 faithful 层并附字节码定位。阶段进度见 `PROGRESS.md`。
-2. 查明与 FongMi 5.6.0 匹配的播放器 AAR 来源和准确版本，核验所需类，勿用未知第三方二进制碰运气；准备好 libXray、JDK/SDK、Gradle 后先本地 faithful 编译。
+2. 经新增授权后运行修正的 AAR 工作流，取回并核验 FongMi/media 官方候选 AAR 的类/方法及版本；准备好 libXray、JDK/SDK、Gradle 后在静态恢复核对充分的基础上编译 faithful APK。
 3. 基准可编译且行为验证后，将 Xray 核心收束至独立模块，app 仅保留 VOD/直播/播放器与设置的适配点，做同一份行为矩阵回归。
 
 ## 每次交接应更新
