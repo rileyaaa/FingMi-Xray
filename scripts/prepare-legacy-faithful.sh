@@ -6,6 +6,7 @@ UPSTREAM_COMMIT="1a19fee278fa2234da725d61a53bf59b69fe9127"
 WORK_DIR="${FINGMI_LEGACY_WORK_DIR:-$ROOT/recovery/work/fingmi-faithful-5.6.0}"
 OVERLAY="$ROOT/recovery/legacy-src/upstream"
 SOURCE_ONLY="${FINGMI_LEGACY_SOURCE_ONLY:-0}"
+UPSTREAM_GIT_DIR="${FINGMI_LEGACY_UPSTREAM_GIT_DIR:-}"
 
 command -v git >/dev/null 2>&1 || {
   echo "git is required" >&2
@@ -20,11 +21,21 @@ fi
 rm -rf "$WORK_DIR"
 mkdir -p "$WORK_DIR"
 
-git -C "$WORK_DIR" init -q
-git -C "$WORK_DIR" remote add origin https://github.com/FongMi/TV.git
-git -C "$WORK_DIR" fetch -q --depth=1 origin "$UPSTREAM_COMMIT"
-git -C "$WORK_DIR" checkout -q --detach FETCH_HEAD
-rm -rf "$WORK_DIR/.git"
+if [ -n "$UPSTREAM_GIT_DIR" ]; then
+  # The object store can be reused offline, but only for the exact upstream
+  # commit. Never use an arbitrary working tree containing previous overlays.
+  if [ "$(git --git-dir="$UPSTREAM_GIT_DIR" cat-file -t "$UPSTREAM_COMMIT" 2>/dev/null)" != commit ]; then
+    echo "Local upstream Git object store lacks $UPSTREAM_COMMIT: $UPSTREAM_GIT_DIR" >&2
+    exit 1
+  fi
+  git --git-dir="$UPSTREAM_GIT_DIR" archive "$UPSTREAM_COMMIT" | tar -x -C "$WORK_DIR"
+else
+  git -C "$WORK_DIR" init -q
+  git -C "$WORK_DIR" remote add origin https://github.com/FongMi/TV.git
+  git -C "$WORK_DIR" fetch -q --depth=1 origin "$UPSTREAM_COMMIT"
+  git -C "$WORK_DIR" checkout -q --detach FETCH_HEAD
+  rm -rf "$WORK_DIR/.git"
+fi
 
 # Overlay every FongMi source/resource/build file whose final APK behavior was
 # reconstructed from v5.6.0-xray.5.

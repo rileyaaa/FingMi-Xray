@@ -2,6 +2,8 @@
 
 **换会话从这里读起。** 按时间追加有证据的进展，同时更新「当前状态」和「下一步」。这里记录的是工程状态，不把静态检查当作编译或设备验证。
 
+快速导航：产品需求 `PROJECT_REQUIREMENTS.md`；阶段进度 `PROGRESS.md`；调试与修复 `DEBUG_HISTORY.md`；APK 行为对照 `README_APK_BEHAVIOR_MATRIX.md`。本日志记录每轮实际动作和可接手的任务。
+
 ## 项目目标与边界
 
 - 仓库：`rileyaaa/FingMi-Xray`，只维护 `main`；恢复丢失的 `v5.6.0-xray.5` 源码，再把 Xray 从 FongMi 5.6.0 的改动中拆成独立模块和少量适配点，便于日后跟进上游。
@@ -28,12 +30,20 @@
 5. `bash -n scripts/prepare-legacy-faithful.sh` 和 `git diff --check` 通过。准备以本地临时 AAR 验证完整组装时，shell 到 `github.com` 的 DNS 被环境限制，`git fetch` 在复制阶段之前失败；临时探针已清理。因此本轮没有宣称组装脚本通过端到端验证，也未运行编译或 Actions。
 6. 增加仓库根目录 `AGENTS.md`，指向此日志和行为矩阵，让新会话先取到准确状态。复查 `pz3` 与 `LegacyXrayHttpResources` 的 SOCKS 未解析地址、连接池、独立 dispatcher 和网络拦截器初始化，未发现新的实证偏差。
 
+## 2026-09-25 续接（子源重申目标）
+
+- 用户明确要持续保存需求、完整上下文、开发调试、bug 修复、阶段进度，并更新到项目 Markdown；重申源码丢失后的忠实恢复与 Xray 独立重构，优先本地编译，缺环境可借 AC，仍希望在足够核对后再编译。
+- 已新增 `PROJECT_REQUIREMENTS.md`、`DEBUG_HISTORY.md` 和 `PROGRESS.md`，按原始 README、前两个会话可查证的决策、Git 历史及当前源码记录；勿将历史经验百分比当成验收结论。
+- 发现工作区还保留固定上游 `1a19fee...` 的 Git 对象。组装脚本支持 `FINGMI_LEGACY_UPSTREAM_GIT_DIR` 离线 archive 固定提交；实测 source-only 组装，逐字节核对 51 个覆盖文件、24 个 Java、2 个 AIDL，以及一份临时模拟的本地 `lib-*.aar`，均通过。临时 AAR 已清理，**没有下载正式播放器/libXray AAR、没有运行 Gradle、没有触发 Actions**。两次免询问机会仍为 **2/2**。
+- 官方 FongMi README 说明播放器配套 `lib-*.aar` 不纳入 Git。Actions 并不会自带这些二进制；先找与固定 5.6.0 配套的正确来源，或确定可复现构建方法，再安排有意义的编译。
+- 新增 `scripts/check-faithful-player-aars.py`，`build-legacy-faithful.sh` 在下载 libXray / 拉上游 / 运行 Gradle 前执行。实测现有 5 个 AAR 的内嵌 `classes.jar` 都不含 `MpvPlayer`、`DecodeTrackSelector`、`MediaSourceFactorySupplier`；预检以退出码 1 报具体缺类，构建入口也确实提前退出。通过预检仅代表代表性类存在，并非全部 ABI/方法签名兼容。
+
 ## 下一步
 
-1. 持续对照 APK 核验剩余 API 方法签名、资源绑定、媒体播放会话和节点兼容；发现偏差时先修 faithful 层并附字节码定位。
+1. 持续对照 APK 核验剩余 API 方法签名、资源绑定、媒体播放会话和节点兼容；发现偏差时先修 faithful 层并附字节码定位。阶段进度见 `PROGRESS.md`。
 2. 查明与 FongMi 5.6.0 匹配的播放器 AAR 来源和准确版本，核验所需类，勿用未知第三方二进制碰运气；准备好 libXray、JDK/SDK、Gradle 后先本地 faithful 编译。
 3. 基准可编译且行为验证后，将 Xray 核心收束至独立模块，app 仅保留 VOD/直播/播放器与设置的适配点，做同一份行为矩阵回归。
 
 ## 每次交接应更新
 
-追加日期、`main` 提交号、变更和证据、实际编译/设备验证结果（或明确未做）、未解决问题、接下来最可执行的任务，以及剩余免询问 AC 次数。不要把本地 scratch 路径当作持久位置。
+追加日期、`main` 提交号、变更和证据、实际编译/设备验证结果（或明确未做）、未解决问题、接下来最可执行的任务，以及剩余免询问 AC 次数。产品需求改动同步更新 `PROJECT_REQUIREMENTS.md`，修复写 `DEBUG_HISTORY.md`，阶段变化更新 `PROGRESS.md`。不要把本地 scratch 路径当作持久位置。

@@ -10,6 +10,7 @@ if [ "${FINGMI_LEGACY_SOURCE_ONLY:-0}" = 1 ]; then
   exit 1
 fi
 
+python3 "$ROOT/scripts/check-faithful-player-aars.py"
 bash "$ROOT/scripts/prepare-legacy-faithful.sh"
 
 echo "Compiling recovered TV source with:"
