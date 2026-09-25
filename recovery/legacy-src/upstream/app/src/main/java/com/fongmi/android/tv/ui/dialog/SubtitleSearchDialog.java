@@ -168,7 +168,7 @@ public final class SubtitleSearchDialog extends BaseBottomSheetDialog implements
 
         requestId =
                 SubtitleApi.detail(
-                        player.getHttpClient(OkHttp.player()),
+                        player.getHttpClient(OkHttp.client()),
                         item.getId(),
                         this::showItems,
                         this::onError,
@@ -192,7 +192,7 @@ public final class SubtitleSearchDialog extends BaseBottomSheetDialog implements
 
         requestId =
                 SubtitleApi.loadArchive(
-                        player.getHttpClient(OkHttp.player()),
+                        player.getHttpClient(OkHttp.client()),
                         item,
                         this::showArchive,
                         this::onError,
@@ -214,7 +214,7 @@ public final class SubtitleSearchDialog extends BaseBottomSheetDialog implements
 
         requestId =
                 SubtitleApi.search(
-                        player.getHttpClient(OkHttp.player()),
+                        player.getHttpClient(OkHttp.client()),
                         keyword,
                         nextPos,
                         this::onSearch,
