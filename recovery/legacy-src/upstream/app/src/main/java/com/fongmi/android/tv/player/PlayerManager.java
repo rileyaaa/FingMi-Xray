@@ -405,8 +405,11 @@ public class PlayerManager implements ParseCallback {
     public void setEngine(int targetEngine) {
         PlayerSetting.putEngine(targetEngine);
         if (isEmpty() || PlayerEngineFactory.matches(engine, spec, xrayPort)) return;
+
         PlaybackSnapshot snapshot = PlaybackSnapshot.capture(player);
-        startCurrent(snapshot.positionMs());
+        if (xrayRestore == null) {
+            startCurrent(snapshot.positionMs());
+        }
         snapshot.restore(player);
     }
 
@@ -424,8 +427,14 @@ public class PlayerManager implements ParseCallback {
 
     public void setSub(Sub sub) {
         if (spec != null) spec.setSub(sub);
-        if (engine.addSubtitle(sub)) play();
-        else startCurrent();
+        if (engine.addSubtitle(sub)) {
+            play();
+            return;
+        }
+
+        // Final th2.m9310C: an in-flight Xray restore owns the rebuild.
+        // Do not let subtitle fallback start the same item a second time.
+        if (xrayRestore == null) startCurrent();
     }
 
     public void setFormat(String format) {
@@ -571,6 +580,7 @@ public class PlayerManager implements ParseCallback {
     }
 
     public void clear() {
+        xrayRestore = null;
         spec = null;
     }
 
@@ -604,7 +614,12 @@ public class PlayerManager implements ParseCallback {
     private void retryDecode(int decode) {
         setDecode(decode);
         PlaybackSnapshot snapshot = PlaybackSnapshot.capture(player);
-        startCurrent(snapshot.positionMs());
+
+        // Final ph2 error path suppresses its automatic retry while a Xray
+        // restore snapshot already owns the transition.
+        if (xrayRestore == null) {
+            startCurrent(snapshot.positionMs());
+        }
         snapshot.restore(player);
     }
 
@@ -650,6 +665,7 @@ public class PlayerManager implements ParseCallback {
     }
 
     public void start(PlaySpec spec, long timeout, long startPositionMs) {
+        xrayRestore = null;
         this.spec = spec;
         setMediaItem(timeout, startPositionMs);
     }
@@ -660,6 +676,7 @@ public class PlayerManager implements ParseCallback {
 
     public void parse(String key, Result result, boolean useParse, MediaMetadata metadata, long startPositionMs) {
         stopParse();
+        xrayRestore = null;
         pendingStartPositionMs = startPositionMs;
         spec = PlaySpec.fromParse(result, key, metadata);
         parseJob = ParseJob.create(this).start(result, useParse);
@@ -725,7 +742,12 @@ public class PlayerManager implements ParseCallback {
         if (headers != null) headers.remove(HttpHeaders.RANGE);
         if (spec != null) spec.setHeaders(headers);
         if (spec != null) spec.setUrl(url);
-        startCurrent(pendingStartPositionMs);
+
+        // Final th2.mo6515b: the Xray restore path will restart this PlaySpec
+        // itself. A stale parse success must only update the resolved URL.
+        if (xrayRestore == null) {
+            startCurrent(pendingStartPositionMs);
+        }
         pendingStartPositionMs = C.TIME_UNSET;
     }
 
