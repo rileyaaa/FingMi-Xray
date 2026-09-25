@@ -32,6 +32,8 @@
 
 ## 2026-09-25 续接（子源重申目标）
 
+已推送至远端 `main`：`4bb3550aa5ca56a9817e87e851bac221137baa94`（需求、修复史、进度、离线组装和播放器依赖早停）。工作区的本地提交由另一写入通道生成，提交 SHA 与远端不同，但逐字节内容产生的 Git tree `5102fc7b46e16978279bbe3d56748c719a560444` 已核对一致；接续工作以远端 `main` 为基线。
+
 - 用户明确要持续保存需求、完整上下文、开发调试、bug 修复、阶段进度，并更新到项目 Markdown；重申源码丢失后的忠实恢复与 Xray 独立重构，优先本地编译，缺环境可借 AC，仍希望在足够核对后再编译。
 - 已新增 `PROJECT_REQUIREMENTS.md`、`DEBUG_HISTORY.md` 和 `PROGRESS.md`，按原始 README、前两个会话可查证的决策、Git 历史及当前源码记录；勿将历史经验百分比当成验收结论。
 - 发现工作区还保留固定上游 `1a19fee...` 的 Git 对象。组装脚本支持 `FINGMI_LEGACY_UPSTREAM_GIT_DIR` 离线 archive 固定提交；实测 source-only 组装，逐字节核对 51 个覆盖文件、24 个 Java、2 个 AIDL，以及一份临时模拟的本地 `lib-*.aar`，均通过。临时 AAR 已清理，**没有下载正式播放器/libXray AAR、没有运行 Gradle、没有触发 Actions**。两次免询问机会仍为 **2/2**。
