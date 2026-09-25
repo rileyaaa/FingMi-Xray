@@ -98,3 +98,11 @@
 - **最重要的待处理阻塞**：候选 AAR 的 `libffmpegJNI.so` 两个 ABI 都与发布版不同；`build-legacy-faithful.sh` 的早停门会拒绝它。脚本 `restore-published-ffmpegjni.py` 已有假包成功路径与错误来源负例，但没有原始 v7/v8 APK，尚未在真实包上运行。不能跳过它宣称 faithful APK 已编译。
 - 下一轮从本文件和 `PLAYER_AAR_ABI_2026-09-25.md`、`XRAY_NETWORK_DEX_AUDIT_2026-09-25.md`、`XRAY_MODULE_BOUNDARY_2026-09-25.md` 接手。先获取两份原始发布 APK，并以固定总 SHA 核验；在此之前**不要**对历史 JADX ZIP 当原 APK 重包。取得后运行重包脚本到全新路径，确认新 AAR 的 FFmpeg JNI 双 ABI SHA、其他条目不变，再决定如何导入本地 `app/libs`。之后仍需 libXray AAR、完整 Java/资源检查、faithful APK 编译及电视设备回归；过门后才开始正式模块迁移。
 - 一小时内未启动新的 AC/Actions；最初两个免询问机会仍为 0/2。当前执行环境仅有 JDK 17，无 Android SDK/Gradle，因此没有声称本地 Android 编译。按用户约定暂停，等其检查额度后再续。
+
+
+## 2026-09-25 续接（发布版 JNI 的导入闭环准备）
+
+- 子源要求继续工作，并按每轮约一小时暂停供其核额度。本轮先确认远端 `main` 原有检查点 `e3e026aefb6e7059a1e3a966b054efa109bbaa58`。原始发布 APK 的 GitHub Release 两个资产分别为 v7 `534791937`（129,871,795 字节）、v8 `534791583`（145,354,377 字节）；当前 shell 对原 Release URL 不可用，现有下载通道未取得原 APK。没有把历史 JADX ZIP 当 APK，也没有运行 AC 或 faithful APK 编译。
+- `scripts/import-player-aar-candidate.py` 新增可选 `--restored-decoder /path/to/new-lib-decoder-ffmpeg-release.aar`。导入前仍严格核固定候选 ZIP/清单和 16 个原始 AAR；若提供替换的 decoder AAR，检查 ZIP entry 顺序/数量无变化、两个 JNI 的 SHA-256 等于发布版记录、其余每个条目的内容与候选逐字节相同。所有验证结束后才写本地 `app/libs/`。默认不提供参数的导入行为维持原样，默认候选仍会被构建前 JNI 门拒绝。此参数不能代替从固定 SHA 原始 APK 执行 `restore-published-ffmpegjni.py` 的来源核验。
+- 新增 `recovery/legacy-tests/test_import_restored_decoder.py`：纯 Python 假包正例通过，非 JNI Java 字节码篡改、错误 JNI、额外条目均被拒。原有 `test_restore_ffmpegjni.py` 再跑 1/1 通过，导入核验测试 1/1 通过；Python 语法检查通过。**这不是对真实发布 APK 或真实候选 AAR 的端到端重包/导入验证。**
+- 下一步仍优先取原始 v7/v8 APK，核固定总 SHA，再执行真实重包、校验/导入。其后补 libXray AAR、完整接口/资源检查与 faithful APK 编译。独立 Xray 模块正式迁移仍须经过基准编译和关键行为回归。

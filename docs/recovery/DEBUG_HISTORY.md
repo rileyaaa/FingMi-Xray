@@ -42,3 +42,5 @@
 - 2026-09-25 播放器原生依赖跨 ABI 排错：之前仅 v7 核对，现取回历史 v8 JADX 工件 `10825963688`，对十件 arm64-v8a `.so` 核得候选 AAR 逐字节同 SHA-256，篡改负例拒绝。脚本 `check-player-native-against-v8.py` 与 `PLAYER_AAR_ABI_2026-09-25.md` 保存清单和命令；v8 工件尚非独立验证总 SHA 的原 APK，完整 Java ABI 与设备仍未测。
 - 2026-09-25 **新确认的二进制阻塞**：第十一件 FFmpeg JNI 的 v7 候选/发布 SHA 分别为 `93cc400a...`/`3af1fcaa...`，v8 为 `10f8fc54...`/`26594d57...`；导出符号集合相同不代表 `.text`/`.rodata` 一致。候选 `FfmpegLibrary.class` 引用 `ffmpegJNI`。新负向门 `check-player-ffmpegjni-against-published.py` 对真实候选退出 1。修复尚未进行；应先从发布 APK 严格取原二进制、定位正确的 Gradle 替换方式并复验，不能直接宣布 faithful 构建。完整值见 `PLAYER_AAR_ABI_2026-09-25.md`。
 - 2026-09-25 FFmpeg JNI 重包脚本自测修复：合成 APK/AAR 的正向测试首次失败 `Bad CRC-32`；根因是 `ZipFile.writestr(info, ...)` 修改原 ZIP `ZipInfo`，之后 `source.read()` 使用已变动 CRC。改用 `copy(info)` 并避免 `dict.get` 默认参数的急切读取后，`test_restore_ffmpegjni.py` 1/1 通过。仅假包算法测试，真实固定哈希 APK 尚未到手。
+
+- 2026-09-25 decoder AAR 导入阶段的完整性风险：直接覆盖 `app/libs/lib-decoder-ffmpeg-release.aar` 可能把不相关的 Java 或 native 代码一并改掉。导入器现支持可选的双 ABI 发布 JNI 替换包，逐条目核其余内容不变且两 JNI 等于记录哈希，校验全部 16 个原始 AAR 后才写入。假包测试覆盖成功、Java 篡改、错误 JNI、额外条目；未取得原 APK，真实来源链与 Android 编译仍待验证。

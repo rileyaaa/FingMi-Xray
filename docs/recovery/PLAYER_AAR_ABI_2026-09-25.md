@@ -48,3 +48,16 @@ python3 scripts/check-player-ffmpegjni-against-published.py --artifact /path/to/
 - 38 项不是完整 Java 类/API 差异扫描。生成的 ViewBinding、其余依赖、资源、libXray AAR、混淆后的运行逻辑尚未经 Gradle/javac 验证。
 - 双 ABI 各十个核心 `.so` 字节相同，**第十一件 `libffmpegJNI.so` 实测不同并列为构建阻塞**；其余 `.so`、设备/系统 API 与所有原生调用仍未证实。v8 此轮证据来自历史 JADX 工件，不是直接复核的原 APK。
 - 本轮没有重新编译 faithful APK，也没有 Android TV 实机待机/播放回归。按 `PROJECT_REQUIREMENTS.md`，Xray 行为是第一目标，电视长期后台后的网络恢复是第二目标；这两项尚未完成最终验收。
+
+
+## 已准备的本地导入步骤（原 APK 到手后才运行）
+
+先使用上文 `restore-published-ffmpegjni.py` 命令得到新 decoder AAR，再运行：
+
+```bash
+python3 scripts/import-player-aar-candidate.py /path/to/FingMi-media3-player-AARs-1.11.0-candidate.zip --restored-decoder /path/to/new-lib-decoder-ffmpeg-release.aar
+python3 scripts/check-faithful-player-aars.py
+python3 scripts/check-player-ffmpegjni-against-published.py --aar-dir app/libs
+```
+
+导入器会重新核固定候选工件及 16 件原 AAR，只允许 decoder AAR 的两件 `libffmpegJNI.so` 从候选变为发布版 SHA-256；`classes.jar` 及其他条目必须逐字节不变。`--restored-decoder` 本身只核条目与哈希，原 APK 的总 SHA 来源校验由前一步重包器负责。2026-09-25 本步骤仅用纯 Python 假包正反例验证，尚未执行真实导入或 APK 编译；原始 APK 在当前工作环境未取到。
