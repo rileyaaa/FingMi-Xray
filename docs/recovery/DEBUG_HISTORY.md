@@ -45,3 +45,5 @@
 
 - 2026-09-25 decoder AAR 导入阶段的完整性风险：直接覆盖 `app/libs/lib-decoder-ffmpeg-release.aar` 可能把不相关的 Java 或 native 代码一并改掉。导入器现支持可选的双 ABI 发布 JNI 替换包，逐条目核其余内容不变且两 JNI 等于记录哈希，校验全部 16 个原始 AAR 后才写入。假包测试覆盖成功、Java 篡改、错误 JNI、额外条目；未取得原 APK，真实来源链与 Android 编译仍待验证。
 - 2026-09-25 实验模块会话/Binder 漂移（不影响尚未替换的 faithful 基准）：`XraySessionController.onCleanupTimeout()` 原先即使新 START 已 RUNNING 仍取消旧 STOP，`XrayServiceClient.cancel()` 会断开正在使用的 Binder；`onResult(STOP success)` 缺少断连分支；`XrayServiceClient.deliverResult()` 在 START 成功后清除 `activeOperationId`，之后服务进程死亡时 `failLocked()` 无 operation ID 可报告，界面可能继续认为 RUNNING。按已核发布版恢复层的相应控制流修正以上三处，并清理当前连接失败的旧 cleanup timer。仅做源码静态对照，Android 编译、设备、模块完整行为未验；原 AIDL descriptor 仍与发布版不同，不能直接替换。
+
+- 2026-09-25 实验模块分享链接解析漂移：旧 `XrayShareLinkNormalizer` 把 `mport` 原始表达式重新 URL 编码、拒绝发布版允许的重复 `ports`，改变 Hysteria2 默认 `:443` 与证书 pin/obfs 的处理顺序，并截掉 VMess base64 的 `#` 后内容。恢复类已根据发布 v7/v8 原始 DEX 校正；实验类现直接与其实现对齐，只保留模块包/类名。静态逐字节核对通过；未做 Android 编译或设备测试，不替代原始源码基准。

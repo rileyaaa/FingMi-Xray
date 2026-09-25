@@ -119,3 +119,5 @@
 - 已合并 libXray 下载到同一条待手动触发的准备工作流：调用项目既有 `fetch-libxray.sh` 核官方 v26.7.28 ZIP 的固定 SHA，提取 AAR、核非空并记录 AAR SHA；节省未来单独一次下载依赖的 Actions 运行。YAML 静态核查为五步且无自动触发；**尚未真正下载或编译**，任何失败不得记作依赖齐备。
 - 同一手动工作流在官方 libXray ZIP 哈希校验后还静态核 `libXray.LibXray.invoke(String):String` 的 class 描述符，以及两 ABI 的 `libgojni.so` 条目；避免取回“包名相似但主入口或 v7 native 缺失”的 AAR。该新门仅检查存在和签名，**未证实原生内容与发布 APK 同字节，工作流仍未运行**。官方 v26.7.28 GitHub Release 所报 `libxray-android.zip` SHA 与 `fetch-libxray.sh` 固定值相同。
 - 对照已按发布版恢复的 `LegacyXraySessionController`/`LegacyXrayServiceClient` 和尚未接入的实验性 `xray/`，发现三处可证实漂移并局部修正实验模块：旧 STOP 超时时新 START 已 RUNNING 应跳过 cancel/disconnect；当前 STOP 成功应断开 Binder；START 成功结果后仍要保留 active operation ID，以便 Binder 后续死亡能报告给会话并清理状态。另对齐当前连接失败时的旧 cleanup timeout 清除。改动只在实验性 `xray/` 模块，faithful 基准未动；以源码控制流静态对照，未编译/设备回归，**不能把这记成正式模块迁移完成**。详细风险见 `DEBUG_HISTORY.md` 与 `XRAY_MODULE_BOUNDARY_2026-09-25.md`。
+
+- 本轮继续比较实验性 `xray/` 的分享链接归一化器与双 ABI DEX 已校正的恢复类，发现 Hysteria2 参数/编码/默认端口顺序及 VMess fragment 处理漂移。将实验类代码对齐恢复类，仅替换包和类名；规范化后逐字节一致。`XRAY_MODULE_BOUNDARY_2026-09-25.md` 留存限制；仍未编译、运行或正式迁移。未开启新的 Actions。

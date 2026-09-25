@@ -13,6 +13,14 @@ import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+/**
+ * Behavior-oriented reconstruction of the shipped node normalizer (R8 name: a04).
+ *
+ * JADX has several visibly impossible/inverted predicates after R8. All known
+ * repaired predicates in this class have now been checked directly against the
+ * published v7 and v8 DEX. The comments below retain the relevant decompiler
+ * failure mode so later refactors do not accidentally "restore" the bad JADX.
+ */
 public final class XrayShareLinkNormalizer {
 
     private static final int MAX_LENGTH = 16_384;
@@ -34,7 +42,7 @@ public final class XrayShareLinkNormalizer {
         }
 
         int colon = value.indexOf(':');
-        if (colon <= 0) throw new IllegalArgumentException("Invalid Xray link");
+        if (colon <= 0) throw new IllegalArgumentException("Unsupported Xray link protocol");
 
         String scheme = value.substring(0, colon);
         String normalizedScheme = scheme.toLowerCase(Locale.ROOT);
@@ -250,40 +258,67 @@ public final class XrayShareLinkNormalizer {
     }
 
     private static String normalizeHysteria2(String value) {
+        // Match the final APK's transformation order exactly:
+        // authority hopping -> mport -> default :443 -> pinSHA256 -> obfs.
         value = normalizeHysteriaAuthorityPortHopping(value);
 
         List<QueryPart> parts = parseQuery(rawQuery(value));
-        int portsIndex = uniqueIndex(parts, "ports", "Hysteria2 port hopping is ambiguous");
-        int mportIndex = uniqueIndex(parts, "mport", "Hysteria2 port hopping is ambiguous");
+
+        int portsIndex = firstIndex(parts, "ports");
+        int mportIndex = uniqueIndex(
+                parts,
+                "mport",
+                "Hysteria2 port hopping is ambiguous");
         if (mportIndex >= 0) {
-            if (portsIndex >= 0 || !parts.get(mportIndex).hasEquals) {
+            QueryPart mport = parts.get(mportIndex);
+            if (portsIndex >= 0 || !mport.hasEquals) {
                 throw new IllegalArgumentException("Hysteria2 port hopping is ambiguous");
             }
-            validatePortExpression(parts.get(mportIndex).value);
-            parts.set(mportIndex, QueryPart.encoded("ports", parts.get(mportIndex).value));
-        } else if (portsIndex >= 0) {
-            if (!parts.get(portsIndex).hasEquals) {
-                throw new IllegalArgumentException("Hysteria2 port hopping is invalid");
-            }
-            validatePortExpression(parts.get(portsIndex).value);
+            validatePortExpression(mport.value);
+
+            // Final a04 preserves the original raw mport value byte-for-byte
+            // and only renames the key to ports.
+            int equals = mport.raw.indexOf('=');
+            parts.set(
+                    mportIndex,
+                    new QueryPart(
+                            "ports=" + mport.raw.substring(equals + 1),
+                            "ports",
+                            mport.value,
+                            true));
         }
 
-        int pcsIndex = uniqueIndex(parts, "pcs", "Hysteria2 certificate pin is ambiguous");
-        int pinIndex = uniqueIndex(parts, "pinSHA256", "Hysteria2 certificate pin is invalid");
+        value = replaceRawQuery(value, joinRawQuery(parts));
+        value = ensureHysteriaDefaultPort(value);
+        parts = parseQuery(rawQuery(value));
+
+        int pcsIndex = firstIndex(parts, "pcs");
+        int pinIndex = uniqueIndex(
+                parts,
+                "pinSHA256",
+                "Hysteria2 certificate pin is invalid");
         if (pinIndex >= 0) {
             QueryPart pin = parts.get(pinIndex);
-            if (!pin.hasEquals) throw new IllegalArgumentException("Hysteria2 certificate pin is invalid");
-            if (pcsIndex >= 0) throw new IllegalArgumentException("Hysteria2 certificate pin is ambiguous");
+            if (!pin.hasEquals) {
+                throw new IllegalArgumentException("Hysteria2 certificate pin is invalid");
+            }
+            if (pcsIndex >= 0) {
+                throw new IllegalArgumentException("Hysteria2 certificate pin is ambiguous");
+            }
+
             String fingerprint = pin.value.replace(":", "").replace("-", "");
             if (!SHA256.matcher(fingerprint).matches()) {
                 throw new IllegalArgumentException("Hysteria2 certificate pin is invalid");
             }
-            parts.set(pinIndex, QueryPart.encoded("pcs", fingerprint.toLowerCase(Locale.ROOT)));
+            parts.set(
+                    pinIndex,
+                    QueryPart.encoded(
+                            "pcs",
+                            fingerprint.toLowerCase(Locale.ROOT)));
         }
 
         validateHysteriaObfuscation(parts);
-        value = replaceRawQuery(value, joinRawQuery(parts));
-        return ensureHysteriaDefaultPort(value);
+        return replaceRawQuery(value, joinRawQuery(parts));
     }
 
     private static String normalizeHysteriaAuthorityPortHopping(String value) {
@@ -291,6 +326,9 @@ public final class XrayShareLinkNormalizer {
         if (range == null) return value;
 
         HostPort hostPort = splitHostPort(range.authority);
+        // DEX-verified against both published ABIs. In a04.f the two indexOf(I)
+        // results are each followed by if-gez to the same hopping block; only
+        // when neither ',' nor '-' is present does execution jump past it.
         if (hostPort.port == null || (!hostPort.port.contains(",") && !hostPort.port.contains("-"))) {
             return value;
         }
@@ -306,15 +344,30 @@ public final class XrayShareLinkNormalizer {
                 + rewrittenAuthority
                 + value.substring(range.end);
         parts = parseQuery(rawQuery(rewritten));
-        parts.add(0, QueryPart.encoded("ports", hostPort.port));
+        // a04 inserts the original expression literally ("ports=" + raw),
+        // not through URLEncoder. Commas/hyphens therefore remain unchanged.
+        parts.add(
+                0,
+                new QueryPart(
+                        "ports=" + hostPort.port,
+                        "ports",
+                        hostPort.port,
+                        true));
         return replaceRawQuery(rewritten, joinRawQuery(parts));
     }
 
     private static String ensureHysteriaDefaultPort(String value) {
+        try {
+            URI uri = URI.create(value);
+            if (uri.getPort() >= 0 || uri.getHost() == null || uri.getRawAuthority() == null) {
+                return value;
+            }
+        } catch (IllegalArgumentException error) {
+            throw new IllegalArgumentException("Invalid Xray link", error);
+        }
+
         AuthorityRange range = authority(value);
         if (range == null) return value;
-        HostPort hostPort = splitHostPort(range.authority);
-        if (hostPort.port != null) return value;
         return value.substring(0, range.end) + ":443" + value.substring(range.end);
     }
 
@@ -328,6 +381,9 @@ public final class XrayShareLinkNormalizer {
         String obfs = obfsIndex < 0 ? null : parts.get(obfsIndex).value;
         String password = passwordIndex < 0 ? null : parts.get(passwordIndex).value;
 
+        // DEX-verified: a null obfs value skips this block; for non-null values,
+        // String.isEmpty()==false enters the validation block. JADX emitted the
+        // impossible "obfs == null && !obfs.isEmpty()".
         if (obfs != null && !obfs.isEmpty()) {
             String lower = obfs.toLowerCase(Locale.ROOT);
             if (!obfs.equals(lower)) {
@@ -408,9 +464,7 @@ public final class XrayShareLinkNormalizer {
     private static void validateVmessJsonPorts(String value) {
         String body = value.substring("vmess://".length());
         if (body.indexOf('@') >= 0) return;
-        int fragment = body.indexOf('#');
-        if (fragment >= 0) body = body.substring(0, fragment);
-
+        // The shipped method feeds the complete text after vmess:// to the base64 decoder.
         String decoded = decodeBase64(body);
         if (decoded == null || !decoded.trim().startsWith("{")) return;
 
@@ -419,6 +473,9 @@ public final class XrayShareLinkNormalizer {
             String portValue = matcher.group(1) != null ? matcher.group(1) : matcher.group(2);
             try {
                 BigDecimal port = new BigDecimal(portValue).stripTrailingZeros();
+                // DEX-verified: BigDecimal.scale() is followed by if-gtz to
+                // the invalid-port branch. Integral values (scale <= 0) remain
+                // valid here; JADX inverted this comparison.
                 if (port.scale() > 0
                         || port.compareTo(BigDecimal.ONE) < 0
                         || port.compareTo(BigDecimal.valueOf(65_535L)) > 0) {
@@ -455,6 +512,8 @@ public final class XrayShareLinkNormalizer {
             if (close + 1 == endpoint.length()) {
                 return new HostPort(userInfo + endpoint, null);
             }
+            // DEX-verified: charAt(close + 1) is compared with ':' and if-ne
+            // jumps to the invalid-port branch. '[host]:port' is the valid form.
             if (endpoint.charAt(close + 1) != ':') {
                 throw new IllegalArgumentException("Xray link port is invalid");
             }
@@ -465,6 +524,9 @@ public final class XrayShareLinkNormalizer {
 
         int lastColon = endpoint.lastIndexOf(':');
         if (lastColon < 0) return new HostPort(userInfo + endpoint, null);
+        // DEX-verified: indexOf(':') is compared with lastIndexOf(':') and
+        // if-ne jumps to the invalid-port branch. A single colon is valid;
+        // multiple unbracketed colons are rejected.
         if (endpoint.indexOf(':') != lastColon) {
             throw new IllegalArgumentException("Xray link port is invalid");
         }
@@ -514,6 +576,13 @@ public final class XrayShareLinkNormalizer {
             if (key.equals(part.key)) return true;
         }
         return false;
+    }
+
+    private static int firstIndex(List<QueryPart> parts, String key) {
+        for (int i = 0; i < parts.size(); i++) {
+            if (key.equals(parts.get(i).key)) return i;
+        }
+        return -1;
     }
 
     private static int uniqueIndex(List<QueryPart> parts, String key, String duplicateMessage) {
@@ -589,3 +658,4 @@ public final class XrayShareLinkNormalizer {
         }
     }
 }
+
