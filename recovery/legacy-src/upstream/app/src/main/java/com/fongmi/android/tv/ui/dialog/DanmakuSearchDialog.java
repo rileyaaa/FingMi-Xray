@@ -134,16 +134,19 @@ public final class DanmakuSearchDialog extends BaseBottomSheetDialog implements 
         Util.hideKeyboard(binding.keyword);
 
         requestId =
-                DanmakuApi.search(
-                        player.getHttpClient(OkHttp.player()),
-                        getKeyword(),
-                        getEpisode(),
-                        this::onSuccess,
-                        this::onError,
-                        () -> {
-                            if (binding == null) return;
-                            showResults(adapter.getItemCount() == 0);
-                        });
+                player.withHttpClient(
+                        OkHttp.player(),
+                        client ->
+                                DanmakuApi.search(
+                                        client,
+                                        getKeyword(),
+                                        getEpisode(),
+                                        this::onSuccess,
+                                        this::onError,
+                                        () -> {
+                                            if (binding == null) return;
+                                            showResults(adapter.getItemCount() == 0);
+                                        }));
     }
 
     @Override
