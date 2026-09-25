@@ -16,6 +16,8 @@ import com.fongmi.android.tv.player.engine.PlayerEngine;
 import com.fongmi.android.tv.player.media.MediaItemFactory;
 import com.fongmi.android.tv.player.media.PlaySpec;
 
+import okhttp3.OkHttpClient;
+
 /**
  * FongMi 5.6.0 ExoPlayerEngine reconstructed with the shipped FingMi-Xray delta.
  */
@@ -98,6 +100,13 @@ public class ExoPlayerEngine
     @Override
     public int getXrayPort() {
         return xrayPort;
+    }
+
+    @Override
+    public OkHttpClient getXrayHttpClient() {
+        return session.xrayResources() == null
+                ? null
+                : session.xrayResources().client();
     }
 
     @Override
