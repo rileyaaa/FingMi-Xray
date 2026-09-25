@@ -1,7 +1,5 @@
 package com.fingmi.xray.core;
 
-import com.fingmi.xray.util.XrayErrorSanitizer;
-
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -21,16 +19,15 @@ public final class LibXrayBridge {
         JSONObject response = new JSONObject(LibXray.invoke(request.toString()));
         if (response.optBoolean("success")) return response.opt("data");
 
-        String error = response.optString("error", "Xray operation failed").trim();
-        if (error.isEmpty()) error = "Xray operation failed";
-        throw new IllegalStateException(XrayErrorSanitizer.sanitize(error));
+        String error = response.optString("error");
+        if (isBlank(error)) error = "Xray operation failed";
+        throw new IllegalStateException(error);
     }
 
     public JSONObject invokeObject(String method, JSONObject payload) throws Exception {
         Object data = invoke(method, payload);
         if (data instanceof JSONObject object) return object;
-        if (data instanceof String string && !string.isBlank()) return new JSONObject(string);
-        return new JSONObject();
+        throw new JSONException("Xray returned an invalid response");
     }
 
     public int getFreePort() throws Exception {
@@ -47,8 +44,7 @@ public final class LibXrayBridge {
                 "convertShareLinksToXrayJson",
                 new JSONObject().put("text", shareLink));
         if (data instanceof JSONObject object) return object;
-        if (data instanceof String string) return new JSONObject(string);
-        throw new JSONException("Xray conversion returned invalid data");
+        throw new JSONException("Xray conversion returned an invalid config");
     }
 
     public String probeHysteria2Certificate(
@@ -146,10 +142,20 @@ public final class LibXrayBridge {
 
         JSONObject result = results.getJSONObject(0);
         if (!result.optBoolean("success")) {
-            String error = result.optString("error", "Xray connectivity test failed").trim();
-            if (error.isEmpty()) error = "Xray connectivity test failed";
-            throw new IllegalStateException(XrayErrorSanitizer.sanitize(error));
+            String error = result.optString("error");
+            if (isBlank(error)) error = "Xray connectivity test failed";
+            throw new IllegalStateException(error);
         }
         return result.optLong("delay", -1L);
+    }
+
+    private static boolean isBlank(String value) {
+        if (value == null) return true;
+        for (int offset = 0; offset < value.length();) {
+            int cp = value.codePointAt(offset);
+            if (!Character.isWhitespace(cp)) return false;
+            offset += Character.charCount(cp);
+        }
+        return true;
     }
 }
