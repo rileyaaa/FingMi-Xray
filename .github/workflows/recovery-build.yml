@@ -1,10 +1,10 @@
-name: Recovery module build
+name: Recovery faithful TV build
 
 on:
   workflow_dispatch:
 
 jobs:
-  xray:
+  faithful:
     runs-on: ubuntu-latest
     timeout-minutes: 30
 
@@ -16,23 +16,19 @@ jobs:
           distribution: temurin
           java-version: "21"
 
-      - name: Configure local properties
-        shell: bash
-        run: |
-          cat > local.properties <<'EOF'
-          storeFile=/tmp/fingmi-recovery-placeholder.jks
-          keyAlias=placeholder
-          storePassword=placeholder
-          EOF
-
-      - name: Fetch libXray
+      - name: Prepare and compile faithful recovered TV source
         shell: bash
         run: |
           chmod +x scripts/fetch-libxray.sh
-          scripts/fetch-libxray.sh
+          chmod +x scripts/prepare-legacy-faithful.sh
+          chmod +x scripts/build-legacy-faithful.sh
+          scripts/build-legacy-faithful.sh
 
-      - name: Compile Xray and TV app
-        shell: bash
-        run: |
-          chmod +x gradlew
-          ./gradlew :xray:assembleDebug :app:assembleLeanbackArm64_v8aDebug --stacktrace
+      - name: Upload recovered debug APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: fingmi-faithful-leanback-arm64-debug
+          path: recovery/work/fingmi-faithful-5.6.0/app/build/outputs/apk/leanback/arm64_v8a/debug/*.apk
+          if-no-files-found: error
+          retention-days: 7
+          compression-level: 0
