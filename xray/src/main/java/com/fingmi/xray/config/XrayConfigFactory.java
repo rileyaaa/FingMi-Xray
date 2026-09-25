@@ -62,6 +62,7 @@ public final class XrayConfigFactory {
 
         String normalized = XrayShareLinkNormalizer.normalize(shareLink);
         normalized = security.secure(normalized);
+        normalized = XrayShareLinkNormalizer.normalize(normalized);
         JSONObject converted = bridge.convertShareLink(normalized);
         patchLiteralPlusCredential(normalized, converted);
         JSONObject config = new JSONObject(converted.toString());

@@ -1,70 +1,83 @@
 package com.fingmi.xray.security;
 
 import com.fingmi.xray.core.LibXrayBridge;
+import com.fingmi.xray.config.XrayShareLinkNormalizer;
 
 import org.json.JSONArray;
 
 import java.net.InetAddress;
 import java.net.URI;
 import java.net.URLDecoder;
-import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 
+/**
+ * Reconstructed transport-security layer from XrayService + R8 helpers j81/x82.
+ *
+ * It converts an explicitly insecure node into TOFU certificate pinning instead
+ * of silently accepting future certificate changes.
+ */
 public final class XrayShareLinkSecurity {
 
     private static final int PROBE_TIMEOUT_MS = 10_000;
-    private static final String SHA256_PATTERN = "(?i)[0-9a-f]{64}";
+    private static final String SHA256 = "(?i)[0-9a-f]{64}";
 
     private final LibXrayBridge bridge;
     private final XrayCertificatePins pins;
 
-    public XrayShareLinkSecurity(LibXrayBridge bridge, XrayCertificatePins pins) {
+    public XrayShareLinkSecurity(
+            LibXrayBridge bridge,
+            XrayCertificatePins pins) {
         this.bridge = bridge;
         this.pins = pins;
     }
 
     public String secure(String normalizedLink) throws Exception {
-        URI uri = URI.create(normalizedLink);
+        String value = XrayShareLinkNormalizer.normalize(normalizedLink);
+        URI uri = URI.create(value);
         String scheme = lower(uri.getScheme());
 
-        if (scheme.equals("hy2") || scheme.equals("hysteria2")) {
-            return secureHysteria2(normalizedLink, uri, scheme);
+        if ("hy2".equals(scheme) || "hysteria2".equals(scheme)) {
+            return secureHysteria2(value, uri, scheme);
         }
 
-        List<QueryPart> query = parseQuery(uri.getRawQuery());
-        String security = lower(firstValue(query, "security"));
+        String security = lower(first(parseQuery(uri.getRawQuery()), "security", true));
         boolean tls =
-                scheme.equals("trojan")
-                        ? security.isEmpty() || security.equals("tls")
-                        : (scheme.equals("vless") || scheme.equals("vmess"))
-                                && security.equals("tls");
-        if (!tls) return normalizedLink;
-        return secureTls(normalizedLink, uri, scheme, query);
+                ("trojan".equals(scheme) && (security.isEmpty() || "tls".equals(security)))
+                        || (("vless".equals(scheme) || "vmess".equals(scheme))
+                        && "tls".equals(security));
+
+        return tls ? secureTls(value, uri, scheme) : value;
     }
 
-    private String secureHysteria2(String link, URI uri, String scheme) throws Exception {
+    private String secureHysteria2(String value, URI uri, String scheme) throws Exception {
         List<QueryPart> query = parseQuery(uri.getRawQuery());
-        if (!requestsInsecure(query)) return link;
+        if (!requestsInsecure(query)) return value;
 
-        String pcs = firstValueIgnoreCase(query, "pcs");
-        String vcn = firstValueIgnoreCase(query, "vcn");
-        if (!pcs.isEmpty() || !vcn.isEmpty()) {
-            return stripInsecure(link, query);
+        String existingPcs = first(query, "pcs", true);
+        String existingVcn = first(query, "vcn", true);
+        if (!existingPcs.isEmpty() || !existingVcn.isEmpty()) {
+            return rewriteHysteria2(uri, query, "");
         }
 
         String host = cleanHost(uri.getHost());
-        if (host.isEmpty()) throw new IllegalArgumentException("Hysteria2 server is invalid");
+        if (isBlank(host)) {
+            throw new IllegalArgumentException("Hysteria2 server is invalid");
+        }
 
         int port = uri.getPort() > 0 ? uri.getPort() : 443;
-        String ports = firstValueIgnoreCase(query, "ports");
-        if (!ports.isEmpty()) port = firstPort(ports);
+        String hopping = first(query, "ports", true);
+        if (!hopping.isEmpty()) {
+            port = firstPort(hopping);
+        }
 
-        String serverName = firstValueIgnoreCase(query, "sni");
-        if (serverName.isEmpty() && !isIpLiteral(host)) serverName = host;
+        String serverName = first(query, "sni", true);
+        if (serverName.isEmpty() && !isIpLiteral(host)) {
+            serverName = host;
+        }
 
         String identity =
                 scheme + "\n"
@@ -77,45 +90,44 @@ public final class XrayShareLinkSecurity {
                 port,
                 serverName,
                 PROBE_TIMEOUT_MS);
-        String trusted = verifyOrTrust(
-                identity,
-                observed,
-                "Hysteria2");
-
-        return replaceSecurityQuery(link, query, trusted, true);
+        String trusted = verifyOrTrust(identity, observed, "Hysteria2");
+        return rewriteHysteria2(uri, query, trusted);
     }
 
-    private String secureTls(
-            String link,
-            URI uri,
-            String scheme,
-            List<QueryPart> query) throws Exception {
-        if (!requestsInsecure(query)) return link;
+    private String secureTls(String value, URI uri, String scheme) throws Exception {
+        List<QueryPart> query = parseQuery(uri.getRawQuery());
+        if (!requestsInsecure(query)) return value;
 
-        String pcs = firstValueIgnoreCase(query, "pcs");
-        String vcn = firstValueIgnoreCase(query, "vcn");
-        if (!pcs.isEmpty() || !vcn.isEmpty()) {
-            return stripInsecure(link, query);
+        String existingPcs = first(query, "pcs", true);
+        String existingVcn = first(query, "vcn", true);
+        if (!existingPcs.isEmpty() || !existingVcn.isEmpty()) {
+            return rewriteTls(uri, query, "");
         }
 
         String host = cleanHost(uri.getHost());
-        if (host.isEmpty()) throw new IllegalArgumentException("TLS server is invalid");
+        if (isBlank(host)) {
+            throw new IllegalArgumentException("TLS server is invalid");
+        }
         int port = uri.getPort() > 0 ? uri.getPort() : 443;
 
-        String serverName = firstValueIgnoreCase(query, "sni");
+        String serverName = first(query, "sni", true);
         if (serverName.isEmpty()) {
-            String type = firstValue(query, "type");
-            if (type.equals("ws") || type.equals("websocket")) {
-                serverName = firstValue(query, "host");
+            // The shipped code intentionally uses exact lower-case keys for the
+            // websocket fallback, unlike its case-insensitive SNI lookup.
+            String type = first(query, "type", false);
+            if ("ws".equals(type) || "websocket".equals(type)) {
+                serverName = first(query, "host", false);
             }
         }
 
-        String fingerprint = firstValueIgnoreCase(query, "fp");
-        JSONArray alpn = parseAlpn(firstValueIgnoreCase(query, "alpn"));
+        String fingerprint = first(query, "fp", true);
+        List<String> alpnItems = parseAlpn(first(query, "alpn", true));
+        JSONArray alpn = new JSONArray();
+        for (String item : alpnItems) alpn.put(item);
 
         String identity =
                 "tcp-tls\n"
-                        + scheme + "\n"
+                        + lower(scheme) + "\n"
                         + lower(host) + "\n"
                         + port + "\n"
                         + lower(serverName);
@@ -127,17 +139,17 @@ public final class XrayShareLinkSecurity {
                 fingerprint,
                 alpn,
                 PROBE_TIMEOUT_MS);
-        String trusted = verifyOrTrust(
-                identity,
-                observed,
-                "TLS");
-
-        return replaceSecurityQuery(link, query, trusted, false);
+        String trusted = verifyOrTrust(identity, observed, "TLS");
+        return rewriteTls(uri, query, trusted);
     }
 
-    private String verifyOrTrust(String identity, String observed, String kind) throws Exception {
-        if (observed == null || !observed.matches(SHA256_PATTERN)) {
-            throw new IllegalStateException(kind + " certificate probe returned an invalid fingerprint");
+    private String verifyOrTrust(
+            String identity,
+            String observed,
+            String kind) throws Exception {
+        if (observed == null || !observed.matches(SHA256)) {
+            throw new IllegalStateException(
+                    kind + " certificate probe returned an invalid fingerprint");
         }
 
         String normalizedObserved = observed.toLowerCase(Locale.ROOT);
@@ -147,103 +159,193 @@ public final class XrayShareLinkSecurity {
             return normalizedObserved;
         }
 
-        if (!stored.matches(SHA256_PATTERN)) {
-            throw new IllegalStateException("Stored " + kind + " certificate fingerprint is invalid");
+        if (!stored.matches(SHA256)) {
+            throw new IllegalStateException(
+                    "Stored " + kind + " certificate fingerprint is invalid");
         }
 
+        // Exact shipped behavior compares the stored ASCII hex text as-is
+        // against the newly observed lower-case fingerprint. Do not normalize
+        // migrated stored pins here: case differences are treated as a change.
         if (!MessageDigest.isEqual(
                 stored.getBytes(StandardCharsets.US_ASCII),
                 normalizedObserved.getBytes(StandardCharsets.US_ASCII))) {
             throw new IllegalStateException(
-                    kind + " server certificate changed; delete the saved Xray configuration before trusting the new certificate");
+                    kind
+                            + " server certificate changed; delete the saved Xray configuration"
+                            + " before trusting the new certificate");
         }
         return stored;
     }
 
-    private static String replaceSecurityQuery(
-            String link,
+    private static String rewriteHysteria2(
+            URI uri,
             List<QueryPart> source,
-            String pcs,
-            boolean hysteria) {
-        List<QueryPart> result = new ArrayList<>();
+            String newPin) {
+        List<String> result = new ArrayList<>();
         for (QueryPart part : source) {
-            if (part.key.equalsIgnoreCase("insecure")
-                    || part.key.equalsIgnoreCase("allowInsecure")) {
-                continue;
-            }
-            if (part.key.equalsIgnoreCase("pcs")) continue;
+            if (isInsecureKey(part.key)) continue;
+            if (!newPin.isEmpty() && part.key.equalsIgnoreCase("pcs")) continue;
 
-            String canonical = canonicalSecurityKey(part.key, hysteria);
-            result.add(part.withKey(canonical));
+            String canonical = canonicalHy2Key(part.key);
+            result.add(rewriteKey(part, canonical, false));
         }
-        if (!pcs.isEmpty()) result.add(QueryPart.encoded("pcs", pcs));
-        return replaceRawQuery(link, joinQuery(result));
+        if (!newPin.isEmpty()) result.add("pcs=" + newPin);
+
+        // The shipped Hysteria helper always appends '?' even when the resulting
+        // query list is empty.
+        return rebuild(uri, result, true);
     }
 
-    private static String stripInsecure(String link, List<QueryPart> source) {
-        List<QueryPart> result = new ArrayList<>();
+    private static String rewriteTls(
+            URI uri,
+            List<QueryPart> source,
+            String newPin) {
+        List<String> result = new ArrayList<>();
         for (QueryPart part : source) {
-            if (!part.key.equalsIgnoreCase("insecure")
-                    && !part.key.equalsIgnoreCase("allowInsecure")) {
-                result.add(part);
-            }
+            if (isInsecureKey(part.key)) continue;
+            if (!newPin.isEmpty() && part.key.equalsIgnoreCase("pcs")) continue;
+
+            String canonical = canonicalTlsKey(part.key);
+            boolean lowerValue = "security".equals(canonical);
+            result.add(rewriteKey(part, canonical, lowerValue));
         }
-        return replaceRawQuery(link, joinQuery(result));
+        if (!newPin.isEmpty()) result.add("pcs=" + newPin);
+        return rebuild(uri, result, false);
     }
 
-    private static String canonicalSecurityKey(String key, boolean hysteria) {
+    private static String canonicalHy2Key(String key) {
         if (key.equalsIgnoreCase("pcs")) return "pcs";
         if (key.equalsIgnoreCase("vcn")) return "vcn";
         if (key.equalsIgnoreCase("sni")) return "sni";
-        if (!hysteria) {
-            if (key.equalsIgnoreCase("fp")) return "fp";
-            if (key.equalsIgnoreCase("alpn")) return "alpn";
-            if (key.equalsIgnoreCase("security")) return "security";
+        return null;
+    }
+
+    private static String canonicalTlsKey(String key) {
+        if (key.equalsIgnoreCase("pcs")) return "pcs";
+        if (key.equalsIgnoreCase("vcn")) return "vcn";
+        if (key.equalsIgnoreCase("sni")) return "sni";
+        if (key.equalsIgnoreCase("fp")) return "fp";
+        if (key.equalsIgnoreCase("alpn")) return "alpn";
+        if (key.equalsIgnoreCase("security")) return "security";
+        return null;
+    }
+
+    private static String rewriteKey(
+            QueryPart part,
+            String canonical,
+            boolean lowerValue) {
+        if (canonical == null) return part.raw;
+
+        int equals = part.raw.indexOf('=');
+        if (equals < 0) return canonical;
+
+        String value = lowerValue ? lower(part.value) : part.raw.substring(equals + 1);
+        return canonical + "=" + value;
+    }
+
+    private static String rebuild(
+            URI uri,
+            List<String> query,
+            boolean alwaysQuestionMark) {
+        StringBuilder result = new StringBuilder(uri.getScheme());
+        result.append(':').append(uri.getRawSchemeSpecificPart());
+
+        int question = result.indexOf("?");
+        if (question >= 0) result.setLength(question);
+
+        if (alwaysQuestionMark || !query.isEmpty()) {
+            result.append('?');
+            for (int index = 0; index < query.size(); index++) {
+                if (index > 0) result.append('&');
+                result.append(query.get(index));
+            }
         }
-        return key;
+
+        if (uri.getRawFragment() != null) {
+            result.append('#').append(uri.getRawFragment());
+        }
+        return result.toString();
     }
 
     private static boolean requestsInsecure(List<QueryPart> query) {
         for (QueryPart part : query) {
-            if (!part.key.equalsIgnoreCase("insecure")
-                    && !part.key.equalsIgnoreCase("allowInsecure")) {
-                continue;
-            }
-            if (part.value.equals("1") || part.value.equalsIgnoreCase("true")) return true;
+            if (!isInsecureKey(part.key)) continue;
+            if ("1".equals(part.value) || "true".equalsIgnoreCase(part.value)) return true;
         }
         return false;
     }
 
-    private static JSONArray parseAlpn(String value) {
-        JSONArray result = new JSONArray();
-        String trimmed = value == null ? "" : value.trim();
-        if (trimmed.isEmpty()) return result;
+    private static boolean isInsecureKey(String key) {
+        return key.equalsIgnoreCase("insecure")
+                || key.equalsIgnoreCase("allowInsecure");
+    }
 
-        if (trimmed.startsWith("[")) {
+    private static List<String> parseAlpn(String raw) {
+        List<String> result = new ArrayList<>();
+        String value = raw == null ? "" : raw.trim();
+        if (value.isEmpty()) return result;
+
+        // Exact shipped behavior: when the value starts with '[', first try
+        // Android's JSONArray parser and collect optString(i).trim() values.
+        // Any JSON parse failure falls back to comma splitting.
+        if (value.startsWith("[")) {
             try {
-                JSONArray source = new JSONArray(trimmed);
-                for (int i = 0; i < source.length(); i++) {
-                    String item = source.optString(i).trim();
-                    if (!item.isEmpty()) result.put(item);
+                JSONArray array = new JSONArray(value);
+                for (int index = 0; index < array.length(); index++) {
+                    String item = array.optString(index).trim();
+                    if (!item.isEmpty()) result.add(item);
                 }
                 return result;
             } catch (Exception ignored) {
+                // Fall through to the shipped comma-splitting fallback.
             }
         }
 
-        for (String item : trimmed.split(",", -1)) {
-            String valueItem = item.trim();
-            if (!valueItem.isEmpty()) result.put(valueItem);
+        for (String part : value.split(",", -1)) {
+            String trimmed = part.trim();
+            if (!trimmed.isEmpty()) result.add(trimmed);
         }
         return result;
+    }
+
+    private static List<QueryPart> parseQuery(String rawQuery) {
+        List<QueryPart> result = new ArrayList<>();
+        if (rawQuery == null || rawQuery.isEmpty()) return result;
+
+        for (String raw : rawQuery.split("&", -1)) {
+            int equals = raw.indexOf('=');
+            String rawKey = equals < 0 ? raw : raw.substring(0, equals);
+            String rawValue = equals < 0 ? "" : raw.substring(equals + 1);
+            result.add(
+                    new QueryPart(
+                            raw,
+                            URLDecoder.decode(rawKey, StandardCharsets.UTF_8),
+                            URLDecoder.decode(rawValue, StandardCharsets.UTF_8)));
+        }
+        return result;
+    }
+
+    private static String first(
+            List<QueryPart> query,
+            String key,
+            boolean ignoreCase) {
+        for (QueryPart part : query) {
+            if (ignoreCase
+                    ? part.key.equalsIgnoreCase(key)
+                    : part.key.equals(key)) {
+                return part.value;
+            }
+        }
+        return "";
     }
 
     private static int firstPort(String expression) {
         String first = expression.split(",", -1)[0];
         int dash = first.indexOf('-');
-        String candidate = dash < 0 ? first : first.substring(0, dash);
+        String rawPort = dash < 0 ? first : first.substring(0, dash);
         try {
-            int port = Integer.parseInt(candidate);
+            int port = Integer.parseInt(rawPort);
             if (port < 1 || port > 65_535) throw new NumberFormatException();
             return port;
         } catch (NumberFormatException error) {
@@ -267,79 +369,39 @@ public final class XrayShareLinkSecurity {
         String[] parts = host.split("\\.", -1);
         if (parts.length != 4) return false;
         for (String part : parts) {
-            if (part.isEmpty() || part.length() > 3) return false;
-            if (part.length() > 1 && part.charAt(0) == '0') return false;
-            int value = 0;
-            for (int i = 0; i < part.length(); i++) {
-                char c = part.charAt(i);
-                if (c < '0' || c > '9') return false;
-                value = value * 10 + (c - '0');
+            if (part.isEmpty()
+                    || part.length() > 3
+                    || (part.length() > 1 && part.charAt(0) == '0')) {
+                return false;
             }
-            if (value > 255) return false;
+            int number = 0;
+            for (int index = 0; index < part.length(); index++) {
+                char c = part.charAt(index);
+                if (c < '0' || c > '9') return false;
+                number = number * 10 + (c - '0');
+            }
+            if (number > 255) return false;
         }
         return true;
     }
 
-    private static String cleanHost(String host) {
-        if (host == null) return "";
-        String result = host.trim();
-        if (result.startsWith("[") && result.endsWith("]") && result.length() > 2) {
-            result = result.substring(1, result.length() - 1);
+    private static String cleanHost(String value) {
+        if (value == null) return "";
+        String host = value.trim();
+        if (host.length() > 1 && host.charAt(0) == '[' && host.charAt(host.length() - 1) == ']') {
+            return host.substring(1, host.length() - 1);
         }
-        return result;
+        return host;
     }
 
-    private static String firstValue(List<QueryPart> query, String key) {
-        for (QueryPart part : query) {
-            if (part.key.equals(key)) return part.value;
+    private static boolean isBlank(String value) {
+        if (value == null) return true;
+        for (int offset = 0; offset < value.length();) {
+            int cp = value.codePointAt(offset);
+            if (!Character.isWhitespace(cp)) return false;
+            offset += Character.charCount(cp);
         }
-        return "";
-    }
-
-    private static String firstValueIgnoreCase(List<QueryPart> query, String key) {
-        for (QueryPart part : query) {
-            if (part.key.equalsIgnoreCase(key)) return part.value;
-        }
-        return "";
-    }
-
-    private static List<QueryPart> parseQuery(String rawQuery) {
-        List<QueryPart> result = new ArrayList<>();
-        if (rawQuery == null || rawQuery.isEmpty()) return result;
-
-        for (String raw : rawQuery.split("&", -1)) {
-            int equals = raw.indexOf('=');
-            String rawKey = equals < 0 ? raw : raw.substring(0, equals);
-            String rawValue = equals < 0 ? "" : raw.substring(equals + 1);
-            result.add(new QueryPart(
-                    raw,
-                    URLDecoder.decode(rawKey, StandardCharsets.UTF_8),
-                    URLDecoder.decode(rawValue, StandardCharsets.UTF_8),
-                    equals >= 0));
-        }
-        return result;
-    }
-
-    private static String replaceRawQuery(String link, String query) {
-        int question = link.indexOf('?');
-        int fragment = link.indexOf('#');
-        int baseEnd = question >= 0 && (fragment < 0 || question < fragment)
-                ? question
-                : (fragment < 0 ? link.length() : fragment);
-        String suffix = fragment < 0 ? "" : link.substring(fragment);
-        return link.substring(0, baseEnd)
-                + (query.isEmpty() ? "" : "?" + query)
-                + suffix;
-    }
-
-    private static String joinQuery(List<QueryPart> query) {
-        StringBuilder result = new StringBuilder();
-        for (QueryPart part : query) {
-            if (part.raw.isEmpty()) continue;
-            if (!result.isEmpty()) result.append('&');
-            result.append(part.raw);
-        }
-        return result.toString();
+        return true;
     }
 
     private static String lower(String value) {
@@ -350,28 +412,12 @@ public final class XrayShareLinkSecurity {
         final String raw;
         final String key;
         final String value;
-        final boolean hasEquals;
 
-        QueryPart(String raw, String key, String value, boolean hasEquals) {
+        QueryPart(String raw, String key, String value) {
             this.raw = raw;
             this.key = key;
             this.value = value;
-            this.hasEquals = hasEquals;
-        }
-
-        QueryPart withKey(String canonicalKey) {
-            if (canonicalKey.equals(key)) return this;
-            return encoded(canonicalKey, value);
-        }
-
-        static QueryPart encoded(String key, String value) {
-            String encodedKey = URLEncoder.encode(key, StandardCharsets.UTF_8).replace("+", "%20");
-            String encodedValue = URLEncoder.encode(value, StandardCharsets.UTF_8).replace("+", "%20");
-            return new QueryPart(
-                    encodedKey + "=" + encodedValue,
-                    key,
-                    value,
-                    true);
         }
     }
 }
+
