@@ -7,10 +7,10 @@ import android.view.View;
 
 import androidx.viewbinding.ViewBinding;
 
-import com.fongmi.android.tv.xray.legacy.LegacyLegacyXrayErrorSanitizer;
-import com.fongmi.android.tv.xray.legacy.LegacyLegacyXrayOperation;
+import com.fongmi.android.tv.xray.legacy.LegacyXrayErrorSanitizer;
+import com.fongmi.android.tv.xray.legacy.LegacyXrayOperation;
 import com.fongmi.android.tv.xray.legacy.LegacyXraySettingsController;
-import com.fongmi.android.tv.xray.legacy.LegacyLegacyXrayShareLinkNormalizer;
+import com.fongmi.android.tv.xray.legacy.LegacyXrayShareLinkNormalizer;
 import com.fongmi.android.tv.R;
 import com.fongmi.android.tv.databinding.ActivitySettingXrayBinding;
 import com.fongmi.android.tv.event.XrayImportEvent;
@@ -47,7 +47,7 @@ public final class SettingXrayActivity extends BaseActivity
             mBinding.link.setText(mXray.getShareLink());
             mBinding.link.setSelection(mBinding.link.length());
         } catch (Exception error) {
-            Notify.show(LegacyXrayErrorSanitizer.sanitize(error));
+            Notify.show(LegacyXrayErrorSanitizer.fromException(error));
         }
         mBinding.link.requestFocus();
     }
@@ -71,7 +71,7 @@ public final class SettingXrayActivity extends BaseActivity
             mXray.save(readLink(), mBinding.udpSwitch.isChecked());
             Notify.show(R.string.xray_saved);
         } catch (Exception error) {
-            Notify.show(LegacyXrayErrorSanitizer.sanitize(error));
+            Notify.show(LegacyXrayErrorSanitizer.fromException(error));
         }
     }
 
@@ -86,7 +86,7 @@ public final class SettingXrayActivity extends BaseActivity
         } catch (Exception error) {
             clearOperation();
             Notify.dismiss();
-            Notify.show(LegacyXrayErrorSanitizer.sanitize(error));
+            Notify.show(LegacyXrayErrorSanitizer.fromException(error));
         }
     }
 
@@ -105,7 +105,7 @@ public final class SettingXrayActivity extends BaseActivity
         } catch (Exception error) {
             clearOperation();
             Notify.dismiss();
-            Notify.show(LegacyXrayErrorSanitizer.sanitize(error));
+            Notify.show(LegacyXrayErrorSanitizer.fromException(error));
         }
     }
 
