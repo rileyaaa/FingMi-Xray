@@ -51,3 +51,4 @@
 - 2026-09-25 实验配置/传输安全偏差：`XrayConfigFactory` 缺少发布版在 `secure()` 后的二次 normalize，已补。原 `XrayShareLinkSecurity` 重写查询时重新编码历史参数、已有 pin 时跳过规范化，且 Hysteria2 的空问号、TLS security 小写等与恢复层不符；直接从已核 DEX 的 `LegacyXrayTransportSecurity` 适配模块类型/探测器接口，机械规范化后字节一致。未编译/设备验证，不能据此宣布迁移。
 - 2026-09-25 实验证书存储重置漂移：旧 `XrayCertificatePins.migrateLegacyPins` 捕获运行异常并忽略；旧 `clear()` 直接清两个偏好存储且删除 key，服务未重建 helper。恢复层的迁移提交顺序、重置时先构造迁移再清两端及删除 key 已有 APK 静态证据；实验存储复制该实现仅更名，服务用 `resetAll(this)` 与同步 helper 重建。编译与设备验证尚未进行。
 - 2026-09-25 实验 libXray 桥的返回值及错误漂移：`invokeObject` 将错误数据兜底为空对象或解析 JSON 字符串，转换也接受字符串；发布版均严格要求 JSONObject。旧桥过早 trim/去敏错误可能改变 bind 错误重试，已改按发布版空白码点检测与原始异常传播，外层结果再去敏。只静态核对。
+- 2026-09-25 实验错误去敏漂移：旧 `XrayErrorSanitizer` 只替换分享链接/UUID/普通键值，未逐字符遮盖 JSON 字符串敏感值，也不截断长错误；恢复版 `kz3` 的结果标记及空白异常回退不同。实验实现改由已核恢复类适配，服务异常改用 `fromException`，保留 Throwable 入口避免模块其他调用者的签名变化。尚未编译。

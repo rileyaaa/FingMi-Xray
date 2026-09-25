@@ -380,8 +380,7 @@ public final class XrayService extends Service {
     }
 
     private static String errorMessage(Exception error) {
-        String value = XrayErrorSanitizer.sanitize(error);
-        return value.isBlank() ? "Xray operation failed" : value;
+        return XrayErrorSanitizer.fromException(error);
     }
 
     private static void killPrivateProcess() {

@@ -48,3 +48,5 @@
 证书存储 `XrayCertificatePins` 现直接适配 `LegacyXrayCertificateStore`（仅模块包/类名变化），其迁移和重置时的存储提交顺序、错误传播及 Android Keystore 删除与已核恢复层相同。实验 `XrayService.resetSecurityInternal` 调用该 `resetAll()` 并重建存储与安全配置帮助对象，静态控制流对齐。AIDL 协议、资源/Manifest 连接、编译和 TV 真机仍待验。
 
 `LibXrayBridge` 的 Xray invoke 返回结构也已收紧到发布版：对象结果必须是 JSONObject，分享链接转换不得接受 JSON 字符串或用空对象替代错误；原始错误按 Unicode 代码点的空白判断后向上抛，末端服务再负责去敏。旧实验桥提前 trim/去敏可能改变端口绑定失败重试的异常文本。此次仍是源码静态对照，真实 libXray AAR 与 Android 编译尚缺。
+
+实验错误去敏器之前缺少发布版针对 JSON 引号内敏感值的逐字符遮盖和 1024 字符截断，替换标记也不同。已适配恢复类，并保留 `sanitize(Throwable)` 兼容入口；服务异常走 `fromException`，与恢复层相同。代际门的 compareAndSet / invalidate 行为静态一致，仅名称与访问级别不同，未改。

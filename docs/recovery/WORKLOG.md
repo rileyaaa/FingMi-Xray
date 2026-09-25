@@ -125,3 +125,4 @@
 - 核 `XrayConfigFactory` 与发布版恢复类：单出口、私网黑洞、DNS 服务器、SOCKS 入站规则的常量和顺序静态吻合；补齐证书安全处理后的第二次归一化。传输安全类原有较多查询重写偏差，现以已核 DEX 的恢复类实现为基准，适配模块包/类及 bridge 的 JSONArray 参数；规范化适配后的源码逐字节一致。仍有实验配置额外的端口早停与 AIDL descriptor 等门槛。无新 Actions、Java 编译或电视设备回归。
 - 对照证书存储发现实验类原先静默吞掉迁移异常、重置时双存储与密钥清理顺序不同；已将 `XrayCertificatePins` 适配为恢复层 `LegacyXrayCertificateStore` 同实现，`XrayService.resetSecurityInternal` 改按原版调用 `resetAll(this)` 并重建依赖。仅静态核对；原始 APK 字节码的结论及后续模块测试门槛见模块边界文档。无新 AC。
 - 比较 `LibXrayBridge` 与恢复的 `LegacyLibXrayApi`：实验桥原先宽容接受字符串或空对象，且在 `invoke`/ping 阶段 trim/去敏错误；发布版要求 JSONObject，并以 `Character.isWhitespace` 按代码点判断空错。已定点修正，保留在外层回调去敏以免改变绑定失败判断。只做源代码静态对照，仍无真实 libXray AAR 或 Android 构建。
+- 核服务回调的错误去敏与代际门：实验代际门算法与恢复层相同；实验去敏器此前漏掉 JSON 引号敏感值处理及 1024 字符上限。现用恢复层去敏实现适配模块类名，并保留旧的 Throwable 兼容入口；服务异常调用 `fromException`。仅源码静态检查，未运行模块。
