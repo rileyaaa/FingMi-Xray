@@ -579,13 +579,16 @@ public class VideoActivity extends PlaybackActivity implements VodPlaybackHost, 
     @Override
     public void loadDanmaku(Result result, History history, Episode episode) {
         mDanmakuRequestId =
-                VodPlaybackMedia.searchDanmaku(
-                        player().getHttpClient(OkHttp.player()),
-                        result,
-                        history,
-                        episode,
-                        player()::setDanmaku,
-                        player()::addDanmaku);
+                player().withHttpClient(
+                        OkHttp.player(),
+                        client ->
+                                VodPlaybackMedia.searchDanmaku(
+                                        client,
+                                        result,
+                                        history,
+                                        episode,
+                                        player()::setDanmaku,
+                                        player()::addDanmaku));
     }
 
     @Override
