@@ -159,16 +159,18 @@ public final class LegacyXrayTransportSecurity {
                     "Stored " + kind + " certificate fingerprint is invalid");
         }
 
-        String normalizedStored = stored.toLowerCase(Locale.ROOT);
+        // Exact shipped behavior compares the stored ASCII hex text as-is
+        // against the newly observed lower-case fingerprint. Do not normalize
+        // migrated stored pins here: case differences are treated as a change.
         if (!MessageDigest.isEqual(
-                normalizedStored.getBytes(StandardCharsets.US_ASCII),
+                stored.getBytes(StandardCharsets.US_ASCII),
                 normalizedObserved.getBytes(StandardCharsets.US_ASCII))) {
             throw new IllegalStateException(
                     kind
                             + " server certificate changed; delete the saved Xray configuration"
                             + " before trusting the new certificate");
         }
-        return normalizedStored;
+        return stored;
     }
 
     private static String rewriteHysteria2(
