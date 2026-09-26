@@ -75,7 +75,7 @@
 - 普通 Leanback app 有 Xray 设置入口；
 - 实验模块的分享链接、证书、Service、Binder、session 和网络基础类已经接受多轮 faithful 静态对齐；
 - 普通 `PlayerManager`、播放器 factory/session、`PlaybackService`、`VideoActivity` 和 `LiveActivity` 的完整 Xray 播放接线尚未正式迁移；
-- 普通 app 的 TV 网络恢复链已经有一部分 faithful 接线，但仍需 Android 编译和设备验证。
+- 普通 app 的 TV 网络恢复链已经按 faithful 接入 Home、BaseLoader、SiteViewModel、TvNetworkLifecycle、OkDns、OkHttp；仍需 Android 编译和真实 TV 待机回归。
 
 更精确的恢复状态和证据不要在这里重复，统一看 [RECOVERY.md](RECOVERY.md)。
 
