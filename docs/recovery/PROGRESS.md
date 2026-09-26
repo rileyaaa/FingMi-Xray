@@ -26,3 +26,6 @@
 
 
 2026-09-26 增量：已准备 libXray 双 ABI Go JNI 从固定 SHA 的原发布 APK 定点恢复路径，假包正反例通过；手动工作流现在在下载 APK 前核播放器候选工件的名称、大小、摘要和过期状态，YAML/shell 语法通过。该工作流没有派发，发布 APK、真实重包 AAR、faithful 编译和电视回归仍未完成。普通 app 的网络拦截器、RTSP SOCKS 工厂及会话资源清理按 faithful 层静态对齐；最小接口桩编译和 17/4 地址样本通过，但 app 播放器接线与设备验证未完成。
+
+
+2026-09-26 播放器静态 ABI 再核：在固定候选 ZIP 总 SHA 复验之后，精选 Java 签名从 12 类/50 方法增加至 **14 类/54 方法**，新覆盖 DRM 数据源设置和 RTSP 的 TCP、SOCKS SocketFactory、User-Agent 三个入口。两种 ABI 的 FFmpeg JNI 仍不匹配并被早停门拒绝；faithful 编译与电视回归状态不变。
