@@ -672,6 +672,45 @@ FongMi 5.6.0 所需自制 `lib-*.aar` 不在上游 Git 中。
 
 ---
 
+## 13.1 历史 Actions 结果的正确解释
+
+以下历史 run 容易因为 GitHub Actions 最终状态被误读，保留为长期溯源事实：
+
+- APK 分析 run `36095249788` 最终为 failure，但 **v7 完整 JADX 步骤成功**；失败发生在后续 targeted dexdump 筛选。完整 v7 JADX 已保存为 artifact `10847466987`，双 ABI DEX / 报告为 `10847337361`。因此“run 红灯”不能解释为“v7 没有反编译成功”。
+- Player AAR run `36123459832` 中固定 FongMi/media 源码的 **484 个 Gradle task 全部成功，BUILD SUCCESSFUL**；run 最终失败是旧 artifact 收集脚本查错输出目录，未把已编出的 AAR 带回。这个 run 证明当时源码能完成该构建，不等于已经得到可使用的候选 artifact。
+- 后续经明确授权的 run `36124817040` 完整成功，产生 artifact `10859533459`，其中 16 个候选 AAR 与清单 SHA-256 一致；这是当前固定 player candidate 的来源。
+- 提交标题、workflow 是否存在、或 run 总体红/绿灯，都不能替代“具体哪一步成功、实际 artifact 内容和哈希是什么”的核查。
+
+## 13.2 高风险 faithful 修复锚点
+
+以下改动是后续 AI 最不应重新“简化”的恢复锚点。这里只保留结论和主要提交，不重复完整调试过程：
+
+| 风险 | 当前结论 | 主要提交 / 位置 |
+| --- | --- | --- |
+| Xray Exo 复用普通直连 cache | Xray session 绕开普通磁盘 cache 上游，避免代理身份被直连 cache 污染 | `7b7261c`、faithful `ExoMediaSourceFactory` |
+| DRM license 走普通网络 | Xray session 给 DRM 使用同一 proxy-aware `DataSource.Factory` | `764773b` |
+| DataSource delegate open 抛错后不 close | open 前先设置可关闭状态，保证失败路径仍能清 delegate | `797a7f3`、`0c82399`、`ff58feb` |
+| RTSP 本地解析 hostname / 空白 UA | unresolved SOCKS hostname；UA 以 Unicode whitespace 判定 | `fd2ea8c` |
+| Hysteria2 / VMess JADX 反转 | authority hopping、obfs、port scale、authority 条件均按原始 DEX 修正 | `bb4572f`、`e61e0ed`、`49fbd4f` |
+| ALPN / pin / libXray error 细节漂移 | 发布版 JSON / ASCII pin / Unicode whitespace 语义已恢复 | `eb2eb7a`、`3d79878`、`74a4ef4` |
+| cleanup worker 线程属性 | Xray proxy cleanup 与 core worker 均为 daemon | `bfab3c8` 附近恢复提交 |
+| TV 网络恢复缺普通 app 接线 | Home / BaseLoader / SiteViewModel / TvNetworkLifecycle / OkDns / OkHttp 已同步入普通工程 | 当前普通工程与 faithful 文件逐字节核对 |
+
+这些提交是定位依据，不代表对应范围已经经过 Android TV 设备验证。
+
+## 13.3 已完成的静态组装门
+
+已完成且可重复的静态检查包括：
+
+- 固定上游 Git 对象的 source-only faithful 组装；
+- 51 个 upstream overlay 文件、24 个 Xray Java、2 个 AIDL 的组装覆盖；
+- 本地提供的 `app/libs/lib-*.aar` 会被复制到 faithful 临时树，不再因上游 Git ignore 丢失；
+- 六个 TV Activity 共 77 个 ViewBinding 字段引用均能在相应 layout id 中找到；
+- player candidate 的检查已从早期 8 类 / 38 方法扩至当前 14 类 / 54 方法；
+- 两 ABI 的 candidate player native 已完整清点为每边 11 件，其中 10 件与发布来源相同、唯一差异为 `libffmpegJNI.so`。
+
+这些检查缩小了构建风险，但仍不能替代真实 Gradle / javac / resource merge。
+
 ## 14. 当前恢复状态
 
 | 范围 | 当前状态 |
