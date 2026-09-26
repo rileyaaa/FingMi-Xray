@@ -38,9 +38,9 @@ public final class LegacyXrayServiceClient {
                 Runnable onDispatched) {
             this.operationId = operationId;
             this.operation = operation;
-            this.shareLink = shareLink == null ? "" : shareLink;
+            this.shareLink = shareLink;
             this.udp = udp;
-            this.onDispatched = onDispatched == null ? () -> { } : onDispatched;
+            this.onDispatched = onDispatched;
         }
     }
 
