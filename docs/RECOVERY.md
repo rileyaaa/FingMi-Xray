@@ -430,6 +430,16 @@ JADX 的 `outbounds != null || ...` 是反编译损坏。
 - 遇到非数字、非 `.` 字符直接判定为普通 hostname；
 - 不会把普通域名错误当成数字 IPv4。
 
+### Binder stale connection failure
+
+v7 原始 DEX `Lhz3;->d` 确认：
+
+- failure 的 expected connection 为 null 或正是 current connection 时，才清理当前 Binder / pending / active 状态并派发失败；
+- expected connection 非 null 且已经不是 current connection 时，只对这个过期 connection 做 unlink / unbind，然后立即 return；
+- 晚到的旧连接失败不会继续清理新的 current connection。
+
+faithful `LegacyXrayServiceClient.failLocked` 和实验模块 `XrayServiceClient.failLocked` 均保留这一 stale-connection return。
+
 ### TV 网络恢复
 
 发布 DEX 确认：
