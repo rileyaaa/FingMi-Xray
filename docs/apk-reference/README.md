@@ -32,7 +32,15 @@
 - v7 / v8 原始 DEX + APK diff：`10847337361`
 - v8 完整 JADX：`10825963688`
 
-这些 artifact 可能过期，因此本目录保存恢复直接需要的文本材料。
+这些 artifact 可能过期，因此本目录保存恢复直接需要的文本材料。同时已将三份完整 ZIP 持久保存到项目可访问 Library，供 selected reference 不足时离线查阅：
+
+| 内容 | Library 路径 | bytes | ZIP SHA-256 |
+| --- | --- | ---: | --- |
+| v7 full JADX | `/FongMi-Xray/apk-reference/v7-full-jadx-v5.6.0-xray.5.zip` | 76,359,062 | `7aab8c3419717516167eba7cf6a6f320df894b9ef554761c0cfc98d90c580e8d` |
+| v8 full JADX | `/FongMi-Xray/apk-reference/v8-full-jadx-v5.6.0-xray.5.zip` | 78,694,282 | `8d6e2a335a442b9bc2e53f12ec7ab646ebef51df69ae8c54674d25f37035056b` |
+| v7/v8 DEX + reports | `/FongMi-Xray/apk-reference/v7-v8-dex-report-v5.6.0-xray.5.zip` | 11,501,328 | `699eac1ef5d8261c303d953110fa8ec731f91cd7279c04a74c598311211a4c3f` |
+
+Library 是跨会话便利副本，不替代发布 APK 的固定 SHA 身份；判断发布行为仍以本文件上方两份正式 APK SHA 为准。
 
 v7 JADX 工作流记录的 JADX exit code 为 3，但完整 `sources/` 已正常生成并保存；历史 Action 红灯发生在后续 targeted dexdump 筛选，不等于 v7 没有反编译源码。
 
