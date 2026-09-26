@@ -175,9 +175,10 @@ public final class LegacyXraySettingsController
         activeOperationId = NO_OPERATION;
         activeOperation = -1;
 
-        client.cancel(operation, operationId);
-        replaceClient();
-
+        // DEX/JADX-verified in SettingXrayActivity's rc2 case 15:
+        // surface the timeout to the UI before making the synchronous Binder
+        // cancel call, then replace the client after that exact operation is
+        // cancelled/unbound.
         if (listener != null) {
             listener.onResult(
                     operationId,
@@ -186,6 +187,9 @@ public final class LegacyXraySettingsController
                     -1L,
                     "Xray operation timed out");
         }
+
+        client.cancel(operation, operationId);
+        replaceClient();
     }
 
     @Override
