@@ -6,7 +6,7 @@ from zipfile import ZipFile
 
 
 spec = importlib.util.spec_from_file_location(
-    "restore_libxrayjni", Path(__file__).with_name("restore-published-libxrayjni.py")
+    "restore_libxrayjni", Path(__file__).resolve().parents[2] / "scripts/restore-published-libxrayjni.py"
 )
 module = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(module)
@@ -23,9 +23,13 @@ class RestoreLibXrayJniTest(unittest.TestCase):
                     archive.writestr(f"lib/{abi}/libgojni.so", f"published-{abi}".encode())
                 apk_paths[abi] = apk
             pinned = dict(module.APK_SHA256)
+            pinned_jni = dict(module.JNI_SHA256)
             try:
                 module.APK_SHA256 = {
                     abi: module.digest(path.read_bytes()) for abi, path in apk_paths.items()
+                }
+                module.JNI_SHA256 = {
+                    abi: module.digest(f"published-{abi}".encode()) for abi in apk_paths
                 }
                 aar = base / "official.aar"
                 with ZipFile(aar, "w") as archive:
@@ -42,6 +46,11 @@ class RestoreLibXrayJniTest(unittest.TestCase):
                         self.assertEqual(hashes[abi], module.digest(f"published-{abi}".encode()))
                 with self.assertRaisesRegex(ValueError, "overwrite"):
                     module.restore(aar, apk_paths, target)
+                module.JNI_SHA256["armeabi-v7a"] = "0" * 64
+                with self.assertRaisesRegex(ValueError, "Go JNI SHA-256"):
+                    module.restore(aar, apk_paths, base / "wrong-native.aar")
+                self.assertFalse((base / "wrong-native.aar").exists())
+                module.JNI_SHA256["armeabi-v7a"] = module.digest(b"published-armeabi-v7a")
                 with apk_paths["armeabi-v7a"].open("ab") as stream:
                     stream.write(b"tamper")
                 with self.assertRaisesRegex(ValueError, "APK SHA-256"):
@@ -49,6 +58,7 @@ class RestoreLibXrayJniTest(unittest.TestCase):
                 self.assertFalse((base / "bad.aar").exists())
             finally:
                 module.APK_SHA256 = pinned
+                module.JNI_SHA256 = pinned_jni
 
 
 if __name__ == "__main__":
