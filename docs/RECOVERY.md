@@ -1059,7 +1059,7 @@ arm64 目前有静态交叉证据，没有实际执行同一矩阵。正式 fait
 
 `recovery/libxray/native-v2-recovery.patch` 是接在 `share-converter-recovery.patch` 之后的重建行为补丁，基于固定 official `80263da8`，不是原始 Go 源码。发布版 v7 ARMv7 `libgojni.so` 的 QEMU/API24 Bionic 实际执行生成 `recovery/native-tests/published-v7-api-v2.json`；对应输入在 `api-v2-cases.json`。18 个确定性响应与重建 Go `Invoke` 的结构化 JSON 一致，包括 API 2 拒绝 0/1、内联 `xrayJson` test/run、重复启动、stop/state、pingBatch 单项错误、探测缺参和 age 错误。没有重跑上一轮 327 条 converter 差分。
 
-`xray.newXrayInstance` 从内联 JSON `core.LoadConfig` 后调用 `core.New`；test 创建并关闭而不启动，run 启动后保留实例，失败关闭。TLS 探测使用 Xray 的 uTLS fingerprint、SNI/ALPN 与叶证书 DER SHA-256；本地自签 TLS 发布版成功响应返回 `data.sha256`，未知 fingerprint 在 `data:{}` 返回错误。HY2 探测是 QUIC 握手与叶证书 pin；发布版缺参及关闭 UDP 端口超时已实际核对，合成服务端成功握手已与发布 v7 对照（见下方 HY2 闭环）。age 路径只在 ASCII armor 输入时解密，支持 x25519 和 hybrid/PQ key；生成 key 与本地合成密文解密已测试，错误语义的未覆盖边界仍是 reconstructed behavior。
+`xray.newXrayInstance` 从内联 JSON `core.LoadConfig` 后调用 `core.New`；test 创建并关闭而不启动，run 启动后保留实例，失败关闭。TLS 探测使用 Xray 的 uTLS fingerprint、SNI/ALPN 与叶证书 DER SHA-256；本地自签 TLS 发布版成功响应返回 `data.sha256`，未知 fingerprint 在 `data:{}` 返回错误。HY2 探测是 QUIC 握手与叶证书 pin；发布版缺参及关闭 UDP 端口超时已实际核对，合成服务端成功握手已与发布 v7 对照（见下方 HY2 闭环）。age 路径只在 ASCII armor 输入时解密，支持 x25519 和 hybrid/PQ key；生成 key 与本地合成密文解密已测试，错误语义见下方 27-case 发布矩阵；实现仍是 reconstructed behavior。
 
 补丁已使用 `patch -p1 --dry-run --fuzz=0` 验证分层应用，Go 包源码编译与新建 `TestPublished*` 回归通过。现有 official API 0/1 单测与发布版 API 2 语义冲突，不作为本阶段通过依据。此证据不等同于 ART、真机、远端 TLS/HY2 节点或 arm64 运行验收。
 
@@ -1076,12 +1076,12 @@ arm64 目前有静态交叉证据，没有实际执行同一矩阵。正式 fait
 | TLS certificate probe | published-only | `xray/tls_cert_probe.go` 出现在发布 DWARF，官方无此文件或 Invoke 分发；uTLS/SNI/ALPN、DER SHA-256 重建，本地合成 TLS 成功与错误响应已和 v7 对照。 |
 | HY2 certificate probe | published-only | `xray/hy2_cert_probe.go` 出现在 DWARF，官方无此文件；重建 QUIC 握手实现。v7 缺参/关闭 UDP 端口 timeout 实测；合成 QUIC 成功握手、叶证书 pin、SNI、h3 ALPN 与关闭已发布运行对照。 |
 | share converter、JSON-to-share、cleanup | published modified | 官方 converter 可读；发布 `share/parse_share.go` 等同名文件还含 legacy SS、HY2 mport/pin、KCP mask/MTU 等额外函数，`cleanShareConfigNullFields` 在发布 ELF。定向恢复与 327/327 已有 v7 差分；JSON-to-share 并未做等量反向差分，App 主链只调用 share-to-JSON。 |
-| age subscription / key generation | published-only | 发布 DWARF `share/age.go`，ELF `ConvertShareLinksToXrayJsonWithAge`、`parseNativeAgeIdentity`、`GenerateAgeKeyPair`；官方无 `share/age.go`。合成 x25519 解密在重建 Go 通过，发布 v7 已捕获普通输入及坏 key type；**malformed armor、wrong identity、unsupported identity、decrypt failure、混合输入尚未与发布 native 对照**。 |
+| age subscription / key generation | published-only | 发布 DWARF `share/age.go`，ELF `ConvertShareLinksToXrayJsonWithAge`、`parseNativeAgeIdentity`、`GenerateAgeKeyPair`；官方无 `share/age.go`。合成 x25519 解密在重建 Go 通过，发布 v7 已捕获普通输入及坏 key type；malformed armor、wrong identity、unsupported identity、decrypt failure、混合输入及生成 key shape 已由 27-case 发布矩阵约束。 |
 | `encodeInvokeResponse`、`encodeInvokeNoDataResponse`、DNS、controller、geo、free ports | official available / 可继承 | 官方有对应源码，发布 ELF 保留 Go 函数及 JNI exports `Invoke`/`SetDNS`/`ResetDNS`/`RegisterDialerController`/`RegisterListenerController`/`RegisterProcessFinder`；App faithful 桥只经 `invoke(String)` 调用相关方法。没有发现这些 wrapper 的新增项目分支，未做逐函数二进制等同性宣称。 |
 
 发布本地源码路径的 DWARF 编译单元共涉及 `invoke.go`、`share/age.go`、`xray/hy2_cert_probe.go`、`xray/tls_cert_probe.go`、`xray/validation.go`、`xray/xray.go`、`xray/ping_batch.go` 等；其中 age、两种 probe 是 official tree 不存在的文件。published-only gomobile 模型包括 AgeDecryptConfig/GenerateAgeKeyPairResponse、两类 Probe request/response；`RunXrayRequest`/`TestXrayRequest` 使用 inline 字段。该清单限定在项目 Go module 与实际 App Invoke 边界，不把 Xray-core 和 Go runtime 当成定制源码。
 
-当前仍不能声称 native 全部收口：age 关键错误矩阵仍缺发布运行对照。arm64 本轮只做静态 ELF/DWARF 检查，v7 的旧 fixture 是此前真实 ARM 执行；本轮新增生命周期运行 fixture（见下）。发布原始 Go 源码未取得，现有补丁全部按 **reconstructed behavior** 标记。
+先前列出的 HY2 成功、age 错误矩阵、生命周期并发三个重要 wrapper 黑盒现已分别形成发布运行闭环（见下）；不扩大为整个 Xray-core 逆向完成。arm64 本轮只做静态 ELF/DWARF 检查，v7 的旧 fixture 是此前真实 ARM 执行；本轮新增生命周期运行 fixture（见下）。发布原始 Go 源码未取得，现有补丁全部按 **reconstructed behavior** 标记。
 
 
 ### Native lifecycle / concurrency 闭环
@@ -1094,3 +1094,9 @@ Invoke 无 cancel 方法；没有引入猜测的 native 抢占取消或实例替
 
 `published-v7-hy2-success.json` 保存发布 v7 成功响应及同一 localhost QUIC 服务端证据；`test-published-hy2-probe.py` 对发布 JNI 和重建 Go 输入相同 server/port/serverName/timeout，两者返回完全一致的 `data.sha256`，等于保存的自签叶证书 DER SHA-256。服务端观察到指定 SNI、仅 h3 ALPN、协商 h3 和主动远端关闭。EarlyListener 避免 probe 立即关闭时普通 Accept 丢失观测；握手阶段关闭可表现为 QUIC transport APPLICATION_ERROR，不能误判为 probe 失败。
 合成 peer 源码在 `recovery/native-tests/synthetic/main.go`，放入已应用两层补丁的 official module 的 `cmd/recovery-synthetic/main.go` 后用 Go1.26.3 `go build -buildvcs=false` 构建。未实现 HY2 proxy/auth；timeout 既有 fixture 保留，当前闭环只补先前缺失的真实成功路径。实现仍为 reconstructed behavior。
+
+### age 错误与生成 key 闭环
+
+`published-v7-age-matrix.json` 冻结 27 个发布 v7 响应；合成 x25519/PQ decrypt、多链接、错误/不支持 identity、空/损坏/截断 armor、篡改密文、空/非法明文、双 armor、plain/encrypted 顺序及 key generation 均覆盖。24 个确定响应逐 JSON 相等，3 个随机 key 成功响应校验完整 shape、可解析 secret 和配对 public。全部测试通过，材料中的 key 均为一次性合成测试数据。
+`native-age-errors.patch` 必须接在原两层 patch 后：修正固定错误编码、严格 keyType 及 named request 解码错误，移除先前无证据的 16 MiB 明文上限。发布 `age.go:78/81/87/94` 的 Decrypt/errors.As/ReadAll/converter 调用约束此行为：identity 不匹配 → `unable to decrypt age subscription`；armor/认证读取失败 → `malformed age armor`；解密后不支持 → `decrypted subscription is unsupported`。不泄漏 age 库内部诊断。
+`test-recovered-native-v2.py` 应用三层补丁并通过 root/xray/share 的 TestPublished 回归（未重跑 327 converter）；新矩阵由 `synthetic/age.go` 产生。全部仍标 reconstructed behavior，未取得发布原始源码。

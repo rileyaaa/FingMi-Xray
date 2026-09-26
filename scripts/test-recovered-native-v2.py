@@ -2,6 +2,7 @@
 """Run targeted native recovery tests; does not rerun the converter matrix."""
 import argparse
 import hashlib
+import os
 from pathlib import Path
 import shutil
 import subprocess
@@ -24,14 +25,14 @@ def main():
         with tarfile.open(args.source_archive) as archive:
             archive.extractall(directory, filter='data')
         source, = Path(directory).iterdir()
-        for name in ('share-converter-recovery.patch', 'native-v2-recovery.patch'):
+        for name in ('share-converter-recovery.patch', 'native-v2-recovery.patch', 'native-age-errors.patch'):
             with (ROOT / 'recovery/libxray' / name).open('rb') as patch:
                 subprocess.run(['patch', '-p1', '--batch', '--fuzz=0'], stdin=patch,
                                cwd=source, check=True, stdout=subprocess.DEVNULL)
         for test in (ROOT / 'recovery/libxray').glob('recovered_*_test.go'):
             shutil.copyfile(test, source / test.name)
         subprocess.run([go, 'test', '.', './xray', './share', '-run', args.run, '-count=1'],
-                       cwd=source, check=True)
+                       cwd=source, check=True, env=dict(os.environ, PUBLISHED_AGE_FIXTURE=str(ROOT / 'recovery/native-tests/published-v7-age-matrix.json')))
 
 
 if __name__ == '__main__':

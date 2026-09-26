@@ -40,6 +40,10 @@ func check(err error) {
 }
 
 func main() {
+	if len(os.Args) == 2 && os.Args[1] == "age-cases" {
+		ageCases()
+		return
+	}
 	if len(os.Args) == 2 && os.Args[1] == "invoke" {
 		scanner := bufio.NewScanner(os.Stdin)
 		scanner.Buffer(make([]byte, 4096), 32<<20)
