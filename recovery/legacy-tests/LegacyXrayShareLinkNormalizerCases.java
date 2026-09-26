@@ -27,6 +27,33 @@ public final class LegacyXrayShareLinkNormalizerCases {
                 LegacyXrayShareLinkNormalizer.normalize("trojan://pw@example.com:443#node"));
 
         assertEquals(
+                "vless://abc@example.com:443?type=kcp&headerType=srtp&seed=test-seed&security=tls&sni=example.com",
+                LegacyXrayShareLinkNormalizer.normalize(
+                        "vless://abc@example.com:443?type=kcp&headerType=srtp&seed=test-seed&security=tls&sni=example.com"));
+
+        assertEquals(
+                "trojan://pw@example.com:443?type=kcp&headerType=wechat-video&seed=seed123&security=tls",
+                LegacyXrayShareLinkNormalizer.normalize(
+                        "trojan://pw@example.com:443?type=kcp&headerType=wechat-video&seed=seed123&security=tls"));
+
+        assertEquals(
+                "vless://abc@example.com:443?type=grpc&serviceName=svc&authority=edge.example.com&mode=multi&security=reality&pbk=PUBKEY&sid=01&spx=%2Ffoo",
+                LegacyXrayShareLinkNormalizer.normalize(
+                        "vless://abc@example.com:443?type=grpc&serviceName=svc&authority=edge.example.com&mode=multi&security=reality&pbk=PUBKEY&sid=01&spx=%2Ffoo"));
+
+        String vmessKcpJson =
+                "{\"v\":\"2\",\"ps\":\"kcp\",\"add\":\"example.com\","
+                        + "\"port\":\"443\",\"id\":\"11111111-1111-1111-1111-111111111111\","
+                        + "\"scy\":\"auto\",\"net\":\"kcp\",\"type\":\"srtp\","
+                        + "\"host\":\"\",\"path\":\"seed-value\",\"tls\":\"\"}";
+        String vmessKcp =
+                "vmess://"
+                        + Base64.getEncoder()
+                                .withoutPadding()
+                                .encodeToString(vmessKcpJson.getBytes(StandardCharsets.UTF_8));
+        assertEquals(vmessKcp, LegacyXrayShareLinkNormalizer.normalize(vmessKcp));
+
+        assertEquals(
                 "hy2://pw@example.com:20000?ports=20000-20005",
                 LegacyXrayShareLinkNormalizer.normalize(
                         "hy2://pw@example.com:20000-20005"));
