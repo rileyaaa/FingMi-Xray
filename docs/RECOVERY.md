@@ -936,7 +936,7 @@ official AAR 的 x86 / x86_64 Go JNI、`classes.jar`、Manifest、resources、pr
 
 ### 阻塞 A：云端 native dependency artifact 尚未生成
 
-需要在项目所有者明确授权后，手动运行：
+按 2026-09-26 当前授权，应直接通过手动入口运行：
 
 `recovery-restore-ffmpegjni.yml`
 
