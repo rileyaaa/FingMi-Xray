@@ -224,7 +224,7 @@ Xray Core、Binder、share-link、安全、session generation、SOCKS 资源应�
 
 ### 5.6.3 编译依赖门的确定阻塞
 
-目标上游 5.6.3 新增 `androidx.media3.exoplayer.libass.*`、`SecondaryTextTrackSelector` / `SecondaryTextOutput` 等引用。固定候选 `fongmi-media3-aar-candidate-1.11.0` 的 artifact `10859533459` 下载后 SHA-256 为 `0ed42581af11ac7163ebde148b318807c244e2a318f40c41d33f50b70bf967ee`，其 `lib-exoplayer-release.aar/classes.jar` 缺少这些类；固定 `FongMi/media@3c2cbe8a` 公开树也没有相应源码。上游 FongMi/TV issue #729 明确报告了相同缺失，上游回复未提供源码。故旧候选不能支持完整 5.6.3 Android 编译；不能因为三方合并语法通过就宣称升级构建成功。
+目标上游 5.6.3 新增 `androidx.media3.exoplayer.libass.*`、`SecondaryTextTrackSelector` / `SecondaryTextOutput` 等引用。固定候选 `fongmi-media3-aar-candidate-1.11.0` 的 artifact `10859533459` 下载后 SHA-256 为 `0ed42581af11ac7163ebde148b318807c244e2a318f40c41d33f50b70bf967ee`，其 `lib-exoplayer-release.aar/classes.jar` 缺少这些类；固定 `FongMi/media@3c2cbe8a` 当前公开树也没有相应源码；Libass 历史真实源码与 AAR 已找到（见下），当前 tip 缺失不代表历史不存在。上游 FongMi/TV issue #729 明确报告了相同缺失，上游回复未提供源码。故旧候选不能支持完整 5.6.3 Android 编译；不能因为三方合并语法通过就宣称升级构建成功。
 
 临时编译桩会牺牲新版 Libass/双字幕行为，只能作为 **compile-only** 诊断，不能作为正式产品依赖或完整 5.6.3 功能验收。优先取得可核 SHA 的相应 Media3 产物或恢复可运行的实现，再做 v7/arm64 Gradle build。现有 `recovery-build.yml` 仍编译 5.6.0 faithful 源，不是 5.6.3 构建门。当前插件可读取 Actions 和产物，却没有 `workflow_dispatch` 操作；浏览器未登录私有仓库，未触发当前 HEAD 的构建。
 
@@ -424,3 +424,8 @@ Git commit history 已经承担时间线职责。
 5. 最近相关提交和具体代码
 
 目标是让接手者**不需要重新完整阅读整个仓库才能知道已经做过什么**；只有在要修改某个具体范围时，才深入读取对应代码。
+
+### 真实 Libass 历史产物
+
+已下载并验证 FongMi/media run `31571172760` / artifact `9131565941`（`9dae39e9689ee305c83f94bd11cf3bcecb9d6171`）：ZIP SHA-256 `8cc91dae9c7d6770033bfe72e505b9455136c3f85e77d9ddec1f844335afa0d8`，内部 AAR `3b2326d98e1339f3ca4d1763e3a3028de20a5dd62cc738875af51b6329fe2571`。`scripts/import-libass-aar.py` 校验并接入 app/libs，真实 Java 与 v7/arm64 `libmedia3ass.so` 均在，非禁用桩；二进制不进入 Git。对应原始源码在该 commit 的 `libraries/exoplayer_libass/`。
+`javap` 证实这份早期 AAR 的 PlaybackSession 使用 String/String/String/(boolean) 构造器，缺少 5.6.3 所需 LibassConfiguration、LibassSubtitleController、SecondaryText 和 UI controller，不能把导入等同完整兼容。已查两公开 branch 和该历史 commit 的 SecondaryText 文件历史、历史 tree、Actions 产物列表，尚无真实 SecondaryText implementation；后续重建必须同时处理新版 Libass 控制层接口。
