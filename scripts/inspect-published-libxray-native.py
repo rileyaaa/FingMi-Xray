@@ -35,6 +35,14 @@ REQUIRED_SYMBOLS = (
     "github.com/xtls/libxray/share.buildHy2FinalMask",
     "github.com/xtls/libxray/share.xrayShareLink.hysteriaOutbound",
     "github.com/xtls/libxray/share.xrayShareLink.trojanOutbound",
+    "github.com/xtls/libxray/share.normalizeHysteriaMultiPortLink",
+    "github.com/xtls/libxray/share.normalizeHysteriaPinSHA256",
+    "github.com/xtls/libxray/share.normalizeLegacyShadowsocksLink",
+    "github.com/xtls/libxray/share.legacyKCPMTU",
+    "github.com/xtls/libxray/share.legacyKCPFinalMask",
+    "github.com/xtls/libxray/share.parseSharePort",
+    "github.com/xtls/libxray/share.parseShareALPN",
+    "github.com/xtls/libxray/share.decodeShareUserInfo",
 )
 
 
