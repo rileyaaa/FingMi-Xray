@@ -157,3 +157,5 @@
 - 定点恢复器增加上述逐 JNI SHA 门（`d144cab`），新增 `check-libxray-gojni.py` 同时检查两 ABI SHA 和 `LibXray.invoke(String):String`（`82a0b4a`），faithful 构建入口在源码准备/Gradle 前调用（`90dc355`）。假包测试新增错误 JNI 负例，并修正了旧测试在仓库目录下的相对路径（`b193c0a`）；新增 Java class 文件与 JNI 正反例（`6a1c709`）。在模拟项目层级下两项 Python 测试 2/2 通过，构建 shell 语法通过；真实 AAR/原 APK/Gradle 尚未验证。原手动 `recovery-build.yml` 尚未自动获取这些依赖，不能直接派发编译。
 
 - 本轮补全 **仅手动** 的 `recovery-build.yml` 依赖接线（提交 `c301c29d10b089586d5b8ff1b1427e28edaf18e5`）：运行时必须显式输入已审阅的 native dependency artifact ID，检查名称/未过期/来自本仓库 main；候选播放器工件也前置核名称、大小、摘要和过期状态。下载后用原导入器校验 decoder 除双 ABI JNI 外各 ZIP 条目与固定候选相同；重新获取固定 SHA 的官方 libXray ZIP，比较恢复 AAR 的其他条目逐字节相同、两 JNI 等于发布版哈希和 Java invoke 签名，再将两 AAR 交给 faithful 构建的早停门。libXray 非 JNI 比较脚本/正反例提交 `ba90d68`、`aa42cd4`；测试 2/2 通过。YAML 和 shell 语法通过；**没有派发构建工作流**，因此下载、Gradle、SDK 和 APK 结果仍未知。
+
+- 固定 FongMi/TV 提交 `1a19fee...` 的 `gradle/libs.versions.toml` 明确 `compileSdk=37`；手动 build 工作流现于依赖下载前检查 runner 的 sdkmanager 并安装 Android 37 platform/build-tools 36.0.0（`0ed32ea4148d6f18fafc1a6651d8ac5079141537`）。仅本地 YAML/shell 语法核验，没有执行 SDK 下载或 Actions。
