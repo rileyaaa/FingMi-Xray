@@ -211,6 +211,20 @@ faithful 基准通过后按小步迁移：
 
 Xray Core、Binder、share-link、安全、session generation、SOCKS 资源应由独立模块稳定持有。
 
+
+## 5.6.3 上游升级实证（2026-09-26）
+
+- 固定起点：FongMi/TV `1a19fee278fa2234da725d61a53bf59b69fe9127`（5.6.0）；目标：`4afc4473e22a7ed3d98ee12233e0c2a490061000`（5.6.3）。catvod 是同一 FongMi/TV 仓库内模块，采用目标 commit 的对应状态，没有另行拼接独立版本。
+- 上游 114 个变更路径逐文件三方合并，9 个文本冲突（PlayerManager、PlayerEngineFactory、ExoMediaSourceFactory、ExoPlayerEngine、ExoPlayerSession、PlaybackActivity、Download、mobile ConfigDialog/LinkDialog）已按目标版 API 化解。97 个路径与目标上游字节相同，17 个路径保留本项目接线。未用旧 `recovery/legacy-src/upstream` 整批覆盖。
+- 目标上游带来 Libass 双字幕播放路径、播放器重建判定、新 Download 取消流程，以及 catvod Auth/Crypto/Path/Util 四文件变化。Xray 媒体工厂同时接入新版 Libass 和当前会话 HTTP/DRM/RTSP 资源；VOD/Live 弹幕走新版 `DanmakuPlayerViewController`。catvod OkHttp/OkDns 上游未改变，本项目的重建 hook 留在原处。
+- 与目标上游整树对照：`:xray` 在升级提交中修改 **0** 文件；app 相对上游修改 **31** 个既有文件、增加 **6** 个文件（含 Manifest、资源、设置及网络能力，不能全算播放 adapter）；catvod 相对上游修改 **2** 个既有文件（OkHttp/OkDns），增加 **0** 文件。升级提交本身对上游新增差异集中在 17 个既有 app 路径；其余差异是升级前已存在的能力接线。TV network recovery 主要在 app 的 HomeActivity、BaseLoader、SiteViewModel、ViewModelTaskRunner 和新增 coordinator/TvNetworkLifecycle，catvod 仅 OkHttp/OkDns hook；没有复制整份上游 catvod。
+- 静态门：合并的 94 个 Java 文件经 tree-sitter 解析无语法错误，15 个 XML 解析通过；关键 HTTP/DRM/RTSP、Libass、VOD/Live 弹幕和 Download 代理调用点已核对。模块的纯 JVM session identity 与 network epoch smoke，以及 reconstructed native 定向 Go regression 在各自代码提交前通过。**尚未在 5.6.3 HEAD 上完成 Gradle/Android 编译或 TV 设备回归**；当前容器无 Android SDK，GitHub 插件未提供 `workflow_dispatch`，不得把静态门写成构建通过。
+- 后续编译重点：目标版新增的 Media3 Libass API/依赖、两种 ABI、Manifest/AIDL/resources，及 TV 待机后真实网络恢复。构建必须使用手动 `workflow_dispatch`，不得改 workflow 触发条件。
+
+### 稳定接线边界
+
+`:xray` 持有播放会话、generation、service/Binder 和代理网络资源；app 播放链保留薄接线：VOD/Live 身份变更、手动开启、媒体 URL、播放器重建、媒体/DRM/RTSP 工厂以及弹幕、字幕、直播 metadata。Home/Search/Detail/普通 Spider 不因播放 Xray 改成全局代理。TV 恢复独立于 `:xray`，用 network generation 判定旧对象，在前台/屏幕/网络切换时按序重建 app、DNS/DoH 和 Spider 资源，保留 Fast Start 状态。
+
 ## 工作规则
 
 以下规则适用于 Chat、Work、Codex 或其他后续 AI / 开发者。
