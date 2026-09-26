@@ -60,3 +60,5 @@
 
 - 2026-09-26 实验网络适配漂移：普通 app 的 `PublicPlaybackDestinationInterceptor` 原用 `InetAddress.getByName` 处理数字外观地址，保留地址判断与 faithful `qz3` 不一致；`XrayHttpClient` 原先同步 cancel/evict，且没有给 RTSP 暴露 SOCKS SocketFactory。将已核的 faithful 目的地解析与 SocketFactory 移植到实验模块，清理顺序对齐先 shutdown、daemon 线程异步 cancel/evict；提交 `d53d008f`、`7e6d263`、`af1d74b`。最小 OkHttp 桩编译与 17 阻断/4 允许地址样本通过（`266624f`）；真实 Android/OkHttp/RTSP、电视设备未验证，普通 app 播放接线仍未齐。
 - 2026-09-26 libXray 原生来源门：原手动工作流只核 `libgojni.so` 两 ABI 存在，无法证明内容是发布 APK 的版本。新增要求 v7/v8 整包固定 SHA 的定点恢复器及假包正反例，手动工作流上传重包 AAR 和 JNI SHA 清单（`ba03c29`、`5710653`、`17c3587`）；尚未运行真实 APK。候选工件状态前置核验（`5bc2d3a`）避免过期或指错输入后才下载大文件。
+
+- 2026-09-26 手动 faithful 编译入口原只 checkout 并调用构建脚本，runner 没有被忽略的播放器 AAR，新增 Go JNI 门也要求已恢复 libXray，因此直接派发不能验证源码。现在 workflow_dispatch 要求输入先前手动恢复的 artifact ID，并核固定候选、decoder 非 JNI 条目、官方 libXray 的非 JNI 条目及双 ABI 发布 Go JNI，再调用原构建入口；`c301c29`。仅静态 YAML/shell 验证，Actions 未运行。下载或 SDK 阶段的真实可行性仍待获准运行后确认。
