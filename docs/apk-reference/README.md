@@ -62,7 +62,7 @@ v7 JADX 工作流记录的 JADX exit code 为 3，但完整 `sources/` 已正常
 - `shared/sources/`：双 ABI 完全相同的 selected JADX 源码；
 - `shared/AndroidManifest.xml`：双 ABI 相同的反编译 Manifest；
 - `shared/dex-sha256.txt`：两边三个 DEX 的 SHA-256；
-- `shared/apk-diff.txt` / `apk-diff.json`：在核两份 APK 总 SHA 后生成的 ZIP entry 差异；
+- `shared/apk-diff.txt`：在核两份 APK 总 SHA 后生成的 ZIP entry 差异摘要；
 - `shared/source-parity.txt`：selected source 对照范围和结论；
 - `v7/ip0.java`、`v8/ip0.java`：唯一 selected-source 差异。
 
