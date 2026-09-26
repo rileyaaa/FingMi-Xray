@@ -236,6 +236,39 @@ faithful normalizer 包含：
 - URI / IPv6 / port 边界；
 - Trojan / SS credential `+` 等现实兼容修补。
 
+固定 `libXray v26.7.28` 的分享链接转换源码已经直接核到 tag commit
+`80263da83e96b2972455b0a94b13ee1a10e51391`，因此 KCP / gRPC / WS 等
+transport 不再依赖 native 逆向猜测。该 tag 依赖的 Xray-core 为
+`v1.260327.1-0.20260728075948-5ca6f4b7d4dc`。
+
+关键源码 / blob：
+
+- `share/parse_share.go` — `9cfcb005f23500f529a3846ff2e29499a431805c`
+- `share/transport_build.go` — `11f9d6ba633f512fd555d9ce3b43d18fe08eafa9`
+- `share/vmess.go` — `18becd9c6a3ec39c234ad3b46695478ad72cbb0b`
+- `share/stream.go` — `b488f2721294a7ee29d600eed86d2e15128bed1a`
+- `share/hysteria_mask.go` — `cbdc5e5b706a3d5e9bea9a0ebdbc7c2c1b9a5394`
+- `invoke.go` — `9e1ec1a8fe87934015d647eb0bbf17f4eec0dcfd`
+
+发布版实际转换边界：
+
+- Java 先做 compatibility normalizer / TLS pin 安全处理；
+- 然后通过 libXray `convertShareLinksToXrayJson` 生成单个 outbound；
+- URL transport 的 `type` 为空时按 `raw`；
+- `type=kcp/mkcp` → `KCPSettings`，保留 `headerType` 和 `seed`；
+- `type=ws/websocket` → `WSSettings(path, host)`；
+- `type=grpc/gun` → `GRPCSettings(authority, serviceName, mode=multi)`；
+- `type=httpupgrade` → `HTTPUPGRADESettings(host, path)`；
+- `type=xhttp/splithttp` → `XHTTPSettings(host, path, mode, extra)`；
+- VMess QR 的 KCP / mKCP 使用 `path` 作为 seed，gRPC 使用 `path` 作为 serviceName；
+- VLESS 的 `flow/encryption`、VMess 的 `encryption/scy`、Trojan password 由 native converter 写 outbound settings；
+- Hy2 native outbound protocol 为 `hysteria`、version 2；`up/down/ports/hop-interval/obfs/obfs-password` 生成 FinalMask；
+- TLS 参数 `fp/sni/alpn/ech/pcs/vcn/insecure` 和 Reality 参数 `pbk/sid/pqv/spx` 由固定 libXray 解析；
+- Java transport-security rewrite 对未知 query key 保留原始 `part.raw`，因此不会丢 KCP、gRPC、Reality 或 XHTTP 参数；
+- Java 仅对 Trojan / Hy2 literal `+` credential 做发布版兼容回填，并在 native conversion 后验证协议形状。
+
+`LegacyXrayShareLinkNormalizerCases` 已增加 VLESS+KCP、Trojan+KCP、VLESS+gRPC+Reality 和 VMess-QR+KCP 参数保真回归，避免后续重构误删 native 已支持的 transport 字段。
+
 设置与存储：
 
 - share link 使用 Android Keystore AES-GCM；
