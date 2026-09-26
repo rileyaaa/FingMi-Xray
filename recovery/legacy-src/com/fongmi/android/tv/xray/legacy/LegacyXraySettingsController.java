@@ -106,6 +106,10 @@ public final class LegacyXraySettingsController
     public void abandon() {
         if (closed) return;
         clearTimeout();
+
+        // Shipped SettingXrayActivity invalidates the local operation identity
+        // on phone import before abandoning the old Binder generation.
+        LegacyXrayOperationIds.next();
         activeOperationId = NO_OPERATION;
         activeOperation = -1;
         replaceClient();
