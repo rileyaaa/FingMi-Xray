@@ -344,6 +344,14 @@ faithful normalizer 包含：
 
 Actions artifact 只保留作来源溯源；恢复直接需要的关键文本证据已经收口到 `docs/apk-reference/`，以后不应为了查看这些逻辑重新运行 AC。
 
+为避免 artifact 到期后重新反编译，三份完整分析 ZIP 也已持久保存到项目可访问 Library：
+
+- `/FongMi-Xray/apk-reference/v7-full-jadx-v5.6.0-xray.5.zip` — SHA-256 `7aab8c3419717516167eba7cf6a6f320df894b9ef554761c0cfc98d90c580e8d`
+- `/FongMi-Xray/apk-reference/v8-full-jadx-v5.6.0-xray.5.zip` — SHA-256 `8d6e2a335a442b9bc2e53f12ec7ab646ebef51df69ae8c54674d25f37035056b`
+- `/FongMi-Xray/apk-reference/v7-v8-dex-report-v5.6.0-xray.5.zip` — SHA-256 `699eac1ef5d8261c303d953110fa8ec731f91cd7279c04a74c598311211a4c3f`
+
+Library 副本是跨会话便利输入，不改变正式 APK 的证据优先级。
+
 双 ABI 静态结果：
 
 - 两边顶层 DEX 容器不是逐字节相同；
