@@ -48,6 +48,13 @@ jobs:
             echo 'Native dependency artifact is expired or has the wrong name' >&2
             exit 1
           fi
+          native_run_id="$(jq -r '.workflow_run.id' <<< "$info")"
+          [[ "$native_run_id" =~ ^[0-9]+$ ]] || { echo 'Native artifact lacks its source workflow run' >&2; exit 1; }
+          native_run="$(gh api "repos/rileyaaa/FingMi-Xray/actions/runs/$native_run_id")"
+          if ! jq -e '.path == ".github/workflows/recovery-restore-ffmpegjni.yml" and .conclusion == "success" and .head_branch == "main"' <<< "$native_run" >/dev/null; then
+            echo 'Native artifact does not belong to a successful recovery workflow run' >&2
+            exit 1
+          fi
           player_info="$(gh api repos/rileyaaa/FingMi-Xray/actions/artifacts/10859533459)"
           if ! jq -e '.name == "fongmi-media3-aar-candidate-1.11.0" and .expired == false and .size_in_bytes == 44336768 and .digest == "sha256:0ed42581af11ac7163ebde148b318807c244e2a318f40c41d33f50b70bf967ee"' <<< "$player_info" >/dev/null; then
             echo 'Pinned player candidate artifact is missing or expired' >&2
