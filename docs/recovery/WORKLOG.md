@@ -152,3 +152,6 @@
 - 排错记录和里程碑表已同步追加到 `DEBUG_HISTORY.md`（`a38bb3331bfaa4c73a0447e9a16889b6123bfca2`）与 `PROGRESS.md`（`a4149e5054b37fd9a3469bff3089163025d51caa`）。
 
 - 取回已持久保存的 44,336,768 字节播放器候选 ZIP，独立复核整体 SHA `0ed42581...`，原有精选 12 类/50 方法通过；FFmpeg JNI 双 ABI 再次按预期不符并被门禁拒绝（退出 1）。对恢复层媒体源工厂的 DRM 与 RTSP 直接调用检查真实 AAR 的 class 方法描述符，新增 2 类/4 方法；`scripts/check-player-java-api.py` 实测 14 类/54 方法通过，提交 `5216f792dcc66fe932bade2b9a65619f428f6a95`，证据更新 `PLAYER_AAR_ABI_2026-09-25.md` 和 `PROGRESS.md`。这只是精选 ABI 静态门，不是构建或运行证明。
+
+- 从历史双 ABI APK 分析工件 `10847337361` 的 `reports/apk-diff.json` 查到原发布版 `libgojni.so` SHA：v7 `6f01f219fe4087790cd8e647394de9dbefc61e0d750d927924b93f120b06fb7e`（48,676,892 字节），v8 `40b08a399871973ba6ad5898ca7097961337d7aeddb4b3378b153a66679eeece`（51,121,408 字节）。这是此前按原 APK 整包 SHA 生成的历史报告，本轮直接读回工件；尚未独立取得原 APK。
+- 定点恢复器增加上述逐 JNI SHA 门（`d144cab`），新增 `check-libxray-gojni.py` 同时检查两 ABI SHA 和 `LibXray.invoke(String):String`（`82a0b4a`），faithful 构建入口在源码准备/Gradle 前调用（`90dc355`）。假包测试新增错误 JNI 负例，并修正了旧测试在仓库目录下的相对路径（`b193c0a`）；新增 Java class 文件与 JNI 正反例（`6a1c709`）。在模拟项目层级下两项 Python 测试 2/2 通过，构建 shell 语法通过；真实 AAR/原 APK/Gradle 尚未验证。原手动 `recovery-build.yml` 尚未自动获取这些依赖，不能直接派发编译。
