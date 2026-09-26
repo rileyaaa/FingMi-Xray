@@ -456,6 +456,7 @@ faithful `LegacyXrayServiceClient.failLocked` 和实验模块 `XrayServiceClient
 - Xray DataSource 在 delegate `open()` 抛错后仍必须能 `close()` 清理；
 - DRM 的 `DefaultDrmSessionManagerProvider.setDrmHttpDataSourceFactory` 接受通用 `DataSource.Factory`，Xray DRM 路径是发布版真实行为；
 - RTSP User-Agent 的空白判断使用 Unicode code point + `Character.isWhitespace()`；
+- artwork URI scheme 与 Xray DataSource scheme 的“空白”判定也按发布版显式 code-point `Character.isWhitespace()` 循环恢复，不依赖 Java 11 `String.isBlank()`；
 - libXray error fallback 同样使用 code point whitespace，不是 `trim()`；
 - proxy cleanup executor 的 thread 为 daemon；
 - Xray core worker thread 为 daemon；
