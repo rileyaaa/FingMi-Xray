@@ -61,7 +61,7 @@ jobs:
             sha256sum recovery/work/restored/lib-decoder-ffmpeg-release.aar
           } > recovery/work/restored/RESTORE_MANIFEST.txt
 
-      - name: Fetch pinned official libXray AAR
+      - name: Fetch pinned official libXray AAR and restore published Go JNI
         shell: bash
         run: |
           set -euo pipefail
@@ -85,7 +85,15 @@ jobs:
                       raise SystemExit(f'official libXray AAR lacks libgojni.so for {abi}')
           print('libXray Java entry and both native ABIs present')
           PY
+          python3 scripts/restore-published-libxrayjni.py \
+            --official-aar libxray/libs/libXray.aar \
+            --v7-apk recovery/work/verified/v7.apk \
+            --v8-apk recovery/work/verified/v8.apk \
+            --to recovery/work/restored/libXray.aar \
+            | tee recovery/work/restored/LIBXRAY_JNI_SHA256.txt
           sha256sum libxray/libs/libXray.aar \
+            >> recovery/work/restored/RESTORE_MANIFEST.txt
+          sha256sum recovery/work/restored/libXray.aar \
             >> recovery/work/restored/RESTORE_MANIFEST.txt
 
       - name: Upload checked AAR dependencies only
@@ -94,6 +102,5 @@ jobs:
           name: fingmi-faithful-native-dependencies
           path: |
             recovery/work/restored/
-            libxray/libs/libXray.aar
           retention-days: 7
           if-no-files-found: error
