@@ -469,8 +469,10 @@ FongMi 5.6.0 所需自制 `lib-*.aar` 不在上游 Git 中。
 - artifact name：`fongmi-media3-aar-candidate-1.11.0`
 - ZIP size：`44,336,768` bytes
 - ZIP SHA-256：`0ed42581af11ac7163ebde148b318807c244e2a318f40c41d33f50b70bf967ee`
+- GitHub Actions artifact `10859533459` 当前到期时间：2026-10-09 10:42:07 UTC
+- 已另存一份同 SHA、同 size 的持久副本到项目可访问 Library：`/FongMi-Xray/FingMi-media3-player-AARs-1.11.0-candidate.zip`
 
-该候选不是因为“能编出来”就直接可信，所有 faithful 构建入口必须继续过版本 / ABI 门。
+该候选不是因为“能编出来”就直接可信，所有 faithful 构建入口必须继续过版本 / ABI 门。Library 副本用于跨会话和本地恢复，**不等于 GitHub Actions artifact**；当前 `recovery-build.yml` 仍会检查固定 GitHub artifact，artifact 过期后若继续使用云端 faithful workflow，需要另行解决 GitHub 侧持久输入，而不是绕过来源门。
 
 ### Java API 门
 
