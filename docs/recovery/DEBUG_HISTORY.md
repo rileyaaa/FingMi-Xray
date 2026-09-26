@@ -62,3 +62,5 @@
 - 2026-09-26 libXray 原生来源门：原手动工作流只核 `libgojni.so` 两 ABI 存在，无法证明内容是发布 APK 的版本。新增要求 v7/v8 整包固定 SHA 的定点恢复器及假包正反例，手动工作流上传重包 AAR 和 JNI SHA 清单（`ba03c29`、`5710653`、`17c3587`）；尚未运行真实 APK。候选工件状态前置核验（`5bc2d3a`）避免过期或指错输入后才下载大文件。
 
 - 2026-09-26 手动 faithful 编译入口原只 checkout 并调用构建脚本，runner 没有被忽略的播放器 AAR，新增 Go JNI 门也要求已恢复 libXray，因此直接派发不能验证源码。现在 workflow_dispatch 要求输入先前手动恢复的 artifact ID，并核固定候选、decoder 非 JNI 条目、官方 libXray 的非 JNI 条目及双 ABI 发布 Go JNI，再调用原构建入口；`c301c29`。仅静态 YAML/shell 验证，Actions 未运行。下载或 SDK 阶段的真实可行性仍待获准运行后确认。
+
+- 2026-09-26 Go JNI 来源进一步收紧：历史双 ABI APK 报告给出 v7 `6f01f219fe4087790cd8e647394de9dbefc61e0d750d927924b93f120b06fb7e`、v8 `40b08a399871973ba6ad5898ca7097961337d7aeddb4b3378b153a66679eeece`。恢复脚本核原 APK 整包和对应 JNI 双重 SHA，faithful 构建门核两 JNI 及 Java invoke；手动构建还把官方 libXray AAR 非 JNI ZIP 条目与恢复包逐字节比对。假包正反例 2/2，通过，真实原 APK/Actions 未运行；`d144cab`、`82a0b4a`、`ba90d68`、`90dc355`。
