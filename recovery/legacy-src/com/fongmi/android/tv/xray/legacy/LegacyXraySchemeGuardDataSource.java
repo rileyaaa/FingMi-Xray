@@ -84,8 +84,18 @@ public final class LegacyXraySchemeGuardDataSource implements DataSource {
     }
 
     private static boolean isAllowed(String scheme) {
-        if (scheme == null || scheme.isBlank()) return true;
+        if (isBlank(scheme)) return true;
         return ALLOWED_SCHEMES.contains(
                 scheme.toLowerCase(java.util.Locale.ROOT));
+    }
+
+    private static boolean isBlank(String value) {
+        if (value == null) return true;
+        for (int offset = 0; offset < value.length();) {
+            int codePoint = value.codePointAt(offset);
+            if (!Character.isWhitespace(codePoint)) return false;
+            offset += Character.charCount(codePoint);
+        }
+        return true;
     }
 }
