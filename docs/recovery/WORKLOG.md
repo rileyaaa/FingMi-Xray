@@ -163,3 +163,10 @@
 - RTSP SOCKS 定点回环验证补入 `test_xray_network_java.py`（`bc02bfa6ae9dce3f287e288fe7a7d280df94272d`）：在本机以最小 OkHttp 桩编译三类网络代码，Java 的 `XrayProxySocketFactory.createSocket("unresolved.invalid", 443)` 对 Python SOCKS5 假服务握手，服务收到 ATYP=域名、原始主机名和 443 端口；17 阻断/4 允许地址样本仍通过。这只证明 SocketFactory 的本地握手和地址传递，不是 Media3 RTSP 或电视设备播放验证。
 
 - 普通 app 播放接线只读复核：对照 faithful 覆盖层逐文件读取 `PlayerManager`、`PlayerEngineFactory`、`ExoMediaSourceFactory`、`ExoPlayerSession`、`PlaybackService`、leanback `LiveActivity` 和 `VideoActivity`；当前普通版这七文件均无 `Xray/xray` 标识，而对应 faithful 文件分别有 61/12/35/17/15/107/77 处文本命中。特别是普通 `PlayerManager` 无 `setXrayPort`，媒体源工厂无 DRM 数据源与 RTSP SOCKS 注入。因此本轮移植的实验模块网络类虽已被普通 app 的 `:xray` 依赖包含，但尚无播放器连接使用，不能宣称普通版已恢复代理播放。正式迁移仍应先过 faithful 编译及行为回归，再按行为矩阵逐点接线；这项计数是源码边界检查而非覆盖率或运行证明。
+
+## 2026-09-26 半小时检查点
+
+- 本轮没有启动任何 Actions（新增消耗 0），也没有编译整套 APK。源码和记录均逐段直接写入 `main`；在最后阶段读回了恢复脚本、两条手动工作流、实验网络类和 ABI 检查脚本，逐字节与本轮已测试版本相同。
+- 可复核结果：播放器候选 ZIP 固定总 SHA 通过，14 类/54 精选 Java 方法通过；FFmpeg JNI v7/v8 门有意拒绝原候选；libXray 假包恢复和构建门两项测试通过；实验网络三类用最小接口桩编译，17 阻断/4 允许目的地样本及 SOCKS5 未解析主机名回环通过；两条工作流 YAML/shell 静态语法通过。
+- **尚未完成**：原发布 v7/v8 APK 真实下载和整包 SHA 复核，FFmpeg JNI 与 Go JNI 真包定点恢复，官方 libXray AAR 真包的内容比较，faithful Gradle 编译、电视播放/进程/待机回归及正式 Xray 模块迁移。普通 app 的播放器尚无 Xray 会话接线。
+- 下次开始先读此日志、`PROGRESS.md` 和 `PLAYER_AAR_ABI_2026-09-25.md`，复核 `main` 最新提交；手动恢复工作流需用户按先前约定明确批准后才派发，审阅产物 ID/哈希后才可能考虑手动 faithful 构建。两条工作流本轮仅准备，没有实际执行证据；播放器候选工件到 `2026-10-09T10:42:07Z` 过期，届时不能绕过前置门。
