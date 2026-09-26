@@ -57,3 +57,6 @@
 - 2026-09-25 实验节点密文读回绕过兼容归一化：`XrayPreferences.getShareLink()` 原只 trim 解密结果，恢复版在读回时调用 `LegacyXrayShareLinkNormalizer.normalize`。现对齐存储类及保存入口，保持偏好名称与 Keystore alias 不变；需拿已保存旧链接的真机验证。
 - 2026-09-25 普通 app 待机网络恢复缺口：当前 Home/OkHttp/OkDns/BaseLoader 不含已验证的发布版网络代际及清理链路。将 recovery overlay 的 5 文件（含新 `TvNetworkLifecycle`）接入普通 app，`OkHttp.resetApiNetworkForResume()` 保留播放器客户端，Spider 清理后才开始网络稳定轮询；原 Home 的 DLNA 调用由生命周期类接管。静态文件核对，未编译/真机复现。
 - 2026-09-25 普通 app 网络恢复接线的缺符号：Home 加入 `mViewModel.cancelResultRequest()` 后，普通 `SiteViewModel` 尚未有该方法；恢复覆盖层已有 `tasks.cancel(TaskType.RESULT)`。已补相同方法，静态检查其他新增调用/权限，未运行 Java/Gradle 编译。
+
+- 2026-09-26 实验网络适配漂移：普通 app 的 `PublicPlaybackDestinationInterceptor` 原用 `InetAddress.getByName` 处理数字外观地址，保留地址判断与 faithful `qz3` 不一致；`XrayHttpClient` 原先同步 cancel/evict，且没有给 RTSP 暴露 SOCKS SocketFactory。将已核的 faithful 目的地解析与 SocketFactory 移植到实验模块，清理顺序对齐先 shutdown、daemon 线程异步 cancel/evict；提交 `d53d008f`、`7e6d263`、`af1d74b`。最小 OkHttp 桩编译与 17 阻断/4 允许地址样本通过（`266624f`）；真实 Android/OkHttp/RTSP、电视设备未验证，普通 app 播放接线仍未齐。
+- 2026-09-26 libXray 原生来源门：原手动工作流只核 `libgojni.so` 两 ABI 存在，无法证明内容是发布 APK 的版本。新增要求 v7/v8 整包固定 SHA 的定点恢复器及假包正反例，手动工作流上传重包 AAR 和 JNI SHA 清单（`ba03c29`、`5710653`、`17c3587`）；尚未运行真实 APK。候选工件状态前置核验（`5bc2d3a`）避免过期或指错输入后才下载大文件。
