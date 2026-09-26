@@ -155,3 +155,5 @@
 
 - 从历史双 ABI APK 分析工件 `10847337361` 的 `reports/apk-diff.json` 查到原发布版 `libgojni.so` SHA：v7 `6f01f219fe4087790cd8e647394de9dbefc61e0d750d927924b93f120b06fb7e`（48,676,892 字节），v8 `40b08a399871973ba6ad5898ca7097961337d7aeddb4b3378b153a66679eeece`（51,121,408 字节）。这是此前按原 APK 整包 SHA 生成的历史报告，本轮直接读回工件；尚未独立取得原 APK。
 - 定点恢复器增加上述逐 JNI SHA 门（`d144cab`），新增 `check-libxray-gojni.py` 同时检查两 ABI SHA 和 `LibXray.invoke(String):String`（`82a0b4a`），faithful 构建入口在源码准备/Gradle 前调用（`90dc355`）。假包测试新增错误 JNI 负例，并修正了旧测试在仓库目录下的相对路径（`b193c0a`）；新增 Java class 文件与 JNI 正反例（`6a1c709`）。在模拟项目层级下两项 Python 测试 2/2 通过，构建 shell 语法通过；真实 AAR/原 APK/Gradle 尚未验证。原手动 `recovery-build.yml` 尚未自动获取这些依赖，不能直接派发编译。
+
+- 本轮补全 **仅手动** 的 `recovery-build.yml` 依赖接线（提交 `c301c29d10b089586d5b8ff1b1427e28edaf18e5`）：运行时必须显式输入已审阅的 native dependency artifact ID，检查名称/未过期/来自本仓库 main；候选播放器工件也前置核名称、大小、摘要和过期状态。下载后用原导入器校验 decoder 除双 ABI JNI 外各 ZIP 条目与固定候选相同；重新获取固定 SHA 的官方 libXray ZIP，比较恢复 AAR 的其他条目逐字节相同、两 JNI 等于发布版哈希和 Java invoke 签名，再将两 AAR 交给 faithful 构建的早停门。libXray 非 JNI 比较脚本/正反例提交 `ba90d68`、`aa42cd4`；测试 2/2 通过。YAML 和 shell 语法通过；**没有派发构建工作流**，因此下载、Gradle、SDK 和 APK 结果仍未知。
