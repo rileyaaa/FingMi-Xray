@@ -83,7 +83,7 @@ FingMi-Xray 是基于 FongMi/TV 的 Android TV 二次开发项目。
   后续开发、模块化迁移、上游适配、工程工作规则和当前开发状态。恢复完成后主要维护此文档。
 
 - `docs/apk-reference/`  
-  与本项目恢复直接相关的 v7 / v8 反编译源码、类映射、哈希和 DEX 文本证据。这里不保存原始 APK、DEX、AAR、SO 等大型二进制。
+  与本项目恢复直接相关的 v7 / v8 反编译源码、Manifest、哈希和差异摘要。类映射与恢复结论统一维护在 `docs/RECOVERY.md`。这里不保存原始 APK、DEX、AAR、SO 等大型二进制。
 
 开始恢复工作前先读 `docs/RECOVERY.md`；开始重构或开发工作前先读 `docs/DEVELOPMENT.md`。
 
