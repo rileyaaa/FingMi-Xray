@@ -179,3 +179,8 @@
 - 手动 faithful 构建入口原只核 native artifact 的名称、未过期和 main 来源，仍可能输入同仓库其他工作流生成的同名产物。现在再查 artifact 的源 run ID，要求 `path=.github/workflows/recovery-restore-ffmpegjni.yml`、`conclusion=success`、`head_branch=main`，错误输入在大文件下载前退出（`67ea5b2f099ef15474915a5d45bdd67d086ca47b`）。本轮以已存在成功 run 的 API 形状核字段，YAML/shell 解析通过；尚无真实 native 恢复 run 可做端到端验证。
 - 文档一致性复核发现 `PROGRESS.md` 主里程碑表仍写 12 类/50 方法，虽后续追加已有 14/54，读者容易误判；现把主表三处更新为 14/54（`81c5158a10e3b051086dc489d6a1dbcc678b7334`）。`PROJECT_REQUIREMENTS.md` 原一条允许在未完成基准验证前开始分层重构，与子源“先完整还原并核对、再编译、后重构”的约束及边界文档冲突；现按已有用户决定明确阶段顺序和整套 APK 编译授权条件（`9554460b5366cc9a6fe2b4deb2af0f0880a4aff5`）。没有改变产品功能目标。
 - 对照仓库原始 `README.md` 的功能章节标题逐项核 `PROJECT_REQUIREMENTS.md` 和行为矩阵：当前播放会话边界、VOD/直播操作、兼容回退、节点与手机导入、独立进程资源、待机网络均有对应记录；下载/免责声明/致谢/许可证不是恢复行为验收项。本轮未发现需要子源作新产品决策的遗漏。仍缺的是原 APK 真包、构建和设备证据，不把文档覆盖当成功能完成。
+
+### 本轮停止前检查点
+
+- 本轮内容已在 `main`：发布 APK Release 元数据预检、native artifact 源工作流成功状态预检、需求顺序与主进度表修正、README 功能章节复核。停止前已读回两条手动工作流与两份修正文档，确认远端包含目标内容；本条之前 `main` 为 `0169bbdaa65065820d68a4686d56323798baa269`。
+- 新增 Actions 运行 0；没有下载原始发布 APK、没有真实 JNI 重包、没有运行 faithful APK Gradle 编译或 TV 测试。下轮如要真实执行原生依赖恢复，依项目既有约定先向子源说明目的并取得批准。完成后先核 artifact 的具体哈希与文件条目，再考虑是否满足忠实编译门槛。
