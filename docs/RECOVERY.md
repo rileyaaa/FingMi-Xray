@@ -277,9 +277,30 @@ faithful normalizer 包含：
   `share/transport_build.go`、`share/hysteria_mask.go`、`share/parse_share.go`，
   且关键函数起始源码行与固定官方 tag 对应文件一致（例如 29 / 51 / 78、12、595）。
 
-因此当前证据支持：**定制范围至少包含 Invoke API v2、内联运行配置、ping item 和证书探测；
-暂未发现 share transport converter 被单独改写的证据。** 后一句仍是静态证据结论，
-不是“发布 converter 源码已完整还原”或“native 输入输出已真实执行”的证明。
+进一步把发布 JNI 与 official AAR 的实际 Go symbol set 做双 ABI 交叉比较后，已确认
+**share converter 本身也存在发布版定制**。发布 v7 / v8 同时出现、而 official AAR 对应 symbol set
+没有的关键 helper 包括：
+
+- `normalizeLegacyShadowsocksLink`；
+- `normalizeHysteriaMultiPortLink`；
+- `firstHysteriaPort`；
+- `normalizeHysteriaPinSHA256`；
+- `parseSharePort`；
+- `decodeShareUserInfo`；
+- `parseShareALPN` / `cleanShareALPN`；
+- `legacyKCPMTU` / `legacyKCPFinalMask`；
+- `rawQueryHasKey`。
+
+发布 ELF 的 Go line table 还把这些 helper 精确映射回定制工作树中的
+`share/parse_share.go`、`share/stream.go`、`share/transport_build.go`；
+例如 multi-port 位于 `parse_share.go:227`、pin 归一化位于 `stream.go:112`、
+legacy KCP helper 位于 `transport_build.go:161/182`。这证明 KCP / HY2 / Trojan / SS
+适配不能只按 official tag 源码恢复。
+
+因此当前确认的定制范围至少包含：**Invoke API v2、内联运行配置、ping item、证书探测，
+以及 share converter 的 legacy SS、HY2 multi-port/pin、ALPN/port 解析和 legacy KCP 兼容。**
+这些 helper 的存在与源码位置属于直接二进制证据；其逐分支可读 Go 源码和发布 native
+输入输出 expected 仍在恢复中，不能把函数名推断写成已完整还原源码。
 
 可重复检查入口：`scripts/inspect-published-libxray-native.py`。该脚本只做发布二进制静态 gate，
 不会把 Android ARM JNI 当作当前主机可执行文件。
