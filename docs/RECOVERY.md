@@ -342,7 +342,7 @@ faithful normalizer 包含：
 - v7 / v8 DEX + 报告：artifact `10847337361`
 - 历史 v8 完整 JADX：artifact `10825963688`
 
-Actions artifact 可能过期，因此项目正在把恢复直接需要的文本证据迁入 `docs/apk-reference/`；以后不应依赖重新运行 AC 才能查看关键发布版逻辑。
+Actions artifact 只保留作来源溯源；恢复直接需要的关键文本证据已经收口到 `docs/apk-reference/`，以后不应为了查看这些逻辑重新运行 AC。
 
 双 ABI 静态结果：
 
@@ -356,7 +356,7 @@ Actions artifact 可能过期，因此项目正在把恢复直接需要的文本
 - v7 `classes.dex` SHA-256：`e4a3e51121c2e0ff53b751bf38ea5f067086acbe8540d6f1405025205b969644`
 - v8 `classes.dex` SHA-256：`ad5bf878ba1d5638068c8c204e4488f5aa51733d8379f2cc2c72d6ecf1fb113e`
 
-完整 DEX / APK entry 证据后续集中放入 `docs/apk-reference/`。
+`docs/apk-reference/` 已保存 selected JADX 源码、双 ABI Manifest、三个 DEX 的 SHA-256 和 APK entry 差异摘要。原始 APK / DEX 大二进制不提交到普通 Git；需要重新做原始字节级检查时必须先核固定发布 SHA，并复用已有脚本。
 
 ---
 
@@ -446,7 +446,7 @@ JADX 的 `outbounds != null || ...` 是反编译损坏。
 - STOP timeout 不能在新 START 已 RUNNING 后误断新 Binder；
 - stale callbacks 必须由独立 callback generation 过滤。
 
-这些结论的详细反编译文本将逐步放入 `docs/apk-reference/`，不再维护多份独立审计 Markdown。
+这些结论对应的关键反编译文本已集中放入 `docs/apk-reference/`，不再维护多份独立审计 Markdown。
 
 ---
 
@@ -717,6 +717,7 @@ FongMi 5.6.0 所需自制 `lib-*.aar` 不在上游 Git 中。
 | --- | --- |
 | 原始产品规格 | 已冻结到 `docs/ORIGINAL_README.md` |
 | v7 / v8 发布 APK identity | 已固定 |
+| APK reference | 已收口到 `docs/apk-reference/`，不再依赖 `recovery/generated/` |
 | FongMi 5.6.0 上游基线 | 已固定 |
 | Xray Java / AIDL faithful 恢复 | 主要逻辑已恢复，当前无 `DEX_VERIFY` 残留 |
 | VOD / Live / Player 静态行为 | 主要发布路径已对照 |
@@ -802,19 +803,6 @@ native artifact 本地 / 静态复核通过后，再单独申请 faithful build 
 ### 阻塞 C：设备回归尚未开始
 
 编译成功后按第 15 节回归表测试。
-
-### 阻塞 D：APK reference 尚未收口到 docs
-
-当前关键反编译材料部分仍依赖：
-
-- `recovery/generated/`
-- 历史 Actions artifact
-
-下一步文档整理会把与本项目恢复直接相关的 Java / 映射 / 哈希 / DEX 文本证据迁到：
-
-`docs/apk-reference/`
-
-不提交原始 APK、DEX、AAR、SO 等大二进制。
 
 ---
 
