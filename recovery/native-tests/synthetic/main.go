@@ -62,6 +62,27 @@ func main() {
 		emit(map[string]any{"event": "hello", "sni": hello.ServerName, "alpn": hello.SupportedProtos})
 		return nil, nil
 	}}
+	if len(os.Args) == 2 && os.Args[1] == "tls" {
+		config.NextProtos = []string{"http/1.1"}
+		listener, err := tls.Listen("tcp", "127.0.0.1:0", config)
+		check(err)
+		defer listener.Close()
+		sum := sha256.Sum256(der)
+		emit(map[string]any{"event": "ready", "address": listener.Addr().String(), "sha256": hex.EncodeToString(sum[:]), "leaf_der_base64": base64.StdEncoding.EncodeToString(der)})
+		for {
+			conn, err := listener.Accept()
+			check(err)
+			go func(c *tls.Conn) {
+				defer c.Close()
+				c.SetDeadline(time.Now().Add(10 * time.Second))
+				err := c.Handshake()
+				check(err)
+				emit(map[string]any{"event": "accepted", "alpn": c.ConnectionState().NegotiatedProtocol})
+				_, err = c.Read(make([]byte, 1))
+				emit(map[string]any{"event": "closed", "reason": fmt.Sprint(err)})
+			}(conn.(*tls.Conn))
+		}
+	}
 	listener, err := quic.ListenAddrEarly("127.0.0.1:0", config, &quic.Config{EnableDatagrams: true})
 	check(err)
 	defer listener.Close()

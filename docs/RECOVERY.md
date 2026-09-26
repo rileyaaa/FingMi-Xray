@@ -1017,7 +1017,7 @@ native artifact 本地 / 静态复核通过后，直接运行已授权的 faithf
 
 v7 share converter 的真实 native 输入输出与 26 条 Java/runtime 配置链路已执行通过，不再是“ARM JNI 不能运行”的阻塞。
 当前补丁只恢复 share URI / VMess QR 与转换后的 JSON 清理；API v2 dispatcher、内联 lifecycle/ping、TLS/HY2 certificate probe、age 解密仍需恢复与独立测试。
-arm64 目前有静态交叉证据，没有实际执行同一矩阵。正式 faithful 依赖继续使用固定发布 SO，不能换成这个局部补丁的构建产物。
+arm64 已完成精选 28-case 与本地 TLS/QUIC 真执行对照（见下），未重复完整 converter 矩阵。正式 faithful 依赖继续使用固定发布 SO，不能换成这个局部补丁的构建产物。
 
 ### 阻塞 D：设备回归尚未开始
 
@@ -1081,7 +1081,7 @@ arm64 目前有静态交叉证据，没有实际执行同一矩阵。正式 fait
 
 发布本地源码路径的 DWARF 编译单元共涉及 `invoke.go`、`share/age.go`、`xray/hy2_cert_probe.go`、`xray/tls_cert_probe.go`、`xray/validation.go`、`xray/xray.go`、`xray/ping_batch.go` 等；其中 age、两种 probe 是 official tree 不存在的文件。published-only gomobile 模型包括 AgeDecryptConfig/GenerateAgeKeyPairResponse、两类 Probe request/response；`RunXrayRequest`/`TestXrayRequest` 使用 inline 字段。该清单限定在项目 Go module 与实际 App Invoke 边界，不把 Xray-core 和 Go runtime 当成定制源码。
 
-先前列出的 HY2 成功、age 错误矩阵、生命周期并发三个重要 wrapper 黑盒现已分别形成发布运行闭环（见下）；不扩大为整个 Xray-core 逆向完成。arm64 本轮只做静态 ELF/DWARF 检查，v7 的旧 fixture 是此前真实 ARM 执行；本轮新增生命周期运行 fixture（见下）。发布原始 Go 源码未取得，现有补丁全部按 **reconstructed behavior** 标记。
+先前列出的 HY2 成功、age 错误矩阵、生命周期并发三个重要 wrapper 黑盒现已分别形成发布运行闭环（见下）；不扩大为整个 Xray-core 逆向完成。arm64 现已完成下述精选矩阵真执行，v7 的旧 fixture 是此前真实 ARM 执行；本轮新增生命周期运行 fixture（见下）。发布原始 Go 源码未取得，现有补丁全部按 **reconstructed behavior** 标记。
 
 
 ### Native lifecycle / concurrency 闭环
@@ -1100,3 +1100,8 @@ Invoke 无 cancel 方法；没有引入猜测的 native 抢占取消或实例替
 `published-v7-age-matrix.json` 冻结 27 个发布 v7 响应；合成 x25519/PQ decrypt、多链接、错误/不支持 identity、空/损坏/截断 armor、篡改密文、空/非法明文、双 armor、plain/encrypted 顺序及 key generation 均覆盖。24 个确定响应逐 JSON 相等，3 个随机 key 成功响应校验完整 shape、可解析 secret 和配对 public。全部测试通过，材料中的 key 均为一次性合成测试数据。
 `native-age-errors.patch` 必须接在原两层 patch 后：修正固定错误编码、严格 keyType 及 named request 解码错误，移除先前无证据的 16 MiB 明文上限。发布 `age.go:78/81/87/94` 的 Decrypt/errors.As/ReadAll/converter 调用约束此行为：identity 不匹配 → `unable to decrypt age subscription`；armor/认证读取失败 → `malformed age armor`；解密后不支持 → `decrypted subscription is unsupported`。不泄漏 age 库内部诊断。
 `test-recovered-native-v2.py` 应用三层补丁并通过 root/xray/share 的 TestPublished 回归（未重跑 327 converter）；新矩阵由 `synthetic/age.go` 产生。全部仍标 reconstructed behavior，未取得发布原始源码。
+
+### arm64 发布 JNI 真执行与 v7 parity
+
+`prepare-native-converter-harness.py --abi arm64-v8a --jni <固定 arm64 SO> --workdir <独立目录>` 已实际运行：aarch64 GCC + QEMU user + 官方 Android API24 arm64 Bionic/linker64，所有输入固定 SHA-256；系统镜像另核官方 metadata SHA-1 `e88ebdf4533efa0370603ee4ab0e7834e0cc364f`。没有修改发布 SO。
+`test-native-abi-parity.py` 和 `published-native-abi-parity.json`：28 个结构化响应 v7/arm64 相等，覆盖 API v2、Trojan/VLESS/VMess/KCP/HY2、test/run/重复 run/stop/state、运行/未运行时 pingBatch 错误、age x25519/PQ 成功及关键错误；另在同一合成 TLS/QUIC peer 上确认两 ABI pin 相同及连接关闭。未重跑 327，未声称 ARM ART/真机回归。probe 成功无需已有 core 实例，pingBatch 错误在全局 running 前后相同；official 的独立 batch instance/worker 生命周期仍可继承。

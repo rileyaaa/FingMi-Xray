@@ -17,11 +17,13 @@ import tempfile
 PIN = '6f01f219fe4087790cd8e647394de9dbefc61e0d750d927924b93f120b06fb7e'
 
 
-def capture(cases, jni, bridge, qemu, android_root):
+def capture(cases, jni, bridge, qemu, android_root, abi='armeabi-v7a'):
+    pin = PIN if abi == 'armeabi-v7a' else '40b08a399871973ba6ad5898ca7097961337d7aeddb4b3378b153a66679eeece'
+    if abi not in ('armeabi-v7a', 'arm64-v8a'): raise ValueError('Unsupported ABI')
     jni, bridge, qemu, android_root = map(Path, (jni, bridge, qemu, android_root))
     jni, bridge, qemu, android_root = (p.resolve() for p in (jni, bridge, qemu, android_root))
-    if hashlib.sha256(jni.read_bytes()).hexdigest() != PIN:
-        raise ValueError('Refusing non-published ARMv7 Go JNI')
+    if hashlib.sha256(jni.read_bytes()).hexdigest() != pin:
+        raise ValueError('Refusing non-published JNI for selected ABI')
     dynamic = subprocess.check_output(['readelf', '-d', str(bridge)], text=True)
     if f'Shared library: [{jni}]' not in dynamic:
         raise ValueError('Bridge must link the exact absolute JNI path; rebuild it')
@@ -38,7 +40,7 @@ def capture(cases, jni, bridge, qemu, android_root):
         env = os.environ.copy()
         env['NATIVE_CAPTURE'] = str(tmp / 'output')
         command = ['sh', '-c', 'exec "$@" 3>"$NATIVE_CAPTURE"', 'sh', str(qemu),
-                   '-L', str(android_root), '-E', 'LD_LIBRARY_PATH=' + str(android_root / 'system/lib'),
+                   '-L', str(android_root), '-E', 'LD_LIBRARY_PATH=' + str(android_root / 'system' / ('lib64' if abi == 'arm64-v8a' else 'lib')),
                    str(bridge)]
         with (tmp / 'input').open('rb') as inp, (tmp / 'stderr').open('wb') as err:
             result = subprocess.run(command, stdin=inp, stdout=subprocess.DEVNULL,
@@ -59,15 +61,16 @@ def capture(cases, jni, bridge, qemu, android_root):
             data = data[4 + size:]
         if data:
             raise ValueError('Unexpected extra native responses')
-    return {'schema': 1, 'evidence': {'kind': 'published-native-execution', 'abi': 'armeabi-v7a',
-            'jni_sha256': PIN, 'route': 'gomobile proxylibXray__Invoke -> libxray.Invoke',
-            'runtime': 'QEMU user-mode ARM + Android API24 Bionic',
+    return {'schema': 1, 'evidence': {'kind': 'published-native-execution', 'abi': abi,
+            'jni_sha256': pin, 'route': 'gomobile proxylibXray__Invoke -> libxray.Invoke',
+            'runtime': 'QEMU user-mode ' + abi + ' + Android API24 Bionic',
             'limits': 'No ART, Java normalizer, certificate network probe or playback in this capture'},
             'cases': results}
 
 
 def main():
     p = argparse.ArgumentParser(description=__doc__)
+    p.add_argument('--abi', choices=['armeabi-v7a', 'arm64-v8a'], default='armeabi-v7a')
     p.add_argument('--cases', type=Path, required=True)
     p.add_argument('--jni', type=Path, required=True)
     p.add_argument('--bridge', type=Path, required=True)
@@ -77,7 +80,7 @@ def main():
     out.add_argument('--capture', type=Path, help='Create a new oracle; refuses overwrite')
     out.add_argument('--expected', type=Path, help='Compare parsed responses, preserving array order')
     a = p.parse_args()
-    observed = capture(json.loads(a.cases.read_text()), a.jni, a.bridge, a.qemu, a.android_root)
+    observed = capture(json.loads(a.cases.read_text()), a.jni, a.bridge, a.qemu, a.android_root, a.abi)
     if a.capture:
         with a.capture.open('x') as f:
             json.dump(observed, f, indent=2, ensure_ascii=False)
@@ -85,7 +88,7 @@ def main():
         print(f'Captured {len(observed["cases"])} actual published native responses')
     else:
         expected = json.loads(a.expected.read_text())
-        if expected['evidence']['jni_sha256'] != PIN:
+        if expected['evidence']['jni_sha256'] != observed['evidence']['jni_sha256']:
             raise ValueError('Expected fixture is not pinned to this release')
         old, new = expected['cases'], observed['cases']
         if len(old) != len(new):
@@ -99,3 +102,4 @@ def main():
 
 if __name__ == '__main__':
     main()
+
