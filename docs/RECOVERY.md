@@ -477,6 +477,7 @@ faithful `LegacyXrayServiceClient.failLocked` 和实验模块 `XrayServiceClient
 - STOP timeout 不能在新 START 已 RUNNING 后误断新 Binder；
 - stale callbacks 必须由独立 callback generation 过滤。
 - settings 45 秒 timeout 的发布顺序是先让 UI 收到 `"Xray operation timed out"` 并清本地状态，再对精确 operation id 发 Binder cancel / unbind；不要把同步 cancel 放到用户提示之前。
+- settings 的 timeout、onDestroy 和手机导入 abandon 都会先用全局 `LegacyXrayOperationIds.next()` 推进本地 operation identity；手机导入只放弃旧 Binder generation，不远端 cancel 原 test/validate。
 - `LegacyXrayDisplay.describe()` 保持发布版的非 null 输入前提，不额外吞掉 `null`；恢复阶段不要用“更健壮”的防御性分支改变原 helper 语义。
 - Binder 请求/结果值对象保持发布版原始字段语义：`shareLink`、`Runnable`、result `message` 不在构造器里额外把 `null` 归一化成空串或 no-op。
 
