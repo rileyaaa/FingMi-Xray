@@ -436,3 +436,8 @@ Git commit history 已经承担时间线职责。
 `scripts/test-secondary-text.py --candidate <固定候选ZIP> --maven <mvn>` 对真实 Media3 1.11.0 AAR 编译，通过 8 个 Robolectric SDK28 测试（0 failure/skip），覆盖实际 DefaultTrackSelector、双流 Tracks 状态及输出生命周期。这里只验证选择/输出能力；5.6.3 的新 LibassConfiguration/SubtitleController/UI controller 尚未完整接入，不能宣称完整 Android build 或 ASS 双字幕端到端通过。
 
 官方 5.6.3 release 当前不可取得；邻近 5.6.5 发布 APK 的目标 DEX 类 `m63/k63/l63` 补充了真实证据，SHA 与复核命令在 `recovery/media-tests/published-secondary-565.json`。fallback 指令确认：保留 delegate 已选 stream；禁止两个 renderer 消费同一 TrackGroup（即使 track 不同）；active info 必须属于当前 selector。已据此修正并通过 8 测试；未将项目升级到 5.6.5，也不把邻版字节码当成 5.6.3 原始源码。
+
+### 播放会话 operation / 通知重入竞态
+
+真实 `XraySessionController` 的确定性 JVM 驱动先复现 4 个失败：旧 STOP failure/timeout 取消新 START，START 通知内 stop 后仍派发旧 START，STOP 通知内重启后旧 STOP 才派发。现由 operation ID 限定旧 cleanup 所有权；STOP 先派发再通知，START 通知后重查有效性；失败先清理 transport 再通知，close 先封闭生命周期，避免同步回调复活旧请求。
+`scripts/test-xray-session-races.py` 通过 9 场景，额外覆盖 Binder failure/启动 timeout 的重入 retry、迟到 START、有效 timeout、close。只替换 Android 主队列/配置/Binder 边界，实际 controller 直接参与测试，无 sleep。VOD/Live 共用此 module 修复；没有新增 Activity boolean 或改 faithful frozen reference。该闭环不等于 Activity resolver、DRM、RTSP、metadata 所有异步路径已全量验证。

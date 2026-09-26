@@ -68,6 +68,9 @@ public final class XraySessionController implements XrayServiceClient.Listener, 
             state = XraySessionListener.STARTING;
             socksPort = 0;
             notifyState(XraySessionListener.STARTING, 0, "");
+            // A listener may synchronously stop/close/replace this session.
+            if (disposed || currentOperationId != operationId
+                    || state != XraySessionListener.STARTING) return;
 
             serviceClient.execute(new XrayServiceClient.Request(
                     operationId,
@@ -85,7 +88,10 @@ public final class XraySessionController implements XrayServiceClient.Listener, 
     public void stop() {
         assertMainThread();
         if (disposed || state == XraySessionListener.IDLE) return;
+        stopSession();
+    }
 
+    private void stopSession() {
         startupOperationId = NO_OPERATION;
         main.removeCallbacks(startupTimeout);
 
@@ -93,8 +99,6 @@ public final class XraySessionController implements XrayServiceClient.Listener, 
         currentOperationId = operationId;
         state = XraySessionListener.IDLE;
         socksPort = 0;
-        notifyState(XraySessionListener.IDLE, 0, "");
-
         cleanupOperationId = operationId;
         serviceClient.execute(new XrayServiceClient.Request(
                 operationId,
@@ -102,6 +106,9 @@ public final class XraySessionController implements XrayServiceClient.Listener, 
                 "",
                 false,
                 () -> scheduleCleanupTimeout(operationId)));
+        // Dispatch STOP before notifying listeners that may start a replacement.
+        if (!disposed && currentOperationId == operationId)
+            notifyState(XraySessionListener.IDLE, 0, "");
     }
 
     @Override
@@ -109,8 +116,9 @@ public final class XraySessionController implements XrayServiceClient.Listener, 
         assertMainThread();
         if (disposed) return;
 
-        if (state != XraySessionListener.IDLE) stop();
+        // Seal the lifecycle before any transport/listener can reenter.
         disposed = true;
+        if (state != XraySessionListener.IDLE) stopSession();
 
         if (cleanupOperationId == NO_OPERATION) {
             main.postDelayed(serviceClient::disconnect, DISPOSE_UNBIND_DELAY_MS);
@@ -125,8 +133,10 @@ public final class XraySessionController implements XrayServiceClient.Listener, 
                 && result.operationId == cleanupOperationId) {
             cleanupOperationId = NO_OPERATION;
             main.removeCallbacks(cleanupTimeout);
+            if (result.operationId != currentOperationId) return;
 
             if (!result.success) {
+                serviceClient.cancel(XrayOperation.STOP, result.operationId);
                 if (!disposed) {
                     String message = XrayErrorSanitizer.sanitize(result.message);
                     if (state == XraySessionListener.IDLE) {
@@ -135,7 +145,6 @@ public final class XraySessionController implements XrayServiceClient.Listener, 
                         fail(message);
                     }
                 }
-                serviceClient.cancel(XrayOperation.STOP, result.operationId);
                 return;
             }
 
@@ -156,8 +165,8 @@ public final class XraySessionController implements XrayServiceClient.Listener, 
             main.removeCallbacks(cleanupTimeout);
 
             if (!result.success) {
-                fail(result.message);
                 serviceClient.disconnect();
+                fail(result.message);
                 return;
             }
 
@@ -176,13 +185,13 @@ public final class XraySessionController implements XrayServiceClient.Listener, 
                 return;
             }
 
+            serviceClient.cancel(XrayOperation.STOP, result.operationId);
             String message = XrayErrorSanitizer.sanitize(result.message);
             if (state == XraySessionListener.IDLE) {
                 notifyState(XraySessionListener.IDLE, 0, message);
             } else {
                 fail(message);
             }
-            serviceClient.cancel(XrayOperation.STOP, result.operationId);
         }
     }
 
@@ -204,12 +213,12 @@ public final class XraySessionController implements XrayServiceClient.Listener, 
         cleanupOperationId = NO_OPERATION;
         main.removeCallbacks(cleanupTimeout);
 
+        serviceClient.disconnect();
         if (!disposed
                 && (state == XraySessionListener.STARTING
                 || state == XraySessionListener.RUNNING)) {
             fail(message);
         }
-        serviceClient.disconnect();
     }
 
     private void scheduleCleanupTimeout(long operationId) {
@@ -233,14 +242,9 @@ public final class XraySessionController implements XrayServiceClient.Listener, 
         if (operationId == NO_OPERATION) return;
 
         cleanupOperationId = NO_OPERATION;
-        // A newer START may already be RUNNING. Its live Binder connection
-        // must not be disconnected by the previous STOP timeout.
-        if (state != XraySessionListener.RUNNING) {
-            if (!disposed && state == XraySessionListener.STARTING) {
-                fail("Previous Xray session cleanup timed out");
-            }
-            serviceClient.cancel(XrayOperation.STOP, operationId);
-        }
+        // Cleanup owns only its STOP, never a replacement START or its Binder.
+        if (operationId != currentOperationId) return;
+        serviceClient.cancel(XrayOperation.STOP, operationId);
     }
 
     private void onStartupTimeout() {
@@ -253,8 +257,8 @@ public final class XraySessionController implements XrayServiceClient.Listener, 
         if (!disposed
                 && currentOperationId == operationId
                 && state == XraySessionListener.STARTING) {
-            fail("Xray startup timed out");
             serviceClient.cancel(XrayOperation.START, operationId);
+            fail("Xray startup timed out");
         }
     }
 
@@ -262,8 +266,11 @@ public final class XraySessionController implements XrayServiceClient.Listener, 
         state = XraySessionListener.IDLE;
         socksPort = 0;
         String safe = XrayErrorSanitizer.sanitize(message);
+        long failedOperationId = currentOperationId;
         notifyState(XraySessionListener.ERROR, 0, safe);
-        notifyState(XraySessionListener.IDLE, 0, "");
+        if (!disposed && currentOperationId == failedOperationId
+                && state == XraySessionListener.IDLE)
+            notifyState(XraySessionListener.IDLE, 0, "");
     }
 
     private void notifyState(int state, int port, String message) {
@@ -276,3 +283,4 @@ public final class XraySessionController implements XrayServiceClient.Listener, 
         }
     }
 }
+
