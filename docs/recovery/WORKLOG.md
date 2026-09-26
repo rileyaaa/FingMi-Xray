@@ -177,3 +177,4 @@
 - 子源要求继续约十分钟并及时写入 GitHub。本轮从远端 `main` 半小时检查点继续，没有触发 Actions 或 APK 编译。
 - 手动原生依赖恢复工作流在下载两份约 275 MB 发布 APK **之前**，新增 GitHub Release 元数据前置门：精确检查 v7/v8 资产各有一份、名称、大小（129,871,795 / 145,354,377 字节）和服务端摘要均符合已固定的完整 APK SHA。以当前 Release 真实元数据验证 jq 表达式返回 true，YAML/shell 语法通过；工作流未实际运行，下载仍需用户先授权。提交 `4f939b6bb1b858447ab027460d657f338c373178`。
 - 手动 faithful 构建入口原只核 native artifact 的名称、未过期和 main 来源，仍可能输入同仓库其他工作流生成的同名产物。现在再查 artifact 的源 run ID，要求 `path=.github/workflows/recovery-restore-ffmpegjni.yml`、`conclusion=success`、`head_branch=main`，错误输入在大文件下载前退出（`67ea5b2f099ef15474915a5d45bdd67d086ca47b`）。本轮以已存在成功 run 的 API 形状核字段，YAML/shell 解析通过；尚无真实 native 恢复 run 可做端到端验证。
+- 文档一致性复核发现 `PROGRESS.md` 主里程碑表仍写 12 类/50 方法，虽后续追加已有 14/54，读者容易误判；现把主表三处更新为 14/54（`81c5158a10e3b051086dc489d6a1dbcc678b7334`）。`PROJECT_REQUIREMENTS.md` 原一条允许在未完成基准验证前开始分层重构，与子源“先完整还原并核对、再编译、后重构”的约束及边界文档冲突；现按已有用户决定明确阶段顺序和整套 APK 编译授权条件（`9554460b5366cc9a6fe2b4deb2af0f0880a4aff5`）。没有改变产品功能目标。
