@@ -1,0 +1,106 @@
+{
+  "v7_entry_count": 1347,
+  "v8_entry_count": 1344,
+  "difference_count": 94,
+  "difference_categories": {
+    "dex": 3,
+    "native": 59,
+    "signing": 0,
+    "other": 32
+  }
+}
+
+[other] assets/chaquopy/app.imy
+[other] assets/chaquopy/bootstrap-native/arm64-v8a/_bz2.cpython-310.so
+[other] assets/chaquopy/bootstrap-native/arm64-v8a/_ctypes.cpython-310.so
+[other] assets/chaquopy/bootstrap-native/arm64-v8a/_datetime.cpython-310.so
+[other] assets/chaquopy/bootstrap-native/arm64-v8a/_lzma.cpython-310.so
+[other] assets/chaquopy/bootstrap-native/arm64-v8a/_random.cpython-310.so
+[other] assets/chaquopy/bootstrap-native/arm64-v8a/_sha512.cpython-310.so
+[other] assets/chaquopy/bootstrap-native/arm64-v8a/_struct.cpython-310.so
+[other] assets/chaquopy/bootstrap-native/arm64-v8a/binascii.cpython-310.so
+[other] assets/chaquopy/bootstrap-native/arm64-v8a/java/chaquopy.so
+[other] assets/chaquopy/bootstrap-native/arm64-v8a/math.cpython-310.so
+[other] assets/chaquopy/bootstrap-native/arm64-v8a/mmap.cpython-310.so
+[other] assets/chaquopy/bootstrap-native/arm64-v8a/zlib.cpython-310.so
+[other] assets/chaquopy/bootstrap-native/armeabi-v7a/_bz2.cpython-310.so
+[other] assets/chaquopy/bootstrap-native/armeabi-v7a/_ctypes.cpython-310.so
+[other] assets/chaquopy/bootstrap-native/armeabi-v7a/_datetime.cpython-310.so
+[other] assets/chaquopy/bootstrap-native/armeabi-v7a/_lzma.cpython-310.so
+[other] assets/chaquopy/bootstrap-native/armeabi-v7a/_random.cpython-310.so
+[other] assets/chaquopy/bootstrap-native/armeabi-v7a/_sha512.cpython-310.so
+[other] assets/chaquopy/bootstrap-native/armeabi-v7a/_struct.cpython-310.so
+[other] assets/chaquopy/bootstrap-native/armeabi-v7a/binascii.cpython-310.so
+[other] assets/chaquopy/bootstrap-native/armeabi-v7a/java/chaquopy.so
+[other] assets/chaquopy/bootstrap-native/armeabi-v7a/math.cpython-310.so
+[other] assets/chaquopy/bootstrap-native/armeabi-v7a/mmap.cpython-310.so
+[other] assets/chaquopy/bootstrap-native/armeabi-v7a/zlib.cpython-310.so
+[other] assets/chaquopy/build.json
+[other] assets/chaquopy/requirements-arm64-v8a.imy
+[other] assets/chaquopy/requirements-armeabi-v7a.imy
+[other] assets/chaquopy/requirements-common.imy
+[other] assets/chaquopy/stdlib-arm64-v8a.imy
+[other] assets/chaquopy/stdlib-armeabi-v7a.imy
+[other] assets/dexopt/baseline.prof
+[dex] classes.dex
+[dex] classes2.dex
+[dex] classes3.dex
+[native] lib/arm64-v8a/libavcodec.so
+[native] lib/arm64-v8a/libavdevice.so
+[native] lib/arm64-v8a/libavfilter.so
+[native] lib/arm64-v8a/libavformat.so
+[native] lib/arm64-v8a/libavif_android.so
+[native] lib/arm64-v8a/libavutil.so
+[native] lib/arm64-v8a/libc++_shared.so
+[native] lib/arm64-v8a/libchaquopy_java.so
+[native] lib/arm64-v8a/libcrypto_chaquopy.so
+[native] lib/arm64-v8a/libcrypto_python.so
+[native] lib/arm64-v8a/libffmpegJNI.so
+[native] lib/arm64-v8a/libgojni.so
+[native] lib/arm64-v8a/libjpa.so
+[native] lib/arm64-v8a/libmpeghJNI.so
+[native] lib/arm64-v8a/libmpv.so
+[native] lib/arm64-v8a/libpl_droidsonroids_gif.so
+[native] lib/arm64-v8a/libplayer.so
+[native] lib/arm64-v8a/libpython3.10.so
+[native] lib/arm64-v8a/libquickjs-android-wrapper.so
+[native] lib/arm64-v8a/librtmp-jni.so
+[native] lib/arm64-v8a/libsqlite3_chaquopy.so
+[native] lib/arm64-v8a/libsqlite3_python.so
+[native] lib/arm64-v8a/libssl_chaquopy.so
+[native] lib/arm64-v8a/libssl_python.so
+[native] lib/arm64-v8a/libswresample.so
+[native] lib/arm64-v8a/libswscale.so
+[native] lib/arm64-v8a/libxl_stat.so
+[native] lib/arm64-v8a/libxl_thunder_sdk.so
+[native] lib/armeabi-v7a/libavcodec.so
+[native] lib/armeabi-v7a/libavdevice.so
+[native] lib/armeabi-v7a/libavfilter.so
+[native] lib/armeabi-v7a/libavformat.so
+[native] lib/armeabi-v7a/libavif_android.so
+[native] lib/armeabi-v7a/libavutil.so
+[native] lib/armeabi-v7a/libc++_shared.so
+[native] lib/armeabi-v7a/libchaquopy_java.so
+[native] lib/armeabi-v7a/libcrypto_chaquopy.so
+[native] lib/armeabi-v7a/libcrypto_python.so
+[native] lib/armeabi-v7a/libffmpegJNI.so
+[native] lib/armeabi-v7a/libgojni.so
+[native] lib/armeabi-v7a/libjpa.so
+[native] lib/armeabi-v7a/libmitv.so
+[native] lib/armeabi-v7a/libmpeghJNI.so
+[native] lib/armeabi-v7a/libmpv.so
+[native] lib/armeabi-v7a/libp2p.so
+[native] lib/armeabi-v7a/libp3p.so
+[native] lib/armeabi-v7a/libpl_droidsonroids_gif.so
+[native] lib/armeabi-v7a/libplayer.so
+[native] lib/armeabi-v7a/libpython3.10.so
+[native] lib/armeabi-v7a/libquickjs-android-wrapper.so
+[native] lib/armeabi-v7a/librtmp-jni.so
+[native] lib/armeabi-v7a/libsqlite3_chaquopy.so
+[native] lib/armeabi-v7a/libsqlite3_python.so
+[native] lib/armeabi-v7a/libssl_chaquopy.so
+[native] lib/armeabi-v7a/libssl_python.so
+[native] lib/armeabi-v7a/libswresample.so
+[native] lib/armeabi-v7a/libswscale.so
+[native] lib/armeabi-v7a/libxl_stat.so
+[native] lib/armeabi-v7a/libxl_thunder_sdk.so
