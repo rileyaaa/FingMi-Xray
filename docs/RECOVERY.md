@@ -1053,3 +1053,12 @@ arm64 目前有静态交叉证据，没有实际执行同一矩阵。正式 fait
 
 这样下一位接手者不需要重新完整阅读仓库来判断“之前到底做到哪里”。
 
+
+
+## libXray API v2 与剩余 native 定制（2026-09-26）
+
+`recovery/libxray/native-v2-recovery.patch` 是接在 `share-converter-recovery.patch` 之后的重建行为补丁，基于固定 official `80263da8`，不是原始 Go 源码。发布版 v7 ARMv7 `libgojni.so` 的 QEMU/API24 Bionic 实际执行生成 `recovery/native-tests/published-v7-api-v2.json`；对应输入在 `api-v2-cases.json`。18 个确定性响应与重建 Go `Invoke` 的结构化 JSON 一致，包括 API 2 拒绝 0/1、内联 `xrayJson` test/run、重复启动、stop/state、pingBatch 单项错误、探测缺参和 age 错误。没有重跑上一轮 327 条 converter 差分。
+
+`xray.newXrayInstance` 从内联 JSON `core.LoadConfig` 后调用 `core.New`；test 创建并关闭而不启动，run 启动后保留实例，失败关闭。TLS 探测使用 Xray 的 uTLS fingerprint、SNI/ALPN 与叶证书 DER SHA-256；本地自签 TLS 发布版成功响应返回 `data.sha256`，未知 fingerprint 在 `data:{}` 返回错误。HY2 探测是 QUIC 握手与叶证书 pin；发布版缺参及关闭 UDP 端口超时已实际核对，合成服务端成功握手尚未对照。age 路径只在 ASCII armor 输入时解密，支持 x25519 和 hybrid/PQ key；生成 key 与本地合成密文解密已测试，错误语义的未覆盖边界仍是 reconstructed behavior。
+
+补丁已使用 `patch -p1 --dry-run --fuzz=0` 验证分层应用，Go 包源码编译与新建 `TestPublished*` 回归通过。现有 official API 0/1 单测与发布版 API 2 语义冲突，不作为本阶段通过依据。此证据不等同于 ART、真机、远端 TLS/HY2 节点或 arm64 运行验收。
