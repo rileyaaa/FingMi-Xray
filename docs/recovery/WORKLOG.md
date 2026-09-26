@@ -145,3 +145,5 @@
 
 - 继续恢复上一会话未落入 main 的实验模块网络改动：`PublicPlaybackDestinationInterceptor` 从已按发布版 DEX 核对的 faithful 拦截器移植数字 IPv4/IPv6 字面值解析与保留地址规则，不对普通主机名做本地 DNS；新增 `XrayProxySocketFactory` 保持 RTSP 字符串主机重载的 unresolved SOCKS 连接；`XrayHttpClient` 提供 RTSP 工厂并按 faithful 顺序先关闭 Dispatcher、再由 daemon 单线程异步 cancel/evict。依次提交 `d53d008f61fab92f88f2a7e2aca38cc2b2f1c615`、`7e6d2631dfe81cad36bd58ec2cc32ee01a5123fc`、`af1d74bcdea32b3b83fda99ce51c52c93c3293af`。
 - 这三个文件在普通 app 已依赖的实验 `:xray` 模块，不改变 faithful 覆盖层；源码移植和静态校验已做，本机只有 Java runtime、没有 `javac`/Android SDK/Gradle，因此没有 Java/Android 编译或 RTSP 真机验证。普通 app 的播放器仍未完整接入 Xray 会话，新增 RTSP 工厂尚无调用者，不能声称普通播放代理已恢复。
+
+- 补 `recovery/legacy-tests/test_xray_network_java.py`（提交 `266624feb5b1b7aca10f5a32d2b846419e2c867d`）。本机无 `javac` 命令，但 OpenJDK 17 的 `com.sun.tools.javac.Main` 可用：三类与最小 OkHttp 接口桩一起编译通过；Java 样本检查 17 个保留地址阻断、4 个公开地址/普通域名允许。接口桩不包含真实 OkHttp/Media3，也不覆盖 Android 构建或网络运行。上一条“未 Java 编译”在此定点检查后应理解为“未用真实依赖编译”。
