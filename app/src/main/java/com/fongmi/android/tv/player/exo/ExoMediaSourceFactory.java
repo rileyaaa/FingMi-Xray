@@ -17,6 +17,7 @@ import androidx.media3.datasource.okhttp.OkHttpDataSource;
 import androidx.media3.exoplayer.drm.DrmSessionManagerProvider;
 import androidx.media3.exoplayer.drm.DefaultDrmSessionManagerProvider;
 import androidx.media3.exoplayer.rtsp.RtspMediaSource;
+import androidx.media3.exoplayer.libass.LibassPlaybackSession;
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory;
 import androidx.media3.exoplayer.source.MediaSource;
 import androidx.media3.exoplayer.source.preload.MediaSourceFactorySupplier;
@@ -31,7 +32,6 @@ import android.net.Uri;
 import java.io.IOException;
 import java.util.List;
 import com.fongmi.android.tv.setting.PreloadSetting;
-import com.fongmi.android.tv.utils.FileUtil;
 import com.github.catvod.net.OkHttp;
 import com.github.catvod.utils.Path;
 
@@ -47,25 +47,18 @@ public class ExoMediaSourceFactory implements MediaSource.Factory {
 
     private final DefaultMediaSourceFactory defaultMediaSourceFactory;
     private final XrayHttpClient proxy;
+    private final LibassPlaybackSession libassPlaybackSession;
+
     private HttpDataSource.Factory httpDataSourceFactory;
     private DataSource.Factory dataSourceFactory;
-    private ExtractorsFactory extractorsFactory;
 
-    public ExoMediaSourceFactory() { this(null); }
-
-    ExoMediaSourceFactory(XrayHttpClient proxy) {
+    private ExoMediaSourceFactory(LibassPlaybackSession libassPlaybackSession, XrayHttpClient proxy) {
+        this.libassPlaybackSession = libassPlaybackSession;
         this.proxy = proxy;
-        defaultMediaSourceFactory = new DefaultMediaSourceFactory(getDataSourceFactory(), getExtractorsFactory());
-        if (proxy != null) {
-            DefaultDrmSessionManagerProvider drm = new DefaultDrmSessionManagerProvider();
-            drm.setDrmHttpDataSourceFactory(getDataSourceFactory());
-            defaultMediaSourceFactory.setDrmSessionManagerProvider(drm);
-        }
+        this.defaultMediaSourceFactory = configuredFactory(createDefaultExtractorsFactory());
     }
 
-    static MediaSourceFactorySupplier supplier() { return supplier(null); }
-
-    static MediaSourceFactorySupplier supplier(XrayHttpClient proxy) {
+    static MediaSourceFactorySupplier supplier(LibassPlaybackSession libassPlaybackSession, XrayHttpClient proxy) {
         return new MediaSourceFactorySupplier() {
             @NonNull
             @Override
@@ -81,7 +74,7 @@ public class ExoMediaSourceFactory implements MediaSource.Factory {
 
             @Override
             public MediaSource.Factory get() {
-                return new ExoMediaSourceFactory(proxy);
+                return new ExoMediaSourceFactory(libassPlaybackSession, proxy);
             }
         };
     }
@@ -104,8 +97,8 @@ public class ExoMediaSourceFactory implements MediaSource.Factory {
     }
 
     private static long getMaxCacheSize(File dir) {
-        long usedBytes = FileUtil.getDirectorySize(dir);
-        long availableBytes = Math.max(0, FileUtil.getAvailableStorageSpace(dir));
+        long usedBytes = Path.size(dir);
+        long availableBytes = Math.max(0, Path.available(dir));
         long storageBudget = (usedBytes + availableBytes) * CACHE_SPACE_PERCENT / 100;
         return Math.min(PreloadSetting.getSizeBytes(), storageBudget);
     }
@@ -141,12 +134,23 @@ public class ExoMediaSourceFactory implements MediaSource.Factory {
                         .createMediaSource(mediaItem);
             }
         }
-        return defaultMediaSourceFactory.createMediaSource(mediaItem);
+        if (!libassPlaybackSession.isAvailable()) return defaultMediaSourceFactory.createMediaSource(mediaItem);
+        LibassPlaybackSession.MediaComponents components = libassPlaybackSession.createMediaComponents(mediaItem, createDefaultExtractorsFactory());
+        return configuredFactory(components.extractorsFactory).setSubtitleParserFactory(components.subtitleParserFactory).createMediaSource(mediaItem);
     }
 
-    private ExtractorsFactory getExtractorsFactory() {
-        if (extractorsFactory == null) extractorsFactory = new DefaultExtractorsFactory().setTsExtractorTimestampSearchBytes(TsExtractor.DEFAULT_TIMESTAMP_SEARCH_BYTES * 10);
-        return extractorsFactory;
+    private DefaultMediaSourceFactory configuredFactory(ExtractorsFactory extractorsFactory) {
+        DefaultMediaSourceFactory factory = new DefaultMediaSourceFactory(getDataSourceFactory(), extractorsFactory);
+        if (proxy != null) {
+            DefaultDrmSessionManagerProvider drm = new DefaultDrmSessionManagerProvider();
+            drm.setDrmHttpDataSourceFactory(getDataSourceFactory());
+            factory.setDrmSessionManagerProvider(drm);
+        }
+        return factory;
+    }
+
+    private static ExtractorsFactory createDefaultExtractorsFactory() {
+        return new DefaultExtractorsFactory().setTsExtractorTimestampSearchBytes(TsExtractor.DEFAULT_TIMESTAMP_SEARCH_BYTES * 10);
     }
 
     private DataSource.Factory getDataSourceFactory() {

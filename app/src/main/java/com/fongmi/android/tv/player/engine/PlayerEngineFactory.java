@@ -39,9 +39,9 @@ public final class PlayerEngineFactory {
 
     public static boolean matches(PlayerEngine engine, PlaySpec spec, XrayHttpClient proxy) {
         if (engine == null) return false;
-        if (proxy != null) return engine instanceof ExoPlayerEngine exo && exo.proxy() == proxy;
+        if (proxy != null) return engine instanceof ExoPlayerEngine exo && exo.proxy() == proxy && !engine.needsRebuild();
         if (engine instanceof ExoPlayerEngine exo && exo.proxy() != null) return false;
-        return engine.getType() == resolve(spec);
+        return engine.getType() == resolve(spec) && !engine.needsRebuild();
     }
 
     private static PlayerEngine.Type resolve(PlaySpec spec) {

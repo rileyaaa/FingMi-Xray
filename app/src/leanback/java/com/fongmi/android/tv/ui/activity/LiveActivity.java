@@ -168,7 +168,7 @@ public class LiveActivity extends PlaybackActivity implements GroupAdapter.OnCli
                 if (service() != null && isOwner()) {
                     getPlayerView().setDanmakuSource(null);
                     player().setPlaybackProxy(resources, preserve);
-                    getPlayerView().setDanmakuOkHttpClient(player().getPlaybackHttpClient(OkHttp.player()));
+                    updatePlaybackDanmakuClient();
                 }
                 if (mChannelAdapter != null) mChannelAdapter.setXrayLogoSuppressed(resources != null);
                 if (mChannel != null) {
@@ -832,9 +832,8 @@ public class LiveActivity extends PlaybackActivity implements GroupAdapter.OnCli
     }
 
     @Override
-    public void requestUrl(LivePlayRequest request) {
-        if (request.isCatchup()) hideUI();
-        mViewModel.getUrl(request);
+    public void onCatchupRequested() {
+        hideUI();
     }
 
     @Override
