@@ -7,6 +7,13 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
+import android.net.ConnectivityManager;
+import android.net.Network;
+import java.util.Objects;
+import java.util.Set;
+import java.util.concurrent.CopyOnWriteArraySet;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -28,9 +35,14 @@ public final class TvNetworkLifecycle
 
     private final Application application;
     private final BroadcastReceiver screenReceiver;
+    private final Handler main = new Handler(Looper.getMainLooper());
+    private final Set<Runnable> listeners = new CopyOnWriteArraySet<>();
+    private Network activeNetwork;
+    private boolean networkWasLost;
 
     private int startedActivities;
     private long generation;
+    private long recoveredGeneration;
     private boolean backgroundPending;
     private boolean dlnaStarted;
 
@@ -58,6 +70,18 @@ public final class TvNetworkLifecycle
         filter.addAction(Intent.ACTION_SCREEN_OFF);
         filter.addAction(Intent.ACTION_SCREEN_ON);
         application.registerReceiver(screenReceiver, filter);
+        try {
+            ConnectivityManager connectivity = (ConnectivityManager) application.getSystemService(Context.CONNECTIVITY_SERVICE);
+            if (connectivity != null) {
+                activeNetwork = connectivity.getActiveNetwork();
+                connectivity.registerDefaultNetworkCallback(new ConnectivityManager.NetworkCallback() {
+                    @Override public void onAvailable(Network network) { networkAvailable(network); }
+                    @Override public void onLost(Network network) { networkLost(network); }
+                });
+            }
+        } catch (RuntimeException ignored) {
+            // Lifecycle and screen events still detect a later foreground generation.
+        }
     }
 
     public static TvNetworkLifecycle get(Application application) {
@@ -82,6 +106,56 @@ public final class TvNetworkLifecycle
         }
     }
 
+    public static long recoveredGeneration() {
+        TvNetworkLifecycle current = instance;
+        if (current == null) return 0L;
+        synchronized (current) { return current.recoveredGeneration; }
+    }
+
+    public static void markRecovered(long generation) {
+        TvNetworkLifecycle current = instance;
+        if (current == null) return;
+        synchronized (current) {
+            if (current.generation == generation) current.recoveredGeneration = generation;
+        }
+    }
+
+    public void addListener(Runnable listener) { listeners.add(listener); }
+    public void removeListener(Runnable listener) { listeners.remove(listener); }
+
+    private void networkAvailable(Network network) {
+        boolean changed;
+        synchronized (this) {
+            changed = networkWasLost || (activeNetwork != null && !Objects.equals(activeNetwork, network));
+            activeNetwork = network;
+            networkWasLost = false;
+            if (changed) invalidateNetworkLocked();
+        }
+        if (changed) notifyListeners();
+    }
+
+    private void networkLost(Network network) {
+        boolean changed;
+        synchronized (this) {
+            changed = Objects.equals(activeNetwork, network);
+            if (changed) {
+                activeNetwork = null;
+                networkWasLost = true;
+                invalidateNetworkLocked();
+            }
+        }
+        if (changed) notifyListeners();
+    }
+
+    private void invalidateNetworkLocked() {
+        if (startedActivities > 0) generation++;
+        else backgroundPending = true;
+    }
+
+    private void notifyListeners() {
+        for (Runnable listener : listeners) main.post(listener);
+    }
+
     private void markBackground() {
         boolean stopDlna = false;
         synchronized (this) {
@@ -101,11 +175,15 @@ public final class TvNetworkLifecycle
     }
 
     private void enterForegroundGeneration() {
+        boolean advanced;
         synchronized (this) {
-            if (!backgroundPending) return;
-            backgroundPending = false;
-            generation++;
+            advanced = backgroundPending;
+            if (advanced) {
+                backgroundPending = false;
+                generation++;
+            }
         }
+        if (advanced) notifyListeners();
     }
 
     @Override
