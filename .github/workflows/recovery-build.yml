@@ -25,6 +25,16 @@ jobs:
           distribution: temurin
           java-version: "21"
 
+      - name: Prepare Android SDK 37
+        shell: bash
+        run: |
+          set -euo pipefail
+          sdk_root="${ANDROID_HOME:-/usr/local/lib/android/sdk}"
+          sdkmanager="$sdk_root/cmdline-tools/latest/bin/sdkmanager"
+          test -x "$sdkmanager"
+          yes | "$sdkmanager" --licenses >/dev/null || true
+          "$sdkmanager" --install 'platforms;android-37' 'build-tools;36.0.0'
+
       - name: Download and check pinned dependency inputs
         shell: bash
         env:
