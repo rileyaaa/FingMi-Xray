@@ -23,3 +23,6 @@
 2026-09-25 增量：候选播放器 AAR 的精选 Java 签名核查从 8 类/38 项扩至 12 类/50 项，在真实固定 ZIP 上通过。此为静态依赖核查的范围增加，faithful APK 编译、实机回归、Xray 正式迁移仍未完成。
 
 - 2026-09-25 普通 app 的第二优先级接线：把已按发布 APK 静态核的 TV 网络代际、Home 恢复轮询、API/DNS/DoH 重建及 Spider 清理完成回调接入当前 app/catvod；源文件与 `recovery/legacy-src/upstream/` 对应版本一致。此项是源码接线，非 Android 编译或电视长待机测试。
+
+
+2026-09-26 增量：已准备 libXray 双 ABI Go JNI 从固定 SHA 的原发布 APK 定点恢复路径，假包正反例通过；手动工作流现在在下载 APK 前核播放器候选工件的名称、大小、摘要和过期状态，YAML/shell 语法通过。该工作流没有派发，发布 APK、真实重包 AAR、faithful 编译和电视回归仍未完成。普通 app 的网络拦截器、RTSP SOCKS 工厂及会话资源清理按 faithful 层静态对齐；最小接口桩编译和 17/4 地址样本通过，但 app 播放器接线与设备验证未完成。
