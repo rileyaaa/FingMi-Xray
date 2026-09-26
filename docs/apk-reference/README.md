@@ -38,7 +38,7 @@ v7 JADX 工作流记录的 JADX exit code 为 3，但完整 `sources/` 已正常
 
 ## 保存范围
 
-从两份完整 JADX 中选取了 65 个与以下范围直接相关的 Java 文件：
+从两份完整 JADX 中选取了 64 个与以下范围直接相关的 Java 文件：
 
 - Xray Service / Binder / session；
 - share-link / config / certificate / error sanitizer；
@@ -49,13 +49,13 @@ v7 JADX 工作流记录的 JADX exit code 为 3，但完整 `sources/` 已正常
 
 逐文件比较结果：
 
-- selected source files：65
-- v7 / v8 逐字节相同：64
+- selected source files：64
+- v7 / v8 逐字节相同：63
 - 不同：1（`p000/ip0.java`）
 - 缺失：0
 - AndroidManifest：双 ABI 逐字节相同
 
-`ip0` 是 R8 生成的 EventBus subscriber index；已核注册项相同，差异只在 `HashMap.put` 顺序。因此其他 64 个文件只保留一份到 `shared/sources/`。
+`ip0` 是 R8 生成的 EventBus subscriber index；已核注册项相同，差异只在 `HashMap.put` 顺序。因此其他 63 个文件只保留一份到 `shared/sources/`。
 
 ## 目录
 
