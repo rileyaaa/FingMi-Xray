@@ -547,6 +547,18 @@ FongMi 5.6.0 所需自制 `lib-*.aar` 不在上游 Git 中。
 
 因此未经恢复的候选 decoder AAR会被**有意早停拒绝**。
 
+### 已生成的 faithful decoder AAR
+
+当前已有可跨会话取回的真实恢复产物：
+
+- Library：`/FongMi-Xray/dependencies/lib-decoder-ffmpeg-release-faithful.aar`
+- size：`23,417,373` bytes
+- SHA-256：`31a1db2570416147cc6889643d25345477977205d60a61a6df525ffa5a623a13`
+- v7 JNI SHA：`3af1fcaa21f28071994fc51936889e2441edec57d5009e7a4043bf9f06435d42`
+- v8 JNI SHA：`26594d573765fc86a3d242c81e11369ced639d76cb4465cdf4b31a7c2d9da91c`
+
+输入为固定候选 AAR ZIP及两份持久 full JADX ZIP。后者来自先核正式 APK 整包 SHA 后生成的历史分析 run；本次又核 full JADX ZIP 自身 SHA 和内部 JNI SHA。它不是“当前会话重新下载原 APK”的来源链，但实际进入 AAR 的 JNI 字节与已固定发布值完全一致。
+
 ### 安全恢复路径
 
 `scripts/restore-published-ffmpegjni.py`：
@@ -566,7 +578,7 @@ FongMi 5.6.0 所需自制 `lib-*.aar` 不在上游 Git 中。
 - 候选 artifact SHA；
 - restored decoder 只有两个 JNI 允许变化。
 
-纯 Python 合成 fixture 的正反例测试已经通过，但**真实发布 APK → 真 decoder AAR 的恢复尚未执行**。
+纯 Python 合成 fixture 的 APK/JADX 两条输入路径测试已经覆盖。2026-09-26 又用持久化的 v7/v8 full JADX ZIP 做了真实恢复：两份 ZIP 自身 SHA-256 均固定，内部 `libffmpegJNI.so` 又逐文件命中发布版固定 SHA。生成的 decoder AAR 只改变两个 ABI 的 `libffmpegJNI.so`，其他 entry 内容及顺序不变。
 
 ---
 
@@ -749,7 +761,7 @@ FongMi 5.6.0 所需自制 `lib-*.aar` 不在上游 Git 中。
 | Player candidate AAR | 已取得固定候选 |
 | Player selected Java API | 14 类 / 54 方法匹配 |
 | Player native | 每 ABI 11 件中 10 件同发布版、1 件 FFmpeg JNI 不同 |
-| FFmpeg JNI 真包恢复 | 脚本与合成测试就绪；真实恢复未执行 |
+| FFmpeg JNI 真包恢复 | 已从固定 full JADX 证据恢复；faithful decoder AAR 已持久保存并核只有两 JNI entry 改变 |
 | libXray Go JNI 真包恢复 | 脚本与合成测试就绪；真实恢复未执行 |
 | native dependency workflow | 已配置且手动；未实际成功跑完 |
 | faithful Gradle build | 未完成 |
@@ -795,7 +807,7 @@ FongMi 5.6.0 所需自制 `lib-*.aar` 不在上游 Git 中。
 
 ## 16. 当前阻塞与下一步
 
-### 阻塞 A：真实 native dependency artifact 尚未生成
+### 阻塞 A：libXray faithful AAR / 云端 native dependency artifact 尚未生成
 
 需要在项目所有者明确授权后，手动运行：
 
