@@ -31,6 +31,14 @@ jobs:
             echo 'Pinned player candidate artifact is missing, expired, or differs from the verified input.' >&2
             exit 1
           fi
+          release_info="$(gh api repos/rileyaaa/FingMi-Xray/releases/tags/v5.6.0-xray.5)"
+          if ! jq -e --arg v7 "sha256:$V7_SHA256" --arg v8 "sha256:$V8_SHA256" '
+            ([.assets[] | select(.name == "FongMi-Xray-TV-v5.6.0-xray.5-armeabi-v7a.apk" and .size == 129871795 and .digest == $v7)] | length) == 1 and
+            ([.assets[] | select(.name == "FongMi-Xray-TV-v5.6.0-xray.5-arm64-v8a.apk" and .size == 145354377 and .digest == $v8)] | length) == 1
+          ' <<< "$release_info" >/dev/null; then
+            echo 'Pinned release APK assets have changed or are missing.' >&2
+            exit 1
+          fi
           mkdir -p recovery/work/verified recovery/work/restored
           gh release download v5.6.0-xray.5 \
             --repo rileyaaa/FingMi-Xray \
