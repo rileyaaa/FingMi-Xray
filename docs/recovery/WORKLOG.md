@@ -159,3 +159,5 @@
 - 本轮补全 **仅手动** 的 `recovery-build.yml` 依赖接线（提交 `c301c29d10b089586d5b8ff1b1427e28edaf18e5`）：运行时必须显式输入已审阅的 native dependency artifact ID，检查名称/未过期/来自本仓库 main；候选播放器工件也前置核名称、大小、摘要和过期状态。下载后用原导入器校验 decoder 除双 ABI JNI 外各 ZIP 条目与固定候选相同；重新获取固定 SHA 的官方 libXray ZIP，比较恢复 AAR 的其他条目逐字节相同、两 JNI 等于发布版哈希和 Java invoke 签名，再将两 AAR 交给 faithful 构建的早停门。libXray 非 JNI 比较脚本/正反例提交 `ba90d68`、`aa42cd4`；测试 2/2 通过。YAML 和 shell 语法通过；**没有派发构建工作流**，因此下载、Gradle、SDK 和 APK 结果仍未知。
 
 - 固定 FongMi/TV 提交 `1a19fee...` 的 `gradle/libs.versions.toml` 明确 `compileSdk=37`；手动 build 工作流现于依赖下载前检查 runner 的 sdkmanager 并安装 Android 37 platform/build-tools 36.0.0（`0ed32ea4148d6f18fafc1a6651d8ac5079141537`）。仅本地 YAML/shell 语法核验，没有执行 SDK 下载或 Actions。
+
+- RTSP SOCKS 定点回环验证补入 `test_xray_network_java.py`（`bc02bfa6ae9dce3f287e288fe7a7d280df94272d`）：在本机以最小 OkHttp 桩编译三类网络代码，Java 的 `XrayProxySocketFactory.createSocket("unresolved.invalid", 443)` 对 Python SOCKS5 假服务握手，服务收到 ATYP=域名、原始主机名和 443 端口；17 阻断/4 允许地址样本仍通过。这只证明 SocketFactory 的本地握手和地址传递，不是 Media3 RTSP 或电视设备播放验证。
