@@ -24,6 +24,13 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
+          artifact_info="$(gh api repos/rileyaaa/FingMi-Xray/actions/artifacts/10859533459)"
+          if ! jq -e --arg sha "sha256:$CANDIDATE_SHA256" \
+            '.name == "fongmi-media3-aar-candidate-1.11.0" and .expired == false and .size_in_bytes == 44336768 and .digest == $sha' \
+            <<< "$artifact_info" >/dev/null; then
+            echo 'Pinned player candidate artifact is missing, expired, or differs from the verified input.' >&2
+            exit 1
+          fi
           mkdir -p recovery/work/verified recovery/work/restored
           gh release download v5.6.0-xray.5 \
             --repo rileyaaa/FingMi-Xray \
