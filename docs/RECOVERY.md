@@ -911,7 +911,7 @@ official AAR 的 x86 / x86_64 Go JNI、`classes.jar`、Manifest、resources、pr
   - 与固定 player candidate 的 decoder AAR 相比只变化两个 v7 / v8 `libffmpegJNI.so` entry；
   - ZIP entry 名称和顺序保持不变。
 
-这说明本地 faithful native 输入已经通过内容门。当前剩余的是把同样的输入通过手动 GitHub workflow 生成受来源约束的云端 native dependency artifact，再进入 faithful Gradle build。
+这说明本地 faithful native 输入已经通过内容门；发布 Go JNI 还额外通过了 API v2 / inline JSON / probe / share converter symbol 静态 gate。当前剩余的是把同样的输入通过手动 GitHub workflow 生成受来源约束的云端 native dependency artifact，再进入 faithful Gradle build。
 
 ### 阻塞 A：云端 native dependency artifact 尚未生成
 
