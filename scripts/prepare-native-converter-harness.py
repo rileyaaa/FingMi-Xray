@@ -34,6 +34,7 @@ def digest(path):
 def main():
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument('--workdir', type=Path, required=True)
+    p.add_argument('--parallel', action='store_true', help='Build barrier-synchronized Invoke group harness')
     inp = p.add_mutually_exclusive_group(required=True)
     inp.add_argument('--jni', type=Path)
     inp.add_argument('--v7-jadx', type=Path)
@@ -76,14 +77,15 @@ def main():
     ccdir = work / 'cross/usr/bin'
     env = os.environ.copy()
     env['LD_LIBRARY_PATH'] = str(work / 'cross/usr/lib/x86_64-linux-gnu')
-    source = Path(__file__).resolve().parents[1] / 'recovery/native-tests/invoke_bridge.c'
+    source = Path(__file__).resolve().parents[1] / 'recovery/native-tests' / ('invoke_parallel_bridge.c' if a.parallel else 'invoke_bridge.c')
+    bridge = work / ('invoke-parallel-bridge' if a.parallel else 'invoke-bridge')
     subprocess.run([str(ccdir / 'arm-linux-gnueabi-gcc-12'), '-B', str(ccdir) + '/',
                     '-nostdlib', '-fPIC', '-fno-stack-protector', '-pie', '-Wl,-e,_start',
                     '-Wl,--dynamic-linker=/system/bin/linker', '-Wl,--hash-style=sysv',
-                    '-Wl,--allow-shlib-undefined', '-o', str(work / 'invoke-bridge'),
+                    '-Wl,--allow-shlib-undefined', '-o', str(bridge),
                     str(source), str(jni), str(root / 'system/lib/libc.so')], env=env, check=True)
     print('JNI:', jni)
-    print('Bridge:', work / 'invoke-bridge')
+    print('Bridge:', bridge)
     print('QEMU:', work / 'qemu/usr/bin/qemu-arm-static')
     print('Android root:', root)
 

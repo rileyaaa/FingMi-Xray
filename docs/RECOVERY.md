@@ -1070,8 +1070,8 @@ arm64 目前有静态交叉证据，没有实际执行同一矩阵。正式 fait
 | 范围 | 相对 official | 证据与闭环级别 |
 | --- | --- | --- |
 | `Invoke`、request/response、API 版本及方法分发 | published modified | 官方只接受 0/1；发布 v7 实际接受 2，并暴露 TLS/HY2 探测、age key；ELF 还保留 `invokeGenerateAgeKeyPair` 等符号。重建 Go 和 18 个确定性 v7 响应对照通过。 |
-| `testXray`、`runXray`、`newXrayInstance` | published modified / published-only | 官方主路径读取 `configPath`；发布 JNI 是 inline `xrayJson`。ELF 中 `xray.TestXray` 与 `xray.newXrayInstance`，v7 已验证有效/无效 test、run、重复 run、状态与 stop。构造而不启动的 test、失败关闭由重建代码和静态证据约束；**run failure cleanup 与并发交错尚未发布运行对照**。 |
-| `StopXray`、`GetXrayState`、mutex、`memory.InitForceFree` | official available / 可继承 | 官方源码已有这些生命周期组件；发布 ELF 保留相应函数与 `coreServerMu`，v7 run→state→stop→state 响应一致。独立空 stop 与竞争调用未单独捕获，不声明机器码 identical。 |
+| `testXray`、`runXray`、`newXrayInstance` | published modified / published-only | 官方主路径读取 `configPath`；发布 JNI 是 inline `xrayJson`。ELF 中 `xray.TestXray` 与 `xray.newXrayInstance`，v7 已验证有效/无效 test、run、重复 run、状态与 stop。构造而不启动的 test、失败关闭由重建代码和静态证据约束；run failure cleanup 与并发交错见下方 26 组发布运行闭环。 |
+| `StopXray`、`GetXrayState`、mutex、`memory.InitForceFree` | official available / 可继承 | 官方源码已有这些生命周期组件；发布 ELF 保留相应函数与 `coreServerMu`，v7 run→state→stop→state 响应一致。独立空 stop、连续 stop 与竞争调用已由下方 barrier harness 捕获，不声明机器码 identical。 |
 | `PingBatch`、item `xrayJson`、`readPingOutbounds` | published modified | 官方 batch 主体、outbound 依赖合并与 worker 逻辑可继承；发布模型为内联 JSON，不是 `configPath`。发布 ELF 保留全部 batch helper，重建仅换输入路径；缺参/错误 v7 定向响应已覆盖，真实网络时延与取消竞争尚未覆盖。 |
 | TLS certificate probe | published-only | `xray/tls_cert_probe.go` 出现在发布 DWARF，官方无此文件或 Invoke 分发；uTLS/SNI/ALPN、DER SHA-256 重建，本地合成 TLS 成功与错误响应已和 v7 对照。 |
 | HY2 certificate probe | published-only | `xray/hy2_cert_probe.go` 出现在 DWARF，官方无此文件；重建 QUIC 握手实现。v7 缺参/关闭 UDP 端口 timeout 实测；**合成 QUIC 成功握手尚未与发布 native 对照，保持 static-only**。 |
@@ -1081,5 +1081,11 @@ arm64 目前有静态交叉证据，没有实际执行同一矩阵。正式 fait
 
 发布本地源码路径的 DWARF 编译单元共涉及 `invoke.go`、`share/age.go`、`xray/hy2_cert_probe.go`、`xray/tls_cert_probe.go`、`xray/validation.go`、`xray/xray.go`、`xray/ping_batch.go` 等；其中 age、两种 probe 是 official tree 不存在的文件。published-only gomobile 模型包括 AgeDecryptConfig/GenerateAgeKeyPairResponse、两类 Probe request/response；`RunXrayRequest`/`TestXrayRequest` 使用 inline 字段。该清单限定在项目 Go module 与实际 App Invoke 边界，不把 Xray-core 和 Go runtime 当成定制源码。
 
-当前仍不能声称 native 全部收口：HY2 成功响应、age 关键错误矩阵、run 失败/空 stop/并发状态缺发布运行对照。arm64 本轮只做静态 ELF/DWARF 检查，v7 的旧 fixture 是此前真实 ARM 执行；本轮未生成新的运行 fixture。发布原始 Go 源码未取得，现有补丁全部按 **reconstructed behavior** 标记。
+当前仍不能声称 native 全部收口：HY2 成功响应、age 关键错误矩阵仍缺发布运行对照。arm64 本轮只做静态 ELF/DWARF 检查，v7 的旧 fixture 是此前真实 ARM 执行；本轮新增生命周期运行 fixture（见下）。发布原始 Go 源码未取得，现有补丁全部按 **reconstructed behavior** 标记。
 
+
+### Native lifecycle / concurrency 闭环
+
+`published-v7-lifecycle.json` 冻结同一 v7 进程 26 组结果，含 4 组 pthread barrier 同时调用；`test-published-native-lifecycle.py` 接受 mutex 的两种合法顺序，不固定调度或使用 sleep。test 在端口被占用时仍成功且不改变运行态；run 中途 Start 失败后关闭已打开端口，随后可复用；重复 run 在解析配置前拒绝；空/连续 stop 成功；test 与已有实例相互独立。
+发布 objdump：`validation.go:6/10` 调用 new/Close、无 Start；`xray.go:45/50/51/54` 对应 new/Start/失败 Close/发布全局实例；run、state、stop 均调用 Mutex.Lock。重建 Go `TestPublishedLifecycle` 对相同不变量通过，仍标 reconstructed behavior。运行 `scripts/test-recovered-native-v2.py --source-archive <固定 official tar.gz> --go <Go1.26.3> --run '^TestPublishedLifecycle$'` 可独立复核。
+Invoke 无 cancel 方法；没有引入猜测的 native 抢占取消或实例替换。屏障测试覆盖合法竞态结果，不声称穷尽调度、任意 core panic 或网络内部取消；这些不改变已恢复的 wrapper 状态机。
