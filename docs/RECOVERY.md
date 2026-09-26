@@ -236,10 +236,11 @@ faithful normalizer 包含：
 - URI / IPv6 / port 边界；
 - Trojan / SS credential `+` 等现实兼容修补。
 
-固定 `libXray v26.7.28` 的分享链接转换源码已经直接核到 tag commit
-`80263da83e96b2972455b0a94b13ee1a10e51391`，因此 KCP / gRPC / WS 等
-transport 不再依赖 native 逆向猜测。该 tag 依赖的 Xray-core 为
-`v1.260327.1-0.20260728075948-5ca6f4b7d4dc`。
+固定官方 `libXray v26.7.28` 的分享链接转换源码已经直接核到 tag commit
+`80263da83e96b2972455b0a94b13ee1a10e51391`。该 tag 依赖的 Xray-core 为
+`v1.260327.1-0.20260728075948-5ca6f4b7d4dc`。它是发布 native 的可读基础版本，
+但**不能再把同版本号解释为发布 Go 源码与官方 tag 完全一致**：发布版
+`libgojni.so` 已确认包含定制 Invoke API。
 
 关键源码 / blob：
 
@@ -249,6 +250,39 @@ transport 不再依赖 native 逆向猜测。该 tag 依赖的 Xray-core 为
 - `share/stream.go` — `b488f2721294a7ee29d600eed86d2e15128bed1a`
 - `share/hysteria_mask.go` — `cbdc5e5b706a3d5e9bea9a0ebdbc7c2c1b9a5394`
 - `invoke.go` — `9e1ec1a8fe87934015d647eb0bbf17f4eec0dcfd`
+
+### 发布 Go JNI 与官方 tag 的差异
+
+2026-09-26 已直接从固定 full JADX 归档提取两 ABI 发布 `libgojni.so` 并核固定 SHA：
+
+- v7：`6f01f219fe4087790cd8e647394de9dbefc61e0d750d927924b93f120b06fb7e`
+- v8：`40b08a399871973ba6ad5898ca7097961337d7aeddb4b3378b153a66679eeece`
+
+两份 ELF 都保留 Go build info / symbol / source line 信息。实际静态 native 检查确认：
+
+- Go：`go1.26.3`，Android 21，NDK r29；
+- 两 ABI 都依赖同一 Xray-core `v1.260327.1-0.20260728075948-5ca6f4b7d4dc`；
+- `github.com/xtls/libxray` 不是按公开 tag module identity 直接构建，而是由本地 replacement
+  `C:\\Users\\Administrator\\Desktop\\Codex\\work\\libXray-final` 构建；
+- 发布 `Invoke` 的 `invoke.go:95` 原生指令明确比较 `apiVersion == 2`；不接受官方 tag 的“0 或 1”语义；
+- 发布 native 存在 `invokeProbeTLSCertificate` 与
+  `invokeProbeHysteria2Certificate`，官方固定 tag 的 Invoke 分发没有这两个入口；
+- 发布 `invokeTestXray` / `invokeRunXray` 的类型信息明确解码
+  `XrayJson string json:"xrayJson,omitempty"`，与 App 的内联 JSON 调用一致，而不是官方固定 tag 的 `configPath`；
+- 发布 `invokePingBatch` 的 item 同样包含 `XrayJson`；
+- 两 ABI 都包含 `transportFieldsFromURLQuery`、
+  `transportFieldsFromVmessQR`、`buildStreamFromTransportFields`、
+  `buildHy2FinalMask`、Trojan / Hy2 / VLESS / VMess outbound 等 converter 符号；
+- 发布 binary 的这些 share 函数仍映射到
+  `share/transport_build.go`、`share/hysteria_mask.go`、`share/parse_share.go`，
+  且关键函数起始源码行与固定官方 tag 对应文件一致（例如 29 / 51 / 78、12、595）。
+
+因此当前证据支持：**定制范围至少包含 Invoke API v2、内联运行配置、ping item 和证书探测；
+暂未发现 share transport converter 被单独改写的证据。** 后一句仍是静态证据结论，
+不是“发布 converter 源码已完整还原”或“native 输入输出已真实执行”的证明。
+
+可重复检查入口：`scripts/inspect-published-libxray-native.py`。该脚本只做发布二进制静态 gate，
+不会把 Android ARM JNI 当作当前主机可执行文件。
 
 发布版实际转换边界：
 
@@ -762,23 +796,12 @@ official AAR 的 x86 / x86_64 Go JNI、`classes.jar`、Manifest、resources、pr
 - `recovery-build.yml`
 - `recovery-upstream-snapshot.yml`
 
-当前全部使用：
+当前恢复、分析和构建 workflow 保持 `workflow_dispatch` 手动触发。
 
-`workflow_dispatch`
-
-没有恢复类 workflow 依赖 push / schedule 自动运行。
-
-项目规则：
-
-- 新 AC / Actions run 默认不允许；
-- 必须先说明目的并取得项目所有者明确授权；
-- 修改 workflow ≠ 获准执行 workflow；
-- 能用仓库 reference、本地脚本、已有证据完成的事情，不消耗 AC；
-- 不为了确认已知环境缺口盲跑 build。
-
-早期“两次无需询问”机会已耗尽，后续还有过项目所有者单独明确授权的运行；现在统一按 **每次新的 AC run 都先申请** 执行。
-
----
+项目所有者于 2026-09-26 更新授权：恢复工作需要的 GitHub Actions / AC 可直接执行，
+无需逐次询问且不设置次数上限；包括分析、依赖准备、测试、faithful APK 编译以及有明确原因的
+失败修复 / 重跑。旧的“10 次额度”“每次新的 run 先申请”和 faithful build 单独授权规则均已失效。
+授权不包括把 workflow 改成 push / pull_request / schedule 自动触发，也不包括自动发布正式版本或改变产品目标。
 
 ## 13.1 历史 Actions 结果的正确解释
 
@@ -819,7 +842,7 @@ official AAR 的 x86 / x86_64 Go JNI、`classes.jar`、Manifest、resources、pr
 | Xray Java / AIDL faithful 恢复 | 主要逻辑已恢复，当前无 `DEX_VERIFY` 残留 |
 | VOD / Live / Player 静态行为 | 主要发布路径已对照 |
 | Binder / Service / generation / timeout | 已做 APK / DEX 静态对照 |
-| 分享链接 / 证书 / 设置 / 导入 | 已做主要静态恢复 |
+| 分享链接 / 证书 / 设置 / 导入 | Java faithful 已做主要静态恢复；发布 Go JNI 已确认 API v2 / inline JSON / probe 定制及 share converter 符号；native converter 输入输出执行回归仍未完成 |
 | TV 待机网络恢复 | faithful 已恢复；普通工程也已接入对应 6 文件 |
 | Leanback UI / 资源 | 主要资源已恢复；6 个 TV Activity 共 77 个 ViewBinding 字段已有对应 layout id 的静态检查 |
 | faithful source-only 组装 | 已验证 |
@@ -911,11 +934,20 @@ official AAR 的 x86 / x86_64 Go JNI、`classes.jar`、Manifest、resources、pr
 
 ### 阻塞 B：faithful build 尚未运行
 
-native artifact 本地 / 静态复核通过后，再单独申请 faithful build 授权。
+native artifact 本地 / 静态复核通过后，直接运行已授权的 faithful build 手动入口。
 
 首次目标是 v7 Leanback debug faithful compile，用来暴露真实 Java / resource / Gradle 问题。
 
-### 阻塞 C：设备回归尚未开始
+### 阻塞 C：发布 native converter 输入输出回归尚未执行
+
+当前已拿到两 ABI 固定发布 `libgojni.so` 并完成真实二进制静态 gate，但它们是 Android ARM ELF，
+当前普通 Linux/JDK 环境不能冒充匹配执行环境。下一步需要在 Android ARM 匹配环境中，用合成节点
+直接调用发布 `LibXray.invoke`，冻结“原始输入 → Java normalize/security → native JSON → runtime config”
+结果，重点覆盖 KCP / VMess QR KCP、HY2、Trojan、SS/SIP003、IPv6、重复/冲突参数和错误返回。
+
+在这项执行回归完成前，不把官方 share 源码或当前 faithful 实现自产出的 JSON 当作发布 native 的 expected。
+
+### 阻塞 D：设备回归尚未开始
 
 编译成功后按第 15 节回归表测试。
 
