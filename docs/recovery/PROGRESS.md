@@ -32,3 +32,6 @@
 
 
 2026-09-26 构建准备：发布 Go JNI 的逐文件 SHA 门及官方 libXray 非 JNI 条目比较已接入仅手动的 faithful 构建工作流，候选播放器与 decoder 仍过固定哈希/条目门。两项假包单元测试通过，YAML/shell 静态解析通过；尚未运行恢复依赖工作流或 faithful APK 编译，状态仍为未完成。
+
+
+2026-09-26 本轮补核：Go JNI v7/v8 发布版逐文件哈希已从历史双 ABI APK 报告固定，并成为重包与 faithful 构建早停门。实验网络类的 SOCKS5 回环握手收到未解析主机名；仅本地假服务。没有真实 APK 重包或整套 Android 编译，本表的 faithful 编译状态仍为未完成。
