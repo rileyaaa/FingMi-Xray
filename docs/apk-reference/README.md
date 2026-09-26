@@ -73,6 +73,7 @@ v7 JADX 工作流记录的 JADX exit code 为 3，但完整 `sources/` 已正常
 - `shared/apk-diff.txt`：在核两份 APK 总 SHA 后生成的 ZIP entry 差异摘要；
 - `shared/source-parity.txt`：selected source 对照范围和结论；
 - `v7/ip0.java`、`v8/ip0.java`：唯一 selected-source 差异。
+- `native-share-symbols.json`：发布 v8 JNI 的 share/helper/Invoke 清理函数 Go symbol、定制源码行与虚拟地址；实际执行 fixture、局部 Go patch、复现命令及边界统一维护于 `../RECOVERY.md` 第 11 节和 `recovery/native-tests/`。
 
 ## 使用规则
 
@@ -81,3 +82,4 @@ v7 JADX 工作流记录的 JADX exit code 为 3，但完整 `sources/` 已正常
 3. 不把反编译类名当正式 API。
 4. 不直接复制 unreviewed JADX 到维护源码。
 5. 本目录不提交原始 APK、`classes*.dex`、AAR、SO 等大型二进制；只保存文本证据、哈希和可复核来源。
+

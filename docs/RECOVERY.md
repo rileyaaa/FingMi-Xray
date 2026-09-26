@@ -275,7 +275,7 @@ faithful normalizer 包含：
   `buildHy2FinalMask`、Trojan / Hy2 / VLESS / VMess outbound 等 converter 符号；
 - 发布 binary 的这些 share 函数仍映射到
   `share/transport_build.go`、`share/hysteria_mask.go`、`share/parse_share.go`，
-  且关键函数起始源码行与固定官方 tag 对应文件一致（例如 29 / 51 / 78、12、595）。
+  关键函数保留可定位的定制源码行号（例如 transport 29 / 51 / 78、hysteria mask 12、hysteria outbound 595），不代表文件内容与 official tag 一致。
 
 进一步把发布 JNI 与 official AAR 的实际 Go symbol set 做双 ABI 交叉比较后，已确认
 **share converter 本身也存在发布版定制**。发布 v7 / v8 同时出现、而 official AAR 对应 symbol set
@@ -299,8 +299,7 @@ legacy KCP helper 位于 `transport_build.go:161/182`。这证明 KCP / HY2 / Tr
 
 因此当前确认的定制范围至少包含：**Invoke API v2、内联运行配置、ping item、证书探测，
 以及 share converter 的 legacy SS、HY2 multi-port/pin、ALPN/port 解析和 legacy KCP 兼容。**
-这些 helper 的存在与源码位置属于直接二进制证据；其逐分支可读 Go 源码和发布 native
-输入输出 expected 仍在恢复中，不能把函数名推断写成已完整还原源码。
+这些 helper 的存在与源码位置属于直接二进制证据。现已有 327 条真实发布 native 转换响应约束的最小 Go patch，范围、复现命令与未恢复部分见第 11 节；这不是原始源码或完整 JNI 恢复。
 
 可重复检查入口：`scripts/inspect-published-libxray-native.py`。该脚本只做发布二进制静态 gate，
 不会把 Android ARM JNI 当作当前主机可执行文件。
@@ -310,7 +309,7 @@ legacy KCP helper 位于 `transport_build.go:161/182`。这证明 KCP / HY2 / Tr
 - Java 先做 compatibility normalizer / TLS pin 安全处理；
 - 然后通过 libXray `convertShareLinksToXrayJson` 生成单个 outbound；
 - URL transport 的 `type` 为空时按 `raw`；
-- `type=kcp/mkcp` → `KCPSettings`，保留 `headerType` 和 `seed`；
+- `type=kcp/mkcp` → `KCPSettings` + legacy `finalmask`；不把旧 `header/seed` 写回已移除字段，存在性、MTU 与 mask 顺序见第 11 节；
 - `type=ws/websocket` → `WSSettings(path, host)`；
 - `type=grpc/gun` → `GRPCSettings(authority, serviceName, mode=multi)`；
 - `type=httpupgrade` → `HTTPUPGRADESettings(host, path)`；
@@ -745,6 +744,61 @@ FongMi 5.6.0 所需自制 `lib-*.aar` 不在上游 Git 中。
 
 official AAR 的 x86 / x86_64 Go JNI、`classes.jar`、Manifest、resources、proguard、R.txt 等其他 entry 均逐字节保持不变，ZIP entry 名称和顺序一致。
 
+### 可执行发布 native 基准与局部 Go 源码恢复
+
+**验证状态：v7 JNI 原始字节执行；364 条响应冻结；327 条转换响应与局部 Go 恢复完全匹配；26 条 Java/runtime 链路通过 native `testXray`。**
+
+`recovery/libxray/share-converter-recovery.patch` 基于固定官方 commit `80263da83e96b2972455b0a94b13ee1a10e51391`，Go `1.26.3`，保持官方锁定的 xray-core module。它是依据 DWARF / Go 反汇编与真实响应重建的可读实现，不是找回的原始 `libXray-final`。已查仓库分支/相关历史及可访问 GitHub 源码索引，没有定位到原定制源码；搜索范围与工具限制不能用来证明源码不存在。
+
+新增恢复文件放在 `share/recovered_compat.go`、`recovered_share_cleanup.go`，其余为固定上游的最小接入修改；上游两条原本断言 KCP 被拒绝的测试改为发布版 mask/MTU 语义。补丁刻意保留官方 API dispatcher：**Go 差分测试直接调用 conversion handler，不声称此补丁已实现 API v2。** 完整 dispatcher、inline lifecycle/ping、证书探测和 age 订阅解密未恢复。静态发现发布 `invokeConvertShareLinksToXrayJson` 还调用 `ConvertShareLinksToXrayJsonWithAge`，这也是继续恢复的明确入口。
+
+真实执行环境由 `scripts/prepare-native-converter-harness.py` 构建：Linux x86_64 上使用 QEMU ARM user mode + 固定 Android API24 Bionic/linker，加载未经修改、命中发布 SHA 的 v7 SO。`invoke_bridge.c` 调用导出的 gomobile `proxylibXray__Invoke`，进入实际 `libxray.Invoke`。输入 UTF-8、输出 UTF-16LE；Android Go 初始化会把 stdout/stderr 重定向到 logcat，因此响应使用继承 FD 3。脚本核 SO SHA 与 bridge 的绝对 DT_NEEDED 路径，不使用重建 converter 冒充 native。
+
+| 冻结文件（`recovery/native-tests/`） | 调用数 | native success / rejection | 责任 |
+| --- | ---: | ---: | --- |
+| `published-v7.json` | 221 | 145 / 76 | API v2、协议、transport、编码、错误矩阵 |
+| `published-v7-boundary.json` | 91 | 55 / 36 | 参数缺失/空值、XHTTP 有效模式、pin/obfs/端口边界 |
+| `published-v7-chain.json` | 26 | 26 / 0 | Java normalize/security 后交给真实 native 的转换 |
+| `published-v7-runtime-validation.json` | 26 | 26 / 0 | RuntimeConfigFactory 产物交回 native inline `testXray` |
+
+rejection 是发布版应有的响应，不是失败测试。每项保存 request、解析响应和原始 response 字符串；文件 SHA 固定在 `recovery/libxray/upstream.json`。输入仅使用合成节点/UUID/密码/指纹。Go 差分比较完整 JSON 结构、值、数组顺序及错误文本，不根据候选实现生成 expected。
+
+链路测试执行当前 `recovery/legacy-src` 的 normalizer、安全层、LegacyLibXrayApi 和 RuntimeConfigFactory；证书探测固定返回合成指纹，store 仅内存。Java JNI test boundary 重放刚从真实 SO 捕获的响应，且断言 API version、method、最终链接与调用次数；不是自制 outbound。runtime 不被当成“发布 APK 独立 expected”，仅检查已静态恢复的不变量，再交实际 native `testXray` 验证。Android Keystore、ART/JNI 生命周期、联网证书探测、VOD/Live/RTSP/HTTP 播放不在此结论内。
+
+已由执行与反汇编共同确认的行为：
+
+| 定制点 | 发布行为 |
+| --- | --- |
+| API | 只接受 version 2；缺失/0/1/3/-1 被拒绝。`testXray` 使用 `xrayJson`；仅提供 configPath 返回 EOF |
+| userinfo | `PathUnescape(user.String())`；Trojan literal `+` 与 `%2B` 都为 `+`，`%252B` 只解码一次 |
+| KCP 参数存在性 | URL 使用 headerType/seed key 是否存在；QR 则按 type/path 非空。两者全缺失时不自动产生 legacy mask |
+| KCP mask | 始终先放 `mkcp-legacy {header:"",value:seed}`；非空 header 再加第二个 mask。none/空归为空；wechat-video→wechat；trim+lower |
+| KCP MTU | `1350 - header开销 - (seed存在 ? 16 : 6)`；header 开销 none=0、dns=31、dtls/wechat=13、srtp/utp/wireguard=4 |
+| KCP override/tuning | 显式非空 fm 跳过 legacy mask/MTU；URI mtu/tti/uplink/downlink/congestion/readBuffer/writeBuffer 不被此 converter 映射 |
+| HY2 端口 | 默认 443；authority 443,8443 或范围先改成首端口并追加 ports；IPv6 保持方括号语义；authority hopping 与 ports key（即使空值）冲突 |
+| HY2 两层责任 | native 不直接转换 mport，Java normalizer 负责。authority hopping 严格验证每段；直接 query ports 交 core PortList，不能套用同一验证规则 |
+| HY2 pin | pinSHA256 去首尾空白、冒号/短横线并转小写，要求64hex；重复、空值或同时存在 pcs key 被拒绝；由 pinSHA256 转换的 pin 会抑制 insecure=1 |
+| HY2 obfs | 类型 trim+lower；salamander 要求非空 password；仅 password、未知类型和 gecko 拒绝；hop-interval 只接受 int32 十进制，10s 拒绝 |
+| ALPN | trim；优先解析 JSON 字符串数组，失败回退逗号分隔；逐项去空白/空项，保留顺序与重复 |
+| SS | legacy 整体 Base64 与 SIP002 credentials 支持；native 直接拒绝 plugin key。Java 将 v2ray-plugin 转为 stream query 后可通过 |
+| Invoke 清理 | JSON marshal/unmarshal 后递归处理对象/数组；仅删除 kcpSettings 的 null header/seed 与 realitySettings 的 null target/dest。不是删除所有 null 字段 |
+
+覆盖 Trojan/VLESS/VMess/SS/HY2，KCP/mKCP、raw/tcp、WS、gRPC、HTTPUpgrade、XHTTP/SplitHTTP、TLS/Reality、IPv6、重复/冲突参数与错误返回。旧“native KCP 保留已移除 header/seed 字段”说法已更正；core 模块无需为这些已测行为打补丁。
+
+可重复入口（Linux x86_64；需要 Python 3.12+、Go 1.26.3、Java 17、curl、dpkg-deb、debugfs、readelf、patch）：
+
+```sh
+python3 scripts/prepare-native-converter-harness.py --workdir /tmp/fongmi-native --v7-jadx /path/to/v7-full-jadx-v5.6.0-xray.5.zip
+python3 scripts/run-published-libxray-converter.py --cases recovery/native-tests/cases.json --jni /tmp/fongmi-native/published-v7-libgojni.so --bridge /tmp/fongmi-native/invoke-bridge --qemu /tmp/fongmi-native/qemu/usr/bin/qemu-arm-static --android-root /tmp/fongmi-native/android/root --expected recovery/native-tests/published-v7.json
+python3 scripts/test-recovered-libxray.py --workdir /tmp/fongmi-go --go /path/to/go1.26.3/bin/go
+python3 scripts/test-native-share-chain.py --workdir /tmp/fongmi-native --jni /tmp/fongmi-native/published-v7-libgojni.so --bridge /tmp/fongmi-native/invoke-bridge --qemu /tmp/fongmi-native/qemu/usr/bin/qemu-arm-static --android-root /tmp/fongmi-native/android/root
+```
+
+边界 fixture 可将第二条命令的输入/expected 换成 `boundary-cases.json` / `published-v7-boundary.json`。Go 入口每次从 SHA 校验的官方 archive 解包，零 fuzz 应用 patch，运行 share suite 和 327 条 native 差分，已实际通过；链路入口 26/26 已实际重跑通过。下载依赖均有脚本内固定 SHA；不安装系统包，不提交大二进制，不启动 core 播放会话。
+
+静态定位索引见 `docs/apk-reference/native-share-symbols.json`，包含原定制源码路径/行号、v8 符号地址与 cleanup 字符串地址，可用 `go tool objdump -s <symbol> <pinned.so>` 复核。v8 尚未在此 harness 中执行；API v2 全量源码/探测/age 与 arm64 执行、faithful build、设备回归仍为下一阶段工作。
+
+
 ---
 
 ## 12. Faithful 构建链
@@ -863,7 +917,7 @@ official AAR 的 x86 / x86_64 Go JNI、`classes.jar`、Manifest、resources、pr
 | Xray Java / AIDL faithful 恢复 | 主要逻辑已恢复，当前无 `DEX_VERIFY` 残留 |
 | VOD / Live / Player 静态行为 | 主要发布路径已对照 |
 | Binder / Service / generation / timeout | 已做 APK / DEX 静态对照 |
-| 分享链接 / 证书 / 设置 / 导入 | Java faithful 已做主要静态恢复；发布 Go JNI 已确认 API v2 / inline JSON / probe 定制及 share converter 符号；native converter 输入输出执行回归仍未完成 |
+| 分享链接 / 证书 / 设置 / 导入 | Java faithful 已做主要静态恢复；实际 v7 JNI 已冻结 364 条响应，Go converter 差分 327/327，Java→native→runtime→inline testXray 26/26；证书联网探测、ART 与设备播放未验证 |
 | TV 待机网络恢复 | faithful 已恢复；普通工程也已接入对应 6 文件 |
 | Leanback UI / 资源 | 主要资源已恢复；6 个 TV Activity 共 77 个 ViewBinding 字段已有对应 layout id 的静态检查 |
 | faithful source-only 组装 | 已验证 |
@@ -959,14 +1013,11 @@ native artifact 本地 / 静态复核通过后，直接运行已授权的 faithf
 
 首次目标是 v7 Leanback debug faithful compile，用来暴露真实 Java / resource / Gradle 问题。
 
-### 阻塞 C：发布 native converter 输入输出回归尚未执行
+### 阻塞 C：完整定制 JNI 源码与设备执行尚未闭环
 
-当前已拿到两 ABI 固定发布 `libgojni.so` 并完成真实二进制静态 gate，但它们是 Android ARM ELF，
-当前普通 Linux/JDK 环境不能冒充匹配执行环境。下一步需要在 Android ARM 匹配环境中，用合成节点
-直接调用发布 `LibXray.invoke`，冻结“原始输入 → Java normalize/security → native JSON → runtime config”
-结果，重点覆盖 KCP / VMess QR KCP、HY2、Trojan、SS/SIP003、IPv6、重复/冲突参数和错误返回。
-
-在这项执行回归完成前，不把官方 share 源码或当前 faithful 实现自产出的 JSON 当作发布 native 的 expected。
+v7 share converter 的真实 native 输入输出与 26 条 Java/runtime 配置链路已执行通过，不再是“ARM JNI 不能运行”的阻塞。
+当前补丁只恢复 share URI / VMess QR 与转换后的 JSON 清理；API v2 dispatcher、内联 lifecycle/ping、TLS/HY2 certificate probe、age 解密仍需恢复与独立测试。
+arm64 目前有静态交叉证据，没有实际执行同一矩阵。正式 faithful 依赖继续使用固定发布 SO，不能换成这个局部补丁的构建产物。
 
 ### 阻塞 D：设备回归尚未开始
 
@@ -1001,3 +1052,4 @@ native artifact 本地 / 静态复核通过后，直接运行已授权的 faithf
 4. 再开始下一项。
 
 这样下一位接手者不需要重新完整阅读仓库来判断“之前到底做到哪里”。
+
