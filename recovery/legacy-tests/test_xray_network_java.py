@@ -1,6 +1,8 @@
 from pathlib import Path
+import socket
 import subprocess
 from tempfile import TemporaryDirectory
+from threading import Thread
 
 ROOT = Path(__file__).resolve().parents[2]
 NETWORK = ROOT / "xray/src/main/java/com/fingmi/xray/network"
@@ -17,7 +19,7 @@ STUBS = {
 
 HARNESS = """package com.fingmi.xray.network;
 public class NetworkCheck {
-    public static void main(String[] args) {
+    public static void main(String[] args) throws Exception {
         String[] blocked = {"localhost", "a.local", "127.0.0.1", "10.0.0.1",
             "192.168.1.1", "169.254.1.1", "100.64.0.1", "0.1.2.3",
             "224.0.0.1", "198.18.0.1", "192.0.2.1", "198.51.100.1",
@@ -32,6 +34,14 @@ public class NetworkCheck {
                 throw new AssertionError("blocked public: " + host);
         }
         System.out.println("17 blocked and 4 allowed destinations passed");
+        if (args.length > 0) {
+            java.net.Proxy proxy = new java.net.Proxy(java.net.Proxy.Type.SOCKS,
+                java.net.InetSocketAddress.createUnresolved("127.0.0.1", Integer.parseInt(args[0])));
+            try (java.net.Socket s = new XrayProxySocketFactory(proxy)
+                    .createSocket("unresolved.invalid", 443)) {
+                System.out.println("SOCKS connection established");
+            }
+        }
     }
 }
 """
@@ -53,4 +63,30 @@ with TemporaryDirectory() as temp:
     subprocess.run(["java", "com.sun.tools.javac.Main", "-d", str(root),
                     *map(str, source_files)], check=True)
     print("Three Xray network classes compiled against minimal OkHttp interfaces")
-    subprocess.run(["java", "-cp", str(root), "com.fingmi.xray.network.NetworkCheck"], check=True)
+    observed = []
+    with socket.socket() as listener:
+        listener.bind(("127.0.0.1", 0))
+        listener.listen(1)
+        listener.settimeout(5)
+
+        def serve():
+            with listener.accept()[0] as peer:
+                peer.settimeout(5)
+                greeting = peer.recv(4)
+                assert greeting[:2] == b"\x05\x02" and b"\x00" in greeting[2:], greeting
+                peer.sendall(b"\x05\x00")
+                header = peer.recv(4)
+                assert header == b"\x05\x01\x00\x03", header
+                length = peer.recv(1)[0]
+                observed.append(peer.recv(length).decode("ascii"))
+                port = peer.recv(2)
+                assert port == b"\x01\xbb", port
+                peer.sendall(b"\x05\x00\x00\x01\x7f\x00\x00\x01\x00\x00")
+
+        server = Thread(target=serve)
+        server.start()
+        subprocess.run(["java", "-cp", str(root), "com.fingmi.xray.network.NetworkCheck",
+                        str(listener.getsockname()[1])], check=True, timeout=10)
+        server.join(timeout=5)
+    assert observed == ["unresolved.invalid"], observed
+    print("SOCKS5 received the unresolved hostname")
