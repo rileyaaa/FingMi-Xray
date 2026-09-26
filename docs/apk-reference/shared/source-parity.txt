@@ -4,8 +4,8 @@ Release: v5.6.0-xray.5
 Primary ABI: armeabi-v7a
 Cross-check ABI: arm64-v8a
 
-Selected Java files: 65
-Byte-identical between v7 and v8: 64
+Selected Java files: 64
+Byte-identical between v7 and v8: 63
 Different: 1
 Missing from either artifact: 0
 
