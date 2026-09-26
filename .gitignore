@@ -8,6 +8,5 @@
 *.properties
 lib-*.aar
 /Release
-/docs
 /recovery/work/
 /libxray/libs/libXray.aar
