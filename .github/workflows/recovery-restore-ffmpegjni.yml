@@ -57,6 +57,9 @@ jobs:
             "$V8_SHA256" recovery/work/verified/v8.apk \
             "$CANDIDATE_SHA256" recovery/work/verified/candidate.zip \
             | sha256sum -c -
+          python3 scripts/inspect-published-libxray-native.py \
+            --v7-apk recovery/work/verified/v7.apk \
+            --v8-apk recovery/work/verified/v8.apk
 
       - name: Restore exactly two published JNI binaries
         shell: bash
