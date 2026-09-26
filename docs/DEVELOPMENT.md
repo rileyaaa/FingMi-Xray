@@ -221,6 +221,13 @@ Xray Core、Binder、share-link、安全、session generation、SOCKS 资源应�
 - 静态门：合并的 94 个 Java 文件经 tree-sitter 解析无语法错误，15 个 XML 解析通过；关键 HTTP/DRM/RTSP、Libass、VOD/Live 弹幕和 Download 代理调用点已核对。模块的纯 JVM session identity 与 network epoch smoke，以及 reconstructed native 定向 Go regression 在各自代码提交前通过。**尚未在 5.6.3 HEAD 上完成 Gradle/Android 编译或 TV 设备回归**；当前容器无 Android SDK，GitHub 插件未提供 `workflow_dispatch`，不得把静态门写成构建通过。
 - 后续编译重点：目标版新增的 Media3 Libass API/依赖、两种 ABI、Manifest/AIDL/resources，及 TV 待机后真实网络恢复。构建必须使用手动 `workflow_dispatch`，不得改 workflow 触发条件。
 
+
+### 5.6.3 编译依赖门的确定阻塞
+
+目标上游 5.6.3 新增 `androidx.media3.exoplayer.libass.*`、`SecondaryTextTrackSelector` / `SecondaryTextOutput` 等引用。固定候选 `fongmi-media3-aar-candidate-1.11.0` 的 artifact `10859533459` 下载后 SHA-256 为 `0ed42581af11ac7163ebde148b318807c244e2a318f40c41d33f50b70bf967ee`，其 `lib-exoplayer-release.aar/classes.jar` 缺少这些类；固定 `FongMi/media@3c2cbe8a` 公开树也没有相应源码。上游 FongMi/TV issue #729 明确报告了相同缺失，上游回复未提供源码。故旧候选不能支持完整 5.6.3 Android 编译；不能因为三方合并语法通过就宣称升级构建成功。
+
+临时编译桩会牺牲新版 Libass/双字幕行为，只能作为 **compile-only** 诊断，不能作为正式产品依赖或完整 5.6.3 功能验收。优先取得可核 SHA 的相应 Media3 产物或恢复可运行的实现，再做 v7/arm64 Gradle build。现有 `recovery-build.yml` 仍编译 5.6.0 faithful 源，不是 5.6.3 构建门。当前插件可读取 Actions 和产物，却没有 `workflow_dispatch` 操作；浏览器未登录私有仓库，未触发当前 HEAD 的构建。
+
 ### 稳定接线边界
 
 `:xray` 持有播放会话、generation、service/Binder 和代理网络资源；app 播放链保留薄接线：VOD/Live 身份变更、手动开启、媒体 URL、播放器重建、媒体/DRM/RTSP 工厂以及弹幕、字幕、直播 metadata。Home/Search/Detail/普通 Spider 不因播放 Xray 改成全局代理。TV 恢复独立于 `:xray`，用 network generation 判定旧对象，在前台/屏幕/网络切换时按序重建 app、DNS/DoH 和 Spider 资源，保留 Fast Start 状态。
