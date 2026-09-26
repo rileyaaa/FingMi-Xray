@@ -713,22 +713,11 @@ FongMi 5.6.0 所需自制 `lib-*.aar` 不在上游 Git 中。
 - 后续经明确授权的 run `36124817040` 完整成功，产生 artifact `10859533459`，其中 16 个候选 AAR 与清单 SHA-256 一致；这是当前固定 player candidate 的来源。
 - 提交标题、workflow 是否存在、或 run 总体红/绿灯，都不能替代“具体哪一步成功、实际 artifact 内容和哈希是什么”的核查。
 
-## 13.2 高风险 faithful 修复锚点
+## 13.2 高风险行为的维护规则
 
-以下改动是后续 AI 最不应重新“简化”的恢复锚点。这里只保留结论和主要提交，不重复完整调试过程：
+第 5 节已经冻结发布版行为，第 8 节记录 DEX 纠错依据，第 9 节记录恢复时最容易被“合理化重写”破坏的细节。后续维护不要再单独复制一张 commit / 风险表；需要追溯具体修改时直接查 Git 历史。
 
-| 风险 | 当前结论 | 主要提交 / 位置 |
-| --- | --- | --- |
-| Xray Exo 复用普通直连 cache | Xray session 绕开普通磁盘 cache 上游，避免代理身份被直连 cache 污染 | `7b7261c`、faithful `ExoMediaSourceFactory` |
-| DRM license 走普通网络 | Xray session 给 DRM 使用同一 proxy-aware `DataSource.Factory` | `764773b` |
-| DataSource delegate open 抛错后不 close | open 前先设置可关闭状态，保证失败路径仍能清 delegate | `797a7f3`、`0c82399`、`ff58feb` |
-| RTSP 本地解析 hostname / 空白 UA | unresolved SOCKS hostname；UA 以 Unicode whitespace 判定 | `fd2ea8c` |
-| Hysteria2 / VMess JADX 反转 | authority hopping、obfs、port scale、authority 条件均按原始 DEX 修正 | `bb4572f`、`e61e0ed`、`49fbd4f` |
-| ALPN / pin / libXray error 细节漂移 | 发布版 JSON / ASCII pin / Unicode whitespace 语义已恢复 | `eb2eb7a`、`3d79878`、`74a4ef4` |
-| cleanup worker 线程属性 | Xray proxy cleanup 与 core worker 均为 daemon | `bfab3c8` 附近恢复提交 |
-| TV 网络恢复缺普通 app 接线 | Home / BaseLoader / SiteViewModel / TvNetworkLifecycle / OkDns / OkHttp 已同步入普通工程 | 当前普通工程与 faithful 文件逐字节核对 |
-
-这些提交是定位依据，不代表对应范围已经经过 Android TV 设备验证。
+尤其不要在缺少新证据时简化 generation、timeout、private-process 收口、SOCKS unresolved hostname、DRM/RTSP 网络身份、cache/preload 边界、证书 pin 和 TV 网络恢复语义。
 
 ## 13.3 已完成的静态组装门
 
@@ -760,7 +749,7 @@ FongMi 5.6.0 所需自制 `lib-*.aar` 不在上游 Git 中。
 | faithful source-only 组装 | 已验证 |
 | Player candidate AAR | 已取得固定候选 |
 | Player selected Java API | 14 类 / 54 方法匹配 |
-| Player native | 每 ABI 11 件中 10 件同发布版、1 件 FFmpeg JNI 不同 |
+| Player native | 固定候选每 ABI 11 件中 10 件与发布版相同；第 11 件 FFmpeg JNI 候选不同，但已从固定发布证据恢复并生成 faithful decoder AAR |
 | FFmpeg JNI 真包恢复 | 已从固定 full JADX 证据恢复；faithful decoder AAR 已持久保存并核只有两 JNI entry 改变 |
 | libXray Go JNI 真包恢复 | 脚本与合成测试就绪；真实恢复未执行 |
 | native dependency workflow | 已配置且手动；未实际成功跑完 |
