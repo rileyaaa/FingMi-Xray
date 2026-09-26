@@ -792,9 +792,9 @@ official AAR 的 x86 / x86_64 Go JNI、`classes.jar`、Manifest、resources、pr
 | faithful source-only 组装 | 已验证 |
 | Player candidate AAR | 已取得固定候选 |
 | Player selected Java API | 14 类 / 54 方法匹配 |
-| Player native | 固定候选每 ABI 11 件中 10 件与发布版相同；第 11 件 FFmpeg JNI 候选不同，但已从固定发布证据恢复并生成 faithful decoder AAR |
-| FFmpeg JNI 真包恢复 | 已从固定 full JADX 证据恢复；faithful decoder AAR 已持久保存并核只有两 JNI entry 改变 |
-| libXray Go JNI 真包恢复 | 已从固定 full JADX 发布证据恢复；official / faithful AAR 均持久保存，只有 v7/v8 两个 Go JNI entry 改变 |
+| Player native | 固定候选每 ABI 11 件中 10 件与发布版相同；第 11 件 FFmpeg JNI 候选不同，但已从固定发布证据恢复并生成 faithful decoder AAR；真实本地 gate 已确认只有 v7/v8 两个 `libffmpegJNI.so` entry 改变 |
+| FFmpeg JNI 真包恢复 | 已从固定 full JADX 证据恢复；faithful decoder AAR 已持久保存；2026-09-26 真实本地 gate 通过，entry 名称/顺序不变且只有 v7/v8 两个 `libffmpegJNI.so` 改变 |
+| libXray Go JNI 真包恢复 | 已从固定 full JADX 发布证据恢复；official / faithful AAR 均持久保存；2026-09-26 真实本地 gate 通过，Java `invoke(String): String` 存在，entry 名称/顺序不变且只有 v7/v8 两个 Go JNI entry 改变 |
 | native dependency workflow | 已配置且手动；未实际成功跑完 |
 | faithful Gradle build | 未完成 |
 | Android TV v7 真机回归 | 未完成 |
@@ -838,6 +838,24 @@ official AAR 的 x86 / x86_64 Go JNI、`classes.jar`、Manifest、resources、pr
 ---
 
 ## 16. 当前阻塞与下一步
+
+### 已通过的真实本地 native gate
+
+2026-09-26 在不启动 AC 的情况下，对两份实际 faithful 依赖重新执行真实本地校验：
+
+- `libXray-v26.7.28-faithful.aar`
+  - SHA-256：`f531a138e82fa08848e47cf22537c69df29227b07eba7d19c2ad3740af657365`
+  - Java `LibXray.invoke(String): String` 存在；
+  - v7 / v8 `libgojni.so` 命中固定发布 SHA；
+  - 与 official AAR 相比只变化两个 v7 / v8 Go JNI entry；
+  - x86 / x86_64 JNI 和所有其他 entry 逐字节不变。
+- `lib-decoder-ffmpeg-release-faithful.aar`
+  - SHA-256：`31a1db2570416147cc6889643d25345477977205d60a61a6df525ffa5a623a13`
+  - v7 / v8 `libffmpegJNI.so` 命中固定发布 SHA；
+  - 与固定 player candidate 的 decoder AAR 相比只变化两个 v7 / v8 `libffmpegJNI.so` entry；
+  - ZIP entry 名称和顺序保持不变。
+
+这说明本地 faithful native 输入已经通过内容门。当前剩余的是把同样的输入通过手动 GitHub workflow 生成受来源约束的云端 native dependency artifact，再进入 faithful Gradle build。
 
 ### 阻塞 A：云端 native dependency artifact 尚未生成
 
