@@ -142,3 +142,6 @@
 - 新增 `recovery/legacy-tests/test_restore_published_libxrayjni.py`：合成双 ABI APK/AAR 的正例、禁止覆盖及 APK 篡改负例，`python3 -m unittest -v` 1/1 通过；`py_compile` 通过。假包测试不证明真实 Go JNI 已取得或与官方版本等价。
 - 手动 `.github/workflows/recovery-restore-ffmpegjni.yml` 在核官方 AAR 的 Java 入口与双 ABI 文件存在后调用该脚本，上传恢复后的 `recovery/work/restored/libXray.aar` 和两个 JNI 的 SHA 清单，同时记录官方与恢复 AAR 的 SHA。工作流仍只允许 `workflow_dispatch`，没有实际触发，也没有花费新的 Actions 运行；YAML 解析检查通过。
 - 本段源码、测试、工作流已依次提交 main：`ba03c299c6d2f273d007e39898ed165a9bd8b172`、`5710653c1de730fb725bcf010211050038f634c4`、`17c35876249572d64426571352b3fbfb93ef8458`。仍未取得原 v7/v8 APK、未完成 decoder FFmpeg JNI 的真实替换、未运行 faithful APK 编译或电视回归；正式 Xray 模块迁移门槛未改变。下一步检查手动工作流输入/输出路径与恢复结果的导入门，再继续静态源码核对。
+
+- 继续恢复上一会话未落入 main 的实验模块网络改动：`PublicPlaybackDestinationInterceptor` 从已按发布版 DEX 核对的 faithful 拦截器移植数字 IPv4/IPv6 字面值解析与保留地址规则，不对普通主机名做本地 DNS；新增 `XrayProxySocketFactory` 保持 RTSP 字符串主机重载的 unresolved SOCKS 连接；`XrayHttpClient` 提供 RTSP 工厂并按 faithful 顺序先关闭 Dispatcher、再由 daemon 单线程异步 cancel/evict。依次提交 `d53d008f61fab92f88f2a7e2aca38cc2b2f1c615`、`7e6d2631dfe81cad36bd58ec2cc32ee01a5123fc`、`af1d74bcdea32b3b83fda99ce51c52c93c3293af`。
+- 这三个文件在普通 app 已依赖的实验 `:xray` 模块，不改变 faithful 覆盖层；源码移植和静态校验已做，本机只有 Java runtime、没有 `javac`/Android SDK/Gradle，因此没有 Java/Android 编译或 RTSP 真机验证。普通 app 的播放器仍未完整接入 Xray 会话，新增 RTSP 工厂尚无调用者，不能声称普通播放代理已恢复。
