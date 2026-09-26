@@ -2,6 +2,8 @@ package com.fingmi.xray.network;
 
 import java.net.InetSocketAddress;
 import java.net.Proxy;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -11,10 +13,22 @@ import okhttp3.OkHttpClient;
 
 public final class XrayHttpClient implements AutoCloseable {
 
+    private static final ThreadPoolExecutor CLEANUP_EXECUTOR = new ThreadPoolExecutor(
+            0, 1, 5L, TimeUnit.SECONDS, new LinkedBlockingQueue<>(), runnable -> {
+                Thread thread = new Thread(runnable, "XrayProxyCleanup");
+                thread.setDaemon(true);
+                return thread;
+            });
+
+    static {
+        CLEANUP_EXECUTOR.allowCoreThreadTimeOut(true);
+    }
+
     private final AtomicBoolean closed = new AtomicBoolean();
     private final Dispatcher dispatcher;
     private final ConnectionPool connectionPool;
     private final OkHttpClient client;
+    private final XrayProxySocketFactory rtspSocketFactory;
 
     public XrayHttpClient(int socksPort, OkHttpClient baseClient) {
         if (socksPort <= 0) throw new IllegalArgumentException("A positive SOCKS port is required");
@@ -24,6 +38,7 @@ public final class XrayHttpClient implements AutoCloseable {
         Proxy proxy = new Proxy(
                 Proxy.Type.SOCKS,
                 InetSocketAddress.createUnresolved("127.0.0.1", socksPort));
+        rtspSocketFactory = new XrayProxySocketFactory(proxy);
 
         client = baseClient.newBuilder()
                 .cache(null)
@@ -39,11 +54,24 @@ public final class XrayHttpClient implements AutoCloseable {
         return client;
     }
 
+    public XrayProxySocketFactory rtspSocketFactory() {
+        if (closed.get()) throw new IllegalStateException("Xray HTTP client is closed");
+        return rtspSocketFactory;
+    }
+
     @Override
     public void close() {
         if (!closed.compareAndSet(false, true)) return;
-        dispatcher.cancelAll();
         dispatcher.executorService().shutdown();
-        connectionPool.evictAll();
+        CLEANUP_EXECUTOR.execute(() -> {
+            try {
+                dispatcher.cancelAll();
+            } catch (Throwable ignored) {
+            }
+            try {
+                connectionPool.evictAll();
+            } catch (Throwable ignored) {
+            }
+        });
     }
 }
