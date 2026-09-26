@@ -24,6 +24,6 @@ public final class LegacyXrayOperationResult {
         this.success = success;
         this.socksPort = socksPort;
         this.latencyMs = latencyMs;
-        this.message = message == null ? "" : message;
+        this.message = message;
     }
 }
