@@ -13,7 +13,7 @@ ROOT = Path(__file__).resolve().parent
 PUBLISHED = run_path(str(ROOT / "restore-published-libxrayjni.py"))["JNI_SHA256"]
 
 
-def check(path):
+def check(path, official_path=None):
     methods = run_path(str(ROOT / "check-player-java-api.py"))["class_methods"]
     with ZipFile(path) as aar:
         names = aar.namelist()
@@ -31,14 +31,24 @@ def check(path):
             if observed != wanted:
                 raise ValueError(f"{abi} Go JNI SHA-256 differs: {observed}")
             print(f"{abi} Go JNI matches published APK: {observed}")
+        if official_path is not None:
+            with ZipFile(official_path) as official:
+                if official.namelist() != names or len(set(official.namelist())) != len(names):
+                    raise ValueError("libXray AAR entry names/order differ from official build")
+                replacements = {f"jni/{abi}/libgojni.so" for abi in PUBLISHED}
+                for name in names:
+                    if name not in replacements and aar.read(name) != official.read(name):
+                        raise ValueError(f"libXray AAR changed a non-JNI entry: {name}")
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--aar", type=Path, default=ROOT.parent / "libxray/libs/libXray.aar")
+    parser.add_argument("--official-aar", type=Path,
+                        help="official AAR extracted from the pinned v26.7.28 ZIP")
     args = parser.parse_args()
     try:
-        check(args.aar)
+        check(args.aar, args.official_aar)
     except (KeyError, ValueError, OSError) as error:
         parser.error(str(error))
 
