@@ -97,6 +97,16 @@ EXPECTED = {
             ("remove", "(Landroidx/media3/common/MediaItem;)Z"),
             ("release", "()V"),
         },
+        EXO + "drm/DefaultDrmSessionManagerProvider": {
+            ("setDrmHttpDataSourceFactory", "(Landroidx/media3/datasource/DataSource$Factory;)V"),
+        },
+    },
+    "lib-exoplayer-rtsp-release.aar": {
+        EXO + "rtsp/RtspMediaSource$Factory": {
+            ("setForceUseRtpTcp", "(Z)Landroidx/media3/exoplayer/rtsp/RtspMediaSource$Factory;"),
+            ("setSocketFactory", "(Ljavax/net/SocketFactory;)Landroidx/media3/exoplayer/rtsp/RtspMediaSource$Factory;"),
+            ("setUserAgent", "(Ljava/lang/String;)Landroidx/media3/exoplayer/rtsp/RtspMediaSource$Factory;"),
+        },
     },
 }
 
