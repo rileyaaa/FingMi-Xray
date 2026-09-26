@@ -429,3 +429,8 @@ Git commit history 已经承担时间线职责。
 
 已下载并验证 FongMi/media run `31571172760` / artifact `9131565941`（`9dae39e9689ee305c83f94bd11cf3bcecb9d6171`）：ZIP SHA-256 `8cc91dae9c7d6770033bfe72e505b9455136c3f85e77d9ddec1f844335afa0d8`，内部 AAR `3b2326d98e1339f3ca4d1763e3a3028de20a5dd62cc738875af51b6329fe2571`。`scripts/import-libass-aar.py` 校验并接入 app/libs，真实 Java 与 v7/arm64 `libmedia3ass.so` 均在，非禁用桩；二进制不进入 Git。对应原始源码在该 commit 的 `libraries/exoplayer_libass/`。
 `javap` 证实这份早期 AAR 的 PlaybackSession 使用 String/String/String/(boolean) 构造器，缺少 5.6.3 所需 LibassConfiguration、LibassSubtitleController、SecondaryText 和 UI controller，不能把导入等同完整兼容。已查两公开 branch 和该历史 commit 的 SecondaryText 文件历史、历史 tree、Actions 产物列表，尚无真实 SecondaryText implementation；后续重建必须同时处理新版 Libass 控制层接口。
+
+### SecondaryText 选择与输出恢复
+
+新增 app 内 `androidx.media3.exoplayer.trackselection.SecondaryTextTrackSelector` / `text.SecondaryTextOutput`，标记 **reconstructed upstream-missing implementation**。装饰真实 Decode/DefaultTrackSelector，保留 renderer 索引和主音视频策略，最后一个 text renderer 独立消费第二条流；支持手动/自动语言、同组不同轨、重复/不支持轨抑制、独立 active selection、preload 实例隔离、reset/release 与迟到 cue generation。不是 no-op 或 compile-only stub。
+`scripts/test-secondary-text.py --candidate <固定候选ZIP> --maven <mvn>` 对真实 Media3 1.11.0 AAR 编译，通过 7 个 Robolectric SDK28 测试（0 failure/skip），覆盖实际 DefaultTrackSelector、双流 Tracks 状态及输出生命周期。这里只验证选择/输出能力；5.6.3 的新 LibassConfiguration/SubtitleController/UI controller 尚未完整接入，不能宣称完整 Android build 或 ASS 双字幕端到端通过。
