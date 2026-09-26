@@ -79,6 +79,147 @@
 
 更精确的恢复状态和证据不要在这里重复，统一看 [RECOVERY.md](RECOVERY.md)。
 
+## 当前普通工程与 faithful 的接线差距
+
+已重新按最新 `main` 逐文件对照普通工程与 `recovery/legacy-src/upstream/`。
+
+### 已经接入普通工程：TV 网络恢复
+
+以下文件当前与 faithful 对应文件逐字节一致：
+
+- `app/src/leanback/java/com/fongmi/android/tv/ui/activity/HomeActivity.java`
+- `app/src/main/java/com/fongmi/android/tv/api/loader/BaseLoader.java`
+- `app/src/main/java/com/fongmi/android/tv/model/SiteViewModel.java`
+- `app/src/main/java/com/fongmi/android/tv/network/TvNetworkLifecycle.java`
+- `catvod/src/main/java/com/github/catvod/net/OkDns.java`
+- `catvod/src/main/java/com/github/catvod/net/OkHttp.java`
+
+因此第二核心能力的源码接线已经进入普通工程。剩余门槛是 Android 编译和真实 TV 长后台 / 待机回归，而不是再次重写这一组文件。
+
+### 尚未迁入普通播放器主链：Xray playback wiring
+
+以下普通工程文件与 faithful 明显不同，当前普通版本没有对应的 Xray 播放接线：
+
+- `PlayerManager`
+- `PlayerEngineFactory`
+- `ExoMediaSourceFactory`
+- `ExoPlayerSession`
+- `PlaybackService`
+- Leanback `VideoActivity`
+- Leanback `LiveActivity`
+
+当前普通 `PlayerManager` 还没有 faithful 的 `setXrayPort` / session client 切换；普通 `ExoMediaSourceFactory` 还没有 Xray DRM DataSource 与 RTSP SOCKS 接线。
+
+因此：
+
+> 实验 `:xray` 模块里的网络类已经存在，不等于普通 app 已经可以按发布版语义代理媒体播放。
+
+正式接线仍必须等待 faithful build / 回归基线过门后，按 VOD、Live、Player、DRM、RTSP、side-network 行为逐项迁移。
+
+## 当前实验 `:xray` 模块状态
+
+实验模块已经不是最初的空壳，多个内部实现已经根据 faithful 恢复层静态对齐，但**尚未完成正式迁移验收**。
+
+已做过的主要静态对齐：
+
+- playback session 的旧 STOP cleanup timeout 不再误断已经 RUNNING 的新 START；
+- STOP success 后正确断 Binder；
+- START success 后保留 active operation id，使后续 Binder death 仍可通知 session；
+- callback generation 与 connection generation 分离；
+- 旧 ServiceConnection 失败分支做解绑与 stale 过滤；
+- share-link normalizer 对齐 faithful Hysteria2 / VMess / Shadowsocks 兼容行为；
+- XrayService 的 validate / test bind retry、START / STOP cancel gate、daemon thread 对齐；
+- certificate store 的迁移 / reset 顺序对齐；
+- insecure TLS / Hysteria2 pin 比较语义对齐；
+- libXray bridge 收紧到发布版 JSONObject / error 语义；
+- error sanitizer 对齐发布版敏感字段和 Unicode whitespace 语义；
+- preferences 读回时重新运行 share-link normalizer；
+- settings import / close 改为本地 abandon / disconnect，避免误杀远端 operation；
+- SOCKS public destination interceptor、HTTP resources 和 RTSP unresolved hostname 基础构件已存在。
+
+这些改动只说明实验模块在向 faithful 靠拢，不表示：
+
+- AIDL 已二进制兼容；
+- 普通播放器主链已经接好；
+- Android 编译已经通过；
+- 真机 playback / Binder race 已经通过。
+
+## Binder 协议边界
+
+faithful 发布版 Binder descriptor：
+
+- `com.fongmi.android.tv.xray.IXrayService`
+- `com.fongmi.android.tv.xray.IXrayCallback`
+
+当前实验模块 descriptor：
+
+- `com.fingmi.xray.service.IXrayService`
+- `com.fingmi.xray.service.IXrayCallback`
+
+六种方法形状相同不代表 Binder descriptor 兼容。
+
+正式迁移时优先策略：
+
+1. 先保持 faithful operation id、timeout、generation 和回调语义；
+2. 如果保留新包名，则 Service 与 client 必须同时切换；
+3. 必须单独回归 Binder death、bind timeout、stale callback、旧 STOP / 新 START race；
+4. 不在同一提交中既改 descriptor 又重写状态机。
+
+## 正式模块迁移顺序
+
+faithful 基准通过后按小步迁移：
+
+1. **核心无 FongMi 业务依赖能力**
+   - share-link normalizer；
+   - config factory；
+   - libXray bridge；
+   - certificate / preferences；
+   - error sanitizer；
+   - operation / generation。
+
+2. **Service / Binder / session**
+   - XrayService；
+   - AIDL；
+   - service client；
+   - playback session controller；
+   - settings controller。
+
+3. **通用 Xray 网络资源**
+   - SOCKS OkHttp；
+   - RTSP SocketFactory；
+   - public destination guard。
+
+4. **app 适配**
+   - PlayerManager / engine factory；
+   - Exo session / media source；
+   - PlaybackService；
+   - VOD；
+   - Live；
+   - settings / phone import UI；
+   - DRM / RTSP / subtitle / danmaku / download / artwork / metadata。
+
+5. **同一行为基准逐项回归**
+   - 每迁移一块，只用 `RECOVERY.md` 已冻结的发布版行为做判断；
+   - 不因为新模块 API 更漂亮而删掉 generation、timeout、private-process reset 等边界。
+
+6. **完成一次真实 FongMi 上游升级**
+   - 更新上游；
+   - 只处理明确 app adapter 冲突；
+   - Xray module 原则上不随 FongMi 业务文件一起大改；
+   - TV network recovery 独立检查。
+
+## 上游更新的目标形态
+
+最终希望每次 FongMi 更新只需要处理少量适配点：
+
+- player session / network client；
+- Video / Live playback identity；
+- settings entry；
+- Manifest / resources；
+- TV network lifecycle patch。
+
+Xray Core、Binder、share-link、安全、session generation、SOCKS 资源应由独立模块稳定持有。
+
 ## 工作规则
 
 以下规则适用于 Chat、Work、Codex 或其他后续 AI / 开发者。
