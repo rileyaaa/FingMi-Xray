@@ -2,6 +2,15 @@ name: Recovery faithful TV build
 
 on:
   workflow_dispatch:
+    inputs:
+      dependencies_artifact_id:
+        description: 'Artifact ID from manually verified native dependency recovery run'
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  actions: read
 
 jobs:
   faithful:
@@ -15,6 +24,46 @@ jobs:
         with:
           distribution: temurin
           java-version: "21"
+
+      - name: Download and check pinned dependency inputs
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          NATIVE_ARTIFACT_ID: ${{ inputs.dependencies_artifact_id }}
+        run: |
+          set -euo pipefail
+          [[ "$NATIVE_ARTIFACT_ID" =~ ^[0-9]+$ ]] || { echo 'Artifact ID must be numeric' >&2; exit 1; }
+          info="$(gh api "repos/rileyaaa/FingMi-Xray/actions/artifacts/$NATIVE_ARTIFACT_ID")"
+          if ! jq -e '.name == "fingmi-faithful-native-dependencies" and .expired == false and .workflow_run.repository_id == 1350293419 and .workflow_run.head_branch == "main"' <<< "$info" >/dev/null; then
+            echo 'Native dependency artifact is expired or has the wrong name' >&2
+            exit 1
+          fi
+          player_info="$(gh api repos/rileyaaa/FingMi-Xray/actions/artifacts/10859533459)"
+          if ! jq -e '.name == "fongmi-media3-aar-candidate-1.11.0" and .expired == false and .size_in_bytes == 44336768 and .digest == "sha256:0ed42581af11ac7163ebde148b318807c244e2a318f40c41d33f50b70bf967ee"' <<< "$player_info" >/dev/null; then
+            echo 'Pinned player candidate artifact is missing or expired' >&2
+            exit 1
+          fi
+          mkdir -p recovery/work/input/native libxray/libs
+          curl -fL --retry 3 -H "Authorization: Bearer ${GH_TOKEN}" \
+            "https://api.github.com/repos/rileyaaa/FingMi-Xray/actions/artifacts/$NATIVE_ARTIFACT_ID/zip" \
+            -o recovery/work/input/native.zip
+          curl -fL --retry 3 -H "Authorization: Bearer ${GH_TOKEN}" \
+            'https://api.github.com/repos/rileyaaa/FingMi-Xray/actions/artifacts/10859533459/zip' \
+            -o recovery/work/input/candidate.zip
+          echo '0ed42581af11ac7163ebde148b318807c244e2a318f40c41d33f50b70bf967ee  recovery/work/input/candidate.zip' | sha256sum -c -
+          unzip -q recovery/work/input/native.zip -d recovery/work/input/native
+          test -s recovery/work/input/native/lib-decoder-ffmpeg-release.aar
+          test -s recovery/work/input/native/libXray.aar
+          python3 scripts/import-player-aar-candidate.py recovery/work/input/candidate.zip \
+            --restored-decoder recovery/work/input/native/lib-decoder-ffmpeg-release.aar
+          bash scripts/fetch-libxray.sh
+          python3 scripts/check-libxray-gojni.py \
+            --aar recovery/work/input/native/libXray.aar \
+            --official-aar libxray/libs/libXray.aar
+          cp recovery/work/input/native/libXray.aar libxray/libs/libXray.aar
+          python3 scripts/check-faithful-player-aars.py
+          python3 scripts/check-player-ffmpegjni-against-published.py --aar-dir app/libs
+          python3 scripts/check-libxray-gojni.py --aar libxray/libs/libXray.aar
 
       - name: Prepare and compile faithful recovered TV source
         shell: bash
