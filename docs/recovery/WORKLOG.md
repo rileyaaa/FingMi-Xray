@@ -147,3 +147,6 @@
 - 这三个文件在普通 app 已依赖的实验 `:xray` 模块，不改变 faithful 覆盖层；源码移植和静态校验已做，本机只有 Java runtime、没有 `javac`/Android SDK/Gradle，因此没有 Java/Android 编译或 RTSP 真机验证。普通 app 的播放器仍未完整接入 Xray 会话，新增 RTSP 工厂尚无调用者，不能声称普通播放代理已恢复。
 
 - 补 `recovery/legacy-tests/test_xray_network_java.py`（提交 `266624feb5b1b7aca10f5a32d2b846419e2c867d`）。本机无 `javac` 命令，但 OpenJDK 17 的 `com.sun.tools.javac.Main` 可用：三类与最小 OkHttp 接口桩一起编译通过；Java 样本检查 17 个保留地址阻断、4 个公开地址/普通域名允许。接口桩不包含真实 OkHttp/Media3，也不覆盖 Android 构建或网络运行。上一条“未 Java 编译”在此定点检查后应理解为“未用真实依赖编译”。
+
+- 固定候选工件 `10859533459` 的 GitHub 元数据本轮只读确认：名称 `fongmi-media3-aar-candidate-1.11.0`、44,336,768 字节、摘要 `sha256:0ed42581...`、`expired=false`，到期 `2026-10-09T10:42:07Z`。手动工作流在下载两份发布 APK 前检查这四项，失败时明确退出；提交 `5bc2d3ae3a772074aa357e9e585d0a059bca7f34`。本地 YAML 与所有 shell 片段语法通过，但没有实际运行工作流。
+- 排错记录和里程碑表已同步追加到 `DEBUG_HISTORY.md`（`a38bb3331bfaa4c73a0447e9a16889b6123bfca2`）与 `PROGRESS.md`（`a4149e5054b37fd9a3469bff3089163025d51caa`）。
