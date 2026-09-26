@@ -150,3 +150,5 @@
 
 - 固定候选工件 `10859533459` 的 GitHub 元数据本轮只读确认：名称 `fongmi-media3-aar-candidate-1.11.0`、44,336,768 字节、摘要 `sha256:0ed42581...`、`expired=false`，到期 `2026-10-09T10:42:07Z`。手动工作流在下载两份发布 APK 前检查这四项，失败时明确退出；提交 `5bc2d3ae3a772074aa357e9e585d0a059bca7f34`。本地 YAML 与所有 shell 片段语法通过，但没有实际运行工作流。
 - 排错记录和里程碑表已同步追加到 `DEBUG_HISTORY.md`（`a38bb3331bfaa4c73a0447e9a16889b6123bfca2`）与 `PROGRESS.md`（`a4149e5054b37fd9a3469bff3089163025d51caa`）。
+
+- 取回已持久保存的 44,336,768 字节播放器候选 ZIP，独立复核整体 SHA `0ed42581...`，原有精选 12 类/50 方法通过；FFmpeg JNI 双 ABI 再次按预期不符并被门禁拒绝（退出 1）。对恢复层媒体源工厂的 DRM 与 RTSP 直接调用检查真实 AAR 的 class 方法描述符，新增 2 类/4 方法；`scripts/check-player-java-api.py` 实测 14 类/54 方法通过，提交 `5216f792dcc66fe932bade2b9a65619f428f6a95`，证据更新 `PLAYER_AAR_ABI_2026-09-25.md` 和 `PROGRESS.md`。这只是精选 ABI 静态门，不是构建或运行证明。
