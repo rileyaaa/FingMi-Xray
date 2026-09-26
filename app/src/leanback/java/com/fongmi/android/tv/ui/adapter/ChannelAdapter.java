@@ -17,10 +17,17 @@ public class ChannelAdapter extends RecyclerView.Adapter<ChannelAdapter.ViewHold
 
     private final OnClickListener mListener;
     private final List<Channel> mItems;
+    private boolean xrayLogoSuppressed;
 
     public ChannelAdapter(OnClickListener listener) {
         mListener = listener;
         mItems = new ArrayList<>();
+    }
+
+    public void setXrayLogoSuppressed(boolean suppressed) {
+        if (xrayLogoSuppressed == suppressed) return;
+        xrayLogoSuppressed = suppressed;
+        notifyDataSetChanged();
     }
 
     public void addAll(List<Channel> items) {
@@ -64,7 +71,8 @@ public class ChannelAdapter extends RecyclerView.Adapter<ChannelAdapter.ViewHold
     @Override
     public void onBindViewHolder(@NonNull ViewHolder holder, int position) {
         Channel item = mItems.get(position);
-        item.loadLogo(holder.binding.logo);
+        if (xrayLogoSuppressed) Glide.with(holder.binding.logo).clear(holder.binding.logo);
+        else item.loadLogo(holder.binding.logo);
         holder.binding.name.setText(item.getShow());
         holder.binding.number.setText(item.getNumber());
         holder.binding.getRoot().setSelected(item.isSelected());

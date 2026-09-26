@@ -13,6 +13,7 @@ import java.io.InputStream;
 import java.util.concurrent.Future;
 
 import okhttp3.Response;
+import okhttp3.OkHttpClient;
 
 public class Download {
 
@@ -22,6 +23,7 @@ public class Download {
     private Future<?> future;
     private long maxBytes;
     private String tag;
+    private OkHttpClient client;
 
     public static Download create(String url, File file) {
         return new Download(url, file);
@@ -32,6 +34,11 @@ public class Download {
         this.tag = url;
         this.url = url;
         this.file = file;
+    }
+
+    public Download client(OkHttpClient client) {
+        this.client = client;
+        return this;
     }
 
     public Download tag(String tag) {
@@ -56,13 +63,14 @@ public class Download {
 
     public Download cancel() {
         if (future != null) future.cancel(true);
-        OkHttp.cancel(tag);
+        if (client == null) OkHttp.cancel(tag);
+        else OkHttp.cancel(client, tag);
         future = null;
         return this;
     }
 
     private void doInBackground() {
-        try (Response res = OkHttp.newCall(url, tag).execute()) {
+        try (Response res = (client == null ? OkHttp.newCall(url, tag) : OkHttp.newCall(client, url, tag)).execute()) {
             download(res.body().byteStream(), getLength(res));
             if (callback != null) App.post(() -> callback.success(file));
         } catch (Exception e) {

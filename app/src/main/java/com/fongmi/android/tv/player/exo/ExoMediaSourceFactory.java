@@ -5,6 +5,8 @@ import androidx.media3.common.C;
 import androidx.media3.common.MediaItem;
 import androidx.media3.database.StandaloneDatabaseProvider;
 import androidx.media3.datasource.DataSource;
+import androidx.media3.datasource.DataSpec;
+import androidx.media3.datasource.TransferListener;
 import androidx.media3.datasource.DefaultDataSource;
 import androidx.media3.datasource.HttpDataSource;
 import androidx.media3.datasource.cache.Cache;
@@ -13,6 +15,8 @@ import androidx.media3.datasource.cache.LeastRecentlyUsedCacheEvictor;
 import androidx.media3.datasource.cache.SimpleCache;
 import androidx.media3.datasource.okhttp.OkHttpDataSource;
 import androidx.media3.exoplayer.drm.DrmSessionManagerProvider;
+import androidx.media3.exoplayer.drm.DefaultDrmSessionManagerProvider;
+import androidx.media3.exoplayer.rtsp.RtspMediaSource;
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory;
 import androidx.media3.exoplayer.source.MediaSource;
 import androidx.media3.exoplayer.source.preload.MediaSourceFactorySupplier;
@@ -22,6 +26,10 @@ import androidx.media3.extractor.ExtractorsFactory;
 import androidx.media3.extractor.ts.TsExtractor;
 
 import com.fongmi.android.tv.App;
+import com.fingmi.xray.network.XrayHttpClient;
+import android.net.Uri;
+import java.io.IOException;
+import java.util.List;
 import com.fongmi.android.tv.setting.PreloadSetting;
 import com.fongmi.android.tv.utils.FileUtil;
 import com.github.catvod.net.OkHttp;
@@ -38,15 +46,26 @@ public class ExoMediaSourceFactory implements MediaSource.Factory {
     private static Cache cache;
 
     private final DefaultMediaSourceFactory defaultMediaSourceFactory;
+    private final XrayHttpClient proxy;
     private HttpDataSource.Factory httpDataSourceFactory;
     private DataSource.Factory dataSourceFactory;
     private ExtractorsFactory extractorsFactory;
 
-    public ExoMediaSourceFactory() {
+    public ExoMediaSourceFactory() { this(null); }
+
+    ExoMediaSourceFactory(XrayHttpClient proxy) {
+        this.proxy = proxy;
         defaultMediaSourceFactory = new DefaultMediaSourceFactory(getDataSourceFactory(), getExtractorsFactory());
+        if (proxy != null) {
+            DefaultDrmSessionManagerProvider drm = new DefaultDrmSessionManagerProvider();
+            drm.setDrmHttpDataSourceFactory(getDataSourceFactory());
+            defaultMediaSourceFactory.setDrmSessionManagerProvider(drm);
+        }
     }
 
-    static MediaSourceFactorySupplier supplier() {
+    static MediaSourceFactorySupplier supplier() { return supplier(null); }
+
+    static MediaSourceFactorySupplier supplier(XrayHttpClient proxy) {
         return new MediaSourceFactorySupplier() {
             @NonNull
             @Override
@@ -62,7 +81,7 @@ public class ExoMediaSourceFactory implements MediaSource.Factory {
 
             @Override
             public MediaSource.Factory get() {
-                return new ExoMediaSourceFactory();
+                return new ExoMediaSourceFactory(proxy);
             }
         };
     }
@@ -113,6 +132,15 @@ public class ExoMediaSourceFactory implements MediaSource.Factory {
     @Override
     public MediaSource createMediaSource(@NonNull MediaItem mediaItem) {
         getHttpDataSourceFactory().setDefaultRequestProperties(ExoUtil.extractHeaders(mediaItem));
+        if (proxy != null && mediaItem.localConfiguration != null) {
+            Uri uri = mediaItem.localConfiguration.uri;
+            String scheme = uri.getScheme();
+            if ("rtsp".equalsIgnoreCase(scheme) || "rtspt".equalsIgnoreCase(scheme)) {
+                return new RtspMediaSource.Factory().setForceUseRtpTcp(true)
+                        .setSocketFactory(proxy.rtspSocketFactory())
+                        .createMediaSource(mediaItem);
+            }
+        }
         return defaultMediaSourceFactory.createMediaSource(mediaItem);
     }
 
@@ -122,7 +150,12 @@ public class ExoMediaSourceFactory implements MediaSource.Factory {
     }
 
     private DataSource.Factory getDataSourceFactory() {
-        if (dataSourceFactory == null) dataSourceFactory = () -> getCacheDataSource(new DefaultDataSource.Factory(App.get(), getHttpDataSourceFactory())).createDataSource();
+        if (dataSourceFactory == null) {
+            DataSource.Factory upstream = new DefaultDataSource.Factory(App.get(), getHttpDataSourceFactory());
+            dataSourceFactory = proxy == null
+                    ? () -> getCacheDataSource(upstream).createDataSource()
+                    : () -> new GuardedPlaybackDataSource(upstream.createDataSource());
+        }
         return dataSourceFactory;
     }
 
@@ -131,7 +164,24 @@ public class ExoMediaSourceFactory implements MediaSource.Factory {
     }
 
     private HttpDataSource.Factory getHttpDataSourceFactory() {
-        if (httpDataSourceFactory == null) httpDataSourceFactory = new OkHttpDataSource.Factory(OkHttp.player());
+        if (httpDataSourceFactory == null) httpDataSourceFactory = new OkHttpDataSource.Factory(proxy == null ? OkHttp.player() : proxy.client());
         return httpDataSourceFactory;
+    }
+
+    /** Prevent local/fallback schemes from silently bypassing an active session. */
+    private static final class GuardedPlaybackDataSource implements DataSource {
+        private final DataSource delegate;
+        GuardedPlaybackDataSource(DataSource delegate) { this.delegate = delegate; }
+        @Override public void addTransferListener(TransferListener listener) { delegate.addTransferListener(listener); }
+        @Override public long open(DataSpec dataSpec) throws IOException {
+            String scheme = dataSpec.uri.getScheme();
+            if (!"http".equalsIgnoreCase(scheme) && !"https".equalsIgnoreCase(scheme))
+                throw new IOException("Xray playback requires an HTTP/HTTPS media request");
+            return delegate.open(dataSpec);
+        }
+        @Override public int read(byte[] buffer, int offset, int length) throws IOException { return delegate.read(buffer, offset, length); }
+        @Override public Uri getUri() { return delegate.getUri(); }
+        @Override public Map<String, List<String>> getResponseHeaders() { return delegate.getResponseHeaders(); }
+        @Override public void close() throws IOException { delegate.close(); }
     }
 }

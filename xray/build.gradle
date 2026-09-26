@@ -24,5 +24,6 @@ android {
 dependencies {
     implementation project(":libxray")
     implementation libs.okhttp
+    testImplementation 'junit:junit:4.13.2'
     coreLibraryDesugaring libs.desugar
 }

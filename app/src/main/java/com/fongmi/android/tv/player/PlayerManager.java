@@ -33,6 +33,8 @@ import com.fongmi.android.tv.player.engine.PlayerEngineFactory;
 import com.fongmi.android.tv.player.media.PlaySpec;
 import com.fongmi.android.tv.player.parse.ParseJob;
 import com.fongmi.android.tv.player.track.TrackUtil;
+import com.fingmi.xray.network.XrayHttpClient;
+import okhttp3.OkHttpClient;
 import com.fongmi.android.tv.setting.DanmakuSetting;
 import com.fongmi.android.tv.setting.PlayerSetting;
 import com.fongmi.android.tv.setting.PreloadSetting;
@@ -56,6 +58,7 @@ public class PlayerManager implements ParseCallback {
     private VideoSize videoSize;
     private ParseJob parseJob;
     private PlaySpec spec;
+    private XrayHttpClient playbackProxy;
     private Player player;
 
     private DanmakuConfig danmakuConfig;
@@ -272,7 +275,7 @@ public class PlayerManager implements ParseCallback {
 
     public void setEngine(int targetEngine) {
         PlayerSetting.putEngine(targetEngine);
-        if (isEmpty() || PlayerEngineFactory.matches(engine, spec)) return;
+        if (isEmpty() || PlayerEngineFactory.matches(engine, spec, playbackProxy)) return;
         PlaybackSnapshot snapshot = PlaybackSnapshot.capture(player);
         startCurrent(snapshot.positionMs());
         snapshot.restore(player);
@@ -443,7 +446,7 @@ public class PlayerManager implements ParseCallback {
     }
 
     public boolean preload(PlaySpec spec, long startPositionMs) {
-        if (!canPreloadNext() || spec == null || !PlayerEngineFactory.matches(engine, spec)) return false;
+        if (playbackProxy != null || !canPreloadNext() || spec == null || !PlayerEngineFactory.matches(engine, spec, playbackProxy)) return false;
         pendingPreload = new PendingPreload(spec.checkUa(), Math.max(0, startPositionMs));
         startPreloadIfReady();
         return true;
@@ -490,12 +493,32 @@ public class PlayerManager implements ParseCallback {
     }
 
     private void ensureEngine(PlaySpec spec) {
-        if (PlayerEngineFactory.matches(engine, spec)) return;
+        if (PlayerEngineFactory.matches(engine, spec, playbackProxy)) return;
         PlayerEngine old = engine;
         player.removeListener(listener);
-        engine = PlayerEngineFactory.create(decode, spec, listener);
+        engine = PlayerEngineFactory.create(decode, spec, playbackProxy, listener);
         setPlayer(engine.getPlayer());
         old.release();
+    }
+
+    /**
+     * One playback session owns this resource. Changing it forces an Exo engine
+     * boundary; an identity change installs null without restarting old media.
+     */
+    public void setPlaybackProxy(XrayHttpClient next, boolean preservePlayback) {
+        if (playbackProxy == next) return;
+        PlaybackSnapshot snapshot = preservePlayback && spec != null && player != null
+                ? PlaybackSnapshot.capture(player) : null;
+        playbackProxy = next;
+        clearPreload();
+        if (snapshot != null) {
+            startCurrent(snapshot.positionMs());
+            snapshot.restore(player);
+        }
+    }
+
+    public OkHttpClient getPlaybackHttpClient(OkHttpClient fallback) {
+        return playbackProxy == null ? fallback : playbackProxy.client();
     }
 
     public void browse(PlaySpec spec, long startPositionMs) {
@@ -533,6 +556,7 @@ public class PlayerManager implements ParseCallback {
 
     private void setMediaItem(long timeout, long startPositionMs) {
         if (spec == null || spec.getUrl() == null) return;
+        callback.onPlaybackUrlChanged(spec.getUrl());
         ensureEngine(spec.checkUa());
         pendingPreload = null;
         initTrack = false;
@@ -608,6 +632,8 @@ public class PlayerManager implements ParseCallback {
         void onError(String msg);
 
         void onPlayerRebuild(Player newPlayer);
+
+        default void onPlaybackUrlChanged(String url) { }
 
         void onDanmakuSourceChanged(Uri uri);
 

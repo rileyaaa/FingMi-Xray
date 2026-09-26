@@ -68,6 +68,10 @@ import com.fongmi.android.tv.utils.ImgUtil;
 import com.fongmi.android.tv.utils.Notify;
 import com.fongmi.android.tv.utils.ResUtil;
 import com.fongmi.android.tv.utils.Traffic;
+import com.github.catvod.net.OkHttp;
+import com.fingmi.xray.network.XrayHttpClient;
+import com.fingmi.xray.session.XrayPlaybackSession;
+import com.fingmi.xray.session.XraySessionListener;
 
 import org.greenrobot.eventbus.Subscribe;
 import org.greenrobot.eventbus.ThreadMode;
@@ -82,6 +86,10 @@ public class LiveActivity extends PlaybackActivity implements GroupAdapter.OnCli
     private ActivityLiveBinding mBinding;
     private LiveViewModel mViewModel;
     private LivePlaybackController mLive;
+    private XrayPlaybackSession mXray;
+    private PlaybackResult<LivePlayRequest> mHeldResult;
+    private boolean mWaitingXrayStart;
+    private long mPlaybackEpoch;
     private GroupAdapter mGroupAdapter;
     private ChannelAdapter mChannelAdapter;
     private EpgDataAdapter mEpgDataAdapter;
@@ -154,6 +162,37 @@ public class LiveActivity extends PlaybackActivity implements GroupAdapter.OnCli
     @Override
     protected void initView(Bundle savedInstanceState) {
         super.initView(savedInstanceState);
+        mXray = new XrayPlaybackSession(this, OkHttp.player(), new XrayPlaybackSession.Listener() {
+            @Override public void onProxyChanged(XrayHttpClient resources, boolean preserve) {
+                if (mViewModel != null) mViewModel.cancelPlaybackMetadata();
+                if (service() != null && isOwner()) {
+                    getPlayerView().setDanmakuSource(null);
+                    player().setPlaybackProxy(resources, preserve);
+                    getPlayerView().setDanmakuOkHttpClient(player().getPlaybackHttpClient(OkHttp.player()));
+                }
+                if (mChannelAdapter != null) mChannelAdapter.setXrayLogoSuppressed(resources != null);
+                if (mChannel != null) {
+                    setArtwork();
+                    if (mViewModel != null) mViewModel.getEpg(mChannel, mXray.client(OkHttp.client()));
+                }
+            }
+            @Override public void onStateChanged(int state, String message) {
+                mBinding.control.action.xray.setSelected(state == XraySessionListener.RUNNING);
+                mBinding.control.action.xray.setText(state == XraySessionListener.RUNNING
+                        ? R.string.xray_on : state == XraySessionListener.STARTING
+                        ? R.string.xray_starting : state == XraySessionListener.ERROR
+                        ? R.string.xray_error : R.string.xray_off);
+                if (state == XraySessionListener.RUNNING || state == XraySessionListener.ERROR
+                        || (state == XraySessionListener.IDLE && mWaitingXrayStart)) {
+                    mWaitingXrayStart = false;
+                    PlaybackResult<LivePlayRequest> held = mHeldResult;
+                    mHeldResult = null;
+                    if (held != null) mLive.onPlaybackResult(held);
+                }
+                if (state == XraySessionListener.ERROR && !message.isEmpty()) Notify.show(message);
+            }
+        });
+        mXray.begin("live:" + ++mPlaybackEpoch);
         mClock = Clock.create(mBinding.widget.clock);
         mKeyDown = CustomKeyDownLive.create(this);
         mHides = new ArrayList<>();
@@ -187,6 +226,7 @@ public class LiveActivity extends PlaybackActivity implements GroupAdapter.OnCli
         mBinding.control.action.across.setOnClickListener(view -> onAcross());
         mBinding.control.action.change.setOnClickListener(view -> onChange());
         mBinding.control.action.player.setOnClickListener(view -> onPlayer());
+        mBinding.control.action.xray.setOnClickListener(view -> onXray());
         mBinding.control.action.decode.setOnClickListener(view -> onDecode());
         mBinding.control.action.speed.setOnLongClickListener(view -> onSpeedLong());
         mBinding.video.setOnTouchListener((view, event) -> mKeyDown.onTouchEvent(event));
@@ -238,12 +278,13 @@ public class LiveActivity extends PlaybackActivity implements GroupAdapter.OnCli
     }
 
     private void onLiveParsed(Live live) {
-        mViewModel.parseXml(live);
+        mViewModel.parseXml(live, mXray.client(OkHttp.client()));
         setGroup(live);
         setWidth(live);
     }
 
     private void onPlaybackObserved(PlaybackResult<LivePlayRequest> result) {
+        if (mWaitingXrayStart) { mHeldResult = result; return; }
         mLive.onPlaybackResult(result);
     }
 
@@ -421,6 +462,34 @@ public class LiveActivity extends PlaybackActivity implements GroupAdapter.OnCli
     private void onChange() {
         LiveSetting.putChange(!LiveSetting.isChange());
         mBinding.control.action.change.setSelected(LiveSetting.isChange());
+    }
+
+    @Override
+    protected void onPlaybackUrlChanged(String url) {
+        if (mXray != null) mXray.mediaUrlChanged(url);
+    }
+
+    private void onXray() {
+        if (service() == null || !isOwner()) return;
+        if (mXray.state() == XraySessionListener.RUNNING || mXray.state() == XraySessionListener.STARTING) {
+            mWaitingXrayStart = false;
+            mHeldResult = null;
+            mXray.stop(true);
+            return;
+        }
+        if (mChannel == null) { Notify.show(R.string.xray_live_required); return; }
+        boolean existing = hasPlaybackSession();
+        boolean supported = existing
+                ? XrayPlaybackSession.supports(player().getUrl())
+                : XrayPlaybackSession.supports(mChannel.getCurrent());
+        if (!supported) { Notify.show(R.string.xray_public_http_required); return; }
+        player().clearPreload();
+        mWaitingXrayStart = !existing;
+        if (existing) mXray.mediaUrlChanged(player().getUrl());
+        if (!mXray.enableForPending(mChannel.getCurrent())) {
+            mWaitingXrayStart = false;
+            Notify.show(R.string.xray_public_http_required);
+        }
     }
 
     private void onPlayer() {
@@ -619,6 +688,7 @@ public class LiveActivity extends PlaybackActivity implements GroupAdapter.OnCli
     }
 
     private void setArtwork() {
+        if (mXray != null && mXray.isActive()) { mBinding.player.setDefaultArtwork(null); return; }
         ImgUtil.load(this, mChannel.getLogo(), new CustomTarget<>() {
             @Override
             public void onResourceReady(@NonNull Drawable resource, @Nullable Transition<? super Drawable> transition) {
@@ -683,7 +753,7 @@ public class LiveActivity extends PlaybackActivity implements GroupAdapter.OnCli
     }
 
     private void setInfo() {
-        mViewModel.getEpg(mChannel);
+        mViewModel.getEpg(mChannel, mXray.client(OkHttp.client()));
         mBinding.widget.play.setText("");
         mBinding.widget.name.setMaxEms(48);
         mChannel.loadLogo(mBinding.widget.logo);
@@ -707,7 +777,7 @@ public class LiveActivity extends PlaybackActivity implements GroupAdapter.OnCli
     }
 
     private void onXmlParsed(boolean success) {
-        if (mChannel != null && success) mViewModel.getEpg(mChannel);
+        if (mChannel != null && success) mViewModel.getEpg(mChannel, mXray.client(OkHttp.client()));
     }
 
     private void stopPlayer() {
@@ -769,11 +839,15 @@ public class LiveActivity extends PlaybackActivity implements GroupAdapter.OnCli
 
     @Override
     public void stopPlaybackForRefresh() {
+        mWaitingXrayStart = false;
+        mHeldResult = null;
+        mXray.begin("live:" + ++mPlaybackEpoch);
         stopPlayer();
     }
 
     @Override
     public void startPlayback(Result result, long position, MediaMetadata metadata) {
+        mXray.mediaUrlChanged(result.getRealUrl());
         startPlayer(mPlaybackKey = result.getRealUrl(), result, false, getHome().getTimeout(), position, metadata);
     }
 
@@ -866,6 +940,9 @@ public class LiveActivity extends PlaybackActivity implements GroupAdapter.OnCli
 
     @Override
     public void setLive(Live item) {
+        mWaitingXrayStart = false;
+        mHeldResult = null;
+        mXray.begin("live:" + ++mPlaybackEpoch);
         if (item.isSelected()) item.getGroups().clear();
         LiveConfig.get().setHome(item);
         player().reset();
@@ -1057,6 +1134,7 @@ public class LiveActivity extends PlaybackActivity implements GroupAdapter.OnCli
 
     @Override
     protected void onDestroy() {
+        if (mXray != null) mXray.close();
         mClock.release();
         Source.get().exit();
         App.removeCallbacks(mR0, mR1, mR2, mR3, mR4);

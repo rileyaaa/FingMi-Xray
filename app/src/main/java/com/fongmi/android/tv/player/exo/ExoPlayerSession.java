@@ -17,6 +17,7 @@ import androidx.media3.exoplayer.trackselection.DecodeTrackSelector;
 import androidx.media3.exoplayer.trackselection.TrackSelector;
 
 import com.fongmi.android.tv.App;
+import com.fingmi.xray.network.XrayHttpClient;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -34,9 +35,9 @@ final class ExoPlayerSession {
     @Nullable
     private PreloadRequest preloadRequest;
 
-    ExoPlayerSession(int decode, Player.Listener listener, AudioProcessor audioProcessor) {
+    ExoPlayerSession(int decode, Player.Listener listener, AudioProcessor audioProcessor, @Nullable XrayHttpClient proxy) {
         this.trackSelectorFactory = new DecodeTrackSelectorFactory(decode);
-        DefaultPreloadManager.Builder builder = new DefaultPreloadManager.Builder(App.get(), ignored -> DefaultPreloadManager.PreloadStatus.specifiedRangeLoaded(getPreloadStartPositionMs(), PRELOAD_DURATION_MS)).setMediaSourceFactorySupplier(ExoMediaSourceFactory.supplier()).setRenderersFactory(ExoUtil.buildRenderersFactory(audioProcessor)).setTrackSelectorFactory(trackSelectorFactory).setLoadControl(ExoUtil.buildLoadControl(MAX_PRELOAD_BUFFER_BYTES));
+        DefaultPreloadManager.Builder builder = new DefaultPreloadManager.Builder(App.get(), ignored -> DefaultPreloadManager.PreloadStatus.specifiedRangeLoaded(getPreloadStartPositionMs(), PRELOAD_DURATION_MS)).setMediaSourceFactorySupplier(ExoMediaSourceFactory.supplier(proxy)).setRenderersFactory(ExoUtil.buildRenderersFactory(audioProcessor)).setTrackSelectorFactory(trackSelectorFactory).setLoadControl(ExoUtil.buildLoadControl(MAX_PRELOAD_BUFFER_BYTES));
         this.preloadManager = builder.build();
         this.preloadManager.addListener(new PreloadListener());
         this.player = ExoUtil.buildPlayer(listener, builder);

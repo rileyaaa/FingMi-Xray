@@ -12,6 +12,7 @@ import com.fongmi.android.tv.utils.FileUtil;
 import com.fongmi.android.tv.utils.Formatters;
 import com.fongmi.android.tv.utils.UrlUtil;
 import com.github.catvod.utils.Path;
+import okhttp3.OkHttpClient;
 
 import org.simpleframework.xml.core.Persister;
 
@@ -58,13 +59,15 @@ public class EpgParser {
         }
     }
 
-    public static void start(Live live, String url) throws Exception {
+    public static void start(Live live, String url) throws Exception { start(live, url, null); }
+
+    public static void start(Live live, String url, OkHttpClient client) throws Exception {
         long t0 = System.currentTimeMillis();
         File file = Path.epg(UrlUtil.path(url));
         String reason = refreshReason(file);
         boolean refresh = reason != null;
         Log.i(TAG, "start url=" + url + " file=" + file.getName() + " refresh=" + refresh + (refresh ? " reason=" + reason : ""));
-        if (refresh) Download.create(url, file).get();
+        if (refresh) Download.create(url, file).client(client).get();
         boolean gzip = isGzip(file);
         if (gzip) readGzip(live, file, refresh);
         else readXml(live, file);

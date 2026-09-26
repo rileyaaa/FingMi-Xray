@@ -91,6 +91,10 @@ import com.fongmi.android.tv.utils.Sniffer;
 import com.fongmi.android.tv.utils.Traffic;
 import com.fongmi.android.tv.utils.UrlUtil;
 import com.fongmi.android.tv.utils.Util;
+import com.github.catvod.net.OkHttp;
+import com.fingmi.xray.network.XrayHttpClient;
+import com.fingmi.xray.session.XrayPlaybackSession;
+import com.fingmi.xray.session.XraySessionListener;
 import com.github.bassaer.library.MDColor;
 
 import org.greenrobot.eventbus.Subscribe;
@@ -107,6 +111,8 @@ public class VideoActivity extends PlaybackActivity implements VodPlaybackHost, 
     private ActivityVideoBinding mBinding;
     private VideoViewModel mViewModel;
     private VodPlaybackController mVod;
+    private XrayPlaybackSession mXray;
+    private long mPlaybackEpoch;
     private FlagAdapter mFlagAdapter;
     private EpisodeAdapter mEpisodeAdapter;
     private QualityAdapter mQualityAdapter;
@@ -262,6 +268,7 @@ public class VideoActivity extends PlaybackActivity implements VodPlaybackHost, 
         super.onNewIntent(intent);
         if (TextUtils.isEmpty(intent.getStringExtra("id")) || isSameVideo(intent)) return;
         saveHistory(true);
+        if (mXray != null) mXray.end();
         mVod.reset();
         setIntent(intent);
         updateNavigationKey();
@@ -271,6 +278,24 @@ public class VideoActivity extends PlaybackActivity implements VodPlaybackHost, 
     @Override
     protected void initView(Bundle savedInstanceState) {
         super.initView(savedInstanceState);
+        mXray = new XrayPlaybackSession(this, OkHttp.player(), new XrayPlaybackSession.Listener() {
+            @Override public void onProxyChanged(XrayHttpClient resources, boolean preserve) {
+                if (service() != null && isOwner()) {
+                    getPlayerView().setDanmakuSource(null);
+                    player().setPlaybackProxy(resources, preserve);
+                    getPlayerView().setDanmakuOkHttpClient(player().getPlaybackHttpClient(OkHttp.player()));
+                }
+            }
+            @Override public void onStateChanged(int state, String message) {
+                mBinding.control.action.xray.setSelected(state == XraySessionListener.RUNNING);
+                mBinding.control.action.xray.setText(state == XraySessionListener.RUNNING
+                        ? R.string.xray_on : state == XraySessionListener.STARTING
+                        ? R.string.xray_starting : state == XraySessionListener.ERROR
+                        ? R.string.xray_error : R.string.xray_off);
+                if (state == XraySessionListener.ERROR && !message.isEmpty()) Notify.show(message);
+            }
+        });
+        mXray.begin("vod:" + ++mPlaybackEpoch);
         mFrameParams = mBinding.video.getLayoutParams();
         mClock = Clock.create(mBinding.widget.clock);
         mKeyDown = CustomKeyDownVod.create(this);
@@ -307,6 +332,7 @@ public class VideoActivity extends PlaybackActivity implements VodPlaybackHost, 
         mBinding.control.action.replay.setOnClickListener(view -> onReplay());
         mBinding.control.action.parse.setOnClickListener(view -> onParse());
         mBinding.control.action.player.setOnClickListener(view -> onPlayer());
+        mBinding.control.action.xray.setOnClickListener(view -> onXray());
         mBinding.control.action.decode.setOnClickListener(view -> onDecode());
         mBinding.control.action.ending.setOnClickListener(view -> onEnding());
         mBinding.control.action.repeat.setOnClickListener(view -> onRepeat());
@@ -505,6 +531,7 @@ public class VideoActivity extends PlaybackActivity implements VodPlaybackHost, 
 
     @Override
     public void prepareSource(Vod item) {
+        mXray.begin("vod:" + ++mPlaybackEpoch);
         getIntent().putExtra("key", item.getSiteKey());
         getIntent().putExtra("pic", item.getPic());
         getIntent().putExtra("id", item.getId());
@@ -517,6 +544,7 @@ public class VideoActivity extends PlaybackActivity implements VodPlaybackHost, 
 
     @Override
     public void stopPlaybackForRefresh() {
+        mXray.begin("vod:" + ++mPlaybackEpoch);
         player().stop();
         player().clear();
         mClock.setCallback(null);
@@ -535,6 +563,7 @@ public class VideoActivity extends PlaybackActivity implements VodPlaybackHost, 
 
     @Override
     public void startPlayback(Result result, boolean useParse, long startPositionMs, MediaMetadata metadata) {
+        mXray.mediaUrlChanged(result.getRealUrl());
         startPlayer(getHistoryKey(), result, useParse, getSite().getTimeout(), startPositionMs, metadata);
     }
 
@@ -1003,6 +1032,23 @@ public class VideoActivity extends PlaybackActivity implements VodPlaybackHost, 
         mBinding.control.action.ending.setText(ending <= 0 ? getString(R.string.play_ed) : Util.timeMs(mHistory.getEnding()));
     }
 
+    @Override
+    protected void onPlaybackUrlChanged(String url) {
+        if (mXray != null) mXray.mediaUrlChanged(url);
+    }
+
+    private void onXray() {
+        if (service() == null || !isOwner()) return;
+        if (mXray.state() == XraySessionListener.RUNNING || mXray.state() == XraySessionListener.STARTING) {
+            mXray.stop(true);
+            return;
+        }
+        if (!player().hasPlaySpec()) { Notify.show(R.string.xray_vod_required); return; }
+        mXray.mediaUrlChanged(player().getUrl());
+        if (!mXray.enable()) { Notify.show(R.string.xray_vod_public_http_required); return; }
+        player().clearPreload();
+    }
+
     private void onPlayer() {
         PlayerEngineDialog.show(this, mBinding.control.action.player, player());
         hideControl();
@@ -1456,6 +1502,7 @@ public class VideoActivity extends PlaybackActivity implements VodPlaybackHost, 
 
     @Override
     protected void onDestroy() {
+        if (mXray != null) mXray.close();
         mClock.release();
         saveHistory(true);
         DanmakuApi.cancel();

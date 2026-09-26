@@ -498,6 +498,10 @@ public class PlaybackService extends MediaLibraryService implements MediaLibrary
     }
 
     @Override
+    public void onPlaybackUrlChanged(String url) {
+        playerCallbacks.forEach(callback -> callback.onPlaybackUrlChanged(url));
+    }
+
     public void onPlayerRebuild(Player newPlayer) {
         sessionPlayer.removeListener(listener);
         sessionPlayer = newPlayer;
@@ -604,6 +608,8 @@ public class PlaybackService extends MediaLibraryService implements MediaLibrary
 
         default void onError(String msg) {
         }
+
+        default void onPlaybackUrlChanged(String url) { }
 
         default void onPlayerRebuild(Player player) {
         }
