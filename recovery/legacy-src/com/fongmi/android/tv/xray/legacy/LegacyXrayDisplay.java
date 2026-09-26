@@ -12,7 +12,7 @@ public final class LegacyXrayDisplay {
     }
 
     public static String describe(String shareLink) {
-        if (shareLink == null || shareLink.isEmpty()) {
+        if (shareLink.isEmpty()) {
             return "Not configured";
         }
 
