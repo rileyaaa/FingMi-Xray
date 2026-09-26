@@ -588,6 +588,13 @@ FongMi 5.6.0 所需自制 `lib-*.aar` 不在上游 Git 中。
 
 - version：`26.7.28`
 - SHA-256：`28b7dc9d6cc8455fcca5cbd56e387003a7bfb558128651a64899dc3a8ccff666`
+- 官方 XTLS/libXray build run：`30426588453`
+- run commit：`80263da83e96b2972455b0a94b13ee1a10e51391`
+- Android artifact：`8713908442`
+- artifact digest：`95ba3c2dee0e11afea22bf2bb83947d50adf2930cfbeeb86d49edcae8b4d7e93`
+- artifact 中 `libXray.aar` size：`96,258,827` bytes
+- official `libXray.aar` SHA-256：`4708a361a74f7e955635dbe3661cefb459bdc867423c3b1826a2c5a6ea4ac77d`
+- official AAR 已持久保存：`/FongMi-Xray/dependencies/libXray-v26.7.28-official.aar`
 
 发布 APK 中的 Go JNI：
 
@@ -598,11 +605,16 @@ FongMi 5.6.0 所需自制 `lib-*.aar` 不在上游 Git 中。
 
 `scripts/restore-published-libxrayjni.py`：
 
-- 核两份发布 APK 总 SHA；
-- 从 APK 提取并核固定 Go JNI；
-- 只替换官方 AAR 两个 ABI 的 `libgojni.so`；
-- 其他 AAR entry 不允许改变；
-- 输出到新文件。
+- official AAR 必须命中固定 `4708a361...` SHA；
+- 每个 ABI 的 Go JNI 来源可二选一：
+  - 原始正式 APK，先核整包 SHA；
+  - 持久 full JADX ZIP，先核该 ZIP 固定 SHA；
+- full JADX ZIP 只被接受是因为它来自先通过正式 APK 整包 SHA 门的历史分析 run，且本身又有固定 SHA；
+- 无论来源是哪一种，提取出的 `libgojni.so` 都必须再次命中发布版固定 SHA；
+- 只替换 official AAR 的 v7 / v8 两个 `libgojni.so`；
+- x86 / x86_64 JNI、`classes.jar`、Manifest、resources 和所有其他 entry 必须逐字节不变；
+- ZIP entry 名称和顺序必须保持不变；
+- 输出到新文件，不覆盖 official AAR。
 
 `scripts/check-libxray-gojni.py` 进一步验证：
 
@@ -610,9 +622,23 @@ FongMi 5.6.0 所需自制 `lib-*.aar` 不在上游 Git 中。
 - 两 ABI Go JNI 与发布版 SHA 匹配；
 - 如果同时提供官方 AAR，则除两个 JNI 外其余 entry 与官方 AAR逐字节一致。
 
-合成 fixture 的恢复与 gate 测试已经通过。
+合成 fixture 的 APK / pinned JADX 两条输入路径测试已经通过。
 
-**真实官方 AAR + 两份真实发布 APK的最终重包还没有完成。**
+2026-09-26 已完成真实本地 faithful 重包：
+
+- 输入 official AAR SHA：`4708a361a74f7e955635dbe3661cefb459bdc867423c3b1826a2c5a6ea4ac77d`
+- v7 full JADX ZIP SHA：`7aab8c3419717516167eba7cf6a6f320df894b9ef554761c0cfc98d90c580e8d`
+- v8 full JADX ZIP SHA：`8d6e2a335a442b9bc2e53f12ec7ab646ebef51df69ae8c54674d25f37035056b`
+- faithful AAR size：`95,011,275` bytes
+- faithful AAR SHA-256：`f531a138e82fa08848e47cf22537c69df29227b07eba7d19c2ad3740af657365`
+- faithful AAR 已持久保存：`/FongMi-Xray/dependencies/libXray-v26.7.28-faithful.aar`
+
+重包后仅两个 entry 变化：
+
+- `jni/armeabi-v7a/libgojni.so` → `6f01f219...`
+- `jni/arm64-v8a/libgojni.so` → `40b08a39...`
+
+official AAR 的 x86 / x86_64 Go JNI、`classes.jar`、Manifest、resources、proguard、R.txt 等其他 entry 均逐字节保持不变，ZIP entry 名称和顺序一致。
 
 ---
 
@@ -751,7 +777,7 @@ FongMi 5.6.0 所需自制 `lib-*.aar` 不在上游 Git 中。
 | Player selected Java API | 14 类 / 54 方法匹配 |
 | Player native | 固定候选每 ABI 11 件中 10 件与发布版相同；第 11 件 FFmpeg JNI 候选不同，但已从固定发布证据恢复并生成 faithful decoder AAR |
 | FFmpeg JNI 真包恢复 | 已从固定 full JADX 证据恢复；faithful decoder AAR 已持久保存并核只有两 JNI entry 改变 |
-| libXray Go JNI 真包恢复 | 脚本与合成测试就绪；真实恢复未执行 |
+| libXray Go JNI 真包恢复 | 已从固定 full JADX 发布证据恢复；official / faithful AAR 均持久保存，只有 v7/v8 两个 Go JNI entry 改变 |
 | native dependency workflow | 已配置且手动；未实际成功跑完 |
 | faithful Gradle build | 未完成 |
 | Android TV v7 真机回归 | 未完成 |
@@ -796,7 +822,7 @@ FongMi 5.6.0 所需自制 `lib-*.aar` 不在上游 Git 中。
 
 ## 16. 当前阻塞与下一步
 
-### 阻塞 A：libXray faithful AAR / 云端 native dependency artifact 尚未生成
+### 阻塞 A：云端 native dependency artifact 尚未生成
 
 需要在项目所有者明确授权后，手动运行：
 
