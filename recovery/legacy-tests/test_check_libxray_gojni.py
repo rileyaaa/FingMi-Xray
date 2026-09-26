@@ -35,10 +35,22 @@ class LibXrayGateTest(unittest.TestCase):
                 archive.writestr("classes.jar", classes.getvalue())
                 for abi, data in values.items():
                     archive.writestr(f"jni/{abi}/libgojni.so", data)
+            official = root / "official.aar"
+            with ZipFile(official, "w") as archive:
+                archive.writestr("classes.jar", classes.getvalue())
+                for abi in values:
+                    archive.writestr(f"jni/{abi}/libgojni.so", b"older-native")
             expected = {abi: module.hashlib.sha256(data).hexdigest()
                         for abi, data in values.items()}
             with patch.dict(module.PUBLISHED, expected):
-                module.check(aar)
+                module.check(aar, official)
+                wrong_official = root / "wrong-official.aar"
+                with ZipFile(wrong_official, "w") as archive:
+                    archive.writestr("classes.jar", b"changed")
+                    for abi in values:
+                        archive.writestr(f"jni/{abi}/libgojni.so", b"older-native")
+                with self.assertRaisesRegex(ValueError, "non-JNI entry"):
+                    module.check(aar, wrong_official)
                 module.PUBLISHED["armeabi-v7a"] = "0" * 64
                 with self.assertRaisesRegex(ValueError, "Go JNI SHA-256 differs"):
                     module.check(aar)
