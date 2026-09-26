@@ -133,3 +133,12 @@
 - 比较普通 app 已依赖的 `XrayPreferences` 与恢复的 `LegacyXrayConfigStore`：实验读旧加密链接只 trim，恢复版重新 normalize；保存校验及失败文本也不同。以恢复实现对齐存储类，仅适配包/类名；设置控制器保存交给存储归一化，静态逐字节核对通过。已有存储数据需真实 Android Keystore 设备回归。
 - 第二优先级已接入普通 app 的 TV 待机/长后台网络恢复：`TvNetworkLifecycle` 代际跟踪、Home 取消旧请求并等待 Spider 清理完成、最多 12 次/500ms 且连续两次互联网能力检查，`OkHttp` 只重建普通 API 客户端、DoH 传输重建与异步释放，`BaseLoader.clear(Runnable)` 回调。对应 5 个文件取自已按发布版静态核验的 recovery overlay，字节内容与该覆盖层相同；Home 的旧 DLNA start/stop 交由生命周期管理。普通 app 尚未 Android 编译或长待机真机回归，播放器专用客户端必须在设备侧确认未受影响。
 - 接线复核发现普通 `SiteViewModel` 缺少 Home 新调用的 `cancelResultRequest()`，属于可确定的 Java 编译缺符号；已从恢复覆盖层补该方法，调用 `tasks.cancel(TaskType.RESULT)`，避免旧网络代际的结果回写。静态核对 `App.post/removeCallbacks`、`BaseLoader.clear(Runnable)`、OkHttp/OkDns 方法与 Android `ACCESS_NETWORK_STATE` 声明均存在；这仍不是 Android 编译通过。
+
+
+## 2026-09-26 续接（发布版 libXray Go JNI 定点恢复）
+
+- 子源要求从上一会话中断点继续，半小时后停止，并要求每段成果及时写入 GitHub main 和项目日志。本轮开始时本地 scratch 是空目录，上一会话所述的 13 文件审阅补丁没有保存在 main 或可检索的 Library；本轮不把该临时补丁记作已提交。起始 main tree 为 `cb683f0dd374eb65836c8f446e07b8ada0a9d792`。
+- 新增 `scripts/restore-published-libxrayjni.py`：要求原始 v7/v8 APK 的固定整包 SHA-256，分别提取 `lib/{ABI}/libgojni.so`，只替换官方 libXray AAR 的两份 `jni/{ABI}/libgojni.so`；检查唯一 ZIP 条目、非空内容、输出不存在，并逐条比较其余 AAR 条目字节不变。该脚本尚未在真实发布 APK 上运行；官方 ZIP 的固定 SHA 由已有 `fetch-libxray.sh` 验证。
+- 新增 `recovery/legacy-tests/test_restore_published_libxrayjni.py`：合成双 ABI APK/AAR 的正例、禁止覆盖及 APK 篡改负例，`python3 -m unittest -v` 1/1 通过；`py_compile` 通过。假包测试不证明真实 Go JNI 已取得或与官方版本等价。
+- 手动 `.github/workflows/recovery-restore-ffmpegjni.yml` 在核官方 AAR 的 Java 入口与双 ABI 文件存在后调用该脚本，上传恢复后的 `recovery/work/restored/libXray.aar` 和两个 JNI 的 SHA 清单，同时记录官方与恢复 AAR 的 SHA。工作流仍只允许 `workflow_dispatch`，没有实际触发，也没有花费新的 Actions 运行；YAML 解析检查通过。
+- 本段源码、测试、工作流已依次提交 main：`ba03c299c6d2f273d007e39898ed165a9bd8b172`、`5710653c1de730fb725bcf010211050038f634c4`、`17c35876249572d64426571352b3fbfb93ef8458`。仍未取得原 v7/v8 APK、未完成 decoder FFmpeg JNI 的真实替换、未运行 faithful APK 编译或电视回归；正式 Xray 模块迁移门槛未改变。下一步检查手动工作流输入/输出路径与恢复结果的导入门，再继续静态源码核对。
