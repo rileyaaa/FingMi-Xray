@@ -12,6 +12,7 @@ fi
 
 python3 "$ROOT/scripts/check-faithful-player-aars.py"
 python3 "$ROOT/scripts/check-player-ffmpegjni-against-published.py" --aar-dir "$ROOT/app/libs"
+python3 "$ROOT/scripts/check-libxray-gojni.py" --aar "$ROOT/libxray/libs/libXray.aar"
 bash "$ROOT/scripts/prepare-legacy-faithful.sh"
 
 echo "Compiling recovered TV source with:"
