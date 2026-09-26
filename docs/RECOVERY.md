@@ -423,6 +423,18 @@ JADX 的 `outbounds != null || ...` 是反编译损坏。
 - 已保存 pin 不改写大小写；
 - 以 ASCII byte + `MessageDigest.isEqual` 比较。
 
+### TLS / Hysteria2 IPv4 literal helper
+
+发布 DEX 的 `j81.r()` 确认 IPv4 literal 判定严格要求：
+
+- 恰好四段；
+- 每段非空且最多 3 位；
+- 多位数字不能以 `0` 开头；
+- 每个字符都必须是十进制数字；
+- 每段值必须 ≤ 255。
+
+JADX 伪代码遗漏了这些失败跳转并可能误读成“四段就返回 true”。faithful transport-security 的默认 SNI 判断必须保留严格逻辑。
+
 ### public destination guard
 
 `qz3` 的“纯数字 IPv4”判断：
