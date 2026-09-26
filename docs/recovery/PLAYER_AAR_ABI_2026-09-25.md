@@ -77,3 +77,8 @@ python3 scripts/check-player-ffmpegjni-against-published.py --aar-dir app/libs
 ### 手动恢复工件的获取方式（2026-09-25 复核）
 
 仅手动的 `recovery-restore-ffmpegjni.yml` 使用 `GH_TOKEN` 配合 `gh release download` 精确匹配发布版 v7/v8 两份 APK，然后核各自完整 SHA-256；候选 AAR ZIP 走已有 Actions artifact API，另核原 ZIP 哈希。私有仓库的裸 Release 网页 `curl` 已从未运行的工作流移除。该工作流尚未派发，因而任何实际下载、重包和 libXray 获取结果都仍待验证。
+
+
+## 2026-09-26 DRM / RTSP ABI 补核
+
+重新从持久候选 ZIP 读取 44,336,768 字节，整体 SHA-256 仍为 `0ed42581af11ac7163ebde148b318807c244e2a318f40c41d33f50b70bf967ee`。在固定 TV 5.6.0 恢复层 `ExoMediaSourceFactory` 的实际调用基础上，为 `DefaultDrmSessionManagerProvider.setDrmHttpDataSourceFactory(DataSource.Factory): void` 和 `RtspMediaSource.Factory` 的 `setForceUseRtpTcp(boolean)`、`setSocketFactory(SocketFactory)`、`setUserAgent(String)` 增加精确 JVM 描述符门。真实候选 AAR 验证结果由 12 类/50 方法扩为 **14 类/54 方法全部匹配**，提交 `5216f792dcc66fe932bade2b9a65619f428f6a95`。同一候选的 FFmpeg JNI 门再次实测在 v7/v8 都拒绝，故构建阻塞没有解除；这些选取方法也不代替完整 Java 编译或设备验证。
