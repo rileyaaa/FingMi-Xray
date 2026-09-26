@@ -93,9 +93,19 @@ public final class LegacyXrayBitmapLoader implements BitmapLoader {
         if (uri == null) return false;
 
         String scheme = uri.getScheme();
-        if (scheme == null || scheme.isBlank()) return true;
+        if (isBlank(scheme)) return true;
 
         return LOCAL_SCHEMES.contains(
                 scheme.toLowerCase(Locale.ROOT));
+    }
+
+    private static boolean isBlank(String value) {
+        if (value == null) return true;
+        for (int offset = 0; offset < value.length();) {
+            int codePoint = value.codePointAt(offset);
+            if (!Character.isWhitespace(codePoint)) return false;
+            offset += Character.charCount(codePoint);
+        }
+        return true;
     }
 }
