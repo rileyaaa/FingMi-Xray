@@ -62,3 +62,8 @@
 设置页与控制器续查：普通 app 的手机导入事件原调用远端 `cancel`，销毁时 `close()` 也会先远端取消；恢复层在导入/销毁仅清本地代际并解绑，45 秒超时才用 operation ID 精确取消。现增加 `abandon()` 供导入调用、`close()` 只失效本地请求并解绑，超时额外递增本地 operation ID 后保持精确取消。此路径是普通 app 的实际接线，仍须 Android 编译和设备实测。
 
 保存节点的 `XrayPreferences` 现与恢复版 `LegacyXrayConfigStore` 在读回时重新归一化、保存时检查/加密、清理偏好与密钥的顺序一致（只改模块包/类名）。设置控制器保存时交给存储类归一化，避免双重处理。更改可能影响普通 app 的已有加密节点，需有旧数据的设备回归。
+
+
+## 2026-09-26 普通播放器接线检查点
+
+普通 `app/` 的 `PlayerManager`、`PlayerEngineFactory`、`ExoMediaSourceFactory`、`ExoPlayerSession`、`PlaybackService`、leanback `LiveActivity`、`VideoActivity` 与 faithful 覆盖层各自不同；七个普通文件均没有 Xray 标识，恢复层则分别有 61、12、35、17、15、107、77 处文本命中。普通 `PlayerManager` 尚无 `setXrayPort`，普通 `ExoMediaSourceFactory` 尚无 Xray DRM 与 RTSP 的数据源接线。因此本轮对已被普通 app 依赖的实验网络类所做拦截器、SOCKS SocketFactory 和资源清理改动只是基础构件，不构成普通 app 播放代理功能完成。待 faithful 基准过门后按播放身份、Exo/DRM/RTSP、VOD/直播切换、退出和失败回退的行为矩阵逐点迁移。此处的文本命中只用于定位差距，不是完成率。
