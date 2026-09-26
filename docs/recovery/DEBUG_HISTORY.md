@@ -64,3 +64,6 @@
 - 2026-09-26 手动 faithful 编译入口原只 checkout 并调用构建脚本，runner 没有被忽略的播放器 AAR，新增 Go JNI 门也要求已恢复 libXray，因此直接派发不能验证源码。现在 workflow_dispatch 要求输入先前手动恢复的 artifact ID，并核固定候选、decoder 非 JNI 条目、官方 libXray 的非 JNI 条目及双 ABI 发布 Go JNI，再调用原构建入口；`c301c29`。仅静态 YAML/shell 验证，Actions 未运行。下载或 SDK 阶段的真实可行性仍待获准运行后确认。
 
 - 2026-09-26 Go JNI 来源进一步收紧：历史双 ABI APK 报告给出 v7 `6f01f219fe4087790cd8e647394de9dbefc61e0d750d927924b93f120b06fb7e`、v8 `40b08a399871973ba6ad5898ca7097961337d7aeddb4b3378b153a66679eeece`。恢复脚本核原 APK 整包和对应 JNI 双重 SHA，faithful 构建门核两 JNI 及 Java invoke；手动构建还把官方 libXray AAR 非 JNI ZIP 条目与恢复包逐字节比对。假包正反例 2/2，通过，真实原 APK/Actions 未运行；`d144cab`、`82a0b4a`、`ba90d68`、`90dc355`。
+
+- 2026-09-26 手动依赖恢复的下载成本门：先以 Release API 校验两份发布 APK 的精确名称、大小和摘要，再下载并复核整包 SHA；当前真实 Release 元数据正例通过，YAML/shell 语法通过，未启动 Actions。对应工作流提交 `4f939b6`。
+- 2026-09-26 手动 faithful 构建防误用工件：artifact ID 除名称/main/未过期外，还追溯源 workflow run 的路径和成功结论；错误来源在下载候选二进制前被拒。仅根据已成功的历史 run API 形状及 YAML/shell 静态检查，native 恢复工作流本身仍未运行。对应提交 `67ea5b2`。
