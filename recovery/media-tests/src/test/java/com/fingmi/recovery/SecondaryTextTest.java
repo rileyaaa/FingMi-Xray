@@ -71,13 +71,13 @@ public class SecondaryTextTest {
         factory.setSecondaryTextTrackSelectionOverride(new TrackSelectionOverride(en,0));
         renderers[1]=text(false);result=select(zh,en);assertNull(result.selections[1]);assertNotNull(result.selections[0]);
     }
-    @Test public void secondTrackWithinOneGroupUsesDifferentStream() throws Exception {
+    @Test public void sameTrackGroupCannotBindSampleQueueTwice() throws Exception {
         TrackGroup multi=new TrackGroup("multi",zh.getFormat(0),en.getFormat(0));
         primary.setParameters(primary.buildUponParameters().setOverrideForType(new TrackSelectionOverride(multi,0)).build());
         selector.onParametersActivated(primary.getParameters());
         factory.setSecondaryTextTrackSelectionOverride(new TrackSelectionOverride(multi,1));
         TrackSelectorResult result=select(multi);
-        assertEquals(0,result.selections[0].getIndexInTrackGroup(0));assertEquals(1,result.selections[1].getIndexInTrackGroup(0));
+        assertEquals(0,result.selections[0].getIndexInTrackGroup(0));assertNull(result.selections[1]);
     }
     @Test public void autoLanguageAndDisable() throws Exception {
         primary.setParameters(primary.buildUponParameters().setPreferredTextLanguages("fr","en").build());
@@ -96,6 +96,14 @@ public class SecondaryTextTest {
         assertNull(selector.getSecondaryTextTrackSelectionOverride());
         int before=invalidations;selector.release();factory.setSecondaryTextTrackAutoSelectionEnabled(true);
         assertEquals(before,invalidations);selector.onSelectionActivated(old.info);assertNull(selector.getPrimaryTextTrackSelectionOverride());
+    }
+    @Test public void preloaderActivationCannotPublishIntoPlayerSelector() throws Exception {
+        factory.setSecondaryTextTrackSelectionOverride(new TrackSelectionOverride(en,0));
+        TrackSelectorResult foreign=select(zh,en);
+        SecondaryTextTrackSelector other=(SecondaryTextTrackSelector)factory.createTrackSelector(RuntimeEnvironment.getApplication());
+        other.init(p -> {},new DefaultBandwidthMeter.Builder(RuntimeEnvironment.getApplication()).build());
+        other.onSelectionActivated(foreign.info);
+        assertNull(other.getSecondaryTextTrackSelectionOverride());other.release();
     }
     @Test public void outputRebindResetAndLateCallbacks() {
         SecondaryTextOutput output = new SecondaryTextOutput();

@@ -83,15 +83,16 @@ public final class SecondaryTextTrackSelector extends TrackSelector {
     }
 
     private static final class Selection {
+        final SecondaryTextTrackSelector owner;
         @Nullable final Object delegateInfo;
         @Nullable final TrackSelectionOverride primary, secondary;
         final List<TrackSelectionOverride> available;
         final long revision, lifetime;
         final boolean suppressed;
-        Selection(@Nullable Object info, @Nullable TrackSelectionOverride primary,
+        Selection(SecondaryTextTrackSelector owner, @Nullable Object info, @Nullable TrackSelectionOverride primary,
                 @Nullable TrackSelectionOverride secondary, List<TrackSelectionOverride> available,
                 Options options, long lifetime) {
-            this.lifetime = lifetime;
+            this.owner = owner; this.lifetime = lifetime;
             delegateInfo = info; this.primary = primary; this.secondary = secondary;
             this.available = java.util.Collections.unmodifiableList(new ArrayList<>(available));
             revision = options.revision;
@@ -133,11 +134,11 @@ public final class SecondaryTextTrackSelector extends TrackSelector {
             secondaryIndex = i; textCount++;
         }
         if (textCount < 2) secondaryIndex = -1;
-        RendererCapabilities[] primaryRenderers = renderers.clone();
-        if (secondaryIndex >= 0) primaryRenderers[secondaryIndex] = RESERVED_TEXT;
-        TrackSelectorResult result = delegate.selectTracks(primaryRenderers, groups, period, timeline);
+        TrackSelectorResult result = delegate.selectTracks(renderers, groups, period, timeline);
         ExoTrackSelection[] selections = result.selections.clone();
         RendererConfiguration[] configs = result.rendererConfigurations.clone();
+        // Never replace a stream already selected by the primary delegate.
+        if (secondaryIndex >= 0 && selections[secondaryIndex] != null) secondaryIndex = -1;
         TrackSelectionOverride primary = null;
         for (int i = 0; i < renderers.length; i++) {
             if (i != secondaryIndex && renderers[i].getTrackType() == C.TRACK_TYPE_TEXT && selections[i] != null) {
@@ -149,12 +150,17 @@ public final class SecondaryTextTrackSelector extends TrackSelector {
         Options options = owner.snapshot();
         List<TrackSelectionOverride> available = new ArrayList<>();
         if (secondaryIndex >= 0) {
-            selections[secondaryIndex] = null; configs[secondaryIndex] = null;
             for (int i = 0; i < groups.length; i++) {
                 TrackGroup group = groups.get(i);
                 if (group.type != C.TRACK_TYPE_TEXT) continue;
+                // A MediaPeriod may expose one SampleQueue per TrackGroup. Giving
+                // the same group to two renderers can bind the queue twice.
+                boolean consumed = false;
+                for (ExoTrackSelection selection : selections)
+                    if (selection != null && selection.getTrackGroup().equals(group)) consumed = true;
+                if (consumed) continue;
                 for (int t = 0; t < group.length; t++) {
-                    if (RendererCapabilities.getFormatSupport(renderers[secondaryIndex].supportsFormat(group.getFormat(t))) != C.FORMAT_HANDLED) continue;
+                    if (!RendererCapabilities.isFormatSupported(renderers[secondaryIndex].supportsFormat(group.getFormat(t)), true)) continue;
                     TrackSelectionOverride candidate = new TrackSelectionOverride(group, t);
                     if (!candidate.equals(primary)) available.add(candidate);
                 }
@@ -194,7 +200,7 @@ public final class SecondaryTextTrackSelector extends TrackSelector {
             tracks.add(new Tracks.Group(group.getMediaTrackGroup(), group.isAdaptiveSupported(), support, selected));
         }
         return new TrackSelectorResult(configs, selections, new Tracks(tracks),
-                new Selection(result.info, primary, secondary, available, options, lifetime));
+                new Selection(this, result.info, primary, secondary, available, options, lifetime));
     }
 
     private static boolean languageMatches(@Nullable String language, String preferred) {
@@ -206,7 +212,7 @@ public final class SecondaryTextTrackSelector extends TrackSelector {
         if (released) return;
         if (!(info instanceof Selection)) { active = null; delegate.onSelectionActivated(info); return; }
         Selection selection = (Selection) info;
-        if (selection.lifetime != lifetime) return;
+        if (selection.owner != this || selection.lifetime != lifetime) return;
         delegate.onSelectionActivated(selection.delegateInfo);
         active = selection.revision == owner.snapshot().revision ? selection : null;
     }
@@ -229,10 +235,4 @@ public final class SecondaryTextTrackSelector extends TrackSelector {
     @Override public void setAudioAttributes(AudioAttributes attributes) { delegate.setAudioAttributes(attributes); }
     @Nullable @Override public RendererCapabilities.Listener getRendererCapabilitiesListener() { return delegate.getRendererCapabilitiesListener(); }
 
-    private static final RendererCapabilities RESERVED_TEXT = new RendererCapabilities() {
-        @Override public String getName() { return "ReservedSecondaryText"; }
-        @Override public int getTrackType() { return C.TRACK_TYPE_TEXT; }
-        @Override public int supportsFormat(Format format) { return RendererCapabilities.create(C.FORMAT_UNSUPPORTED_TYPE); }
-        @Override public int supportsMixedMimeTypeAdaptation() { return ADAPTIVE_NOT_SUPPORTED; }
-    };
 }

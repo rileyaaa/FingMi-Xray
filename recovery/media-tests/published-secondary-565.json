@@ -1,0 +1,22 @@
+{
+  "kind": "published-bytecode-evidence-not-original-source",
+  "apk_url": "https://github.com/FongMi/Release/releases/download/5.6.5/leanback-armeabi_v7a.apk",
+  "apk_sha256": "43efc084598782820079347f00e0d26bb2b594ce7087579b8859856c0c6b2132",
+  "classes_dex_sha256": "a1b7f5735678e7b09dbd522d080ff6ada3fc4cf6ffe064278c35ebccb49020f8",
+  "jadx_version": "1.5.3",
+  "jadx_zip_sha256": "8280f3799c0273fe797a2bcd90258c943e451fd195f13d05400de5e6451d15ec",
+  "scope": "5.6.5 used only as neighboring binary evidence; project remains 5.6.3",
+  "classes": {
+    "m63": "SecondaryTextTrackSelector; superclass tu3 = TrackSelector",
+    "l63": "selection info includes owning selector",
+    "k63": "secondary text controller; validates player selector came from its factory"
+  },
+  "selector_evidence": [
+    "m63.j delegates with original renderer capabilities, retains selections and renderer configurations",
+    "m63.j L36-L44 requires two text renderers and vacant final text renderer",
+    "m63.j L44-L59 rejects any TrackGroup already consumed by another selection, regardless of track index",
+    "m63.j L59-L77 accepts FORMAT_HANDLED=4 or FORMAT_EXCEEDS_CAPABILITIES=3",
+    "m63.h checks selection-info owner before publishing active secondary and forwarding wrapped delegate info"
+  ],
+  "reproduce": "jadx --single-class m63 --single-class-output selector.java --no-res -m fallback classes.dex; structured JADX hides an early return in the duplicate-group loop, so fallback bytecode control flow is required"
+}
