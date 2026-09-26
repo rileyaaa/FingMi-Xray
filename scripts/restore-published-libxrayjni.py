@@ -17,6 +17,10 @@ APK_SHA256 = {
     "armeabi-v7a": "cacc7a90ce082adf955fc80a444b54f8cc86d5b5c3ac7acb13d1392b59928bda",
     "arm64-v8a": "b5ac05193c1e19809fc7ffb3048f7d75aaa2124eace9953d669f4a81a477c21d",
 }
+JNI_SHA256 = {
+    "armeabi-v7a": "6f01f219fe4087790cd8e647394de9dbefc61e0d750d927924b93f120b06fb7e",
+    "arm64-v8a": "40b08a399871973ba6ad5898ca7097961337d7aeddb4b3378b153a66679eeece",
+}
 
 
 def digest(data):
@@ -34,6 +38,8 @@ def verified_jni(apk_path, abi):
         result = apk.read(name)
     if not result:
         raise ValueError(f"{apk_path}: empty {name}")
+    if digest(result) != JNI_SHA256[abi]:
+        raise ValueError(f"{apk_path}: Go JNI SHA-256 differs from published {abi} library")
     return result
 
 
