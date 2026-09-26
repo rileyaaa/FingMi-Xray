@@ -161,3 +161,5 @@
 - 固定 FongMi/TV 提交 `1a19fee...` 的 `gradle/libs.versions.toml` 明确 `compileSdk=37`；手动 build 工作流现于依赖下载前检查 runner 的 sdkmanager 并安装 Android 37 platform/build-tools 36.0.0（`0ed32ea4148d6f18fafc1a6651d8ac5079141537`）。仅本地 YAML/shell 语法核验，没有执行 SDK 下载或 Actions。
 
 - RTSP SOCKS 定点回环验证补入 `test_xray_network_java.py`（`bc02bfa6ae9dce3f287e288fe7a7d280df94272d`）：在本机以最小 OkHttp 桩编译三类网络代码，Java 的 `XrayProxySocketFactory.createSocket("unresolved.invalid", 443)` 对 Python SOCKS5 假服务握手，服务收到 ATYP=域名、原始主机名和 443 端口；17 阻断/4 允许地址样本仍通过。这只证明 SocketFactory 的本地握手和地址传递，不是 Media3 RTSP 或电视设备播放验证。
+
+- 普通 app 播放接线只读复核：对照 faithful 覆盖层逐文件读取 `PlayerManager`、`PlayerEngineFactory`、`ExoMediaSourceFactory`、`ExoPlayerSession`、`PlaybackService`、leanback `LiveActivity` 和 `VideoActivity`；当前普通版这七文件均无 `Xray/xray` 标识，而对应 faithful 文件分别有 61/12/35/17/15/107/77 处文本命中。特别是普通 `PlayerManager` 无 `setXrayPort`，媒体源工厂无 DRM 数据源与 RTSP SOCKS 注入。因此本轮移植的实验模块网络类虽已被普通 app 的 `:xray` 依赖包含，但尚无播放器连接使用，不能宣称普通版已恢复代理播放。正式迁移仍应先过 faithful 编译及行为回归，再按行为矩阵逐点接线；这项计数是源码边界检查而非覆盖率或运行证明。
