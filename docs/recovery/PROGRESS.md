@@ -29,3 +29,6 @@
 
 
 2026-09-26 播放器静态 ABI 再核：在固定候选 ZIP 总 SHA 复验之后，精选 Java 签名从 12 类/50 方法增加至 **14 类/54 方法**，新覆盖 DRM 数据源设置和 RTSP 的 TCP、SOCKS SocketFactory、User-Agent 三个入口。两种 ABI 的 FFmpeg JNI 仍不匹配并被早停门拒绝；faithful 编译与电视回归状态不变。
+
+
+2026-09-26 构建准备：发布 Go JNI 的逐文件 SHA 门及官方 libXray 非 JNI 条目比较已接入仅手动的 faithful 构建工作流，候选播放器与 decoder 仍过固定哈希/条目门。两项假包单元测试通过，YAML/shell 静态解析通过；尚未运行恢复依赖工作流或 faithful APK 编译，状态仍为未完成。
