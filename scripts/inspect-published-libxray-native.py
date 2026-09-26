@@ -9,6 +9,10 @@ import tempfile
 from pathlib import Path
 from zipfile import ZipFile
 
+APK_SHA256 = {
+    "armeabi-v7a": "cacc7a90ce082adf955fc80a444b54f8cc86d5b5c3ac7acb13d1392b59928bda",
+    "arm64-v8a": "b5ac05193c1e19809fc7ffb3048f7d75aaa2124eace9953d669f4a81a477c21d",
+}
 JADX_SHA256 = {
     "armeabi-v7a": "7aab8c3419717516167eba7cf6a6f320df894b9ef554761c0cfc98d90c580e8d",
     "arm64-v8a": "8d6e2a335a442b9bc2e53f12ec7ab646ebef51df69ae8c54674d25f37035056b",
@@ -40,6 +44,17 @@ def sha256(data):
 
 def run(*args):
     return subprocess.run(args, check=True, text=True, stdout=subprocess.PIPE).stdout
+
+
+def extract_apk(path, abi):
+    data = path.read_bytes()
+    if sha256(data) != APK_SHA256[abi]:
+        raise ValueError(f"{path}: APK SHA-256 differs from pinned {abi} release")
+    name = f"lib/{abi}/libgojni.so"
+    with ZipFile(path) as archive:
+        if archive.namelist().count(name) != 1:
+            raise ValueError(f"{path}: expected exactly one {name}")
+        return archive.read(name)
 
 
 def extract_jadx(path, abi):
@@ -98,13 +113,20 @@ def inspect(data, abi):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--v7-jadx", required=True, type=Path)
-    parser.add_argument("--v8-jadx", required=True, type=Path)
+    v7 = parser.add_mutually_exclusive_group(required=True)
+    v7.add_argument("--v7-apk", type=Path)
+    v7.add_argument("--v7-jadx", type=Path)
+    v8 = parser.add_mutually_exclusive_group(required=True)
+    v8.add_argument("--v8-apk", type=Path)
+    v8.add_argument("--v8-jadx", type=Path)
     args = parser.parse_args()
-    for abi, path in (("armeabi-v7a", args.v7_jadx), ("arm64-v8a", args.v8_jadx)):
-        result = inspect(extract_jadx(path, abi), abi)
+    inputs = (
+        ("armeabi-v7a", args.v7_apk or args.v7_jadx, extract_apk if args.v7_apk else extract_jadx),
+        ("arm64-v8a", args.v8_apk or args.v8_jadx, extract_apk if args.v8_apk else extract_jadx),
+    )
+    for abi, path, extractor in inputs:
+        result = inspect(extractor(path, abi), abi)
         print(" ".join(f"{key}={value}" for key, value in result.items()))
-
 
 if __name__ == "__main__":
     main()
