@@ -65,23 +65,16 @@
 
 这条能力是项目第二核心功能，但不迁入 Xray 模块。
 
-## 当前普通工程状态
+## 当前普通工程状态和接线差距
 
-截至 2026-09-26 的已知状态：
+截至 2026-09-26，普通工程已经具备以下模块基础：
 
 - `settings.gradle` 已包含 `:xray`；
-- `app/build.gradle` 已 `implementation project(':xray')`；
+- `app/build.gradle` 已依赖 `:xray`；
 - `xray` library Manifest 声明独立 `:xray` Service；
-- 普通 Leanback app 有 Xray 设置入口；
-- 实验模块的分享链接、证书、Service、Binder、session 和网络基础类已经接受多轮 faithful 静态对齐；
-- 普通 `PlayerManager`、播放器 factory/session、`PlaybackService`、`VideoActivity` 和 `LiveActivity` 的完整 Xray 播放接线尚未正式迁移；
-- 普通 app 的 TV 网络恢复链已经按 faithful 接入 Home、BaseLoader、SiteViewModel、TvNetworkLifecycle、OkDns、OkHttp；仍需 Android 编译和真实 TV 待机回归。
+- 普通 Leanback app 已有 Xray 设置入口。
 
-更精确的恢复状态和证据不要在这里重复，统一看 [RECOVERY.md](RECOVERY.md)。
-
-## 当前普通工程与 faithful 的接线差距
-
-已重新按最新 `main` 逐文件对照普通工程与 `recovery/legacy-src/upstream/`。
+更精确的恢复证据不要在这里重复，统一看 [RECOVERY.md](RECOVERY.md)。
 
 ### 已经接入普通工程：TV 网络恢复
 
@@ -109,8 +102,6 @@
 - Leanback `LiveActivity`
 
 当前普通 `PlayerManager` 还没有 faithful 的 `setXrayPort` / session client 切换；普通 `ExoMediaSourceFactory` 还没有 Xray DRM DataSource 与 RTSP SOCKS 接线。
-
-因此：
 
 > 实验 `:xray` 模块里的网络类已经存在，不等于普通 app 已经可以按发布版语义代理媒体播放。
 
