@@ -10,8 +10,8 @@ from zipfile import ZipFile,ZipInfo,ZIP_DEFLATED
 ROOT=Path(__file__).resolve().parents[1]
 SOURCE='libraries/extractor/src/main/java/androidx/media3/extractor/mkv/MatroskaExtractor.java'
 SOURCE_SHA='84e01966733fec404de062fce4aa5c221af432c570afcef9eb1ad0cab07f495f'
-RESTORED_SHA='c47a70a61f8d25cba7a07567727e72fb29a2487e7a07c860a12998e9babe59cd'
-COPY_SHA='a6e5d4932d552fe74ee9c168335e474bccd0ffaae0dad5f854f4d60617e72623'
+RESTORED_SHA='203c3ef5626afa3bc0401befc07a347a3e32e6e2b835b0164b0c05eeba1560db'
+COPY_SHA='4acaaa255e7a8b2a33fa1978c655d83cb9cb47d0ce3999b25838e07088b205da'
 CONTAINER_SHA='930fca2f018f06f1d08c12599f8c97f31eddbd728edee5de06eb53a882f8fc54'
 TIMED_SOURCES={
  'SubtitleParser':('529d8a48083cb491cab0479431253774a512e36d4c365735c4a51a173658cca7','216d67d9c56d0697623342216aed36d9440b117152db91a5b8a0150d301b2b1b'),
