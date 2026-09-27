@@ -514,3 +514,20 @@ Restored LibassPlayerViewController, LibassSubtitleView and the render-thread/EG
 Player API reads remain on the application thread; cached session playback state is read by the render thread. Session close releases the view outside its monitor before releasing native media, avoiding a render-gate/session-lock inversion. Existing texture implementations were not rewritten.
 
 21 new tests pass:12 recording-backend pipeline/gate/geometry tests,2 zero-sized SurfaceTexture/HandlerThread lifecycle tests, and7 view-binding/configurator tests using real Android views plus a synthetic native-overlay adapter. Total Libass/SecondaryText suite72 tests, zero failures/errors/skips. The EGL14 backend compiles against real Android APIs; these tests do not execute an EGL display or claim TV/GPU validation. Complete candidate packaging and Android app build are still pending.
+
+#### Reconstructed Libass candidate AAR (2026-09-27)
+
+`scripts/build-libass-candidate.py` now compiles49 production Libass/UI classes with Java17 against pinned real Android/Media3 inputs and packages the pinned neighboring5.6.5 v7/arm64 SOs. This is a reconstructed compatibility artifact, not an exact5.6.3 original. Candidate SHA256: `8b4e7cf1e9971295f55c29548b04c1ab715eb9f5fba71a3de9087ae6ea6768ee`. Two independent local builds produce that same hash. The manifest, consumer JNI keep rules and empty R.txt are included. No test/fake JNI/GLES/Android classes or app-owned SecondaryText classes are packaged. Source/class/input hashes are in `recovery/libass-tests/candidate-artifact.json`.
+
+`check-libass-contract.py --aar` passes17 JNI methods,2 constructors, both ELF machine types and SO hashes, and the public Session/SubtitleController/PlayerViewController contracts plus MediaComponents fields. `import-libass-candidate.py` replaces the original extractor in place, adds the container and Libass AARs, and validates all existing AAR class/native ownership before modifying files. Import into the fixed16-AAR set passes with3346 unique classes; duplicate UI and second-Libass rejection checks pass. Unknown replacement inputs are rejected. These gates do not validate resources/D8/full app compilation.
+
+Reproduction (paths are caller-supplied pinned downloads; binaries remain outside Git):
+
+```sh
+python scripts/build-libass-extractor.py --candidate "$CANDIDATE" --workdir "$EXTRACTOR_WORK" --source-root "$MEDIA_SOURCE" --container "$CONTAINER" --maven "$MAVEN"
+python scripts/build-libass-candidate.py --candidate "$CANDIDATE" --extractor "$EXTRACTOR_WORK/lib-extractor-libass-release.aar" --container "$CONTAINER" --v7-apk "$APK_V7" --v8-apk "$APK_V8" --android-jar "$ANDROID_ALL" --output "$LIBASS_AAR"
+python scripts/import-player-aar-candidate.py "$CANDIDATE" --restored-decoder "$RESTORED_DECODER"
+python scripts/import-libass-candidate.py --aar "$LIBASS_AAR" --extractor "$EXTRACTOR_WORK/lib-extractor-libass-release.aar" --container "$CONTAINER"
+```
+
+The existing published native JNI/lifecycle and8 actual native rendering observations,27 owner cases, recording GLES tests,10 extractor tests and72 Libass/SecondaryText tests pass. Native/JNI tests run with QEMU/test JNI tables or headless bitmap output; there is still no real EGL/display/device claim. Legacy unmarked-encoding detection and adjacent dual-offset message26 remain the explicitly recorded behavior gaps above. Current5.6.3 Android Gradle build and assemble are not yet executed.
