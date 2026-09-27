@@ -8,7 +8,9 @@ FingMi-Xray 将 Xray 集成到播放器内部。遇到这类内容时，可以�
 
 ## 项目版本
 
-当前 `main` 基于 FongMi/TV 5.6.3，主要组件版本如下：
+当前 `main` 基于 FongMi/TV 5.6.3。**从 5.6.3 重构线开始，当前 `main` 以及由它构建出的最新 FingMi-Xray 测试版 / 正式版，是唯一的开发与验收基线。** `v5.6.0-xray.5` 只保留为历史发布证据和当前部分 native 二进制的来源记录，不再要求以 faithful 重建、旧 APK 行为对照或旧版本 cloud build 作为当前版本的最终验收条件。
+
+主要组件版本如下：
 
 | 组件 | 当前版本 / 基线 |
 | --- | --- |
@@ -30,7 +32,7 @@ FingMi-Xray 将 Xray 集成到播放器内部。遇到这类内容时，可以�
 | Glide | **5.0.9** |
 | Material Components | **1.14.0** |
 
-当前播放器 AAR 统一来自固定的 FongMi/media 1.11.0 候选。MPV、FFmpeg 等 native 组件没有在当前工程中维护独立、可直接声明的 semver，因此不另外虚构版本号；它们的二进制来源和校验方式见 [DEVELOPMENT.md](docs/DEVELOPMENT.md) 与 [RECOVERY.md](docs/RECOVERY.md)。
+当前播放器 AAR 统一来自固定的 FongMi/media 1.11.0 候选。MPV、FFmpeg 等 native 组件没有在当前工程中维护独立、可直接声明的 semver，因此不另外虚构版本号；当前构建规则见 [DEVELOPMENT.md](docs/DEVELOPMENT.md)，历史二进制来源证据见 [RECOVERY.md](docs/RECOVERY.md)。历史来源不等于当前验收基线。
 
 ### 构建环境
 
@@ -95,6 +97,8 @@ FingMi-Xray 将 Xray 集成到播放器内部。遇到这类内容时，可以�
 - **非全局代理**：不使用 Android `VpnService`，不接管其他应用或整台设备的网络。
 - **独立进程**：Xray Core 运行在应用自己的 `:xray` 私有进程中，会话结束后收口相关网络与运行资源。
 - **电视网络恢复**：另外保留针对部分 Android TV 长后台、待机或 Fast Start 后旧连接失效的网络恢复逻辑；这项能力与 Xray 播放代理彼此独立。
+- **旧 Android 运行时兼容**：虽然源码使用 Java 21 编译，Xray 路径仍按 Android 12 / SDK 32 等旧 ART 的实际 API 能力约束，并由源码 guard 阻止 `StringBuilder.isEmpty()`、较新的 URL codec overload、`String.isBlank()` 等运行时不兼容调用重新进入关键路径。
+- **不使用上游自更新**：Home 不自动检查 FongMi/Release，设置页版本号只显示信息，`Updater` 为 no-op，应用也不申请 `REQUEST_INSTALL_PACKAGES`，避免用户升级时被上游 APK 覆盖当前 Xray fork。
 
 实际使用原则很简单：**直连正常就直接播放；直连卡顿时再尝试 Xray；开启后不适合当前线路就关闭。**
 
@@ -121,7 +125,7 @@ FingMi-Xray 将 Xray 集成到播放器内部。遇到这类内容时，可以�
 - `:app`：FongMi 的 VOD / Live 播放身份、播放器与 UI 接线；
 - `:catvod`：普通业务网络、DNS / DoH 与 Spider；
 - `compat/`：当前 5.6.3 构建仍需维护的媒体兼容源码与补丁；
-- `recovery/`：发布版恢复、反编译验证、native / 节点兼容行为证据与 faithful 基线；
+- `recovery/`：历史发布版恢复、反编译验证、native / 节点兼容行为证据归档；这些材料不再作为当前版本验收基线；
 - `tests/`：当前源码回归测试入口与测试 fixture。
 
 这样做的目的，是让项目自己的能力尽量集中在稳定边界内，减少后续跟随 FongMi/TV 上游升级时的侵入式修改。
@@ -130,7 +134,7 @@ FingMi-Xray 将 Xray 集成到播放器内部。遇到这类内容时，可以�
 
 - [PROJECT.md](docs/PROJECT.md)：项目设计、职责边界与长期架构约束。
 - [DEVELOPMENT.md](docs/DEVELOPMENT.md)：当前源码结构、构建方式、上游同步和开发维护说明。
-- [RECOVERY.md](docs/RECOVERY.md)：`v5.6.0-xray.5` 发布版源码恢复与可复核证据。
+- [RECOVERY.md](docs/RECOVERY.md)：`v5.6.0-xray.5` 的历史源码恢复、二进制来源与可复核证据归档；不作为当前版本验收基线。
 - [apk-reference](docs/apk-reference/README.md)：正式 APK 反编译文本证据索引。
 - [ORIGINAL_README.md](docs/ORIGINAL_README.md)：冻结保存的原 `v5.6.0-xray.5` 发布说明。
 
