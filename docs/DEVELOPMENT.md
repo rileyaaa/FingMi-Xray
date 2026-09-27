@@ -19,6 +19,23 @@
 
 当前 `main` 是现行产品与后续开发的基线。**从 5.6.3 重构线起，当前 `main` 及其最新测试 / 正式构建是唯一的功能回归和发布验收基线。** `recovery/legacy-src/` 只保留 5.6.0 faithful 历史恢复；正常开发、测试和发布不再要求运行 faithful build、对齐旧 APK 行为或等待旧版本独立 cloud build 验收。
 
+### 维护范围
+
+当前 fork 的**业务代码维护范围只有两块**：
+
+- Xray 播放代理；
+- Android TV 网络恢复。
+
+其他 FongMi/TV 业务功能默认跟随固定上游版本。不要为了“顺手优化”“统一风格”“低版本兼容”“播放器增强”或一般性重构去改与这两块无关的上游代码。
+
+允许的外围修改仅限：
+
+- 两大模块接入 FongMi 所需的最小 hook / adapter；
+- 当前固定媒体二进制与上游 API 之间不可避免的最小构建 compatibility adapter；
+- 构建、发布、测试 guard 与禁用上游自更新等 fork 维护基础设施。
+
+任何超出上述范围的代码修改，在提交前都应先问：**这个变化是否是 Xray 或 TV 网络恢复的必要条件？如果不是，优先删除该差异并跟随上游。**
+
 ## 2. Gradle 模块
 
 `settings.gradle` 中的主要模块：
@@ -60,10 +77,10 @@ Manifest 中的 `XrayService`：
 
 兼容策略以**不破坏上游 FongMi/TV 已验证行为**为前提：
 
-- FongMi/TV 5.6.3 原样代码如果已经由上游在其 `minSdk` / desugaring 构建链中使用，不做机械式“低版本改写”；例如上游本身使用的 `Math.clamp(...)`、`java.time` 等，先以对应上游源码与发布构建为兼容依据；
-- 低版本兼容审计重点放在 FingMi-Xray 新增代码、从旧 APK 恢复后重新编写的代码，以及我们改动过的上游接线；
+- 不对 FongMi/TV 原样业务源码做全局低版本 API 扫描后机械改写；上游原样代码默认继续使用上游的 `minSdk`、desugaring 与实现方式；
+- 低版本兼容审计只覆盖 FingMi-Xray 新增代码、TV 网络恢复新增代码，以及两者必要的上游接线；
 - 如果反编译 APK 显示 `j$.*` / desugared-library 调用，恢复源码必须保留等价的 desugaring 语义，不能因为“可读性”把它改成旧 ART 不存在的直接 `java.*` 调用；
-- 只有确认某个调用是我们引入、且在目标 Android 运行时会真实 linkage failure 时才改代码，避免为兼容而偏离上游行为。
+- 只有确认某个调用是本项目引入、且在目标 Android 运行时会真实 linkage failure 时才改代码；如果同一写法本来就是目标 FongMi 上游实现，则优先保持上游，除非有独立证据证明必须补丁。
 
 当前 Xray 路径已经明确约束：
 
@@ -272,14 +289,15 @@ FingMi-Xray 当前**不使用 FongMi/Release 的应用内自更新**。原因是
 
 1. 固定目标 FongMi/TV commit；
 2. 比较当前 main 与目标上游；
-3. 以上游新代码为主体合并；
-4. 只重新应用 FingMi-Xray 必需的 adapter；
+3. 以上游新代码为主体覆盖/合并普通业务、UI、播放器、设置和工具代码；
+4. 只重新应用 Xray 与 TV 网络恢复必需的最小 hook / adapter；
 5. `:xray` 除非模块 API 本身需要变化，否则尽量不动；
-6. 重新核对 VOD / Live identity 边界；
-7. 重新核对 PlayerManager、Exo / MPV、DRM、RTSP 与媒体旁路；
-8. 重新核对 TV 网络 generation / DLNA；
-9. 执行当前构建 workflow；
-10. 再进行 Android TV 运行回归。
+6. 不把上一版本中与两大模块无关的 fork 差异继续携带到新上游；
+7. 重新核对 VOD / Live identity 边界；
+8. 重新核对 PlayerManager、Exo / MPV、DRM、RTSP 与媒体旁路；
+9. 重新核对 TV 网络 generation / DLNA；
+10. 执行当前构建 workflow；
+11. 再进行 Android TV 运行回归。
 
 如果上游改变了播放器 API，优先新增小型适配层，不把上游大块代码复制进 `:xray`。
 
