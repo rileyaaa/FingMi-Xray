@@ -121,7 +121,7 @@ FingMi-Xray 将 Xray 集成到播放器内部。遇到这类内容时，可以�
 - `:app`：FongMi 的 VOD / Live 播放身份、播放器与 UI 接线；
 - `:catvod`：普通业务网络、DNS / DoH 与 Spider；
 - `compat/`：当前 5.6.3 构建仍需维护的媒体兼容源码与补丁；
-- `recovery/`：发布版恢复、反编译验证、native / 媒体行为证据与 faithful 基线；
+- `recovery/`：发布版恢复、反编译验证、native / 节点兼容行为证据与 faithful 基线；
 - `tests/`：当前源码回归测试入口与测试 fixture。
 
 这样做的目的，是让项目自己的能力尽量集中在稳定边界内，减少后续跟随 FongMi/TV 上游升级时的侵入式修改。

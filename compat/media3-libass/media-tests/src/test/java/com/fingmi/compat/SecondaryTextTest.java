@@ -1,4 +1,4 @@
-package com.fingmi.recovery;
+package com.fingmi.compat;
 
 import static org.junit.Assert.*;
 import androidx.media3.common.*;

@@ -48,9 +48,9 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          keytool -genkeypair -noprompt             -keystore "$RUNNER_TEMP/recovery-debug.jks"             -storepass android             -keypass android             -alias recovery             -dname "CN=FingMi-Xray Recovery,O=Local,C=US"             -keyalg RSA -keysize 2048 -validity 3650
+          keytool -genkeypair -noprompt             -keystore "$RUNNER_TEMP/current-main-debug.jks"             -storepass android             -keypass android             -alias recovery             -dname "CN=FingMi-Xray Current Main,O=Local,C=US"             -keyalg RSA -keysize 2048 -validity 3650
           cat > local.properties <<EOF
-          storeFile=$RUNNER_TEMP/recovery-debug.jks
+          storeFile=$RUNNER_TEMP/current-main-debug.jks
           keyAlias=recovery
           storePassword=android
           EOF
