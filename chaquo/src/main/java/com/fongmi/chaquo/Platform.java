@@ -54,7 +54,6 @@ public class Platform extends Python.Platform {
         }
         List<String> supportedAbis = new ArrayList<>();
         Collections.addAll(supportedAbis, Build.SUPPORTED_ABIS);
-        Collections.addAll(supportedAbis, Build.CPU_ABI, Build.CPU_ABI2);
         for (String abi : supportedAbis) {
             try (InputStream ignored = am.open(Common.ASSET_DIR + "/" + Common.assetZip(Common.ASSET_STDLIB, abi))) {
                 ABI = abi;
