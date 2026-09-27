@@ -1,5 +1,7 @@
 package com.fongmi.android.tv.player;
 
+import com.fongmi.android.tv.utils.RuntimeCompat;
+
 import android.net.Uri;
 import android.text.TextUtils;
 
@@ -283,7 +285,7 @@ public class PlayerManager implements ParseCallback {
     }
 
     public String getPositionTime(long delta) {
-        return Util.timeMs(Math.clamp(getPosition() + delta, 0, Math.max(0, getDuration())));
+        return Util.timeMs(RuntimeCompat.clamp(getPosition() + delta, 0, Math.max(0, getDuration())));
     }
 
     public long getDuration() {
