@@ -1,5 +1,7 @@
 package com.fongmi.android.tv.ui.activity;
 
+import com.fongmi.android.tv.utils.RuntimeCompat;
+
 import android.annotation.SuppressLint;
 import android.content.Context;
 import android.content.Intent;
@@ -352,7 +354,7 @@ public class LiveActivity extends PlaybackActivity implements GroupAdapter.OnCli
         if (epg.getWidth() == 0) for (EpgData item : epg.getList()) epg.setWidth(Math.max(epg.getWidth(), ResUtil.getTextWidth(item.getTitle(), 16)));
         int maxWidth = ResUtil.getScreenWidth() / 2;
         int minContentWidth = Math.min(minWidth + padding, maxWidth);
-        int width = epg.getWidth() == 0 ? 0 : Math.clamp(epg.getWidth() + padding, minContentWidth, maxWidth);
+        int width = epg.getWidth() == 0 ? 0 : RuntimeCompat.clamp(epg.getWidth() + padding, minContentWidth, maxWidth);
         setWidth(mBinding.epgData, width);
     }
 
