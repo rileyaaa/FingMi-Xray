@@ -260,7 +260,7 @@ Live 的会话边界包括切频道、换线路 / 源、直播配置变化和播
 
 GitHub Actions 对应两段手动流程：
 
-### 归档：Prepare faithful native dependencies
+### 归档：Archive - prepare v5.6.0 native evidence
 
 文件：
 
@@ -275,7 +275,7 @@ GitHub Actions 对应两段手动流程：
 - 从发布 APK恢复 Go JNI；
 - 输出 `fingmi-faithful-native-dependencies` artifact。
 
-### 归档：Recovery faithful TV build
+### 归档：Archive - v5.6.0 faithful TV reconstruction
 
 文件：
 
