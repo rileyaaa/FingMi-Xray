@@ -1,10 +1,12 @@
-# v5.6.0-xray.5 发布版恢复
+# v5.6.0-xray.5 历史发布版恢复档案
 
-本文记录 `v5.6.0-xray.5` 的**恢复基线、证据来源、faithful 源码结构、二进制来源和可重复恢复方法**。
+本文记录 `v5.6.0-xray.5` 的**历史证据对象、证据来源、faithful 源码结构、二进制来源和可重复恢复方法**。
+
+> **归档定位**：从 5.6.3 重构线开始，本文件不再定义当前 FingMi-Xray 的开发、功能回归或发布验收基线。当前 `main` 及其最新测试 / 正式构建才是现行基线。这里的 5.6.0 材料只用于历史取证、解释旧发布行为，以及追溯当前仍复用的部分 native 字节来源。
 
 它不是开发日志，也不记录当前 main 的上游升级过程。当前工程见 [DEVELOPMENT.md](DEVELOPMENT.md)，原发布时的用户说明见 [ORIGINAL_README.md](ORIGINAL_README.md)。
 
-## 1. 恢复基线
+## 1. 历史恢复对象
 
 恢复对象固定为：
 
@@ -31,7 +33,7 @@
 - Android ZIP SHA-256：`28b7dc9d6cc8455fcca5cbd56e387003a7bfb558128651a64899dc3a8ccff666`
 - 官方 `libXray.aar` SHA-256：`4708a361a74f7e955635dbe3661cefb459bdc867423c3b1826a2c5a6ea4ac77d`
 
-所有 faithful 结论都以这些固定输入为前提。
+本归档中关于旧发布版的 faithful 结论都以这些固定输入为前提；这些固定输入不会自动成为当前 main 的行为或验收标准。
 
 ## 2. 证据优先级
 
@@ -64,9 +66,11 @@ JADX 中出现不可能分支、R8 合并控制流或自相矛盾时，必须继
 
 faithful 源码的职责是解释发布版行为；当前 `:xray` 模块则是面向后续维护的重构实现，两者不能混为一套源码。
 
-## 4. 发布版行为基准
+## 4. 历史发布版行为记录
 
 ### Service 与会话
+
+以下内容只描述 `v5.6.0-xray.5` 当时的发布行为，用于历史复核；当前模块化实现以当前 `main` 为准。
 
 发布版使用独立 `:xray` 私有进程。
 
@@ -203,7 +207,7 @@ Live 的会话边界包括切频道、换线路 / 源、直播配置变化和播
 - age subscription / key generation；
 - legacy SS、HY2 multi-port / pin、ALPN / port、legacy KCP 等转换兼容。
 
-恢复后的 faithful `libXray.aar` SHA-256：
+历史恢复得到的 `libXray.aar` SHA-256：
 
 `f531a138e82fa08848e47cf22537c69df29227b07eba7d19c2ad3740af657365`
 
@@ -236,9 +240,11 @@ Live 的会话边界包括切频道、换线路 / 源、直播配置变化和播
 - `tests/test-v2rayn-share-chain.py`
 - `tests/test-v2rayn-reference-chain.py`
 
-发布 JNI 已建立 converter、API v2、lifecycle、TLS / HY2 probe、age、v2rayN-shaped 输入、IPv6 / DNS dial 等定向执行证据。faithful APK 构建仍使用发布 JNI 字节，不用这些可读重建产物冒充原始二进制。
+发布 JNI 已建立 converter、API v2、lifecycle、TLS / HY2 probe、age、v2rayN-shaped 输入、IPv6 / DNS dial 等定向执行证据。历史 faithful 重建使用发布 JNI 字节，不用这些可读重建产物冒充原始二进制。当前 main 可以继续复用经固定 SHA 校验的 native 字节作为构建输入，但不再以 faithful APK 是否可重建作为发布验收条件。
 
-## 8. faithful 构建链
+## 8. 归档 faithful 构建工具（非当前验收链）
+
+这一节保留的是历史重建工具。它们只在需要复核旧发布版、重新提取历史 native 来源或研究旧行为时使用；正常 current-main 开发和发布**不要求执行本节流程**。
 
 本地入口：
 
@@ -254,7 +260,7 @@ Live 的会话边界包括切频道、换线路 / 源、直播配置变化和播
 
 GitHub Actions 对应两段手动流程：
 
-### Prepare faithful native dependencies
+### 归档：Prepare faithful native dependencies
 
 文件：
 
@@ -269,7 +275,7 @@ GitHub Actions 对应两段手动流程：
 - 从发布 APK恢复 Go JNI；
 - 输出 `fingmi-faithful-native-dependencies` artifact。
 
-### Recovery faithful TV build
+### 归档：Recovery faithful TV build
 
 文件：
 
@@ -286,11 +292,11 @@ GitHub Actions 对应两段手动流程：
 - 组装固定 5.6.0 faithful tree；
 - 执行 faithful Gradle 构建。
 
-这些 workflow 只允许手动 `workflow_dispatch`。恢复流程是否通过，以每次实际 run 的结果为准，不把一次历史 run 写成长期文档事实。
+这些 workflow 只允许手动 `workflow_dispatch`，并视为历史归档工具。它们的成功或失败不再决定当前 5.6.3+ 架构能否发布；current-main 的构建、源码 guard、当前回归与 Android 运行测试才决定当前版本验收。
 
-## 9. 验证原则
+## 9. 历史证据复核原则
 
-恢复工作中必须区分：
+需要复核历史恢复材料时，必须区分：
 
 - 反编译文本一致；
 - DEX / ELF / JNI 证据；
@@ -301,4 +307,4 @@ GitHub Actions 对应两段手动流程：
 
 较低级别证据只能证明对应层级，不能替代更高层级验证。
 
-如果未来出现新的正式 APK 证据改变既有结论，应先修改 recovery 代码和测试，再更新本文；不要用当前重构实现反向定义旧发布版行为。
+如果未来出现新的历史 APK 证据改变既有结论，应先修改 recovery 代码和对应历史测试，再更新本文。反过来，当前重构实现也不需要为了满足旧 faithful parity 而回退；当前产品行为和发布验收以当前 `main`、当前测试与当前设备回归为准。
