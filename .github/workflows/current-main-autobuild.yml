@@ -1,7 +1,9 @@
-name: Current-main build trigger
+name: Temporary current-main autobuild
 
 on:
-  workflow_dispatch:
+  push:
+    branches:
+      - main
 
 permissions:
   contents: read
