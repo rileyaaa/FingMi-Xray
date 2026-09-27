@@ -229,6 +229,7 @@ jobs:
             echo "- 状态：Leanback / Mobile Debug javac 与 APK assemble 已通过"
             echo "- 本 Release 仅上传 Android TV / Leanback 两个 ABI，用于 MuMu / Android TV 回归"
             echo "- 包含 Android 12 / SDK 32 Java runtime compatibility 修复"
+            echo "- 内置 FongMi 上游自更新已禁用，避免覆盖 Xray fork"
             echo
             echo "### APK SHA-256"
             echo
