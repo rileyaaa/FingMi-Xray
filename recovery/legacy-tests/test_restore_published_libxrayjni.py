@@ -7,7 +7,7 @@ from unittest.mock import patch
 from zipfile import ZipFile
 
 
-SCRIPT = Path(__file__).resolve().parents[2] / "scripts/restore-published-libxrayjni.py"
+SCRIPT = Path(__file__).resolve().parents[2] / "scripts/recovery/restore-published-libxrayjni.py"
 spec = importlib.util.spec_from_file_location("restore_libxrayjni", SCRIPT)
 module = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(module)

@@ -10,3 +10,4 @@ lib-*.aar
 /Release
 /recovery/work/
 /libxray/libs/libXray.aar
+/recovery/evidence/

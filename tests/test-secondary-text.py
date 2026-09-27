@@ -25,15 +25,19 @@ def main():
     parser.add_argument('--local-repository', type=Path, default=Path.home() / '.m2/repository')
     args = parser.parse_args()
     assert hashlib.sha256(args.candidate.read_bytes()).hexdigest() == '0ed42581af11ac7163ebde148b318807c244e2a318f40c41d33f50b70bf967ee'
-    jars = ROOT / 'media-test-libs'
-    jars.mkdir(exist_ok=True)
+    jars = ROOT / 'build/media-test-libs'
+    target_root = ROOT / 'build/media-tests-target'
+    jars.mkdir(parents=True, exist_ok=True)
+    target_root.mkdir(parents=True, exist_ok=True)
     with ZipFile(args.candidate) as bundle:
         for name in ('common', 'exoplayer', 'extractor', 'datasource'):
             with ZipFile(BytesIO(bundle.read(f'lib-{name}-release.aar'))) as aar:
                 (jars / f'lib-{name}-release.jar').write_bytes(aar.read('classes.jar'))
     command = [str(Path(args.maven).resolve()) if '/' in args.maven else args.maven,
                '-B', '-f', str(ROOT / 'compat/media3-libass/media-tests/pom.xml'),
-               '-Dmaven.repo.local=' + str(args.local_repository.resolve())]
+               '-Dmaven.repo.local=' + str(args.local_repository.resolve()),
+               '-Dmedia.test.libs=' + str(jars.resolve()),
+               '-Dmedia.test.target=' + str(target_root.resolve())]
     # Work environments may expose an HTTP proxy only through environment vars.
     settings = ET.Element('settings')
     proxies = ET.SubElement(settings, 'proxies')
@@ -59,7 +63,7 @@ def main():
         # Maven resolves AARs but does not place their nested classes.jar on the JVM classpath.
         for artifact, name in [('androidx/test/monitor/1.7.2/monitor-1.7.2.aar', 'monitor'),
                                ('androidx/test/espresso/espresso-idling-resource/3.6.1/espresso-idling-resource-3.6.1.aar', 'espresso')]:
-            target = ROOT / 'compat/media3-libass/media-tests/target' / name
+            target = target_root / name
             target.mkdir(parents=True, exist_ok=True)
             with ZipFile(args.local_repository / artifact) as aar:
                 (target / 'classes.jar').write_bytes(aar.read('classes.jar'))

@@ -12,7 +12,7 @@ from unittest.mock import patch
 from zipfile import ZipFile
 
 
-SCRIPT = Path(__file__).resolve().parents[2] / "scripts/restore-published-ffmpegjni.py"
+SCRIPT = Path(__file__).resolve().parents[2] / "scripts/recovery/restore-published-ffmpegjni.py"
 SPEC = importlib.util.spec_from_file_location("restore_ffmpegjni", SCRIPT)
 RESTORE = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(RESTORE)

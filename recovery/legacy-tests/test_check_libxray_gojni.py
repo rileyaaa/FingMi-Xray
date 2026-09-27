@@ -9,7 +9,7 @@ from zipfile import ZipFile
 
 
 spec = importlib.util.spec_from_file_location(
-    "check_libxray", Path(__file__).resolve().parents[2] / "scripts/check-libxray-gojni.py"
+    "check_libxray", Path(__file__).resolve().parents[2] / "scripts/recovery/check-libxray-gojni.py"
 )
 module = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(module)

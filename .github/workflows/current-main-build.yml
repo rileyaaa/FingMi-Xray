@@ -61,7 +61,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          mkdir -p recovery/work/current-main/input recovery/work/current-main/restored
+          mkdir -p build/work/current-main/input build/work/current-main/restored
 
           info="$(gh api "repos/rileyaaa/FingMi-Xray/actions/artifacts/$PLAYER_ARTIFACT_ID")"
           jq -e --arg sha "sha256:$PLAYER_ZIP_SHA256" '
@@ -70,40 +70,40 @@ jobs:
             .size_in_bytes == 44336768 and
             .digest == $sha
           ' <<< "$info" >/dev/null
-          curl -fL --retry 3 -H "Authorization: Bearer ${GH_TOKEN}"             "https://api.github.com/repos/rileyaaa/FingMi-Xray/actions/artifacts/$PLAYER_ARTIFACT_ID/zip"             -o recovery/work/current-main/input/player-candidate.zip
+          curl -fL --retry 3 -H "Authorization: Bearer ${GH_TOKEN}"             "https://api.github.com/repos/rileyaaa/FingMi-Xray/actions/artifacts/$PLAYER_ARTIFACT_ID/zip"             -o build/work/current-main/input/player-candidate.zip
 
-          gh release download v5.6.0-xray.5             --repo rileyaaa/FingMi-Xray             --pattern 'FongMi-Xray-TV-v5.6.0-xray.5-armeabi-v7a.apk'             --pattern 'FongMi-Xray-TV-v5.6.0-xray.5-arm64-v8a.apk'             --dir recovery/work/current-main/input
-          mv recovery/work/current-main/input/FongMi-Xray-TV-v5.6.0-xray.5-armeabi-v7a.apk             recovery/work/current-main/input/published-v560-v7.apk
-          mv recovery/work/current-main/input/FongMi-Xray-TV-v5.6.0-xray.5-arm64-v8a.apk             recovery/work/current-main/input/published-v560-v8.apk
+          gh release download v5.6.0-xray.5             --repo rileyaaa/FingMi-Xray             --pattern 'FongMi-Xray-TV-v5.6.0-xray.5-armeabi-v7a.apk'             --pattern 'FongMi-Xray-TV-v5.6.0-xray.5-arm64-v8a.apk'             --dir build/work/current-main/input
+          mv build/work/current-main/input/FongMi-Xray-TV-v5.6.0-xray.5-armeabi-v7a.apk             build/work/current-main/input/published-v560-v7.apk
+          mv build/work/current-main/input/FongMi-Xray-TV-v5.6.0-xray.5-arm64-v8a.apk             build/work/current-main/input/published-v560-v8.apk
 
-          curl -fL --retry 3             'https://github.com/FongMi/Release/releases/download/5.6.5/leanback-armeabi_v7a.apk'             -o recovery/work/current-main/input/published-v565-v7.apk
-          curl -fL --retry 3             'https://github.com/FongMi/Release/releases/download/5.6.5/leanback-arm64_v8a.apk'             -o recovery/work/current-main/input/published-v565-v8.apk
+          curl -fL --retry 3             'https://github.com/FongMi/Release/releases/download/5.6.5/leanback-armeabi_v7a.apk'             -o build/work/current-main/input/published-v565-v7.apk
+          curl -fL --retry 3             'https://github.com/FongMi/Release/releases/download/5.6.5/leanback-arm64_v8a.apk'             -o build/work/current-main/input/published-v565-v8.apk
 
-          curl -fL --retry 3             'https://dl.google.com/dl/android/maven2/androidx/media3/media3-container/1.11.0/media3-container-1.11.0.aar'             -o recovery/work/current-main/input/media3-container-1.11.0.aar
+          curl -fL --retry 3             'https://dl.google.com/dl/android/maven2/androidx/media3/media3-container/1.11.0/media3-container-1.11.0.aar'             -o build/work/current-main/input/media3-container-1.11.0.aar
 
-          printf '%s  %s\n'             "$PLAYER_ZIP_SHA256" recovery/work/current-main/input/player-candidate.zip             "$OLD_V7_SHA256" recovery/work/current-main/input/published-v560-v7.apk             "$OLD_V8_SHA256" recovery/work/current-main/input/published-v560-v8.apk             "$LIBASS_V7_APK_SHA256" recovery/work/current-main/input/published-v565-v7.apk             "$LIBASS_V8_APK_SHA256" recovery/work/current-main/input/published-v565-v8.apk             "$MEDIA3_CONTAINER_SHA256" recovery/work/current-main/input/media3-container-1.11.0.aar             | sha256sum -c -
+          printf '%s  %s\n'             "$PLAYER_ZIP_SHA256" build/work/current-main/input/player-candidate.zip             "$OLD_V7_SHA256" build/work/current-main/input/published-v560-v7.apk             "$OLD_V8_SHA256" build/work/current-main/input/published-v560-v8.apk             "$LIBASS_V7_APK_SHA256" build/work/current-main/input/published-v565-v7.apk             "$LIBASS_V8_APK_SHA256" build/work/current-main/input/published-v565-v8.apk             "$MEDIA3_CONTAINER_SHA256" build/work/current-main/input/media3-container-1.11.0.aar             | sha256sum -c -
 
       - name: Restore faithful decoder and Xray native dependencies
         shell: bash
         run: |
           set -euo pipefail
-          python3 scripts/recovery/restore-published-ffmpegjni.py             --candidate recovery/work/current-main/input/player-candidate.zip             --v7-apk recovery/work/current-main/input/published-v560-v7.apk             --v8-apk recovery/work/current-main/input/published-v560-v8.apk             --to recovery/work/current-main/restored/lib-decoder-ffmpeg-release.aar
+          python3 scripts/recovery/restore-published-ffmpegjni.py             --candidate build/work/current-main/input/player-candidate.zip             --v7-apk build/work/current-main/input/published-v560-v7.apk             --v8-apk build/work/current-main/input/published-v560-v8.apk             --to build/work/current-main/restored/lib-decoder-ffmpeg-release.aar
 
-          python3 scripts/build/import-player-aar-candidate.py             recovery/work/current-main/input/player-candidate.zip             --restored-decoder recovery/work/current-main/restored/lib-decoder-ffmpeg-release.aar
+          python3 scripts/build/import-player-aar-candidate.py             build/work/current-main/input/player-candidate.zip             --restored-decoder build/work/current-main/restored/lib-decoder-ffmpeg-release.aar
 
           python3 scripts/recovery/check-player-ffmpegjni-against-published.py --aar-dir app/libs
 
           bash scripts/recovery/fetch-libxray.sh
-          python3 scripts/recovery/restore-published-libxrayjni.py             --official-aar libxray/libs/libXray.aar             --v7-apk recovery/work/current-main/input/published-v560-v7.apk             --v8-apk recovery/work/current-main/input/published-v560-v8.apk             --to recovery/work/current-main/restored/libXray.aar
+          python3 scripts/recovery/restore-published-libxrayjni.py             --official-aar libxray/libs/libXray.aar             --v7-apk build/work/current-main/input/published-v560-v7.apk             --v8-apk build/work/current-main/input/published-v560-v8.apk             --to build/work/current-main/restored/libXray.aar
 
-          python3 scripts/recovery/check-libxray-gojni.py             --aar recovery/work/current-main/restored/libXray.aar             --official-aar libxray/libs/libXray.aar
-          cp recovery/work/current-main/restored/libXray.aar libxray/libs/libXray.aar
+          python3 scripts/recovery/check-libxray-gojni.py             --aar build/work/current-main/restored/libXray.aar             --official-aar libxray/libs/libXray.aar
+          cp build/work/current-main/restored/libXray.aar libxray/libs/libXray.aar
 
       - name: Build and import reconstructed Libass candidate
         shell: bash
         run: |
           set -euo pipefail
-          work="recovery/work/current-main"
+          work="build/work/current-main"
           mvn -B dependency:get -Dartifact=org.robolectric:android-all:15-robolectric-12650502
           mvn -B dependency:get -Dartifact=com.google.guava:guava:33.3.1-android
           mvn -B dependency:get -Dartifact=androidx.annotation:annotation-jvm:1.9.1 -DremoteRepositories=google::default::https://dl.google.com/dl/android/maven2
@@ -150,7 +150,7 @@ jobs:
             ./gradlew --version | sed -n '1,12p'
             echo "libass_candidate_sha256=$LIBASS_CANDIDATE_SHA256"
             find app/build/outputs/apk -type f -name '*.apk' -print0 | sort -z | xargs -0 sha256sum
-          } | tee recovery/work/current-main/BUILD_RESULT.txt
+          } | tee build/work/current-main/BUILD_RESULT.txt
 
       - name: Upload current-main debug APKs
         if: success()
@@ -159,7 +159,7 @@ jobs:
           name: fingmi-xray-5.6.3-current-main-debug
           path: |
             app/build/outputs/apk/**/*.apk
-            recovery/work/current-main/BUILD_RESULT.txt
+            build/work/current-main/BUILD_RESULT.txt
           if-no-files-found: error
           retention-days: 7
           compression-level: 0

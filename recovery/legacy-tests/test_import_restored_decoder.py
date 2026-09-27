@@ -10,7 +10,7 @@ from unittest.mock import patch
 from zipfile import ZipFile
 
 
-SCRIPT = Path(__file__).resolve().parents[2] / "scripts/import-player-aar-candidate.py"
+SCRIPT = Path(__file__).resolve().parents[2] / "scripts/build/import-player-aar-candidate.py"
 SPEC = importlib.util.spec_from_file_location("import_player", SCRIPT)
 IMPORT = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(IMPORT)
