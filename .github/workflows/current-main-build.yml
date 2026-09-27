@@ -34,6 +34,13 @@ jobs:
         with:
           python-version: "3.10"
 
+      - name: Run fork source guards
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 tests/test-xray-android-runtime-compat.py
+          python3 tests/test-upstream-update-disabled.py
+
       - name: Prepare Android SDK 37
         shell: bash
         run: |
