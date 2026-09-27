@@ -36,6 +36,7 @@ final class LibassMediaState implements AutoCloseable {
         family=configuration.defaultFontFamily;
     }
     boolean isAvailable(){return available&&!disposed.get();}
+    synchronized Format secondaryFormat(){return disposed.get()?null:secondary;}
     synchronized boolean hasActiveTrack(){return !disposed.get()&&(resolve(primary)!=null||resolve(secondary)!=null);}
 
     static String trackKey(Format format) {

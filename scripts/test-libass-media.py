@@ -11,7 +11,8 @@ def main():
  assert hashlib.sha256(a.candidate.read_bytes()).hexdigest()=='0ed42581af11ac7163ebde148b318807c244e2a318f40c41d33f50b70bf967ee'
  work=a.workdir.resolve();(work/'jars').mkdir(parents=True,exist_ok=True)
  with ZipFile(a.candidate) as bundle:
-  with ZipFile(io.BytesIO(bundle.read('lib-common-release.aar'))) as aar:(work/'jars/lib-common-release.jar').write_bytes(aar.read('classes.jar'))
+  for name in ['common','exoplayer','datasource']:
+   with ZipFile(io.BytesIO(bundle.read('lib-'+name+'-release.aar'))) as aar:(work/('jars/lib-'+name+'-release.jar')).write_bytes(aar.read('classes.jar'))
  assert hashlib.sha256(a.extractor.read_bytes()).hexdigest()=='22ed5d53e6a6977faf12a97d9bdfb97f1cfea9cb39ccfc6418fa1899d3669e6b'
  assert hashlib.sha256(a.container.read_bytes()).hexdigest()=='930fca2f018f06f1d08c12599f8c97f31eddbd728edee5de06eb53a882f8fc54'
  for path,name in [(a.extractor,'extractor'),(a.container,'container')]:

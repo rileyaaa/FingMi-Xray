@@ -6,6 +6,8 @@
   <dependency><groupId>media</groupId><artifactId>common</artifactId><version>1.11.0</version><scope>system</scope><systemPath>${libass.work}/jars/lib-common-release.jar</systemPath></dependency>
   <dependency><groupId>media</groupId><artifactId>extractor</artifactId><version>1.11.0</version><scope>system</scope><systemPath>${libass.work}/jars/lib-extractor-release.jar</systemPath></dependency>
   <dependency><groupId>media</groupId><artifactId>container</artifactId><version>1.11.0</version><scope>system</scope><systemPath>${libass.work}/jars/lib-container-release.jar</systemPath></dependency>
+  <dependency><groupId>media</groupId><artifactId>exoplayer</artifactId><version>1.11.0</version><scope>system</scope><systemPath>${libass.work}/jars/lib-exoplayer-release.jar</systemPath></dependency>
+  <dependency><groupId>media</groupId><artifactId>datasource</artifactId><version>1.11.0</version><scope>system</scope><systemPath>${libass.work}/jars/lib-datasource-release.jar</systemPath></dependency>
   <dependency><groupId>org.robolectric</groupId><artifactId>android-all</artifactId><version>15-robolectric-12650502</version><scope>provided</scope></dependency>
   <dependency><groupId>com.google.guava</groupId><artifactId>guava</artifactId><version>33.3.1-android</version></dependency>
   <dependency><groupId>androidx.annotation</groupId><artifactId>annotation</artifactId><version>1.9.1</version></dependency>

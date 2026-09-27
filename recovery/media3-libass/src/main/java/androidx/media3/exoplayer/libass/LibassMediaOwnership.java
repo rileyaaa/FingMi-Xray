@@ -73,6 +73,11 @@ final class LibassMediaOwnership<K,V extends LibassMediaOwnership.Resource> impl
 
     synchronized V active() { return closed?null:media.get(current); }
 
+    synchronized void forEach(java.util.function.Consumer<V> action) {
+        if(closed)return;
+        for(V value:new ArrayList<>(media.values()))action.accept(value);
+    }
+
     private V getOrCreate(K key) {
         V value=media.get(key);
         if(value==null) {
