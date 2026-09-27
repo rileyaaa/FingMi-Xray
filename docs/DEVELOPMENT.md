@@ -364,4 +364,106 @@ FingMi-Xray 当前**不使用 FongMi/Release 的应用内自更新**。原因是
 - 新增 / 删除反编译文本证据：修改 `apk-reference/README.md`；
 - `ORIGINAL_README.md` 保持冻结。
 
-Git 历史负责记录“哪一次提交做了什么”。长期文档只描述仍然有效的结构、规则与可复核事实，不保存逐次调试流水账。
+Git 历史仍负责记录“哪一次提交做了什么”。但对影响当前版本行为、构建链或后续排障判断的重要故障与验证结果，应在本文“开发日志”中保留精简记录；纯过程性尝试、无长期价值的失败细节不重复堆积。
+
+
+## 11. 开发日志
+
+### 2026-09-27 — Xray 保存节点导致 `Xray service disconnected`（test.3 → test.4）
+
+#### 现象
+
+`v5.6.3-xray.test.3` 在 MuMu Android 12 / SDK 32 中保存 Xray 节点时，UI 显示：
+
+`Xray service disconnected`
+
+现场 ADB / crash 证据确认该提示不是原始错误，而是独立 `:xray` 进程已经死亡后的二次结果。
+
+#### 根因
+
+`libXray` 的 Java gomobile bindings 与 `libgojni.so` 被错误混搭：
+
+- Java 侧来自官方 `libXray v26.7.28` AAR；
+- Go JNI 则来自历史发布版 `v5.6.0-xray.5` 的 API v2 native；
+- native 初始化时会查找发布版 API v2 模型类，例如 `libXray.AgeDecryptConfig`；
+- test.3 APK 中不存在该类；
+- Android CheckJNI 在 JNI 初始化过程中因悬挂的 `ClassNotFoundException` / 非法 JNI 状态触发 `SIGABRT`，杀死 `:xray` 进程；
+- Binder 随后断开，UI 才显示 `Xray service disconnected`。
+
+因此本次问题不属于 Binder / Service 生命周期本身，也不是普通 FongMi 业务问题。
+
+#### 修复
+
+新增：
+
+`scripts/build/build-published-libxray-aar.py`
+
+current-main 构建现在使用以下组合：
+
+1. 从经过 SHA-256 校验的历史发布 APK 恢复发布版 `libXray/**` Java bindings；
+2. 保留官方 v26.7.28 AAR 中干净、未经过 App R8 混淆的通用 `go/**` gomobile runtime classes；
+3. 配套使用同一历史发布版的：
+   - `armeabi-v7a/libgojni.so`
+   - `arm64-v8a/libgojni.so`
+4. 官方 v26.7.28 AAR 继续作为外层容器；
+5. 构建 guard 明确要求 `AgeDecryptConfig` 等已确认的 API v2 bindings 存在，并禁止 current-main 再退回“官方旧 Java bindings + 单独替换发布版 Go JNI”的组合。
+
+构建过程中确认：不能从最终发布 APK 反编译后重新编译 `go.Seq` 等通用 runtime，因为这些类已经经过整包 R8 混淆并依赖混淆后的应用类名；因此 `go/**` runtime 必须保留官方 AAR 的干净版本。
+
+#### Actions 验证
+
+最终成功的测试发布 Actions run：
+
+`36328456284`
+
+APK 构建源码 commit：
+
+`ed8600bc775f5c6e65915da2ecbad933fb54d917`
+
+该 run 已实际通过：
+
+- fork source guards；
+- Android SDK 37 准备；
+- 固定依赖与 SHA-256 校验；
+- 新 libXray compatibility AAR 重建；
+- Libass compatibility 重建；
+- Leanback Debug javac；
+- Mobile Debug javac；
+- Debug APK assemble；
+- artifact 上传；
+- Android TV 两个 ABI APK staging；
+- `v5.6.3-xray.test.4` Pre-release 发布；
+- 旧 `v5.6.3-xray.test.3` 删除。
+
+最终 workflow 已恢复为纯：
+
+`workflow_dispatch`
+
+一次性 push trigger 与 trigger 文件均已删除。
+
+#### 当前测试基准
+
+测试 Release：
+
+`v5.6.3-xray.test.4`
+
+Android TV / Leanback APK：
+
+- arm64-v8a  
+  SHA-256：`1d6dc8046d02bdf31aca6e5ba63b87736de7e17161c45f534059a47db978f7fa`
+- armeabi-v7a  
+  SHA-256：`85836129e9531fc4ec4e3d8d09ee41f372563f141240a3fcd09fc71a06b42998`
+
+`test.3` 已删除。
+
+#### 验证边界
+
+截至本记录：
+
+- 构建链：已验证；
+- Java 编译：已验证；
+- APK assemble：已验证；
+- Release 上传与替换：已验证；
+- MuMu / Android TV 真机运行行为：**仍需继续验证**。
+
+如果 test.4 仍出现 Xray 保存、测试或启动故障，应继续以 ADB 现场证据、`:xray` PID、Binder 状态、`FingMiXray native invoke begin/end`、crash buffer 与 tombstone 为准，不应回退到无证据的全局兼容性修改。
