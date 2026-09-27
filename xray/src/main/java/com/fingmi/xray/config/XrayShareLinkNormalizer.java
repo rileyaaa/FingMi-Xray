@@ -599,7 +599,7 @@ public final class XrayShareLinkNormalizer {
         StringBuilder result = new StringBuilder();
         for (QueryPart part : parts) {
             if (part.raw.isEmpty()) continue;
-            if (!result.isEmpty()) result.append('&');
+            if (result.length() != 0) result.append('&');
             result.append(part.raw);
         }
         return result.toString();
