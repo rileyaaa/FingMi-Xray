@@ -132,19 +132,19 @@ jobs:
         run: |
           set -euo pipefail
           chmod +x gradlew
-          ./gradlew --no-daemon :app:compileLeanbackDebugJavaWithJavac --stacktrace
+          ./gradlew --no-daemon :app:compileLeanbackDebugJavaWithJavac --stacktrace --warning-mode all
 
       - name: Compile current 5.6.3 mobile source
         shell: bash
         run: |
           set -euo pipefail
-          ./gradlew --no-daemon :app:compileMobileDebugJavaWithJavac --stacktrace
+          ./gradlew --no-daemon :app:compileMobileDebugJavaWithJavac --stacktrace --warning-mode all
 
       - name: Assemble debug APKs
         shell: bash
         run: |
           set -euo pipefail
-          ./gradlew --no-daemon :app:assembleLeanbackDebug :app:assembleMobileDebug --stacktrace
+          ./gradlew --no-daemon :app:assembleLeanbackDebug :app:assembleMobileDebug --stacktrace --warning-mode all
 
       - name: Record build inputs and outputs
         if: success()
@@ -167,6 +167,7 @@ jobs:
           path: |
             app/build/outputs/apk/**/*.apk
             build/work/current-main/BUILD_RESULT.txt
+            build/reports/problems/problems-report.html
           if-no-files-found: error
           retention-days: 7
           compression-level: 0
