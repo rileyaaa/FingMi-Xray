@@ -1,5 +1,7 @@
 package com.fongmi.android.tv.setting;
 
+import com.fongmi.android.tv.utils.RuntimeCompat;
+
 import com.github.catvod.utils.Prefers;
 
 public class PlayerSetting {
@@ -18,11 +20,11 @@ public class PlayerSetting {
     private static final int MAX_BACKGROUND = 2;
 
     public static int getEngine() {
-        return Math.clamp(Prefers.getInt("player_engine", ENGINE_EXO), ENGINE_EXO, ENGINE_MPV);
+        return RuntimeCompat.clamp(Prefers.getInt("player_engine", ENGINE_EXO), ENGINE_EXO, ENGINE_MPV);
     }
 
     public static void putEngine(int engine) {
-        Prefers.put("player_engine", Math.clamp(engine, ENGINE_EXO, ENGINE_MPV));
+        Prefers.put("player_engine", RuntimeCompat.clamp(engine, ENGINE_EXO, ENGINE_MPV));
         if (isExo() && DecodeSetting.isTunnel()) putRender(RENDER_SURFACE);
     }
 
@@ -67,36 +69,36 @@ public class PlayerSetting {
     }
 
     public static int getRender() {
-        return Math.clamp(Prefers.getInt("render", RENDER_SURFACE), RENDER_SURFACE, RENDER_TEXTURE);
+        return RuntimeCompat.clamp(Prefers.getInt("render", RENDER_SURFACE), RENDER_SURFACE, RENDER_TEXTURE);
     }
 
     public static void putRender(int render) {
-        Prefers.put("render", Math.clamp(render, RENDER_SURFACE, RENDER_TEXTURE));
+        Prefers.put("render", RuntimeCompat.clamp(render, RENDER_SURFACE, RENDER_TEXTURE));
         if (isExo() && DecodeSetting.isTunnel() && getRender() == RENDER_TEXTURE) DecodeSetting.putTunnel(false);
     }
 
     public static int getSize() {
-        return Math.clamp(Prefers.getInt("size", 2), MIN_SIZE, MAX_SIZE);
+        return RuntimeCompat.clamp(Prefers.getInt("size", 2), MIN_SIZE, MAX_SIZE);
     }
 
     public static void putSize(int size) {
-        Prefers.put("size", Math.clamp(size, MIN_SIZE, MAX_SIZE));
+        Prefers.put("size", RuntimeCompat.clamp(size, MIN_SIZE, MAX_SIZE));
     }
 
     public static int getScale() {
-        return Math.clamp(Prefers.getInt("scale"), MIN_SCALE, MAX_SCALE);
+        return RuntimeCompat.clamp(Prefers.getInt("scale"), MIN_SCALE, MAX_SCALE);
     }
 
     public static void putScale(int scale) {
-        Prefers.put("scale", Math.clamp(scale, MIN_SCALE, MAX_SCALE));
+        Prefers.put("scale", RuntimeCompat.clamp(scale, MIN_SCALE, MAX_SCALE));
     }
 
     public static int getBackground() {
-        return Math.clamp(Prefers.getInt("background", 2), MIN_BACKGROUND, MAX_BACKGROUND);
+        return RuntimeCompat.clamp(Prefers.getInt("background", 2), MIN_BACKGROUND, MAX_BACKGROUND);
     }
 
     public static void putBackground(int background) {
-        Prefers.put("background", Math.clamp(background, MIN_BACKGROUND, MAX_BACKGROUND));
+        Prefers.put("background", RuntimeCompat.clamp(background, MIN_BACKGROUND, MAX_BACKGROUND));
     }
 
     public static boolean isBackgroundOff() {
@@ -112,10 +114,10 @@ public class PlayerSetting {
     }
 
     public static int getBuffer() {
-        return Math.clamp(Prefers.getInt("buffer"), MIN_BUFFER, MAX_BUFFER);
+        return RuntimeCompat.clamp(Prefers.getInt("buffer"), MIN_BUFFER, MAX_BUFFER);
     }
 
     public static void putBuffer(int buffer) {
-        Prefers.put("buffer", Math.clamp(buffer, MIN_BUFFER, MAX_BUFFER));
+        Prefers.put("buffer", RuntimeCompat.clamp(buffer, MIN_BUFFER, MAX_BUFFER));
     }
 }
