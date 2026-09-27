@@ -1,7 +1,5 @@
 package com.fongmi.android.tv.player.effect.audio;
 
-import com.fongmi.android.tv.utils.RuntimeCompat;
-
 import java.util.Arrays;
 
 public final class AudioEffectBands {
@@ -40,7 +38,7 @@ public final class AudioEffectBands {
     }
 
     public short clamp(int level) {
-        return (short) RuntimeCompat.clamp(level, minLevel, maxLevel);
+        return (short) Math.clamp(level, minLevel, maxLevel);
     }
 
     public short snapToStep(int level, int stepSize) {

@@ -1,7 +1,5 @@
 package com.fongmi.android.tv.setting;
 
-import com.fongmi.android.tv.utils.RuntimeCompat;
-
 import com.fongmi.android.tv.player.effect.video.VideoEffectPreset;
 import com.fongmi.android.tv.player.effect.video.VideoEffectProfile;
 import com.github.catvod.utils.Prefers;
@@ -53,67 +51,67 @@ public class VideoSetting {
     }
 
     public static float getSaturation() {
-        return RuntimeCompat.clamp(Prefers.getFloat("video_saturation", 1.0f), MIN_SATURATION, MAX_SATURATION);
+        return Math.clamp(Prefers.getFloat("video_saturation", 1.0f), MIN_SATURATION, MAX_SATURATION);
     }
 
     public static void putSaturation(float value) {
-        Prefers.put("video_saturation", RuntimeCompat.clamp(value, MIN_SATURATION, MAX_SATURATION));
+        Prefers.put("video_saturation", Math.clamp(value, MIN_SATURATION, MAX_SATURATION));
     }
 
     public static float getContrast() {
-        return RuntimeCompat.clamp(Prefers.getFloat("video_contrast", 1.0f), MIN_CONTRAST, MAX_CONTRAST);
+        return Math.clamp(Prefers.getFloat("video_contrast", 1.0f), MIN_CONTRAST, MAX_CONTRAST);
     }
 
     public static void putContrast(float value) {
-        Prefers.put("video_contrast", RuntimeCompat.clamp(value, MIN_CONTRAST, MAX_CONTRAST));
+        Prefers.put("video_contrast", Math.clamp(value, MIN_CONTRAST, MAX_CONTRAST));
     }
 
     public static float getBrightness() {
-        return RuntimeCompat.clamp(Prefers.getFloat("video_brightness"), MIN_BRIGHTNESS, MAX_BRIGHTNESS);
+        return Math.clamp(Prefers.getFloat("video_brightness"), MIN_BRIGHTNESS, MAX_BRIGHTNESS);
     }
 
     public static void putBrightness(float value) {
-        Prefers.put("video_brightness", RuntimeCompat.clamp(value, MIN_BRIGHTNESS, MAX_BRIGHTNESS));
+        Prefers.put("video_brightness", Math.clamp(value, MIN_BRIGHTNESS, MAX_BRIGHTNESS));
     }
 
     public static float getSharpness() {
-        return RuntimeCompat.clamp(Prefers.getFloat("video_sharpness"), MIN_SHARPNESS, MAX_SHARPNESS);
+        return Math.clamp(Prefers.getFloat("video_sharpness"), MIN_SHARPNESS, MAX_SHARPNESS);
     }
 
     public static void putSharpness(float value) {
-        Prefers.put("video_sharpness", RuntimeCompat.clamp(value, MIN_SHARPNESS, MAX_SHARPNESS));
+        Prefers.put("video_sharpness", Math.clamp(value, MIN_SHARPNESS, MAX_SHARPNESS));
     }
 
     public static float getShadow() {
-        return RuntimeCompat.clamp(Prefers.getFloat("video_shadow"), MIN_SHADOW, MAX_SHADOW);
+        return Math.clamp(Prefers.getFloat("video_shadow"), MIN_SHADOW, MAX_SHADOW);
     }
 
     public static void putShadow(float value) {
-        Prefers.put("video_shadow", RuntimeCompat.clamp(value, MIN_SHADOW, MAX_SHADOW));
+        Prefers.put("video_shadow", Math.clamp(value, MIN_SHADOW, MAX_SHADOW));
     }
 
     public static float getGamma() {
-        return RuntimeCompat.clamp(Prefers.getFloat("video_gamma", 1.0f), MIN_GAMMA, MAX_GAMMA);
+        return Math.clamp(Prefers.getFloat("video_gamma", 1.0f), MIN_GAMMA, MAX_GAMMA);
     }
 
     public static void putGamma(float value) {
-        Prefers.put("video_gamma", RuntimeCompat.clamp(value, MIN_GAMMA, MAX_GAMMA));
+        Prefers.put("video_gamma", Math.clamp(value, MIN_GAMMA, MAX_GAMMA));
     }
 
     public static float getHue() {
-        return RuntimeCompat.clamp(Prefers.getFloat("video_hue"), MIN_HUE, MAX_HUE);
+        return Math.clamp(Prefers.getFloat("video_hue"), MIN_HUE, MAX_HUE);
     }
 
     public static void putHue(float value) {
-        Prefers.put("video_hue", RuntimeCompat.clamp(value, MIN_HUE, MAX_HUE));
+        Prefers.put("video_hue", Math.clamp(value, MIN_HUE, MAX_HUE));
     }
 
     public static float getTemperature() {
-        return RuntimeCompat.clamp(Prefers.getFloat("video_temperature"), MIN_TEMPERATURE, MAX_TEMPERATURE);
+        return Math.clamp(Prefers.getFloat("video_temperature"), MIN_TEMPERATURE, MAX_TEMPERATURE);
     }
 
     public static void putTemperature(float value) {
-        Prefers.put("video_temperature", RuntimeCompat.clamp(value, MIN_TEMPERATURE, MAX_TEMPERATURE));
+        Prefers.put("video_temperature", Math.clamp(value, MIN_TEMPERATURE, MAX_TEMPERATURE));
     }
 
     public static void putCustomProfile(VideoEffectProfile profile) {

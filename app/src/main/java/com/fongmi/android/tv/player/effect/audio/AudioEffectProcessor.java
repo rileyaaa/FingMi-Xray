@@ -1,7 +1,5 @@
 package com.fongmi.android.tv.player.effect.audio;
 
-import com.fongmi.android.tv.utils.RuntimeCompat;
-
 import androidx.annotation.NonNull;
 import androidx.media3.common.C;
 import androidx.media3.common.audio.BaseAudioProcessor;
@@ -34,7 +32,7 @@ public final class AudioEffectProcessor extends BaseAudioProcessor {
     }
 
     private static short toPcm16(float sample) {
-        sample = RuntimeCompat.clamp(sample, -1.0f, 1.0f);
+        sample = Math.clamp(sample, -1.0f, 1.0f);
         return sample <= -1.0f ? Short.MIN_VALUE : (short) Math.round(sample * Short.MAX_VALUE);
     }
 

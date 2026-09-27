@@ -1,7 +1,5 @@
 package com.fongmi.android.tv.ui.dialog;
 
-import com.fongmi.android.tv.utils.RuntimeCompat;
-
 import android.annotation.SuppressLint;
 import android.view.KeyEvent;
 import android.view.LayoutInflater;
@@ -441,7 +439,7 @@ final class AudioSettingPanel {
 
     private int getAudioOffsetMs() {
         long value = isPlayerAvailable() ? player.getAudioOffsetMs() : 0;
-        return RuntimeCompat.clamp(value, MIN_AUDIO_OFFSET_MS, MAX_AUDIO_OFFSET_MS);
+        return Math.clamp(value, MIN_AUDIO_OFFSET_MS, MAX_AUDIO_OFFSET_MS);
     }
 
     private void setAudioOffsetMs(int offsetMs) {
@@ -551,7 +549,7 @@ final class AudioSettingPanel {
     private String formatStability(float value) {
         String[] levels = binding.getRoot().getResources().getStringArray(R.array.audio_effect_stability_levels);
         int index = Math.round(value / STABILITY_STEP);
-        index = RuntimeCompat.clamp(index, 0, levels.length - 1);
+        index = Math.clamp(index, 0, levels.length - 1);
         return levels[index];
     }
 

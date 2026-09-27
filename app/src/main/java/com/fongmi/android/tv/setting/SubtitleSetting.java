@@ -1,7 +1,5 @@
 package com.fongmi.android.tv.setting;
 
-import com.fongmi.android.tv.utils.RuntimeCompat;
-
 import android.content.Context;
 import android.graphics.Color;
 import android.graphics.Typeface;
@@ -81,11 +79,11 @@ public class SubtitleSetting {
 
     public static int getStyleMode() {
         int legacy = Prefers.getBoolean("caption") ? STYLE_SYSTEM : STYLE_ORIGINAL;
-        return RuntimeCompat.clamp(Prefers.getInt("subtitle_style", legacy), STYLE_ORIGINAL, STYLE_CUSTOM);
+        return Math.clamp(Prefers.getInt("subtitle_style", legacy), STYLE_ORIGINAL, STYLE_CUSTOM);
     }
 
     public static void putStyleMode(int style) {
-        Prefers.put("subtitle_style", RuntimeCompat.clamp(style, STYLE_ORIGINAL, STYLE_CUSTOM));
+        Prefers.put("subtitle_style", Math.clamp(style, STYLE_ORIGINAL, STYLE_CUSTOM));
     }
 
     public static boolean isSystemStyle() {
@@ -99,7 +97,7 @@ public class SubtitleSetting {
     public static float getScale() {
         float textSize = Prefers.getFloat("subtitle_text_size");
         float legacy = textSize == 0 ? DEFAULT_SCALE : textSize / SubtitleView.DEFAULT_TEXT_SIZE_FRACTION;
-        return RuntimeCompat.clamp(Prefers.getFloat("subtitle_scale", legacy), MIN_SCALE, MAX_SCALE);
+        return Math.clamp(Prefers.getFloat("subtitle_scale", legacy), MIN_SCALE, MAX_SCALE);
     }
 
     public static float getAppliedScale() {
@@ -113,17 +111,17 @@ public class SubtitleSetting {
     }
 
     public static void putScale(float value) {
-        Prefers.put("subtitle_scale", RuntimeCompat.clamp(value, MIN_SCALE, MAX_SCALE));
+        Prefers.put("subtitle_scale", Math.clamp(value, MIN_SCALE, MAX_SCALE));
     }
 
     public static float getPosition() {
         float value = Prefers.getFloat("subtitle_position", DEFAULT_POSITION);
         if (value != 0 && Math.abs(value) < 0.5f) value *= 100.0f;
-        return RuntimeCompat.clamp(value, MIN_POSITION, MAX_POSITION);
+        return Math.clamp(value, MIN_POSITION, MAX_POSITION);
     }
 
     public static void putPosition(float value) {
-        Prefers.put("subtitle_position", RuntimeCompat.clamp(value, MIN_POSITION, MAX_POSITION));
+        Prefers.put("subtitle_position", Math.clamp(value, MIN_POSITION, MAX_POSITION));
     }
 
     public static int getTextBaseColor() {
@@ -167,11 +165,11 @@ public class SubtitleSetting {
     }
 
     public static int getEdgeType() {
-        return RuntimeCompat.clamp(Prefers.getInt("subtitle_edge_type", DEFAULT_EDGE_TYPE), CaptionStyleCompat.EDGE_TYPE_NONE, CaptionStyleCompat.EDGE_TYPE_DROP_SHADOW);
+        return Math.clamp(Prefers.getInt("subtitle_edge_type", DEFAULT_EDGE_TYPE), CaptionStyleCompat.EDGE_TYPE_NONE, CaptionStyleCompat.EDGE_TYPE_DROP_SHADOW);
     }
 
     public static void putEdgeType(int edgeType) {
-        Prefers.put("subtitle_edge_type", RuntimeCompat.clamp(edgeType, CaptionStyleCompat.EDGE_TYPE_NONE, CaptionStyleCompat.EDGE_TYPE_DROP_SHADOW));
+        Prefers.put("subtitle_edge_type", Math.clamp(edgeType, CaptionStyleCompat.EDGE_TYPE_NONE, CaptionStyleCompat.EDGE_TYPE_DROP_SHADOW));
     }
 
     public static int getEdgeBaseColor() {
@@ -195,35 +193,35 @@ public class SubtitleSetting {
     }
 
     public static float getEdgeWidth() {
-        return RuntimeCompat.clamp(Prefers.getFloat("subtitle_edge_width", DEFAULT_EDGE_WIDTH), MIN_EDGE_WIDTH, MAX_EDGE_WIDTH);
+        return Math.clamp(Prefers.getFloat("subtitle_edge_width", DEFAULT_EDGE_WIDTH), MIN_EDGE_WIDTH, MAX_EDGE_WIDTH);
     }
 
     public static void putEdgeWidth(float value) {
-        Prefers.put("subtitle_edge_width", RuntimeCompat.clamp(value, MIN_EDGE_WIDTH, MAX_EDGE_WIDTH));
+        Prefers.put("subtitle_edge_width", Math.clamp(value, MIN_EDGE_WIDTH, MAX_EDGE_WIDTH));
     }
 
     public static float getShadow() {
-        return RuntimeCompat.clamp(Prefers.getFloat("subtitle_shadow", DEFAULT_SHADOW), MIN_SHADOW, MAX_SHADOW);
+        return Math.clamp(Prefers.getFloat("subtitle_shadow", DEFAULT_SHADOW), MIN_SHADOW, MAX_SHADOW);
     }
 
     public static void putShadow(float value) {
-        Prefers.put("subtitle_shadow", RuntimeCompat.clamp(value, MIN_SHADOW, MAX_SHADOW));
+        Prefers.put("subtitle_shadow", Math.clamp(value, MIN_SHADOW, MAX_SHADOW));
     }
 
     public static int getSecondaryMode() {
-        return RuntimeCompat.clamp(Prefers.getInt("subtitle_secondary_track", DEFAULT_SECONDARY_MODE), SECONDARY_MODE_DEFAULT, SECONDARY_MODE_AUTO);
+        return Math.clamp(Prefers.getInt("subtitle_secondary_track", DEFAULT_SECONDARY_MODE), SECONDARY_MODE_DEFAULT, SECONDARY_MODE_AUTO);
     }
 
     public static void putSecondaryMode(int mode) {
-        Prefers.put("subtitle_secondary_track", RuntimeCompat.clamp(mode, SECONDARY_MODE_DEFAULT, SECONDARY_MODE_AUTO));
+        Prefers.put("subtitle_secondary_track", Math.clamp(mode, SECONDARY_MODE_DEFAULT, SECONDARY_MODE_AUTO));
     }
 
     public static float getSecondaryPosition() {
-        return RuntimeCompat.clamp(Prefers.getFloat("subtitle_secondary_position", DEFAULT_SECONDARY_POSITION), MIN_SECONDARY_POSITION, MAX_SECONDARY_POSITION);
+        return Math.clamp(Prefers.getFloat("subtitle_secondary_position", DEFAULT_SECONDARY_POSITION), MIN_SECONDARY_POSITION, MAX_SECONDARY_POSITION);
     }
 
     public static void putSecondaryPosition(float value) {
-        Prefers.put("subtitle_secondary_position", RuntimeCompat.clamp(value, MIN_SECONDARY_POSITION, MAX_SECONDARY_POSITION));
+        Prefers.put("subtitle_secondary_position", Math.clamp(value, MIN_SECONDARY_POSITION, MAX_SECONDARY_POSITION));
     }
 
     @Nullable
@@ -251,7 +249,7 @@ public class SubtitleSetting {
     }
 
     private static float clampOpacity(float opacity) {
-        return RuntimeCompat.clamp(opacity, MIN_OPACITY, MAX_OPACITY);
+        return Math.clamp(opacity, MIN_OPACITY, MAX_OPACITY);
     }
 
     private static int applyOpacity(int color, float opacity) {

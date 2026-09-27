@@ -15,10 +15,10 @@ public class SliderUtil {
     }
 
     public static float snap(float value, float from, float to, float step) {
-        float clamped = RuntimeCompat.clamp(value, from, to);
+        float clamped = Math.clamp(value, from, to);
         if (step <= 0) return clamped;
         float snapped = from + Math.round((clamped - from) / step) * step;
         if (from <= 0.0f && to >= 0.0f && Math.abs(snapped) <= step * STEP_TOLERANCE) snapped = 0.0f;
-        return RuntimeCompat.clamp(snapped, from, to);
+        return Math.clamp(snapped, from, to);
     }
 }

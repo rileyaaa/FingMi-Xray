@@ -1,7 +1,5 @@
 package com.fongmi.android.tv.player.effect.audio;
 
-import com.fongmi.android.tv.utils.RuntimeCompat;
-
 final class AudioLoudnessNormalizer {
 
     private static final float TARGET = 0.125f;
@@ -60,7 +58,7 @@ final class AudioLoudnessNormalizer {
         if (currentPower < GATE_POWER) return;
         power += (currentPower - power) * powerStep;
         float targetGain = TARGET / (float) Math.sqrt(Math.max(power, GATE_POWER));
-        targetGain = RuntimeCompat.clamp(targetGain, MIN_GAIN, MAX_GAIN);
+        targetGain = Math.clamp(targetGain, MIN_GAIN, MAX_GAIN);
         float step = targetGain < gain ? attackStep : releaseStep;
         gain += (targetGain - gain) * step;
     }

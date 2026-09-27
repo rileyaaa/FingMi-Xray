@@ -1,7 +1,5 @@
 package com.fongmi.android.tv.player.effect.audio;
 
-import com.fongmi.android.tv.utils.RuntimeCompat;
-
 import com.fongmi.android.tv.setting.AudioSetting;
 
 import java.util.Arrays;
@@ -25,10 +23,10 @@ public final class AudioEffectConfig {
 
     AudioEffectConfig(short[] levels, int stability, int boost, int preamp, boolean loudness, int centerGain, int balance, int channelMode) {
         this.levels = Arrays.copyOf(levels, levels.length);
-        this.stability = RuntimeCompat.clamp(stability, AudioSetting.MIN_STABILITY, AudioSetting.MAX_STABILITY);
-        this.boost = RuntimeCompat.clamp(boost, AudioSetting.MIN_BOOST, AudioSetting.MAX_BOOST);
+        this.stability = Math.clamp(stability, AudioSetting.MIN_STABILITY, AudioSetting.MAX_STABILITY);
+        this.boost = Math.clamp(boost, AudioSetting.MIN_BOOST, AudioSetting.MAX_BOOST);
         this.preamp = getEffectivePreamp(this.levels, preamp);
-        this.centerGain = RuntimeCompat.clamp(centerGain, AudioSetting.MIN_CENTER_GAIN, AudioSetting.MAX_CENTER_GAIN);
+        this.centerGain = Math.clamp(centerGain, AudioSetting.MIN_CENTER_GAIN, AudioSetting.MAX_CENTER_GAIN);
         this.channelMode = AudioChannelMode.clamp(channelMode);
         this.balance = getEffectiveBalance(balance, this.channelMode);
         this.boostGain = getGain(this.boost);
@@ -138,7 +136,7 @@ public final class AudioEffectConfig {
     }
 
     private static int getEffectivePreamp(short[] levels, int preamp) {
-        int value = RuntimeCompat.clamp(preamp, AudioSetting.MIN_PREAMP, AudioSetting.MAX_PREAMP);
+        int value = Math.clamp(preamp, AudioSetting.MIN_PREAMP, AudioSetting.MAX_PREAMP);
         int maxLevel = 0;
         for (short level : levels) maxLevel = Math.max(maxLevel, level);
         return value - maxLevel;
@@ -146,7 +144,7 @@ public final class AudioEffectConfig {
 
     private static int getEffectiveBalance(int balance, int channelMode) {
         if (!AudioChannelMode.canBalance(channelMode)) return 0;
-        return RuntimeCompat.clamp(balance, AudioSetting.MIN_BALANCE, AudioSetting.MAX_BALANCE);
+        return Math.clamp(balance, AudioSetting.MIN_BALANCE, AudioSetting.MAX_BALANCE);
     }
 
     private static float getGain(int level) {

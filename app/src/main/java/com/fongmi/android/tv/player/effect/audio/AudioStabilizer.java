@@ -1,7 +1,5 @@
 package com.fongmi.android.tv.player.effect.audio;
 
-import com.fongmi.android.tv.utils.RuntimeCompat;
-
 final class AudioStabilizer {
 
     private static final float INITIAL_ENVELOPE = 0.08f;
@@ -28,7 +26,7 @@ final class AudioStabilizer {
         float targetGain = 0.22f / Math.max(envelope, MIN_ENVELOPE);
         float maxGain = 1.0f + 2.2f * intensity;
         float minGain = 1.0f - 0.65f * intensity;
-        targetGain = RuntimeCompat.clamp(targetGain, minGain, maxGain);
+        targetGain = Math.clamp(targetGain, minGain, maxGain);
         targetGain = 1.0f + (targetGain - 1.0f) * intensity;
         float gainStep = targetGain < gain ? 0.025f : 0.001f;
         gain += (targetGain - gain) * gainStep;

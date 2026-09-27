@@ -1,7 +1,5 @@
 package com.fongmi.android.tv.ui.custom;
 
-import com.fongmi.android.tv.utils.RuntimeCompat;
-
 import android.content.Context;
 import android.text.Layout;
 import android.util.AttributeSet;
@@ -80,7 +78,7 @@ public class CustomEditText extends TextInputEditText {
     }
 
     private void scrollByLine(int direction) {
-        scrollTo(getScrollX(), RuntimeCompat.clamp(getScrollY() + (long) direction * getLineHeight(), 0, getScrollRange()));
+        scrollTo(getScrollX(), Math.clamp(getScrollY() + (long) direction * getLineHeight(), 0, getScrollRange()));
     }
 
     private int getScrollRange() {
