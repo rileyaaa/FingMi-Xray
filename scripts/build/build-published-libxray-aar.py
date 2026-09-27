@@ -6,11 +6,11 @@ release. They must not be combined with the older official v26.7.28 generated
 Java bindings: gomobile initializes Java model classes from native code, so the
 Java binding set and libgojni.so form one ABI unit.
 
-This builder keeps the pinned official v26.7.28 AAR as the outer container,
-reconstructs the published libXray/go Java bindings from the verified ARMv7
-APK, and restores the verified v7/v8 libgojni.so payloads from the matching
-published APKs. All other AAR entries remain byte-identical to the official
-container.
+This builder keeps the pinned official v26.7.28 AAR as the outer container and
+retains its generic gomobile go/** runtime classes. It reconstructs only the
+published libXray/** generated Java bindings from the verified ARMv7 APK, then
+restores the verified v7/v8 libgojni.so payloads from the matching published
+APKs. All other AAR entries remain byte-identical to the official container.
 """
 
 import argparse
@@ -42,6 +42,11 @@ REQUIRED_BINDINGS = {
     "libXray/GenerateAgeKeyPairResponse.class",
     "libXray/ProbeTLSCertificateRequest.class",
     "libXray/ProbeHysteria2CertificateRequest.class",
+}
+REQUIRED_GO_RUNTIME = {
+    "go/Seq.class",
+    "go/Universe.class",
+    "go/error.class",
 }
 
 
@@ -90,12 +95,12 @@ def decompile_published_bindings(jadx, apk_path, work_dir):
     completed = subprocess.run(command, check=False)
     sources = jadx_out / "sources"
 
-    # JADX may return non-zero for unrelated application classes. The binding
-    # packages are the acceptance gate; never silently continue without them.
-    for package in ("libXray", "go"):
-        if not (sources / package).is_dir():
-            raise ValueError(
-                f"JADX exit {completed.returncode}: published {package} sources are missing")
+    # JADX may return non-zero for unrelated application classes. Only the
+    # published libXray package is reconstructed. The generic go/** runtime
+    # remains the clean, un-obfuscated copy from the official AAR.
+    if not (sources / "libXray").is_dir():
+        raise ValueError(
+            f"JADX exit {completed.returncode}: published libXray sources are missing")
 
     required_sources = {
         sources / entry.replace(".class", ".java")
@@ -108,16 +113,13 @@ def decompile_published_bindings(jadx, apk_path, work_dir):
             "published APK lacks required gomobile binding sources: "
             + ", ".join(missing))
 
-    java_sources = sorted(
-        list((sources / "libXray").rglob("*.java"))
-        + list((sources / "go").rglob("*.java"))
-    )
+    java_sources = sorted((sources / "libXray").rglob("*.java"))
     if not java_sources:
-        raise ValueError("published APK produced no libXray/go Java sources")
+        raise ValueError("published APK produced no libXray Java sources")
     return java_sources, completed.returncode
 
 
-def compile_bindings(java_sources, android_jar, work_dir):
+def compile_bindings(java_sources, android_jar, official_classes_jar, work_dir):
     classes_dir = work_dir / "classes"
     if classes_dir.exists():
         shutil.rmtree(classes_dir)
@@ -129,19 +131,18 @@ def compile_bindings(java_sources, android_jar, work_dir):
         "-source", "8",
         "-target", "8",
         "-Xlint:-options",
-        "-classpath", str(android_jar),
+        "-classpath", os.pathsep.join([str(android_jar), str(official_classes_jar)]),
         "-d", str(classes_dir),
         *[str(path) for path in java_sources],
     ]
     subprocess.run(command, check=True)
 
     compiled = {}
-    for package in ("libXray", "go"):
-        package_dir = classes_dir / package
-        if not package_dir.is_dir():
-            raise ValueError(f"compiled {package} binding package is missing")
-        for path in sorted(package_dir.rglob("*.class")):
-            compiled[path.relative_to(classes_dir).as_posix()] = path.read_bytes()
+    package_dir = classes_dir / "libXray"
+    if not package_dir.is_dir():
+        raise ValueError("compiled libXray binding package is missing")
+    for path in sorted(package_dir.rglob("*.class")):
+        compiled[path.relative_to(classes_dir).as_posix()] = path.read_bytes()
 
     missing = sorted(REQUIRED_BINDINGS - compiled.keys())
     if missing:
@@ -160,7 +161,7 @@ def rebuilt_classes_jar(official_classes, published_classes):
         with ZipFile(output, "w", compression=ZIP_DEFLATED) as target:
             for info in source.infolist():
                 name = info.filename
-                if name.startswith("libXray/") or name.startswith("go/"):
+                if name.startswith("libXray/"):
                     continue
                 target.writestr(copy(info), source.read(info))
             for name in sorted(published_classes):
@@ -168,10 +169,10 @@ def rebuilt_classes_jar(official_classes, published_classes):
 
     with ZipFile(BytesIO(output.getvalue())) as rebuilt:
         present = set(rebuilt.namelist())
-        missing = sorted(REQUIRED_BINDINGS - present)
+        missing = sorted((REQUIRED_BINDINGS | REQUIRED_GO_RUNTIME) - present)
         if missing:
             raise ValueError(
-                "rebuilt classes.jar lacks required published bindings: "
+                "rebuilt classes.jar lacks required libXray/go runtime classes: "
                 + ", ".join(missing))
     return output.getvalue()
 
@@ -193,11 +194,28 @@ def build(official_aar, v7_apk, v8_apk, jadx, android_jar, work_dir, output_path
             "official libXray AAR SHA-256 differs from pinned v26.7.28 build: "
             f"{observed_official}")
 
-    # The Java binding is ABI-independent. Recover it from the verified v7 APK,
-    # then pair it with each ABI's verified native library from the same release.
+    # The generated libXray binding is ABI-independent. Recover it from the
+    # verified v7 APK. Keep the official AAR's generic go/** runtime classes:
+    # JADX sees the final R8-obfuscated app copy of go.Seq, which is not a
+    # recompilable source artifact and must not replace the clean runtime.
     verified_apk(v7_apk, "armeabi-v7a")
+    with ZipFile(BytesIO(official_bytes)) as official:
+        if official.namelist().count("classes.jar") != 1:
+            raise ValueError("official libXray AAR lacks exactly one classes.jar")
+        official_classes = official.read("classes.jar")
+    with ZipFile(BytesIO(official_classes)) as classes:
+        present = set(classes.namelist())
+        missing_runtime = sorted(REQUIRED_GO_RUNTIME - present)
+        if missing_runtime:
+            raise ValueError(
+                "official libXray AAR lacks gomobile runtime classes: "
+                + ", ".join(missing_runtime))
+
+    official_classes_jar = work_dir / "official-classes.jar"
+    official_classes_jar.write_bytes(official_classes)
     java_sources, jadx_status = decompile_published_bindings(jadx, v7_apk, work_dir)
-    published_classes = compile_bindings(java_sources, android_jar, work_dir)
+    published_classes = compile_bindings(
+        java_sources, android_jar, official_classes_jar, work_dir)
 
     native = {
         "jni/armeabi-v7a/libgojni.so": verified_jni(v7_apk, "armeabi-v7a"),
@@ -241,10 +259,12 @@ def build(official_aar, v7_apk, v8_apk, jadx, android_jar, work_dir, output_path
             if name not in allowed and rebuilt.read(name) != official.read(name):
                 raise ValueError(f"unexpected libXray AAR entry change: {name}")
         with ZipFile(BytesIO(rebuilt.read("classes.jar"))) as classes:
-            missing = sorted(REQUIRED_BINDINGS - set(classes.namelist()))
+            missing = sorted(
+                (REQUIRED_BINDINGS | REQUIRED_GO_RUNTIME) - set(classes.namelist()))
             if missing:
                 raise ValueError(
-                    "final AAR lacks required published bindings: " + ", ".join(missing))
+                    "final AAR lacks required libXray/go runtime classes: "
+                    + ", ".join(missing))
 
     return {
         "jadx_status": jadx_status,
@@ -280,7 +300,7 @@ def main():
         parser.error(str(error))
 
     print(
-        "rebuilt libXray with published gomobile bindings: "
+        "rebuilt libXray with published libXray bindings and official go runtime: "
         f"{result['java_source_count']} Java sources -> "
         f"{result['class_count']} classes; JADX exit={result['jadx_status']}")
     for abi, value in JNI_SHA256.items():
