@@ -1,4 +1,4 @@
-name: Recovery faithful TV build
+name: Archive - v5.6.0 faithful TV reconstruction
 
 on:
   workflow_dispatch:
