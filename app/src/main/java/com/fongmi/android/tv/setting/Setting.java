@@ -1,5 +1,7 @@
 package com.fongmi.android.tv.setting;
 
+import com.fongmi.android.tv.utils.RuntimeCompat;
+
 import com.fongmi.android.tv.R;
 import com.fongmi.android.tv.utils.ResUtil;
 import com.github.catvod.utils.Prefers;
@@ -52,19 +54,19 @@ public class Setting {
     }
 
     public static int getWall() {
-        return Math.clamp(Prefers.getInt("wall", 1), MIN_WALL, MAX_WALL);
+        return RuntimeCompat.clamp(Prefers.getInt("wall", 1), MIN_WALL, MAX_WALL);
     }
 
     public static void putWall(int wall) {
-        Prefers.put("wall", Math.clamp(wall, MIN_WALL, MAX_WALL));
+        Prefers.put("wall", RuntimeCompat.clamp(wall, MIN_WALL, MAX_WALL));
     }
 
     public static int getWallType() {
-        return Math.clamp(Prefers.getInt("wall_type", 0), MIN_WALL_TYPE, MAX_WALL_TYPE);
+        return RuntimeCompat.clamp(Prefers.getInt("wall_type", 0), MIN_WALL_TYPE, MAX_WALL_TYPE);
     }
 
     public static void putWallType(int type) {
-        Prefers.put("wall_type", Math.clamp(type, MIN_WALL_TYPE, MAX_WALL_TYPE));
+        Prefers.put("wall_type", RuntimeCompat.clamp(type, MIN_WALL_TYPE, MAX_WALL_TYPE));
     }
 
     public static int getThemeColor() {
@@ -90,19 +92,19 @@ public class Setting {
     }
 
     public static int getSiteMode() {
-        return Math.clamp(Prefers.getInt("site_mode"), MIN_SITE_MODE, MAX_SITE_MODE);
+        return RuntimeCompat.clamp(Prefers.getInt("site_mode"), MIN_SITE_MODE, MAX_SITE_MODE);
     }
 
     public static void putSiteMode(int mode) {
-        Prefers.put("site_mode", Math.clamp(mode, MIN_SITE_MODE, MAX_SITE_MODE));
+        Prefers.put("site_mode", RuntimeCompat.clamp(mode, MIN_SITE_MODE, MAX_SITE_MODE));
     }
 
     public static int getSyncMode() {
-        return Math.clamp(Prefers.getInt("sync_mode"), MIN_SYNC_MODE, MAX_SYNC_MODE);
+        return RuntimeCompat.clamp(Prefers.getInt("sync_mode"), MIN_SYNC_MODE, MAX_SYNC_MODE);
     }
 
     public static void putSyncMode(int mode) {
-        Prefers.put("sync_mode", Math.clamp(mode, MIN_SYNC_MODE, MAX_SYNC_MODE));
+        Prefers.put("sync_mode", RuntimeCompat.clamp(mode, MIN_SYNC_MODE, MAX_SYNC_MODE));
     }
 
     public static boolean isIncognito() {
