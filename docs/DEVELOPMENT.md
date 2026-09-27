@@ -2,7 +2,7 @@
 
 本文面向继续维护当前 `main` 的开发者，说明**当前工程基线、模块接线、构建依赖、上游同步方式和验证规则**。
 
-发布版 `v5.6.0-xray.5` 的恢复证据见 [RECOVERY.md](RECOVERY.md)；长期架构边界见 [PROJECT.md](PROJECT.md)。
+长期架构边界见 [PROJECT.md](PROJECT.md)。`v5.6.0-xray.5` 的恢复材料见 [RECOVERY.md](RECOVERY.md)，但它现在只承担历史证据和部分 native 二进制来源说明，不再是当前工程的验收基线。
 
 ## 1. 当前工程基线
 
@@ -17,7 +17,7 @@
 - `compileSdk` / `targetSdk`：37
 - `minSdk`：24
 
-当前 main 是面向后续开发的重构工程；`recovery/legacy-src/` 则保留 5.6.0 faithful 恢复，两者用途不同。
+当前 `main` 是现行产品与后续开发的基线。**从 5.6.3 重构线起，当前 `main` 及其最新测试 / 正式构建是唯一的功能回归和发布验收基线。** `recovery/legacy-src/` 只保留 5.6.0 faithful 历史恢复；正常开发、测试和发布不再要求运行 faithful build、对齐旧 APK 行为或等待旧版本独立 cloud build 验收。
 
 ## 2. Gradle 模块
 
@@ -52,6 +52,29 @@ Manifest 中的 `XrayService`：
 
 - `android:exported="false"`
 - `android:process=":xray"`
+
+
+### Android 运行时兼容与 native 边界
+
+源码使用 Java 21 编译并启用 desugaring，但 Android 设备上的 `java.*` 运行时仍由 ART 提供，不能把“javac 可编译”当成“Android 12 / SDK 32 一定可调用”。
+
+当前 Xray 路径已经明确约束：
+
+- 不使用 `StringBuilder.isEmpty()`；
+- 不直接使用旧 ART 不具备的 `URLDecoder/URLEncoder` Charset overload；
+- Xray 关键路径避免 `String.isBlank()`、`Set.of(...)` 等已知会造成旧 Android runtime linkage 风险的调用；
+- `tests/test-xray-android-runtime-compat.py` 在 current-main 构建前扫描这些风险，并同时检查 libXray / gomobile 的 release keep rule。
+
+`LibXrayBridge` 是 Java 与 Go JNI 的故障边界。它会把 Java linkage failure 转成可返回的 Xray 错误；`XrayService` 的 validate / test / start / stop / reset 路径以及 `XrayServiceClient` 也会收口对应 `LinkageError`。这样类似 `NoSuchMethodError`、`NoClassDefFoundError` 或 `UnsatisfiedLinkError` 时，优先向 UI 返回具体错误，而不是只显示 `Xray service process died`。
+
+native 调用前后会输出不含节点、凭据或配置正文的阶段日志，例如 `native invoke begin/end: getFreePorts`。如果只有 begin 没有 end，ADB / logcat 就可以把问题继续缩小到 libgojni、ARM 转译或 native runtime。
+
+release 混淆规则必须保留：
+
+```text
+-keep class libXray.** { *; }
+-keep class go.** { *; }
+```
 
 ### VOD / Live
 
@@ -108,7 +131,7 @@ DLNA 生命周期使用 flavor-specific `TvDlnaLifecycle`：
 
 ## 5. 当前媒体兼容层
 
-FongMi/TV 5.6.3 对 Media3 / MPV 的调用面比恢复时固定的部分播放器二进制更新。仓库没有用 compile-only 空壳掩盖差异，而是保留明确的 compatibility layer。
+FongMi/TV 5.6.3 对 Media3 / MPV 的调用面与当前固定的部分播放器二进制存在差异。仓库没有用 compile-only 空壳掩盖差异，而是保留明确的 compatibility layer。
 
 ### Media3 / Libass
 
@@ -135,7 +158,7 @@ FongMi/TV 5.6.3 对 Media3 / MPV 的调用面比恢复时固定的部分播放�
 - PlayerView controller；
 - subtitle sample timestamp。
 
-固定 candidate 与相关 AAR 的具体 SHA 由 `current-main-build.yml` 和 recovery fixture 保存；构建时按 hash 校验，不在本文重复维护另一份容易过期的 pin 表。
+固定 candidate 与相关 AAR 的具体 SHA 由 `current-main-build.yml` 和对应 fixture 保存；构建时按 hash 校验，不在本文重复维护另一份容易过期的 pin 表。
 
 ### app adapter
 
@@ -159,13 +182,15 @@ FongMi/TV 5.6.3 对 Media3 / MPV 的调用面比恢复时固定的部分播放�
 当前可重复构建依赖以下几类输入：
 
 - 固定 FongMi/media player candidate；
-- 从正式 `v5.6.0-xray.5` APK 恢复的 FFmpeg JNI；
-- 官方 libXray AAR + 正式 APK 中恢复的 Go JNI；
+- 当前构建使用的 FFmpeg JNI；
+- 官方 libXray AAR 容器与当前构建使用的 Go JNI；
 - 按固定输入重建的 Libass compatibility AAR。
 
-`current-main-build.yml` 会下载、校验、恢复并导入这些依赖，再进行 Java 编译和 APK assemble。
+目前 FFmpeg JNI 与 v7 / arm64 Go JNI 的字节来源仍可追溯到历史 `v5.6.0-xray.5` APK，因此 current-main workflow 会下载该历史 Release 并按固定 SHA 提取这些 native payload。**这只是二进制 provenance / reproducibility 输入，不代表当前 5.6.3 需要通过 5.6.0 faithful 行为验收。** 当未来为当前架构建立新的独立 native 发布源后，应切换构建输入并同步更新 pin。
 
-当前 compatibility 构建脚本集中在 `scripts/build/`，发布版恢复工具集中在 `scripts/recovery/`，回归测试入口位于 `tests/`。修改任何二进制来源或 hash 时，必须同步修改对应验证脚本 / workflow，不能只把一个新 AAR 丢进 `app/libs`。
+`current-main-build.yml` 会下载、校验并准备这些固定依赖，再进行 Java 编译和 APK assemble。
+
+当前 compatibility 构建脚本集中在 `scripts/build/`，历史来源提取工具集中在 `scripts/recovery/`，当前源码回归入口位于 `tests/`。修改任何二进制来源或 hash 时，必须同步修改对应验证脚本 / workflow，不能只把一个新 AAR 丢进 `app/libs`。
 
 ## 7. 构建
 
@@ -188,7 +213,7 @@ on:
 
 1. 准备 JDK / Android SDK；
 2. 下载并校验固定媒体输入；
-3. 恢复 FFmpeg / libXray native；
+3. 准备并校验当前固定的 FFmpeg / libXray native；
 4. 重建并导入 Libass compatibility AAR；
 5. 编译 Leanback / Mobile Java；
 6. assemble Leanback / Mobile Debug APK；
@@ -198,7 +223,7 @@ on:
 
 `.github/workflows/publish-current-main-test-release.yml`
 
-它会从触发时的当前 `main` 重新准备固定依赖、执行源码 guard、编译 Leanback / Mobile、assemble Debug APK，然后发布新的测试 Pre-release。新测试 Release 与两个 Leanback APK 都验证成功后，workflow 才删除 YAML 中指定的上一版测试 Release / tag；稳定版 `v5.6.0-xray.5` 不参与这条替换链。
+它会从触发时的当前 `main` 重新准备固定依赖、执行源码 guard、编译 Leanback / Mobile、assemble Debug APK，然后发布新的测试 Pre-release。新测试 Release 与两个 Leanback APK 都验证成功后，workflow 才删除 YAML 中指定的上一版测试 Release / tag。其他历史 Release 不在这条替换链中，也不参与当前版本的最终验收。
 
 两个 current-main workflow 都必须先执行：
 
@@ -217,7 +242,7 @@ FingMi-Xray 当前**不使用 FongMi/Release 的应用内自更新**。原因是
 - Manifest 不申请 `REQUEST_INSTALL_PACKAGES`；
 - 测试包 / 正式包只通过本仓库明确发布并由用户主动安装。
 
-发布版恢复相关 workflow 由 [RECOVERY.md](RECOVERY.md) 说明。
+`recovery-*` workflow 只保留给历史取证、来源重建或必要的二进制复核；它们不是 current-main 的发布前置条件。历史恢复说明见 [RECOVERY.md](RECOVERY.md)。
 
 ### 本地
 
@@ -233,7 +258,7 @@ FingMi-Xray 当前**不使用 FongMi/Release 的应用内自更新**。原因是
 
 ## 8. 跟随 FongMi/TV 上游
 
-升级上游时不要从 recovery faithful tree 直接继续开发。
+升级上游时只以当前 `main` 和目标 FongMi/TV 上游为开发输入，不从历史 recovery faithful tree 继续开发，也不要求新实现回退到旧发布行为。
 
 建议流程：
 
@@ -252,10 +277,14 @@ FingMi-Xray 当前**不使用 FongMi/Release 的应用内自更新**。原因是
 
 ## 9. 验证清单
 
+当前验收对象是**当前 `main` 架构**。正常发布验证不再要求 `.github/workflows/recovery-build.yml`、5.6.0 faithful APK 重建或旧 APK parity。历史 recovery 测试只在修改历史证据、来源提取脚本或需要重新核对二进制 provenance 时运行。
+
 影响 Xray / 播放器 / 网络生命周期的修改，至少考虑以下场景：
 
 ### Xray 基础
 
+- Android 12 / SDK 32 等旧 ART 上的节点保存、删除、测试；
+- v7 / arm64 测试包的 Service bind、Java → libXray invoke 与错误返回；
 - 节点保存、删除、测试；
 - 手机导入；
 - VOD 开启 / 关闭；
@@ -305,7 +334,7 @@ FingMi-Xray 当前**不使用 FongMi/Release 的应用内自更新**。原因是
 
 - 项目架构变化：修改 `PROJECT.md`；
 - 当前源码结构、构建或上游维护方式变化：修改本文；
-- 对旧发布版行为的新证据：修改 `RECOVERY.md`；
+- 对旧发布版历史事实或 native provenance 的新证据：修改 `RECOVERY.md`；
 - 新增 / 删除反编译文本证据：修改 `apk-reference/README.md`；
 - `ORIGINAL_README.md` 保持冻结。
 
