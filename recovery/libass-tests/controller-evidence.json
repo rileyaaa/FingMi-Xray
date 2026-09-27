@@ -1,0 +1,18 @@
+{
+  "provenance": "reconstructed integration with existing SecondaryText policy",
+  "dex_sha256": "a1b7f5735678e7b09dbd522d080ff6ada3fc4cf6ffe064278c35ebccb49020f8",
+  "targets": {
+    "xk1": "session binding, selected secondary ASS propagation, Player identity/close",
+    "k63": "factory ownership validation, media-scoped manual selection and cue reset"
+  },
+  "scope": "thin public coordinator; no replacement selection engine",
+  "tests": {
+    "new_controller": 9,
+    "original_secondary_text": 8,
+    "suite_total": 51
+  },
+  "limitations": [
+    "synthetic ExoPlayer interface host, real DefaultTrackSelector and Media3",
+    "no public PlayerView/EGL or complete app build"
+  ]
+}

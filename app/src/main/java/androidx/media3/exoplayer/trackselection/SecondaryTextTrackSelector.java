@@ -39,6 +39,11 @@ public final class SecondaryTextTrackSelector extends TrackSelector {
             return new SecondaryTextTrackSelector(delegate.createTrackSelector(context), this);
         }
 
+        /** Identifies the owning factory without publishing another selector's active state. */
+        public boolean owns(TrackSelector selector) {
+            return selector instanceof SecondaryTextTrackSelector && ((SecondaryTextTrackSelector) selector).owner == this;
+        }
+
         public void setSecondaryTextTrackSelectionOverride(@Nullable TrackSelectionOverride override) {
             if (override != null && (override.getType() != C.TRACK_TYPE_TEXT || override.trackIndices.size() != 1))
                 throw new IllegalArgumentException("Secondary text requires one text track");

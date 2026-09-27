@@ -16,7 +16,7 @@
  </dependencies>
  <build>
   <directory>${libass.work}/target</directory>
-  <sourceDirectory>${recovery.root}/recovery/media3-libass/src/main/java</sourceDirectory>
+  <sourceDirectory>${libass.work}/production</sourceDirectory>
   <testSourceDirectory>${libass.work}/tests</testSourceDirectory>
   <plugins>
    <plugin><groupId>org.apache.maven.plugins</groupId><artifactId>maven-compiler-plugin</artifactId><version>3.14.0</version></plugin>
