@@ -150,7 +150,7 @@ public final class SettingXrayActivity extends BaseActivity
 
     @Subscribe(threadMode = ThreadMode.MAIN)
     public void onXrayImportEvent(XrayImportEvent event) {
-        if (event == null || event.link() == null || event.link().isBlank()) return;
+        if (event == null || isBlank(event.link())) return;
 
         if (mOperationId != Long.MIN_VALUE && mOperation != XrayOperation.RESET_SECURITY) {
             mXray.abandon();
@@ -162,6 +162,16 @@ public final class SettingXrayActivity extends BaseActivity
         mBinding.link.setText(link);
         mBinding.link.setSelection(mBinding.link.length());
         Notify.show(R.string.xray_phone_received);
+    }
+
+    private static boolean isBlank(String value) {
+        if (value == null) return true;
+        for (int offset = 0; offset < value.length();) {
+            int codePoint = value.codePointAt(offset);
+            if (!Character.isWhitespace(codePoint)) return false;
+            offset += Character.charCount(codePoint);
+        }
+        return true;
     }
 
     private String readLink() {
