@@ -107,7 +107,7 @@ jobs:
           work="recovery/work/current-main"
           mvn -B dependency:get -Dartifact=org.robolectric:android-all:15-robolectric-12650502
           mvn -B dependency:get -Dartifact=com.google.guava:guava:33.3.1-android
-          mvn -B dependency:get -Dartifact=androidx.annotation:annotation-jvm:1.9.1
+          mvn -B dependency:get -Dartifact=androidx.annotation:annotation-jvm:1.9.1 -DremoteRepositories=google::default::https://dl.google.com/dl/android/maven2
 
           python3 scripts/build-libass-extractor.py             --candidate "$work/input/player-candidate.zip"             --workdir "$work/extractor"             --container "$work/input/media3-container-1.11.0.aar"             --maven "$(command -v mvn)"
 
