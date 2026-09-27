@@ -1,4 +1,4 @@
-name: Prepare faithful native dependencies
+name: Archive - prepare v5.6.0 native evidence
 
 on:
   workflow_dispatch:
