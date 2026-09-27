@@ -14,8 +14,8 @@ RESTORED_SHA='203c3ef5626afa3bc0401befc07a347a3e32e6e2b835b0164b0c05eeba1560db'
 COPY_SHA='4acaaa255e7a8b2a33fa1978c655d83cb9cb47d0ce3999b25838e07088b205da'
 CONTAINER_SHA='930fca2f018f06f1d08c12599f8c97f31eddbd728edee5de06eb53a882f8fc54'
 TIMED_SOURCES={
- 'SubtitleParser':('529d8a48083cb491cab0479431253774a512e36d4c365735c4a51a173658cca7','216d67d9c56d0697623342216aed36d9440b117152db91a5b8a0150d301b2b1b'),
- 'SubtitleTranscodingTrackOutput':('59568aaa1aad5db1c2a19faf8124ba6f8184365de3fbc8f0342813429e27cc8b','069c2ddce570350cba81bd9512945ba99c9b5e20789bbce4a60df58b2f708ce1')}
+ 'SubtitleParser':('631eaf8c4176a279925d3b956706f97284119c0554a20d9b82c9c184fbe0dc02','174116a743448a5a9c5e9125b2ae0e2b45637b7b00b1902184c6e8d69263388e'),
+ 'SubtitleTranscodingTrackOutput':('89e6cbc1ce76730ef08d69da12c779616b2618a51d83b81ef9a7ec9136592d87','6ac767d9e13270780e38ad16ae6fd607a69c2a6b0c056f74e82792a71ba7bf3c')}
 PREFIXES=['androidx/media3/extractor/mkv/MatroskaExtractor']+['androidx/media3/extractor/text/'+n for n in TIMED_SOURCES]
 def sha(b):return hashlib.sha256(b).hexdigest()
 def write_zip(entries):
