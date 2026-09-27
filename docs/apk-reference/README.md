@@ -1,85 +1,75 @@
-# 发布 APK 反编译参考
+# 发布 APK 反编译证据索引
 
-本目录保存 FingMi-Xray `v5.6.0-xray.5` 两个正式发布 APK 中，**与本项目恢复直接相关的文本证据**。
+本目录保存 v5.6.0-xray.5 两份正式 APK 中与 faithful 恢复直接相关的文本证据。
 
-目的：
+这里的内容用于复核发布行为，不是维护源码。可读 faithful 实现位于 recovery/legacy-src，恢复结论统一维护在 [../RECOVERY.md](../RECOVERY.md)。
 
-- 后续 Chat / Work / Codex 不需要为了重新查看关键发布版逻辑再跑 GitHub Actions；
-- 为 `docs/RECOVERY.md` 的 faithful 结论提供可直接检索的 APK / JADX / DEX 依据；
-- 保留双 ABI 对照结果，但避免在 Git 中重复保存几乎相同的反编译源码。
+## 固定 APK
 
-这里的文件是反编译证据，不是维护源码。真正的 faithful 可读实现仍在 `recovery/legacy-src/`。
+| ABI | 文件 | SHA-256 | 用途 |
+| --- | --- | --- | --- |
+| armeabi-v7a | FongMi-Xray-TV-v5.6.0-xray.5-armeabi-v7a.apk | cacc7a90ce082adf955fc80a444b54f8cc86d5b5c3ac7acb13d1392b59928bda | 主恢复与设备回归基准 |
+| arm64-v8a | FongMi-Xray-TV-v5.6.0-xray.5-arm64-v8a.apk | b5ac05193c1e19809fc7ffb3048f7d75aaa2124eace9953d669f4a81a477c21d | ABI、DEX 与 native 交叉验证 |
 
-## 正式 APK
+## 已持久保存的完整分析材料
 
-### armeabi-v7a（主基准）
+历史 Actions：
 
-- 文件：`FongMi-Xray-TV-v5.6.0-xray.5-armeabi-v7a.apk`
-- SHA-256：`cacc7a90ce082adf955fc80a444b54f8cc86d5b5c3ac7acb13d1392b59928bda`
-- 实际使用架构，也是恢复和设备回归主基准。
+- v7 完整 JADX：artifact 10847466987；
+- v7 / v8 DEX + APK diff：artifact 10847337361；
+- v8 完整 JADX：artifact 10825963688。
 
-### arm64-v8a（交叉验证）
-
-- 文件：`FongMi-Xray-TV-v5.6.0-xray.5-arm64-v8a.apk`
-- SHA-256：`b5ac05193c1e19809fc7ffb3048f7d75aaa2124eace9953d669f4a81a477c21d`
-- 用于关键源码、DEX、ABI 和 native 交叉验证。
-
-## 证据来源
-
-已有历史 Actions artifact：
-
-- v7 完整 JADX：`10847466987`
-- v7 / v8 原始 DEX + APK diff：`10847337361`
-- v8 完整 JADX：`10825963688`
-
-这些 artifact 可能过期，因此本目录保存恢复直接需要的文本材料。同时已将三份完整 ZIP 持久保存到项目可访问 Library，供 selected reference 不足时离线查阅：
+对应完整 ZIP 另有项目 Library 持久副本：
 
 | 内容 | Library 路径 | bytes | ZIP SHA-256 |
 | --- | --- | ---: | --- |
-| v7 full JADX | `/FongMi-Xray/apk-reference/v7-full-jadx-v5.6.0-xray.5.zip` | 76,359,062 | `7aab8c3419717516167eba7cf6a6f320df894b9ef554761c0cfc98d90c580e8d` |
-| v8 full JADX | `/FongMi-Xray/apk-reference/v8-full-jadx-v5.6.0-xray.5.zip` | 78,694,282 | `8d6e2a335a442b9bc2e53f12ec7ab646ebef51df69ae8c54674d25f37035056b` |
-| v7/v8 DEX + reports | `/FongMi-Xray/apk-reference/v7-v8-dex-report-v5.6.0-xray.5.zip` | 11,501,328 | `699eac1ef5d8261c303d953110fa8ec731f91cd7279c04a74c598311211a4c3f` |
+| v7 full JADX | /FongMi-Xray/apk-reference/v7-full-jadx-v5.6.0-xray.5.zip | 76,359,062 | 7aab8c3419717516167eba7cf6a6f320df894b9ef554761c0cfc98d90c580e8d |
+| v8 full JADX | /FongMi-Xray/apk-reference/v8-full-jadx-v5.6.0-xray.5.zip | 78,694,282 | 8d6e2a335a442b9bc2e53f12ec7ab646ebef51df69ae8c54674d25f37035056b |
+| v7 / v8 DEX + reports | /FongMi-Xray/apk-reference/v7-v8-dex-report-v5.6.0-xray.5.zip | 11,501,328 | 699eac1ef5d8261c303d953110fa8ec731f91cd7279c04a74c598311211a4c3f |
 
-Library 是跨会话便利副本，不替代发布 APK 的固定 SHA 身份；判断发布行为仍以本文件上方两份正式 APK SHA 为准。
+Library 副本只是跨会话材料来源。正式 APK 的固定 SHA-256 仍是发布身份依据。
 
-v7 JADX 工作流记录的 JADX exit code 为 3，但完整 `sources/` 已正常生成并保存；历史 Action 红灯发生在后续 targeted dexdump 筛选，不等于 v7 没有反编译源码。
+历史 v7 分析 run 最终为 failure，是因为后续 targeted dexdump 筛选失败；完整 JADX sources 已正常生成并保存。不要把 run 最终红灯解释为“v7 没有反编译成功”。
 
-## 保存范围
+## 仓库保存范围
 
-从两份完整 JADX 中选取了 64 个与以下范围直接相关的 Java 文件：
+仓库从两份完整 JADX 中选取 64 个与恢复直接相关的 Java 文件，覆盖：
 
 - Xray Service / Binder / session；
-- share-link / config / certificate / error sanitizer；
-- player manager / Exo media source / SOCKS / destination guard；
-- VOD / Live / Setting / Push 关键 Activity；
+- share-link / runtime config / certificate / error sanitizer；
+- PlayerManager / Exo / SOCKS / destination guard；
+- VOD / Live / Setting / Push；
 - libXray Java bridge 数据类；
-- TV 待机网络恢复的 Home / lifecycle / HTTP / DNS 相关 R8 helper。
+- TV 待机网络恢复相关 Home / lifecycle / HTTP / DNS R8 helper。
 
-逐文件比较结果：
+双 ABI 对照：
 
-- selected source files：64
-- v7 / v8 逐字节相同：63
-- 不同：1（`p000/ip0.java`）
-- 缺失：0
-- AndroidManifest：双 ABI 逐字节相同
+- selected source：64；
+- v7 / v8 逐字节相同：63；
+- 差异：1；
+- 缺失：0；
+- AndroidManifest：逐字节相同。
 
-`ip0` 是 R8 生成的 EventBus subscriber index；已核注册项相同，差异只在 `HashMap.put` 顺序。因此其他 63 个文件只保留一份到 `shared/sources/`。
+唯一差异是 p000/ip0.java，对应 R8 EventBus subscriber index。注册项相同，只是 HashMap.put 顺序不同，因此其余 63 个 selected source 只保存一份。
 
-## 目录
+## 目录说明
 
-- `shared/sources/`：双 ABI 完全相同的 selected JADX 源码；
-- `shared/AndroidManifest.xml`：双 ABI 相同的反编译 Manifest；
-- `shared/dex-sha256.txt`：两边三个 DEX 的 SHA-256；
-- `shared/apk-diff.txt`：在核两份 APK 总 SHA 后生成的 ZIP entry 差异摘要；
-- `shared/source-parity.txt`：selected source 对照范围和结论；
-- `v7/ip0.java`、`v8/ip0.java`：唯一 selected-source 差异。
-- `native-share-symbols.json`：发布 v8 JNI 的 share/helper/Invoke 清理函数 Go symbol、定制源码行与虚拟地址；实际执行 fixture、局部 Go patch、复现命令及边界统一维护于 `../RECOVERY.md` 第 11 节和 `recovery/native-tests/`。
+- shared/sources/：两 ABI 相同的 selected JADX；
+- shared/AndroidManifest.xml：两 ABI 相同的反编译 Manifest；
+- shared/dex-sha256.txt：两边 classes DEX SHA-256；
+- shared/apk-diff.txt：在核正式 APK SHA 后生成的 ZIP entry 差异；
+- shared/source-parity.txt：selected source 对照结论；
+- v7/ip0.java、v8/ip0.java：唯一 selected-source 差异；
+- native-share-symbols.json：发布 JNI 中 share / Invoke 相关 Go symbol、源码行和地址索引。
+
+native 行为 fixture、重建补丁和执行脚本不放在本目录，统一位于 recovery/native-tests、recovery/libxray 及 scripts；结论见 RECOVERY.md。
 
 ## 使用规则
 
-1. 需要确认发布版语义时先查本目录，不要先跑 AC。
-2. JADX 出现不可能条件或控制流冲突时，继续查 `RECOVERY.md` 已记录的原始 DEX 结论；必要时才使用 `scripts/inspect-published-dex.py` 配合已固定 DEX 证据。
-3. 不把反编译类名当正式 API。
-4. 不直接复制 unreviewed JADX 到维护源码。
-5. 本目录不提交原始 APK、`classes*.dex`、AAR、SO 等大型二进制；只保存文本证据、哈希和可复核来源。
-
+1. 先确认正式 APK SHA，再使用对应证据。
+2. 查询发布 Java 语义时优先查本目录。
+3. JADX 出现明显矛盾时继续核 RECOVERY.md 已记录的 DEX / native 结论，必要时再运行检查脚本。
+4. 不把 R8 类名当长期 API。
+5. 不直接把未经核对的 JADX 复制成维护源码。
+6. 不在 Git 中提交原始 APK、classes.dex、AAR、SO 等大型二进制。
+7. 本目录只维护证据索引和必要文本，不记录项目当前开发进度或调试时间线。
