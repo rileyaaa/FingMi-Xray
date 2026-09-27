@@ -16,7 +16,7 @@ jobs:
       V8_SHA256: b5ac05193c1e19809fc7ffb3048f7d75aaa2124eace9953d669f4a81a477c21d
       CANDIDATE_SHA256: 0ed42581af11ac7163ebde148b318807c244e2a318f40c41d33f50b70bf967ee
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Download and verify pinned inputs
         shell: bash
@@ -115,7 +115,7 @@ jobs:
             >> recovery/work/restored/RESTORE_MANIFEST.txt
 
       - name: Upload checked AAR dependencies only
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: fingmi-faithful-native-dependencies
           path: |
