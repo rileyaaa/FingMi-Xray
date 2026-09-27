@@ -28,15 +28,16 @@ public final class LibassPlaybackSession implements AutoCloseable {
     private Player player;
     private Player.Listener playerListener;
     private long generation,positionUs,primaryOffsetUs,secondaryOffsetUs,renderVersion;
-    private boolean closed,overrideScale;
+    private boolean closed,overrideScale,rendering;
     private float scale=1f,primaryPosition,secondaryPosition=1f;
     private LibassStyleOverride style;
-    private String styleFamily;
+    private String styleFamily,fontFamily;
+    private LibassSubtitleView subtitleView;
     private Runnable renderInvalidation;
 
     public LibassPlaybackSession(LibassConfiguration configuration,boolean enabled){
         this.configuration=Objects.requireNonNull(configuration);
-        available=enabled&&LibassLibrary.isAvailable();
+        available=enabled&&LibassLibrary.isAvailable();fontFamily=configuration.defaultFontFamily;
         ownership=new LibassMediaOwnership<>(item->{
             LibassMediaState state=new LibassMediaState(configuration,available);
             applySettings(state);return new OwnedMedia(state);
@@ -73,6 +74,7 @@ public final class LibassPlaybackSession implements AutoCloseable {
             for(int i=0;i<timeline.getWindowCount();i++)items.add(timeline.getWindow(i,window).mediaItem);
             ownership.updateTimeline(sender,items);
         }
+        rendering=sender.getPlaybackState()==Player.STATE_READY||sender.getPlaybackState()==Player.STATE_BUFFERING;
         ownership.updateCurrent(sender,sender.getCurrentMediaItem());
         updateFormats(sender,null,false);invalidate();
     }
@@ -99,7 +101,7 @@ public final class LibassPlaybackSession implements AutoCloseable {
     }
     synchronized LibassMediaState activeMedia(){OwnedMedia owned=ownership.active();return owned==null?null:owned.state;}
     synchronized long positionUs(){return positionUs-primaryOffsetUs;}
-    synchronized boolean isRendering(){return isAvailable()&&player!=null&&(player.getPlaybackState()==Player.STATE_READY||player.getPlaybackState()==Player.STATE_BUFFERING);}
+    synchronized boolean isRendering(){return isAvailable()&&player!=null&&rendering;}
     synchronized void setRenderInvalidation(Runnable callback){renderInvalidation=closed?null:callback;}
     synchronized long renderVersion(){return renderVersion;}
     private void invalidate(){++renderVersion;if(renderInvalidation!=null)renderInvalidation.run();}
@@ -122,7 +124,7 @@ public final class LibassPlaybackSession implements AutoCloseable {
         ownership.forEach(value->value.state.setSecondaryOffsetUs(secondary-primary));invalidate();
     }
     private void applySettings(LibassMediaState media){
-        media.setFontScale(scale,overrideScale);media.setBottomPositionFraction(primaryPosition);
+        media.setDefaultFontFamily(fontFamily);media.setFontScale(scale,overrideScale);media.setBottomPositionFraction(primaryPosition);
         media.setSecondaryBottomPositionFraction(secondaryPosition);media.setStyleOverride(style,styleFamily);
         media.setSecondaryOffsetUs(secondaryOffsetUs-primaryOffsetUs);
     }
@@ -141,9 +143,25 @@ public final class LibassPlaybackSession implements AutoCloseable {
     synchronized void setStyleOverride(LibassStyleOverride value,String family){
         LibassConfiguration.family(family);if(closed)return;style=value;styleFamily=family;ownership.forEach(media->media.state.setStyleOverride(value,family));invalidate();
     }
-    @Override public synchronized void close(){
-        if(closed)return;closed=true;++generation;renderInvalidation=null;
-        Player old=player;Player.Listener listener=playerListener;player=null;playerListener=null;
-        try{if(old!=null)old.removeListener(listener);}finally{ownership.close();}
+    public synchronized LibassSubtitleView createSubtitleView(android.content.Context context){
+        checkAvailable();
+        if(subtitleView!=null&&!subtitleView.isClosed())throw new IllegalStateException("A Libass subtitle view is already attached");
+        subtitleView=new LibassSubtitleView(context,this);renderInvalidation=subtitleView::requestRender;return subtitleView;
+    }
+    synchronized void detachSubtitleView(LibassSubtitleView view){if(subtitleView==view){subtitleView=null;renderInvalidation=null;}}
+    public synchronized void setCaptionStyle(androidx.media3.ui.CaptionStyleCompat caption,String family){
+        LibassConfiguration.family(family);if(closed)return;
+        fontFamily=family;ownership.forEach(media->media.state.setDefaultFontFamily(family));
+        setStyleOverride(caption==null?null:new LibassStyleOverride(family,caption.foregroundColor,caption.backgroundColor,caption.edgeType,caption.edgeColor,caption.edgeWidth,caption.shadowOffset),family);
+    }
+    @Override public void close(){
+        Player old;Player.Listener listener;LibassSubtitleView view;
+        synchronized(this){
+            if(closed)return;closed=true;++generation;renderInvalidation=null;
+            old=player;listener=playerListener;player=null;playerListener=null;view=subtitleView;subtitleView=null;
+        }
+        // Never hold the session monitor while waiting on a render gate.
+        try{if(view!=null)view.close();}
+        finally{try{if(old!=null)old.removeListener(listener);}finally{ownership.close();}}
     }
 }

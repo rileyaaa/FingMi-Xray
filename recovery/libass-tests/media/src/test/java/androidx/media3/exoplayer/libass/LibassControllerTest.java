@@ -18,9 +18,9 @@ import org.robolectric.annotation.Config;
 @RunWith(RobolectricTestRunner.class)
 @Config(sdk=28,manifest=Config.NONE)
 public final class LibassControllerTest {
- TrackGroup p=group("p","zh"),s=group("s","en"),other=group("other","fr");
- SecondaryTextTrackSelector.Factory factory;SecondaryTextTrackSelector selector;LibassPlaybackSession session;LibassSubtitleController controller;SecondaryTextOutput output;
- MediaItem item=MediaItem.fromUri("https://example.invalid/active");Tracks tracks=Tracks.EMPTY;List<Player.Listener> listeners=new ArrayList<>();ExoPlayer player;
+ public TrackGroup p=group("p","zh"),s=group("s","en"),other=group("other","fr");
+ SecondaryTextTrackSelector.Factory factory;SecondaryTextTrackSelector selector;public LibassPlaybackSession session;public LibassSubtitleController controller;public SecondaryTextOutput output;
+ MediaItem item=MediaItem.fromUri("https://example.invalid/active");Tracks tracks=Tracks.EMPTY;List<Player.Listener> listeners=new ArrayList<>();public ExoPlayer player;
  static TrackGroup group(String id,String language){return new TrackGroup(id,new Format.Builder().setId(id).setLanguage(language).setSampleMimeType(MimeTypes.TEXT_SSA).setContainerMimeType(MimeTypes.VIDEO_MP4).build());}
  static RendererCapabilities renderer(){return new RendererCapabilities(){public String getName(){return "Text";}public int getTrackType(){return C.TRACK_TYPE_TEXT;}public int supportsFormat(Format f){return RendererCapabilities.create(C.FORMAT_HANDLED);}public int supportsMixedMimeTypeAdaptation(){return ADAPTIVE_NOT_SUPPORTED;}};}
  @Before public void setup(){
@@ -31,7 +31,7 @@ public final class LibassControllerTest {
    switch(method.getName()){
     case "getTrackSelector":return selector;case "getCurrentMediaItem":return item;case "getCurrentTracks":return tracks;
     case "getCurrentTimeline":return new SinglePeriodTimeline(1000000,true,false,false,null,item);
-    case "getPlaybackState":return Player.STATE_READY;case "addListener":listeners.add((Player.Listener)args[0]);return null;
+    case "getVideoSize":return new VideoSize(1920,1080);case "getPlaybackState":return Player.STATE_READY;case "addListener":listeners.add((Player.Listener)args[0]);return null;
     case "removeListener":listeners.remove(args[0]);return null;case "equals":return obj==args[0];case "hashCode":return System.identityHashCode(obj);case "toString":return "Controller test player";
     default:throw new AssertionError(method.getName());
    }
@@ -39,7 +39,7 @@ public final class LibassControllerTest {
   controller=new LibassSubtitleController(player,session,factory,output);
  }
  SecondaryTextTrackSelector createSelector(){SecondaryTextTrackSelector selected=(SecondaryTextTrackSelector)factory.createTrackSelector(RuntimeEnvironment.getApplication());selected.init(parameters->{},new DefaultBandwidthMeter.Builder(RuntimeEnvironment.getApplication()).build());selected.onParametersActivated(selected.getParameters());return selected;}
- void activate(TrackGroup... groups)throws Exception {TrackSelectorResult r=selector.selectTracks(new RendererCapabilities[]{renderer(),renderer()},new TrackGroupArray(groups),new MediaSource.MediaPeriodId("p"),Timeline.EMPTY);selector.onSelectionActivated(r.info);tracks=r.tracks;event(Player.EVENT_TRACKS_CHANGED);}
+ public void activate(TrackGroup... groups)throws Exception {TrackSelectorResult r=selector.selectTracks(new RendererCapabilities[]{renderer(),renderer()},new TrackGroupArray(groups),new MediaSource.MediaPeriodId("p"),Timeline.EMPTY);selector.onSelectionActivated(r.info);tracks=r.tracks;event(Player.EVENT_TRACKS_CHANGED);}
  void event(int flag){Player.Events events=new Player.Events(new FlagSet.Builder().add(flag).build());for(Player.Listener listener:new ArrayList<>(listeners))listener.onEvents(player,events);}
  @After public void close(){controller.close();session.close();selector.release();}
  @Test public void primaryOnly(){try{activate(p,s);}catch(Exception e){throw new AssertionError(e);}assertEquals(p,controller.getPrimaryTextTrackSelectionOverride().mediaTrackGroup);assertNull(controller.getSecondaryTextTrackSelectionOverride());}

@@ -11,7 +11,7 @@ def main():
  assert hashlib.sha256(a.candidate.read_bytes()).hexdigest()=='0ed42581af11ac7163ebde148b318807c244e2a318f40c41d33f50b70bf967ee'
  work=a.workdir.resolve();(work/'jars').mkdir(parents=True,exist_ok=True)
  with ZipFile(a.candidate) as bundle:
-  for name in ['common','exoplayer','datasource']:
+  for name in ['common','exoplayer','datasource','ui']:
    with ZipFile(io.BytesIO(bundle.read('lib-'+name+'-release.aar'))) as aar:(work/('jars/lib-'+name+'-release.jar')).write_bytes(aar.read('classes.jar'))
  assert hashlib.sha256(a.extractor.read_bytes()).hexdigest()=='22ed5d53e6a6977faf12a97d9bdfb97f1cfea9cb39ccfc6418fa1899d3669e6b'
  assert hashlib.sha256(a.container.read_bytes()).hexdigest()=='930fca2f018f06f1d08c12599f8c97f31eddbd728edee5de06eb53a882f8fc54'
@@ -24,8 +24,7 @@ def main():
   shutil.copyfile(ROOT/'app/src/main/java/androidx/media3/exoplayer'/path,target)
  tests=work/'tests/androidx/media3/exoplayer/libass';tests.mkdir(parents=True,exist_ok=True)
  shutil.copyfile(ROOT/'recovery/libass-tests/java/androidx/media3/exoplayer/libass/LibassNative.java',tests/'LibassNative.java')
- for test in (ROOT/'recovery/libass-tests/media/src/test/java/androidx/media3/exoplayer/libass').glob('*Test.java'):
-  shutil.copyfile(test,tests/test.name)
+ shutil.copytree(ROOT/'recovery/libass-tests/media/src/test/java',work/'tests',dirs_exist_ok=True)
  shutil.copytree(ROOT/'recovery/media-tests/src/test/java',work/'tests',dirs_exist_ok=True)
  cmd=[str(Path(a.maven).resolve()),'-B','-f',str(ROOT/'recovery/libass-tests/media/pom.xml'),'-Dlibass.work='+str(work),'-Drecovery.root='+str(ROOT),'-Dmaven.repo.local='+str(a.local_repository.resolve())]
  settings=ET.Element('settings');proxies=ET.SubElement(settings,'proxies')
