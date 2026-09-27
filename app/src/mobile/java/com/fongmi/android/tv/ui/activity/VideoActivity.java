@@ -1,5 +1,7 @@
 package com.fongmi.android.tv.ui.activity;
 
+import com.fongmi.android.tv.utils.RuntimeCompat;
+
 import android.animation.ValueAnimator;
 import android.annotation.SuppressLint;
 import android.app.Activity;
@@ -1419,7 +1421,7 @@ public class VideoActivity extends PlaybackActivity implements Clock.Callback, C
         int minHeight = ResUtil.dp2px(150);
         int maxHeight = ResUtil.getScreenHeight() / 2;
         int calculated = (int) (viewWidth * ((float) videoHeight / videoWidth));
-        int finalHeight = Math.clamp(calculated, minHeight, Math.max(minHeight, maxHeight));
+        int finalHeight = RuntimeCompat.clamp(calculated, minHeight, Math.max(minHeight, maxHeight));
         if (finalHeight == mBinding.video.getHeight()) return;
         if (mAnimator.isRunning()) mAnimator.cancel();
         mAnimator.setIntValues(mBinding.video.getHeight(), finalHeight);
