@@ -14,7 +14,7 @@ with tempfile.TemporaryDirectory(prefix='libass-gl-') as td:
  sources=[src/name for name in ['LibassFrame.java','LibassImage.java','LibassFrameSet.java','LibassFrameRenderer.java','LibassGlTextures.java']]
  subprocess.run(['java','com.sun.tools.javac.Main','--release','17','-cp',str(a.android_jar),'-d',str(td/'api'),*map(str,sources)],check=True)
  sources=[src/n for n in ['LibassFrame.java','LibassImage.java','LibassFrameSet.java','LibassFrameRenderer.java','LibassGlTextures.java']]
- sources+=list((ROOT/'recovery/libass-tests/gl-java').rglob('*.java'))
+ sources+=list((ROOT/'compat/media3-libass/tests/gl-java').rglob('*.java'))
  subprocess.run(['java','com.sun.tools.javac.Main','--release','17','-d',str(td/'test'),*map(str,sources)],check=True)
  subprocess.run(['java','-cp',str(td/'test'),'androidx.media3.exoplayer.libass.GlTexturesTest'],check=True)
 print('PASS Android API source compile (recovered subset only, not full Media3/app build)')

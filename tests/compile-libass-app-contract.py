@@ -40,7 +40,7 @@ def main():
                         dependencies.append(jar)
         output = work/'classes'
         output.mkdir()
-        sources = [ROOT/'recovery/libass-tests/AppCallSiteContract.java']
+        sources = [ROOT/'compat/media3-libass/tests/AppCallSiteContract.java']
         sources += [ROOT/'app/src/main/java/androidx/media3/exoplayer'/path for path in
                     ['trackselection/SecondaryTextTrackSelector.java', 'text/SecondaryTextOutput.java']]
         subprocess.run(['java', 'com.sun.tools.javac.Main', '--release', '17', '-d', str(output),

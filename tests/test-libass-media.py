@@ -23,10 +23,10 @@ def main():
   target=production/'androidx/media3/exoplayer'/path;target.parent.mkdir(parents=True,exist_ok=True)
   shutil.copyfile(ROOT/'app/src/main/java/androidx/media3/exoplayer'/path,target)
  tests=work/'tests/androidx/media3/exoplayer/libass';tests.mkdir(parents=True,exist_ok=True)
- shutil.copyfile(ROOT/'recovery/libass-tests/java/androidx/media3/exoplayer/libass/LibassNative.java',tests/'LibassNative.java')
- shutil.copytree(ROOT/'recovery/libass-tests/media/src/test/java',work/'tests',dirs_exist_ok=True)
- shutil.copytree(ROOT/'recovery/media-tests/src/test/java',work/'tests',dirs_exist_ok=True)
- cmd=[str(Path(a.maven).resolve()),'-B','-f',str(ROOT/'recovery/libass-tests/media/pom.xml'),'-Dlibass.work='+str(work),'-Drecovery.root='+str(ROOT),'-Dmaven.repo.local='+str(a.local_repository.resolve())]
+ shutil.copyfile(ROOT/'compat/media3-libass/tests/java/androidx/media3/exoplayer/libass/LibassNative.java',tests/'LibassNative.java')
+ shutil.copytree(ROOT/'compat/media3-libass/tests/media/src/test/java',work/'tests',dirs_exist_ok=True)
+ shutil.copytree(ROOT/'compat/media3-libass/media-tests/src/test/java',work/'tests',dirs_exist_ok=True)
+ cmd=[str(Path(a.maven).resolve()),'-B','-f',str(ROOT/'compat/media3-libass/tests/media/pom.xml'),'-Dlibass.work='+str(work),'-Drecovery.root='+str(ROOT),'-Dmaven.repo.local='+str(a.local_repository.resolve())]
  settings=ET.Element('settings');proxies=ET.SubElement(settings,'proxies')
  for protocol in ['http','https']:
   address=os.environ.get(protocol.upper()+'_PROXY')

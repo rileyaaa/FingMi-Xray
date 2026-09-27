@@ -59,7 +59,7 @@ def main():
   destination=work/'source'/path;destination.parent.mkdir(parents=True,exist_ok=True);destination.write_bytes(content)
  subprocess.run(['patch','--batch','--fuzz=0','-p1','-i',str(ROOT/'compat/media3-libass/patches/subtitle-sample-time.patch')],cwd=work/'source',check=True)
  for name,(before,after) in TIMED_SOURCES.items():assert sha((work/'source/libraries/extractor/src/main/java/androidx/media3/extractor/text'/ (name+'.java')).read_bytes())==after
- cmd=[str(Path(a.maven).resolve()),'-B','-f',str(ROOT/'recovery/libass-tests/matroska/pom.xml'),'-Dlibass.work='+str(work),'-Dmaven.repo.local='+str(a.local_repository.resolve())]
+ cmd=[str(Path(a.maven).resolve()),'-B','-f',str(ROOT/'compat/media3-libass/tests/matroska/pom.xml'),'-Dlibass.work='+str(work),'-Dmaven.repo.local='+str(a.local_repository.resolve())]
  settings=ET.Element('settings');proxies=ET.SubElement(settings,'proxies')
  for protocol in ['http','https']:
   value=os.environ.get(protocol.upper()+'_PROXY')

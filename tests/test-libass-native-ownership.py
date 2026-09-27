@@ -4,7 +4,7 @@ from pathlib import Path
 import subprocess,tempfile
 ROOT=Path(__file__).resolve().parents[1]
 src=ROOT/'compat/media3-libass/src/main/java/androidx/media3/exoplayer/libass'
-tests=ROOT/'recovery/libass-tests/java'
+tests=ROOT/'compat/media3-libass/tests/java'
 with tempfile.TemporaryDirectory(prefix='libass-owners-') as td:
  files=[src/name for name in ['LibassConfiguration.java','LibassFrame.java','LibassFrameRenderer.java','LibassFrameSet.java','LibassImage.java','LibassMediaOwnership.java','LibassNativeLibrary.java','LibassStyleOverride.java','LibassTrack.java']]+list(tests.rglob('*.java'))
  subprocess.run(['java','com.sun.tools.javac.Main','--release','17','-d',td,*map(str,files)],check=True)

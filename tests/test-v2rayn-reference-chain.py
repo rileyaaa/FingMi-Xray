@@ -16,7 +16,7 @@ def main():
  p.add_argument('--private-input',type=Path);p.add_argument('--capture',action='store_true');a=p.parse_args()
  if a.private_input and a.capture:p.error('Private input capture is prohibited')
  a.workdir.mkdir(parents=True,exist_ok=True)
- native=module(ROOT/'scripts/run-published-libxray-converter.py','native')
+ native=module(ROOT/'scripts/recovery/run-published-libxray-converter.py','native')
  if a.private_input:
   links=re.findall(r'(?:vmess|vless|trojan|hy2|hysteria2)://[^\s`<>]+',a.private_input.read_text())
   assert len(links)==5,'Expected exactly five links'

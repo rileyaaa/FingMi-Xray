@@ -32,7 +32,7 @@ def main():
             with ZipFile(BytesIO(bundle.read(f'lib-{name}-release.aar'))) as aar:
                 (jars / f'lib-{name}-release.jar').write_bytes(aar.read('classes.jar'))
     command = [str(Path(args.maven).resolve()) if '/' in args.maven else args.maven,
-               '-B', '-f', str(ROOT / 'recovery/media-tests/pom.xml'),
+               '-B', '-f', str(ROOT / 'compat/media3-libass/media-tests/pom.xml'),
                '-Dmaven.repo.local=' + str(args.local_repository.resolve())]
     # Work environments may expose an HTTP proxy only through environment vars.
     settings = ET.Element('settings')
@@ -59,7 +59,7 @@ def main():
         # Maven resolves AARs but does not place their nested classes.jar on the JVM classpath.
         for artifact, name in [('androidx/test/monitor/1.7.2/monitor-1.7.2.aar', 'monitor'),
                                ('androidx/test/espresso/espresso-idling-resource/3.6.1/espresso-idling-resource-3.6.1.aar', 'espresso')]:
-            target = ROOT / 'recovery/media-tests/target' / name
+            target = ROOT / 'compat/media3-libass/media-tests/target' / name
             target.mkdir(parents=True, exist_ok=True)
             with ZipFile(args.local_repository / artifact) as aar:
                 (target / 'classes.jar').write_bytes(aar.read('classes.jar'))

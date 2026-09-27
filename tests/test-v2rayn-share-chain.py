@@ -23,7 +23,7 @@ def main():
     assert hashlib.sha256(jar.read_bytes()).hexdigest()==digest
     src=ROOT/'xray/src/main/java/com/fingmi/xray'
     files=list((FIX/'java').rglob('*.java'))+[src/x for x in ['config/XrayShareLinkNormalizer.java','config/XrayConfigFactory.java','security/XrayShareLinkSecurity.java','core/LibXrayBridge.java']]
-    native=module(ROOT/'scripts/run-published-libxray-converter.py','native')
+    native=module(ROOT/'scripts/recovery/run-published-libxray-converter.py','native')
     generated=module(FIX/'generate.py','exporter')
     assert json.loads((FIX/'inputs.json').read_text())==generated.rows,'Fixture differs from exporter model'
     with tempfile.TemporaryDirectory(dir=a.workdir) as td:

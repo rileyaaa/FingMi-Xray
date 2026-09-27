@@ -45,7 +45,7 @@ def main():
                 path.write_bytes(r.read())
         assert hashlib.sha256(path.read_bytes()).hexdigest() == digest, name
         jars[name] = str(path.resolve())
-    spec = importlib.util.spec_from_file_location('published_native', ROOT / 'scripts/run-published-libxray-converter.py')
+    spec = importlib.util.spec_from_file_location('published_native', ROOT / 'scripts/recovery/run-published-libxray-converter.py')
     native = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(native)
     with tempfile.TemporaryDirectory(prefix='native-share-chain-', dir=a.workdir) as tmp:

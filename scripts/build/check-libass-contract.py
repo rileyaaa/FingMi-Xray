@@ -6,8 +6,8 @@ import argparse,hashlib,importlib.util,json,re,subprocess,tempfile
 from pathlib import Path
 from zipfile import ZipFile
 ROOT=Path(__file__).resolve().parents[2]
-s=importlib.util.spec_from_file_location('elf_contract',ROOT/'recovery/libass-tests/contract.py');m=importlib.util.module_from_spec(s);s.loader.exec_module(m)
-E=json.loads((ROOT/'recovery/libass-tests/published-565-contract.json').read_text())
+s=importlib.util.spec_from_file_location('elf_contract',ROOT/'compat/media3-libass/tests/contract.py');m=importlib.util.module_from_spec(s);s.loader.exec_module(m)
+E=json.loads((ROOT/'compat/media3-libass/tests/published-565-contract.json').read_text())
 def java_methods(cp,name):
  out=subprocess.check_output(['java','com.sun.tools.javap.Main','-p','-s','-classpath',str(cp),'androidx.media3.exoplayer.libass.'+name],text=True)
  return {name:desc for name,desc in re.findall(r'(\w+)\([^;]*?\);\s*descriptor:\s*(\S+)',out)}
