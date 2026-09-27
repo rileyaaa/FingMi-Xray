@@ -41,8 +41,8 @@ jobs:
           sdk_root="${ANDROID_HOME:-/usr/local/lib/android/sdk}"
           sdkmanager="$sdk_root/cmdline-tools/latest/bin/sdkmanager"
           test -x "$sdkmanager"
-          yes | "$sdkmanager" --licenses >/dev/null || true
-          "$sdkmanager" --install 'platforms;android-37' 'build-tools;36.0.0'
+          yes | "$sdkmanager" --licenses >/dev/null 2>&1 || true
+          "$sdkmanager" --channel=3 --install 'platforms;android-37.0' 'build-tools;37.0.0'
 
       - name: Prepare debug-only local signing configuration
         shell: bash
