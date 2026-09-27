@@ -227,7 +227,7 @@ Xray Core、Binder、share-link、安全、session generation、SOCKS 资源应�
 
 目标上游 5.6.3 新增 `androidx.media3.exoplayer.libass.*`、`SecondaryTextTrackSelector` / `SecondaryTextOutput` 等引用。固定候选 `fongmi-media3-aar-candidate-1.11.0` 的 artifact `10859533459` 下载后 SHA-256 为 `0ed42581af11ac7163ebde148b318807c244e2a318f40c41d33f50b70bf967ee`，其 `lib-exoplayer-release.aar/classes.jar` 缺少这些类；固定 `FongMi/media@3c2cbe8a` 当前公开树也没有相应源码；Libass 历史真实源码与 AAR 已找到（见下），当前 tip 缺失不代表历史不存在。上游 FongMi/TV issue #729 明确报告了相同缺失，上游回复未提供源码。故旧候选本身不能支持完整 5.6.3 Android 编译；当前构建链通过固定重建 Libass candidate / extractor、恢复缺失 app adapter，并继续保留来源与哈希门后才完成真实 Gradle 编译。
 
-临时编译桩会牺牲新版 Libass/双字幕行为，只能作为 **compile-only** 诊断，不能作为正式产品依赖或完整 5.6.3 功能验收。当前 green build 未使用禁用 Libass / 双字幕的 compile-only stub。优先取得可核 SHA 的相应 Media3 产物或恢复可运行的实现，再做 v7/arm64 Gradle build。现有 `recovery-build.yml` 仍编译 5.6.0 faithful 源，不是 5.6.3 构建门。当前插件可读取 Actions 和产物，却没有 `workflow_dispatch` 操作；浏览器未登录私有仓库，未触发当前 HEAD 的构建。
+临时编译桩会牺牲新版 Libass/双字幕行为，只能作为 **compile-only** 诊断，不能作为正式产品依赖或完整 5.6.3 功能验收。当前 green build 未使用禁用 Libass / 双字幕的 compile-only stub；它使用固定 player candidate、重建并校验的 Libass candidate / extractor，以及恢复后的 FFmpeg JNI / libXray 输入完成真实 Gradle build。`current-main-build.yml` 保留为手动构建入口；`recovery-build.yml` 仍编译 5.6.0 faithful 源，不能被这次 5.6.3 current-main 绿灯替代。
 
 ### 稳定接线边界
 
