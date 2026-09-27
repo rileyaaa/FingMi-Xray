@@ -157,9 +157,8 @@ public final class XrayConfigFactory {
         int at = authority.lastIndexOf('@');
         if (at < 0) return;
 
-        String credential = URLDecoder.decode(
-                authority.substring(0, at).replace("+", "%2B"),
-                StandardCharsets.UTF_8);
+        String credential = decodeUtf8(
+                authority.substring(0, at).replace("+", "%2B"));
         if (!credential.contains("+")) return;
 
         JSONArray outbounds = converted.optJSONArray("outbounds");
@@ -195,6 +194,14 @@ public final class XrayConfigFactory {
             throw new JSONException("Hysteria2 conversion returned invalid settings");
         }
         hysteriaSettings.put("auth", credential);
+    }
+
+    private static String decodeUtf8(String value) {
+        try {
+            return URLDecoder.decode(value, StandardCharsets.UTF_8.name());
+        } catch (java.io.UnsupportedEncodingException error) {
+            throw new IllegalStateException("UTF-8 is unavailable", error);
+        }
     }
 
     private static JSONObject dnsServer(String address) throws JSONException {
