@@ -23,6 +23,11 @@ URL_CHARSET = re.compile(
 )
 STRING_BUILDER_DECL = re.compile(r"\bStringBuilder\s+([A-Za-z_$][A-Za-z0-9_$]*)\b")
 
+APP_XRAY_FORBIDDEN = [
+    (re.compile(r"\.isBlank\s*\("), "String.isBlank"),
+    (re.compile(r"\.repeat\s*\("), "String.repeat"),
+]
+
 errors = []
 for path in sorted(XRAY.rglob("*.java")):
     text = path.read_text(encoding="utf-8")
@@ -47,6 +52,16 @@ for path in sorted(XRAY.rglob("*.java")):
             line = text.count("\n", 0, offset) + 1
             errors.append(f"{rel}:{line}: StringBuilder.isEmpty is not safe on Android 12")
 
+
+for path in sorted((ROOT / "app/src").rglob("*.java")):
+    text = path.read_text(encoding="utf-8")
+    if "com.fingmi.xray" not in text and "XrayImportEvent" not in text:
+        continue
+    rel = path.relative_to(ROOT)
+    for pattern, name in APP_XRAY_FORBIDDEN:
+        for match in pattern.finditer(text):
+            line = text.count("\n", 0, match.start()) + 1
+            errors.append(f"{rel}:{line}: forbidden Xray integration runtime API: {name}")
 
 proguard = (ROOT / "app/proguard-rules.pro").read_text(encoding="utf-8")
 for keep_rule in ("-keep class libXray.** { *; }", "-keep class go.** { *; }"):
