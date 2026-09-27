@@ -87,16 +87,16 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          python3 scripts/restore-published-ffmpegjni.py             --candidate recovery/work/current-main/input/player-candidate.zip             --v7-apk recovery/work/current-main/input/published-v560-v7.apk             --v8-apk recovery/work/current-main/input/published-v560-v8.apk             --to recovery/work/current-main/restored/lib-decoder-ffmpeg-release.aar
+          python3 scripts/recovery/restore-published-ffmpegjni.py             --candidate recovery/work/current-main/input/player-candidate.zip             --v7-apk recovery/work/current-main/input/published-v560-v7.apk             --v8-apk recovery/work/current-main/input/published-v560-v8.apk             --to recovery/work/current-main/restored/lib-decoder-ffmpeg-release.aar
 
-          python3 scripts/import-player-aar-candidate.py             recovery/work/current-main/input/player-candidate.zip             --restored-decoder recovery/work/current-main/restored/lib-decoder-ffmpeg-release.aar
+          python3 scripts/build/import-player-aar-candidate.py             recovery/work/current-main/input/player-candidate.zip             --restored-decoder recovery/work/current-main/restored/lib-decoder-ffmpeg-release.aar
 
-          python3 scripts/check-player-ffmpegjni-against-published.py --aar-dir app/libs
+          python3 scripts/recovery/check-player-ffmpegjni-against-published.py --aar-dir app/libs
 
-          bash scripts/fetch-libxray.sh
-          python3 scripts/restore-published-libxrayjni.py             --official-aar libxray/libs/libXray.aar             --v7-apk recovery/work/current-main/input/published-v560-v7.apk             --v8-apk recovery/work/current-main/input/published-v560-v8.apk             --to recovery/work/current-main/restored/libXray.aar
+          bash scripts/recovery/fetch-libxray.sh
+          python3 scripts/recovery/restore-published-libxrayjni.py             --official-aar libxray/libs/libXray.aar             --v7-apk recovery/work/current-main/input/published-v560-v7.apk             --v8-apk recovery/work/current-main/input/published-v560-v8.apk             --to recovery/work/current-main/restored/libXray.aar
 
-          python3 scripts/check-libxray-gojni.py             --aar recovery/work/current-main/restored/libXray.aar             --official-aar libxray/libs/libXray.aar
+          python3 scripts/recovery/check-libxray-gojni.py             --aar recovery/work/current-main/restored/libXray.aar             --official-aar libxray/libs/libXray.aar
           cp recovery/work/current-main/restored/libXray.aar libxray/libs/libXray.aar
 
       - name: Build and import reconstructed Libass candidate
@@ -108,17 +108,17 @@ jobs:
           mvn -B dependency:get -Dartifact=com.google.guava:guava:33.3.1-android
           mvn -B dependency:get -Dartifact=androidx.annotation:annotation-jvm:1.9.1 -DremoteRepositories=google::default::https://dl.google.com/dl/android/maven2
 
-          python3 scripts/build-libass-extractor.py             --candidate "$work/input/player-candidate.zip"             --workdir "$work/extractor"             --container "$work/input/media3-container-1.11.0.aar"             --maven "$(command -v mvn)"
+          python3 scripts/build/build-libass-extractor.py             --candidate "$work/input/player-candidate.zip"             --workdir "$work/extractor"             --container "$work/input/media3-container-1.11.0.aar"             --maven "$(command -v mvn)"
 
           android_all="$HOME/.m2/repository/org/robolectric/android-all/15-robolectric-12650502/android-all-15-robolectric-12650502.jar"
           test -s "$android_all"
 
-          python3 scripts/build-libass-candidate.py             --candidate "$work/input/player-candidate.zip"             --extractor "$work/extractor/lib-extractor-libass-release.aar"             --container "$work/input/media3-container-1.11.0.aar"             --v7-apk "$work/input/published-v565-v7.apk"             --v8-apk "$work/input/published-v565-v8.apk"             --android-jar "$android_all"             --output "$work/lib-exoplayer-libass-reconstructed.aar"
+          python3 scripts/build/build-libass-candidate.py             --candidate "$work/input/player-candidate.zip"             --extractor "$work/extractor/lib-extractor-libass-release.aar"             --container "$work/input/media3-container-1.11.0.aar"             --v7-apk "$work/input/published-v565-v7.apk"             --v8-apk "$work/input/published-v565-v8.apk"             --android-jar "$android_all"             --output "$work/lib-exoplayer-libass-reconstructed.aar"
 
           echo "$LIBASS_CANDIDATE_SHA256  $work/lib-exoplayer-libass-reconstructed.aar" | sha256sum -c -
-          python3 scripts/check-libass-contract.py --aar "$work/lib-exoplayer-libass-reconstructed.aar"
+          python3 scripts/build/check-libass-contract.py --aar "$work/lib-exoplayer-libass-reconstructed.aar"
 
-          python3 scripts/import-libass-candidate.py             --aar "$work/lib-exoplayer-libass-reconstructed.aar"             --extractor "$work/extractor/lib-extractor-libass-release.aar"             --container "$work/input/media3-container-1.11.0.aar"
+          python3 scripts/build/import-libass-candidate.py             --aar "$work/lib-exoplayer-libass-reconstructed.aar"             --extractor "$work/extractor/lib-extractor-libass-release.aar"             --container "$work/input/media3-container-1.11.0.aar"
 
       - name: Compile current 5.6.3 Leanback source
         shell: bash

@@ -116,12 +116,12 @@ FongMi/TV 5.6.3 对 Media3 / MPV 的调用面比恢复时固定的部分播放�
 
 主要材料：
 
-- `recovery/media3-libass/`
+- `compat/media3-libass/`
 - `recovery/libass-tests/`
-- `scripts/build-libass-extractor.py`
-- `scripts/build-libass-candidate.py`
-- `scripts/check-libass-contract.py`
-- `scripts/import-libass-candidate.py`
+- `scripts/build/build-libass-extractor.py`
+- `scripts/build/build-libass-candidate.py`
+- `scripts/build/check-libass-contract.py`
+- `scripts/build/import-libass-candidate.py`
 
 恢复 / 适配范围包括：
 
@@ -164,7 +164,7 @@ FongMi/TV 5.6.3 对 Media3 / MPV 的调用面比恢复时固定的部分播放�
 
 `current-main-build.yml` 会下载、校验、恢复并导入这些依赖，再进行 Java 编译和 APK assemble。
 
-相关脚本集中在 `scripts/`。修改任何二进制来源或 hash 时，必须同步修改对应验证脚本 / workflow，不能只把一个新 AAR 丢进 `app/libs`。
+当前 compatibility 构建脚本集中在 `scripts/build/`，发布版恢复工具集中在 `scripts/recovery/`，回归测试入口位于 `tests/`。修改任何二进制来源或 hash 时，必须同步修改对应验证脚本 / workflow，不能只把一个新 AAR 丢进 `app/libs`。
 
 ## 7. 构建
 

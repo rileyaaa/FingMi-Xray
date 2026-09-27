@@ -71,24 +71,24 @@ jobs:
           unzip -q recovery/work/input/native.zip -d recovery/work/input/native
           test -s recovery/work/input/native/lib-decoder-ffmpeg-release.aar
           test -s recovery/work/input/native/libXray.aar
-          python3 scripts/import-player-aar-candidate.py recovery/work/input/candidate.zip \
+          python3 scripts/build/import-player-aar-candidate.py recovery/work/input/candidate.zip \
             --restored-decoder recovery/work/input/native/lib-decoder-ffmpeg-release.aar
-          bash scripts/fetch-libxray.sh
-          python3 scripts/check-libxray-gojni.py \
+          bash scripts/recovery/fetch-libxray.sh
+          python3 scripts/recovery/check-libxray-gojni.py \
             --aar recovery/work/input/native/libXray.aar \
             --official-aar libxray/libs/libXray.aar
           cp recovery/work/input/native/libXray.aar libxray/libs/libXray.aar
-          python3 scripts/check-faithful-player-aars.py
-          python3 scripts/check-player-ffmpegjni-against-published.py --aar-dir app/libs
-          python3 scripts/check-libxray-gojni.py --aar libxray/libs/libXray.aar
+          python3 scripts/recovery/check-faithful-player-aars.py
+          python3 scripts/recovery/check-player-ffmpegjni-against-published.py --aar-dir app/libs
+          python3 scripts/recovery/check-libxray-gojni.py --aar libxray/libs/libXray.aar
 
       - name: Prepare and compile faithful recovered TV source
         shell: bash
         run: |
-          chmod +x scripts/fetch-libxray.sh
-          chmod +x scripts/prepare-legacy-faithful.sh
-          chmod +x scripts/build-legacy-faithful.sh
-          scripts/build-legacy-faithful.sh
+          chmod +x scripts/recovery/fetch-libxray.sh
+          chmod +x scripts/recovery/prepare-legacy-faithful.sh
+          chmod +x scripts/recovery/build-legacy-faithful.sh
+          scripts/recovery/build-legacy-faithful.sh
 
       - name: Upload recovered debug APK
         uses: actions/upload-artifact@v4

@@ -57,7 +57,7 @@ jobs:
             "$V8_SHA256" recovery/work/verified/v8.apk \
             "$CANDIDATE_SHA256" recovery/work/verified/candidate.zip \
             | sha256sum -c -
-          python3 scripts/inspect-published-libxray-native.py \
+          python3 scripts/recovery/inspect-published-libxray-native.py \
             --v7-apk recovery/work/verified/v7.apk \
             --v8-apk recovery/work/verified/v8.apk
 
@@ -65,12 +65,12 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          python3 scripts/restore-published-ffmpegjni.py \
+          python3 scripts/recovery/restore-published-ffmpegjni.py \
             --candidate recovery/work/verified/candidate.zip \
             --v7-apk recovery/work/verified/v7.apk \
             --v8-apk recovery/work/verified/v8.apk \
             --to recovery/work/restored/lib-decoder-ffmpeg-release.aar
-          python3 scripts/check-player-ffmpegjni-against-published.py \
+          python3 scripts/recovery/check-player-ffmpegjni-against-published.py \
             --aar-dir recovery/work/restored
           {
             echo 'Source: published v5.6.0-xray.5 APKs (SHA-256 checked before extraction)'
@@ -83,7 +83,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          bash scripts/fetch-libxray.sh
+          bash scripts/recovery/fetch-libxray.sh
           test -s libxray/libs/libXray.aar
           python3 - <<'PY'
           from io import BytesIO
@@ -91,7 +91,7 @@ jobs:
           from runpy import run_path
           from zipfile import ZipFile
 
-          methods = run_path('scripts/check-player-java-api.py')['class_methods']
+          methods = run_path('scripts/recovery/check-player-java-api.py')['class_methods']
           with ZipFile(Path('libxray/libs/libXray.aar')) as aar:
               with ZipFile(BytesIO(aar.read('classes.jar'))) as jar:
                   actual = methods(jar.read('libXray/LibXray.class'))
@@ -103,7 +103,7 @@ jobs:
                       raise SystemExit(f'official libXray AAR lacks libgojni.so for {abi}')
           print('libXray Java entry and both native ABIs present')
           PY
-          python3 scripts/restore-published-libxrayjni.py \
+          python3 scripts/recovery/restore-published-libxrayjni.py \
             --official-aar libxray/libs/libXray.aar \
             --v7-apk recovery/work/verified/v7.apk \
             --v8-apk recovery/work/verified/v8.apk \

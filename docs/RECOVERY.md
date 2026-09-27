@@ -60,7 +60,7 @@ JADX 中出现不可能分支、R8 合并控制流或自相矛盾时，必须继
 - `aidl/`：发布版 Binder contract；
 - `recovery/legacy-tests/`：faithful 源码与恢复工具测试。
 
-`scripts/prepare-legacy-faithful.sh` 负责从固定上游组装临时 faithful tree，避免把完整上游副本永久复制进仓库。
+`scripts/recovery/prepare-legacy-faithful.sh` 负责从固定上游组装临时 faithful tree，避免把完整上游副本永久复制进仓库。
 
 faithful 源码的职责是解释发布版行为；当前 `:xray` 模块则是面向后续维护的重构实现，两者不能混为一套源码。
 
@@ -180,9 +180,9 @@ Live 的会话边界包括切频道、换线路 / 源、直播配置变化和播
 
 相关工具：
 
-- `scripts/restore-published-ffmpegjni.py`
-- `scripts/check-player-ffmpegjni-against-published.py`
-- `scripts/check-player-java-api.py`
+- `scripts/recovery/restore-published-ffmpegjni.py`
+- `scripts/recovery/check-player-ffmpegjni-against-published.py`
+- `scripts/recovery/check-player-java-api.py`
 
 ## 6. libXray / Go JNI
 
@@ -211,9 +211,9 @@ Live 的会话边界包括切频道、换线路 / 源、直播配置变化和播
 
 相关工具：
 
-- `scripts/fetch-libxray.sh`
-- `scripts/restore-published-libxrayjni.py`
-- `scripts/check-libxray-gojni.py`
+- `scripts/recovery/fetch-libxray.sh`
+- `scripts/recovery/restore-published-libxrayjni.py`
+- `scripts/recovery/check-libxray-gojni.py`
 
 ## 7. native 可读重建
 
@@ -230,11 +230,11 @@ Live 的会话边界包括切频道、换线路 / 源、直播配置变化和播
 - `recovery/native-tests/`
 - `recovery/v2rayn-tests/`
 - `recovery/node-dns-tests/`
-- `scripts/test-recovered-libxray.py`
-- `scripts/test-native-abi-parity.py`
-- `scripts/test-native-share-chain.py`
-- `scripts/test-v2rayn-share-chain.py`
-- `scripts/test-v2rayn-reference-chain.py`
+- `tests/test-recovered-libxray.py`
+- `tests/test-native-abi-parity.py`
+- `tests/test-native-share-chain.py`
+- `tests/test-v2rayn-share-chain.py`
+- `tests/test-v2rayn-reference-chain.py`
 
 发布 JNI 已建立 converter、API v2、lifecycle、TLS / HY2 probe、age、v2rayN-shaped 输入、IPv6 / DNS dial 等定向执行证据。faithful APK 构建仍使用发布 JNI 字节，不用这些可读重建产物冒充原始二进制。
 
@@ -242,7 +242,7 @@ Live 的会话边界包括切频道、换线路 / 源、直播配置变化和播
 
 本地入口：
 
-`scripts/build-legacy-faithful.sh`
+`scripts/recovery/build-legacy-faithful.sh`
 
 它负责：
 
