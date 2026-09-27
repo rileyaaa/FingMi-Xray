@@ -42,6 +42,7 @@ jobs:
           set -euo pipefail
           python3 tests/test-xray-android-runtime-compat.py
           python3 tests/test-upstream-update-disabled.py
+          python3 tests/test-build-hygiene.py
 
       - name: Prepare Android SDK 37
         shell: bash
