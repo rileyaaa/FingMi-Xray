@@ -16,7 +16,15 @@ public final class LibXrayBridge {
                 .put("method", method);
         if (payload != null) request.put("payload", payload);
 
-        JSONObject response = new JSONObject(LibXray.invoke(request.toString()));
+        String rawResponse;
+        try {
+            rawResponse = LibXray.invoke(request.toString());
+        } catch (LinkageError error) {
+            throw new IllegalStateException(
+                    "Xray native bridge unavailable (" + error.getClass().getSimpleName() + ")",
+                    error);
+        }
+        JSONObject response = new JSONObject(rawResponse);
         if (response.optBoolean("success")) return response.opt("data");
 
         String error = response.optString("error");
