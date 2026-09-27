@@ -196,6 +196,8 @@ FongMi/TV 5.6.3 对 Media3 / MPV 的调用面与当前固定的部分播放器�
 
 ### GitHub Actions
 
+仓库所有可执行 workflow 都必须保持**纯手动**。GitHub 官方 helper action 同时保持 Node 24 兼容 major（当前为 checkout v7、setup-java v6、setup-python v7、upload-artifact v7），避免 runner 强制兼容旧 Node 20 action 所产生的弃用告警。
+
 仓库所有可执行 workflow 都必须保持**纯手动**：
 
 ```yaml
@@ -217,7 +219,7 @@ on:
 4. 重建并导入 Libass compatibility AAR；
 5. 编译 Leanback / Mobile Java；
 6. assemble Leanback / Mobile Debug APK；
-7. 上传 APK 与构建说明 artifact。
+7. 上传 APK、构建说明和 Gradle problems report artifact；Gradle 命令使用 `--warning-mode all`，让剩余 Gradle 10 弃用项在下一次手动构建中直接显示具体来源。
 
 测试发布器：
 
@@ -228,7 +230,8 @@ on:
 两个 current-main workflow 都必须先执行：
 
 - `tests/test-xray-android-runtime-compat.py`：防止 Java 21 可编译、但旧 Android ART 运行时不存在的 API 再进入 `:xray`；
-- `tests/test-upstream-update-disabled.py`：防止 FongMi 上游自更新入口、直接 release endpoint 调用或 APK 安装权限重新进入当前 fork。
+- `tests/test-upstream-update-disabled.py`：防止 FongMi 上游自更新入口、直接 release endpoint 调用或 APK 安装权限重新进入当前 fork；
+- `tests/test-build-hygiene.py`：防止错误 XLIFF namespace、非 positional 多参数 string、废弃 ABI API 和仍基于 Node 20 的旧 Actions major 再进入构建。
 
 ### 应用内更新策略
 
