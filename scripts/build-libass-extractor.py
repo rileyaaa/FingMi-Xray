@@ -11,6 +11,7 @@ ROOT=Path(__file__).resolve().parents[1]
 SOURCE='libraries/extractor/src/main/java/androidx/media3/extractor/mkv/MatroskaExtractor.java'
 SOURCE_SHA='e6178a00ac3e092e1836d058ddd0517060b7c32e1889b3fb2bc2c077eedfe0c1'
 RESTORED_SHA='c47a70a61f8d25cba7a07567727e72fb29a2487e7a07c860a12998e9babe59cd'
+COPY_SHA='a6e5d4932d552fe74ee9c168335e474bccd0ffaae0dad5f854f4d60617e72623'
 CONTAINER_SHA='930fca2f018f06f1d08c12599f8c97f31eddbd728edee5de06eb53a882f8fc54'
 TIMED_SOURCES={
  'SubtitleParser':('529d8a48083cb491cab0479431253774a512e36d4c365735c4a51a173658cca7','216d67d9c56d0697623342216aed36d9440b117152db91a5b8a0150d301b2b1b'),
@@ -46,6 +47,8 @@ def main():
  target=work/'source'/SOURCE;target.parent.mkdir(parents=True,exist_ok=True);target.write_bytes(source)
  subprocess.run(['patch','--batch','--fuzz=0','-p1','-i',str(ROOT/'recovery/media3-libass/patches/matroska-libass-hooks.patch')],cwd=work/'source',check=True)
  assert sha(target.read_bytes())==RESTORED_SHA,'Restored source must be byte-identical to real upstream9dae39e9'
+ subprocess.run(['patch','--batch','--fuzz=0','-p1','-i',str(ROOT/'recovery/media3-libass/patches/matroska-libass-copy.patch')],cwd=work/'source',check=True)
+ assert sha(target.read_bytes())==COPY_SHA
  for name,(before,after) in TIMED_SOURCES.items():
   path='libraries/extractor/src/main/java/androidx/media3/extractor/text/'+name+'.java'
   original=a.source_root/path if a.source_root else work/'input'/path
@@ -82,6 +85,6 @@ def main():
  classes.update(produced)
  assert all(classes[n]==b for n,b in original.items() if not selected(n))
  entries['classes.jar']=write_zip(classes);out=work/'lib-extractor-libass-release.aar';out.write_bytes(write_zip(entries))
- report={'candidate_zip_sha256':sha(a.candidate.read_bytes()),'original_source_sha256':SOURCE_SHA,'restored_source_sha256':RESTORED_SHA,'source_provenance':'Matroska: real FongMi/media@9dae39e9689ee305c83f94bd11cf3bcecb9d6171 source, exact restored bytes; timed parser: reconstructed published5.6.5 behavior','reconstructed_timed_parser_source_sha256':TIMED_SOURCES,'official_container_aar_sha256':CONTAINER_SHA,'original_extractor_aar_sha256':sha(aar),'output_aar_sha256':sha(out.read_bytes()),'replaced_classes':sorted(produced),'other_class_contents_unchanged':True,'tests':'5 synthetic public extractor read-path tests plus4 timed-parser propagation/compatibility tests','limitation':'restores Matroska callbacks and parser timestamps; not a complete newer Libass API/AAR'}
+ report={'candidate_zip_sha256':sha(a.candidate.read_bytes()),'original_source_sha256':SOURCE_SHA,'restored_source_sha256':RESTORED_SHA,'integration_source_sha256':COPY_SHA,'source_provenance':'Matroska: real FongMi/media@9dae39e9689ee305c83f94bd11cf3bcecb9d6171 source plus reconstructed configuration-preserving constructor; timed parser: reconstructed published5.6.5 behavior','reconstructed_timed_parser_source_sha256':TIMED_SOURCES,'official_container_aar_sha256':CONTAINER_SHA,'original_extractor_aar_sha256':sha(aar),'output_aar_sha256':sha(out.read_bytes()),'replaced_classes':sorted(produced),'other_class_contents_unchanged':True,'tests':'5 synthetic public extractor read-path tests plus4 timed-parser propagation/compatibility tests and1 flags-copy test','limitation':'restores Matroska callbacks and parser timestamps; not a complete newer Libass API/AAR'}
  (work/'extractor-evidence.json').write_text(json.dumps(report,indent=2)+'\n');print(json.dumps(report,indent=2))
 if __name__=='__main__':main()

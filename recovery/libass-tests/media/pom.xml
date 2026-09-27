@@ -4,6 +4,8 @@
  <repositories><repository><id>central</id><url>https://repo.maven.apache.org/maven2</url></repository><repository><id>google</id><url>https://dl.google.com/dl/android/maven2/</url></repository></repositories>
  <dependencies>
   <dependency><groupId>media</groupId><artifactId>common</artifactId><version>1.11.0</version><scope>system</scope><systemPath>${libass.work}/jars/lib-common-release.jar</systemPath></dependency>
+  <dependency><groupId>media</groupId><artifactId>extractor</artifactId><version>1.11.0</version><scope>system</scope><systemPath>${libass.work}/jars/lib-extractor-release.jar</systemPath></dependency>
+  <dependency><groupId>media</groupId><artifactId>container</artifactId><version>1.11.0</version><scope>system</scope><systemPath>${libass.work}/jars/lib-container-release.jar</systemPath></dependency>
   <dependency><groupId>org.robolectric</groupId><artifactId>android-all</artifactId><version>15-robolectric-12650502</version><scope>provided</scope></dependency>
   <dependency><groupId>com.google.guava</groupId><artifactId>guava</artifactId><version>33.3.1-android</version></dependency>
   <dependency><groupId>androidx.annotation</groupId><artifactId>annotation</artifactId><version>1.9.1</version></dependency>

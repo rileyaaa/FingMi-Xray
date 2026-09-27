@@ -7,7 +7,8 @@ final class LibassNative {
  static final Map<Long,Long> tracks=new HashMap<>();
  static long next=1;static String fail;static Runnable duringData;
  static final List<byte[]> payloads=new ArrayList<>();
- static void reset(){log.clear();libraries.clear();tracks.clear();payloads.clear();next=1;fail=null;duringData=null;}
+ static final List<byte[]> timedPayloads=new ArrayList<>();
+ static void reset(){log.clear();libraries.clear();tracks.clear();payloads.clear();timedPayloads.clear();next=1;fail=null;duringData=null;}
  static void call(String name,long handle){log.add(name+":"+handle);if(name.equals(fail)){fail=null;throw new IllegalStateException("injected "+name);}}
  static void track(long h){if(!tracks.containsKey(h)||!libraries.contains(tracks.get(h)))throw new AssertionError("native use after release");}
  static long nativeCreateLibrary(String dir){call("library",0);long h=next++;libraries.add(h);return h;}
@@ -18,7 +19,7 @@ final class LibassNative {
  static void nativeSetFonts(long h,String config,String family){track(h);call("fonts",h);}
  static void nativeProcessCodecPrivate(long h,byte[] data,int off,int len){track(h);call("codec",h);payloads.add(Arrays.copyOfRange(data,off,off+len));}
  static void nativeProcessData(long h,byte[] data,int off,int len){track(h);call("dataBegin",h);if(duringData!=null)duringData.run();track(h);call("dataEnd",h);payloads.add(Arrays.copyOfRange(data,off,off+len));}
- static void nativeProcessTimedData(long h,byte[] data,int off,int len,long time){track(h);call("timed",h);log.add("timestamp:"+time);}
+ static void nativeProcessTimedData(long h,byte[] data,int off,int len,long time){track(h);call("timed",h);log.add("timestamp:"+time);timedPayloads.add(Arrays.copyOfRange(data,off,off+len));}
  static void nativeProcessChunk(long h,byte[] data,int off,int len,long time,long duration){track(h);call("chunk",h);log.add("chunkTime:"+time+":"+duration);}
  static void nativeSetFrameSize(long h,int w,int ht,int l,int t,int r,int b){track(h);call("frame",h);}
  static void nativeSetStorageSize(long h,int w,int ht){track(h);call("storage",h);}

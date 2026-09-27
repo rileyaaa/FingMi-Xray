@@ -7,11 +7,15 @@ from pathlib import Path
 from zipfile import ZipFile
 ROOT=Path(__file__).resolve().parents[1]
 def main():
- p=argparse.ArgumentParser(description=__doc__);p.add_argument('--candidate',type=Path,required=True);p.add_argument('--workdir',type=Path,required=True);p.add_argument('--maven',required=True);p.add_argument('--local-repository',type=Path,default=Path.home()/'.m2/repository');a=p.parse_args()
+ p=argparse.ArgumentParser(description=__doc__);p.add_argument('--extractor',type=Path,required=True);p.add_argument('--container',type=Path,required=True);p.add_argument('--candidate',type=Path,required=True);p.add_argument('--workdir',type=Path,required=True);p.add_argument('--maven',required=True);p.add_argument('--local-repository',type=Path,default=Path.home()/'.m2/repository');a=p.parse_args()
  assert hashlib.sha256(a.candidate.read_bytes()).hexdigest()=='0ed42581af11ac7163ebde148b318807c244e2a318f40c41d33f50b70bf967ee'
  work=a.workdir.resolve();(work/'jars').mkdir(parents=True,exist_ok=True)
  with ZipFile(a.candidate) as bundle:
   with ZipFile(io.BytesIO(bundle.read('lib-common-release.aar'))) as aar:(work/'jars/lib-common-release.jar').write_bytes(aar.read('classes.jar'))
+ assert hashlib.sha256(a.extractor.read_bytes()).hexdigest()=='22ed5d53e6a6977faf12a97d9bdfb97f1cfea9cb39ccfc6418fa1899d3669e6b'
+ assert hashlib.sha256(a.container.read_bytes()).hexdigest()=='930fca2f018f06f1d08c12599f8c97f31eddbd728edee5de06eb53a882f8fc54'
+ for path,name in [(a.extractor,'extractor'),(a.container,'container')]:
+  with ZipFile(path) as aar:(work/('jars/lib-'+name+'-release.jar')).write_bytes(aar.read('classes.jar'))
  tests=work/'tests/androidx/media3/exoplayer/libass';tests.mkdir(parents=True,exist_ok=True)
  shutil.copyfile(ROOT/'recovery/libass-tests/java/androidx/media3/exoplayer/libass/LibassNative.java',tests/'LibassNative.java')
  for test in (ROOT/'recovery/libass-tests/media/src/test/java/androidx/media3/exoplayer/libass').glob('*Test.java'):
