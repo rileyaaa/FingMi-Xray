@@ -54,6 +54,10 @@ final class LibassTrack implements AutoCloseable {
         checkOpen();if(Objects.equals(this.family,family))return;
         LibassNative.nativeSetFonts(handle,fontConfig,family);this.family=family;
     }}
+    /** Newly added shared-library fonts require reloading even when the family is unchanged. */
+    void reloadFonts() { synchronized(owner) {
+        checkOpen();LibassNative.nativeSetFonts(handle,fontConfig,family);
+    }}
     void setFrameSize(int width,int height,int left,int top,int right,int bottom) { synchronized(owner) {
         checkOpen();if(width<=0||height<=0||right<=left||bottom<=top)throw new IllegalArgumentException("Frame size and viewport must be positive");
         LibassNative.nativeSetFrameSize(handle,width,height,left,top,right,bottom);frameSizeSet=true;

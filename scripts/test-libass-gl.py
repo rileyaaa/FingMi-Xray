@@ -11,7 +11,8 @@ assert hashlib.sha256(a.android_jar.read_bytes()).hexdigest()=='84072541cbb711ef
 src=ROOT/'recovery/media3-libass/src/main/java/androidx/media3/exoplayer/libass'
 with tempfile.TemporaryDirectory(prefix='libass-gl-') as td:
  td=Path(td)
- subprocess.run(['java','com.sun.tools.javac.Main','--release','17','-cp',str(a.android_jar),'-d',str(td/'api'),*map(str,src.glob('*.java'))],check=True)
+ sources=[f for f in src.glob('*.java') if f.name!='LibassMediaState.java']
+ subprocess.run(['java','com.sun.tools.javac.Main','--release','17','-cp',str(a.android_jar),'-d',str(td/'api'),*map(str,sources)],check=True)
  sources=[src/n for n in ['LibassFrame.java','LibassImage.java','LibassFrameSet.java','LibassFrameRenderer.java','LibassGlTextures.java']]
  sources+=list((ROOT/'recovery/libass-tests/gl-java').rglob('*.java'))
  subprocess.run(['java','com.sun.tools.javac.Main','--release','17','-d',str(td/'test'),*map(str,sources)],check=True)
