@@ -1,5 +1,7 @@
 package com.fongmi.android.tv.playback.vod;
 
+import com.fongmi.android.tv.utils.RuntimeCompat;
+
 import androidx.annotation.Nullable;
 import androidx.media3.common.MediaMetadata;
 
@@ -122,7 +124,7 @@ public class VodPlaybackState {
 
     Episode getRelativeEpisode(int offset) {
         List<Episode> episodes = getFlag().getEpisodes();
-        int position = Math.clamp(getFlag().getPosition() + offset, 0, episodes.size() - 1);
+        int position = RuntimeCompat.clamp(getFlag().getPosition() + offset, 0, episodes.size() - 1);
         return episodes.get(position);
     }
 
