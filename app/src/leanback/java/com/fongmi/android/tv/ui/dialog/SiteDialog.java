@@ -1,5 +1,7 @@
 package com.fongmi.android.tv.ui.dialog;
 
+import com.fongmi.android.tv.utils.RuntimeCompat;
+
 import android.view.View;
 
 import androidx.fragment.app.FragmentActivity;
@@ -51,7 +53,7 @@ public class SiteDialog extends BaseAlertDialog implements SiteAdapter.OnClickLi
     }
 
     private int getCount() {
-        return list() ? 1 : Math.clamp((int) Math.ceil((double) adapter.getItemCount() / GRID_COUNT), 2, 3);
+        return list() ? 1 : RuntimeCompat.clamp((int) Math.ceil((double) adapter.getItemCount() / GRID_COUNT), 2, 3);
     }
 
     private int getIcon() {
