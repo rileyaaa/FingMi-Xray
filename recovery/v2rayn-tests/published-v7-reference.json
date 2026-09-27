@@ -1,0 +1,2699 @@
+{
+  "schema": 1,
+  "jni_sha256": "6f01f219fe4087790cd8e647394de9dbefc61e0d750d927924b93f120b06fb7e",
+  "java_reference": "frozen recovery/legacy-src; DEX-verified reconstructed behavior, not ART",
+  "raw": [
+    {
+      "id": "real-shape-trojan",
+      "response": {
+        "success": true,
+        "data": {
+          "api": null,
+          "burstObservatory": null,
+          "dns": null,
+          "env": null,
+          "fakeDns": null,
+          "geodata": null,
+          "inbounds": null,
+          "log": null,
+          "metrics": null,
+          "observatory": null,
+          "outbounds": [
+            {
+              "mux": null,
+              "protocol": "trojan",
+              "proxySettings": null,
+              "sendThrough": "synthetic",
+              "settings": {
+                "address": "192.0.2.44",
+                "email": "",
+                "flow": "",
+                "level": 0,
+                "password": "synthetic-password",
+                "port": 443,
+                "servers": null
+              },
+              "streamSettings": {
+                "address": null,
+                "finalmask": null,
+                "grpcSettings": null,
+                "httpupgradeSettings": null,
+                "hysteriaSettings": null,
+                "kcpSettings": null,
+                "method": null,
+                "network": "ws",
+                "port": 0,
+                "rawSettings": null,
+                "realitySettings": null,
+                "security": "tls",
+                "sockopt": null,
+                "splithttpSettings": null,
+                "tcpSettings": null,
+                "tlsSettings": {
+                  "allowInsecure": false,
+                  "alpn": null,
+                  "certificates": null,
+                  "cipherSuites": "",
+                  "curvePreferences": null,
+                  "disableSystemRoot": false,
+                  "echConfigList": "",
+                  "echServerKeys": "",
+                  "echSockopt": null,
+                  "enableSessionResumption": false,
+                  "fingerprint": "safari",
+                  "masterKeyLog": "",
+                  "maxVersion": "",
+                  "minVersion": "",
+                  "pinnedPeerCertSha256": "",
+                  "rejectUnknownSni": false,
+                  "serverName": "sni.synthetic.invalid",
+                  "verifyPeerCertByName": ""
+                },
+                "wsSettings": {
+                  "acceptProxyProtocol": false,
+                  "headers": null,
+                  "heartbeatPeriod": 0,
+                  "host": "host.synthetic.invalid",
+                  "path": "/synthetic?ed=2048"
+                },
+                "xhttpSettings": null
+              },
+              "tag": "",
+              "targetStrategy": ""
+            }
+          ],
+          "policy": null,
+          "reverse": null,
+          "routing": null,
+          "stats": null,
+          "transport": null,
+          "version": null
+        },
+        "error": ""
+      }
+    },
+    {
+      "id": "real-shape-hy2",
+      "response": {
+        "success": false,
+        "data": null,
+        "error": "no valid outbound found: infra/conf: failed to build stream settings for outbound detour > infra/conf: Failed to build TLS config. > common/errors: The feature \"allowInsecure\" has been removed and migrated to \"pinnedPeerCertSha256\"(pcs) and \"verifyPeerCertByName\"(vcn). Please update your config(s) according to release note and documentation."
+      }
+    },
+    {
+      "id": "real-shape-vmess",
+      "response": {
+        "success": true,
+        "data": {
+          "api": null,
+          "burstObservatory": null,
+          "dns": null,
+          "env": null,
+          "fakeDns": null,
+          "geodata": null,
+          "inbounds": null,
+          "log": null,
+          "metrics": null,
+          "observatory": null,
+          "outbounds": [
+            {
+              "mux": null,
+              "protocol": "vmess",
+              "proxySettings": null,
+              "sendThrough": "synthetic",
+              "settings": {
+                "address": "192.0.2.44",
+                "email": "",
+                "experiments": "",
+                "id": "11111111-2222-4333-8444-555555555555",
+                "level": 0,
+                "port": 443,
+                "security": "auto",
+                "vnext": null
+              },
+              "streamSettings": {
+                "address": null,
+                "finalmask": {
+                  "quicParams": null,
+                  "tcp": null,
+                  "udp": [
+                    {
+                      "settings": {
+                        "header": "",
+                        "value": "synthetic-seed"
+                      },
+                      "type": "mkcp-legacy"
+                    }
+                  ]
+                },
+                "grpcSettings": null,
+                "httpupgradeSettings": null,
+                "hysteriaSettings": null,
+                "kcpSettings": {
+                  "cwndMultiplier": null,
+                  "downlinkCapacity": null,
+                  "maxSendingWindow": null,
+                  "mtu": 1334,
+                  "tti": null,
+                  "uplinkCapacity": null
+                },
+                "method": null,
+                "network": "kcp",
+                "port": 0,
+                "rawSettings": null,
+                "realitySettings": null,
+                "security": "none",
+                "sockopt": null,
+                "splithttpSettings": null,
+                "tcpSettings": null,
+                "tlsSettings": null,
+                "wsSettings": null,
+                "xhttpSettings": null
+              },
+              "tag": "",
+              "targetStrategy": ""
+            }
+          ],
+          "policy": null,
+          "reverse": null,
+          "routing": null,
+          "stats": null,
+          "transport": null,
+          "version": null
+        },
+        "error": ""
+      }
+    },
+    {
+      "id": "real-shape-grpc",
+      "response": {
+        "success": true,
+        "data": {
+          "api": null,
+          "burstObservatory": null,
+          "dns": null,
+          "env": null,
+          "fakeDns": null,
+          "geodata": null,
+          "inbounds": null,
+          "log": null,
+          "metrics": null,
+          "observatory": null,
+          "outbounds": [
+            {
+              "mux": null,
+              "protocol": "vless",
+              "proxySettings": null,
+              "sendThrough": "synthetic",
+              "settings": {
+                "address": "192.0.2.44",
+                "email": "",
+                "encryption": "none",
+                "flow": "",
+                "id": "11111111-2222-4333-8444-555555555555",
+                "level": 0,
+                "port": 443,
+                "reverse": null,
+                "seed": "",
+                "testpre": 0,
+                "testseed": null,
+                "vnext": null
+              },
+              "streamSettings": {
+                "address": null,
+                "finalmask": null,
+                "grpcSettings": {
+                  "authority": "authority.synthetic.invalid",
+                  "health_check_timeout": 0,
+                  "idle_timeout": 0,
+                  "initial_windows_size": 0,
+                  "multiMode": false,
+                  "permit_without_stream": false,
+                  "serviceName": "/api",
+                  "user_agent": ""
+                },
+                "httpupgradeSettings": null,
+                "hysteriaSettings": null,
+                "kcpSettings": null,
+                "method": null,
+                "network": "grpc",
+                "port": 0,
+                "rawSettings": null,
+                "realitySettings": {
+                  "fingerprint": "chrome",
+                  "limitFallbackDownload": {
+                    "AfterBytes": 0,
+                    "BurstBytesPerSec": 0,
+                    "BytesPerSec": 0
+                  },
+                  "limitFallbackUpload": {
+                    "AfterBytes": 0,
+                    "BurstBytesPerSec": 0,
+                    "BytesPerSec": 0
+                  },
+                  "masterKeyLog": "",
+                  "maxClientVer": "",
+                  "maxTimeDiff": 0,
+                  "minClientVer": "",
+                  "mldsa65Seed": "",
+                  "mldsa65Verify": "",
+                  "password": "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8",
+                  "privateKey": "",
+                  "publicKey": "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8",
+                  "serverName": "sni.synthetic.invalid",
+                  "serverNames": null,
+                  "shortId": "0123456789abcdef",
+                  "shortIds": null,
+                  "show": false,
+                  "spiderX": "/synthetic/visit",
+                  "type": "",
+                  "xver": 0
+                },
+                "security": "reality",
+                "sockopt": null,
+                "splithttpSettings": null,
+                "tcpSettings": null,
+                "tlsSettings": null,
+                "wsSettings": null,
+                "xhttpSettings": null
+              },
+              "tag": "",
+              "targetStrategy": ""
+            }
+          ],
+          "policy": null,
+          "reverse": null,
+          "routing": null,
+          "stats": null,
+          "transport": null,
+          "version": null
+        },
+        "error": ""
+      }
+    },
+    {
+      "id": "real-shape-xhttp",
+      "response": {
+        "success": true,
+        "data": {
+          "api": null,
+          "burstObservatory": null,
+          "dns": null,
+          "env": null,
+          "fakeDns": null,
+          "geodata": null,
+          "inbounds": null,
+          "log": null,
+          "metrics": null,
+          "observatory": null,
+          "outbounds": [
+            {
+              "mux": null,
+              "protocol": "vless",
+              "proxySettings": null,
+              "sendThrough": "synthetic",
+              "settings": {
+                "address": "node.synthetic.invalid",
+                "email": "",
+                "encryption": "none",
+                "flow": "",
+                "id": "11111111-2222-4333-8444-555555555555",
+                "level": 0,
+                "port": 443,
+                "reverse": null,
+                "seed": "",
+                "testpre": 0,
+                "testseed": null,
+                "vnext": null
+              },
+              "streamSettings": {
+                "address": null,
+                "finalmask": null,
+                "grpcSettings": null,
+                "httpupgradeSettings": null,
+                "hysteriaSettings": null,
+                "kcpSettings": null,
+                "method": null,
+                "network": "xhttp",
+                "port": 0,
+                "rawSettings": null,
+                "realitySettings": {
+                  "fingerprint": "chrome",
+                  "limitFallbackDownload": {
+                    "AfterBytes": 0,
+                    "BurstBytesPerSec": 0,
+                    "BytesPerSec": 0
+                  },
+                  "limitFallbackUpload": {
+                    "AfterBytes": 0,
+                    "BurstBytesPerSec": 0,
+                    "BytesPerSec": 0
+                  },
+                  "masterKeyLog": "",
+                  "maxClientVer": "",
+                  "maxTimeDiff": 0,
+                  "minClientVer": "",
+                  "mldsa65Seed": "",
+                  "mldsa65Verify": "",
+                  "password": "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8",
+                  "privateKey": "",
+                  "publicKey": "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8",
+                  "serverName": "sni.synthetic.invalid",
+                  "serverNames": null,
+                  "shortId": "0123456789abcdef",
+                  "shortIds": null,
+                  "show": false,
+                  "spiderX": "/synthetic/visit",
+                  "type": "",
+                  "xver": 0
+                },
+                "security": "reality",
+                "sockopt": null,
+                "splithttpSettings": null,
+                "tcpSettings": null,
+                "tlsSettings": null,
+                "wsSettings": null,
+                "xhttpSettings": {
+                  "downloadSettings": null,
+                  "extra": null,
+                  "headers": null,
+                  "host": "host.synthetic.invalid",
+                  "mode": "packet-up",
+                  "noGRPCHeader": false,
+                  "noSSEHeader": false,
+                  "path": "/api",
+                  "scMaxBufferedPosts": 0,
+                  "scMaxEachPostBytes": "0",
+                  "scMinPostsIntervalMs": "0",
+                  "scStreamUpServerSecs": "0",
+                  "seqKey": "",
+                  "seqPlacement": "",
+                  "serverMaxHeaderBytes": 0,
+                  "sessionIDKey": "",
+                  "sessionIDLength": "0",
+                  "sessionIDPlacement": "",
+                  "sessionIDTable": "",
+                  "uplinkChunkSize": "0",
+                  "uplinkDataKey": "",
+                  "uplinkDataPlacement": "",
+                  "uplinkHTTPMethod": "",
+                  "xPaddingBytes": "0",
+                  "xPaddingHeader": "",
+                  "xPaddingKey": "",
+                  "xPaddingMethod": "",
+                  "xPaddingObfsMode": false,
+                  "xPaddingPlacement": "",
+                  "xmux": {
+                    "cMaxReuseTimes": "0",
+                    "hKeepAlivePeriod": 0,
+                    "hMaxRequestTimes": "0",
+                    "hMaxReusableSecs": "0",
+                    "maxConcurrency": "0",
+                    "maxConnections": "0"
+                  }
+                }
+              },
+              "tag": "",
+              "targetStrategy": ""
+            }
+          ],
+          "policy": null,
+          "reverse": null,
+          "routing": null,
+          "stats": null,
+          "transport": null,
+          "version": null
+        },
+        "error": ""
+      }
+    }
+  ],
+  "normalized": [
+    {
+      "request": {
+        "apiVersion": 2,
+        "method": "convertShareLinksToXrayJson",
+        "payload": {
+          "text": "trojan://synthetic-password@192.0.2.44:443?security=tls&sni=sni.synthetic.invalid&fp=safari&type=ws&host=host.synthetic.invalid&path=%2Fsynthetic%3Fed%3D2048#synthetic"
+        }
+      },
+      "normalized": "trojan://synthetic-password@192.0.2.44:443?security=tls&sni=sni.synthetic.invalid&fp=safari&type=ws&host=host.synthetic.invalid&path=%2Fsynthetic%3Fed%3D2048#synthetic",
+      "raw": "trojan://synthetic-password@192.0.2.44:443?security=tls&sni=sni.synthetic.invalid&fp=safari&type=ws&host=host.synthetic.invalid&path=%2Fsynthetic%3Fed%3D2048#synthetic",
+      "finalLink": "trojan://synthetic-password@192.0.2.44:443?security=tls&sni=sni.synthetic.invalid&fp=safari&type=ws&host=host.synthetic.invalid&path=%2Fsynthetic%3Fed%3D2048#synthetic",
+      "id": "real-shape-trojan",
+      "secured": "trojan://synthetic-password@192.0.2.44:443?security=tls&sni=sni.synthetic.invalid&fp=safari&type=ws&host=host.synthetic.invalid&path=%2Fsynthetic%3Fed%3D2048#synthetic"
+    },
+    {
+      "request": {
+        "apiVersion": 2,
+        "method": "convertShareLinksToXrayJson",
+        "payload": {
+          "text": "hysteria2://synthetic-password@[2001:db8::44]:443?sni=sni.synthetic.invalid&ports=1000-2000&pcs=abababababababababababababababababababababababababababababababab#synthetic"
+        }
+      },
+      "normalized": "hysteria2://synthetic-password@[2001:db8::44]:443?sni=sni.synthetic.invalid&insecure=1&ports=1000-2000#synthetic",
+      "raw": "hysteria2://synthetic-password@[2001:db8::44]:443?sni=sni.synthetic.invalid&insecure=1&mport=1000-2000#synthetic",
+      "finalLink": "hysteria2://synthetic-password@[2001:db8::44]:443?sni=sni.synthetic.invalid&ports=1000-2000&pcs=abababababababababababababababababababababababababababababababab#synthetic",
+      "id": "real-shape-hy2",
+      "secured": "hysteria2://synthetic-password@[2001:db8::44]:443?sni=sni.synthetic.invalid&ports=1000-2000&pcs=abababababababababababababababababababababababababababababababab#synthetic"
+    },
+    {
+      "request": {
+        "apiVersion": 2,
+        "method": "convertShareLinksToXrayJson",
+        "payload": {
+          "text": "vmess://ewogICJ2IjogIjIiLAogICJwcyI6ICJzeW50aGV0aWMiLAogICJhZGQiOiAiMTkyLjAuMi40NCIsCiAgInBvcnQiOiAiNDQzIiwKICAiaWQiOiAiMTExMTExMTEtMjIyMi00MzMzLTg0NDQtNTU1NTU1NTU1NTU1IiwKICAiYWlkIjogIjAiLAogICJzY3kiOiAiYXV0byIsCiAgIm5ldCI6ICJrY3AiLAogICJ0eXBlIjogIm5vbmUiLAogICJob3N0IjogIiIsCiAgInBhdGgiOiAic3ludGhldGljLXNlZWQiLAogICJ0bHMiOiAiIiwKICAic25pIjogIiIsCiAgImFscG4iOiAiIiwKICAiZnAiOiAic2FmYXJpIgp9"
+        }
+      },
+      "normalized": "vmess://ewogICJ2IjogIjIiLAogICJwcyI6ICJzeW50aGV0aWMiLAogICJhZGQiOiAiMTkyLjAuMi40NCIsCiAgInBvcnQiOiAiNDQzIiwKICAiaWQiOiAiMTExMTExMTEtMjIyMi00MzMzLTg0NDQtNTU1NTU1NTU1NTU1IiwKICAiYWlkIjogIjAiLAogICJzY3kiOiAiYXV0byIsCiAgIm5ldCI6ICJrY3AiLAogICJ0eXBlIjogIm5vbmUiLAogICJob3N0IjogIiIsCiAgInBhdGgiOiAic3ludGhldGljLXNlZWQiLAogICJ0bHMiOiAiIiwKICAic25pIjogIiIsCiAgImFscG4iOiAiIiwKICAiZnAiOiAic2FmYXJpIgp9",
+      "raw": "vmess://ewogICJ2IjogIjIiLAogICJwcyI6ICJzeW50aGV0aWMiLAogICJhZGQiOiAiMTkyLjAuMi40NCIsCiAgInBvcnQiOiAiNDQzIiwKICAiaWQiOiAiMTExMTExMTEtMjIyMi00MzMzLTg0NDQtNTU1NTU1NTU1NTU1IiwKICAiYWlkIjogIjAiLAogICJzY3kiOiAiYXV0byIsCiAgIm5ldCI6ICJrY3AiLAogICJ0eXBlIjogIm5vbmUiLAogICJob3N0IjogIiIsCiAgInBhdGgiOiAic3ludGhldGljLXNlZWQiLAogICJ0bHMiOiAiIiwKICAic25pIjogIiIsCiAgImFscG4iOiAiIiwKICAiZnAiOiAic2FmYXJpIgp9",
+      "finalLink": "vmess://ewogICJ2IjogIjIiLAogICJwcyI6ICJzeW50aGV0aWMiLAogICJhZGQiOiAiMTkyLjAuMi40NCIsCiAgInBvcnQiOiAiNDQzIiwKICAiaWQiOiAiMTExMTExMTEtMjIyMi00MzMzLTg0NDQtNTU1NTU1NTU1NTU1IiwKICAiYWlkIjogIjAiLAogICJzY3kiOiAiYXV0byIsCiAgIm5ldCI6ICJrY3AiLAogICJ0eXBlIjogIm5vbmUiLAogICJob3N0IjogIiIsCiAgInBhdGgiOiAic3ludGhldGljLXNlZWQiLAogICJ0bHMiOiAiIiwKICAic25pIjogIiIsCiAgImFscG4iOiAiIiwKICAiZnAiOiAic2FmYXJpIgp9",
+      "id": "real-shape-vmess",
+      "secured": "vmess://ewogICJ2IjogIjIiLAogICJwcyI6ICJzeW50aGV0aWMiLAogICJhZGQiOiAiMTkyLjAuMi40NCIsCiAgInBvcnQiOiAiNDQzIiwKICAiaWQiOiAiMTExMTExMTEtMjIyMi00MzMzLTg0NDQtNTU1NTU1NTU1NTU1IiwKICAiYWlkIjogIjAiLAogICJzY3kiOiAiYXV0byIsCiAgIm5ldCI6ICJrY3AiLAogICJ0eXBlIjogIm5vbmUiLAogICJob3N0IjogIiIsCiAgInBhdGgiOiAic3ludGhldGljLXNlZWQiLAogICJ0bHMiOiAiIiwKICAic25pIjogIiIsCiAgImFscG4iOiAiIiwKICAiZnAiOiAic2FmYXJpIgp9"
+    },
+    {
+      "request": {
+        "apiVersion": 2,
+        "method": "convertShareLinksToXrayJson",
+        "payload": {
+          "text": "vless://11111111-2222-4333-8444-555555555555@192.0.2.44:443?encryption=none&security=reality&sni=sni.synthetic.invalid&fp=chrome&pbk=AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8&sid=0123456789abcdef&spx=%2Fsynthetic%2Fvisit&type=grpc&authority=authority.synthetic.invalid&serviceName=%2Fapi&mode=gun#synthetic"
+        }
+      },
+      "normalized": "vless://11111111-2222-4333-8444-555555555555@192.0.2.44:443?encryption=none&security=reality&sni=sni.synthetic.invalid&fp=chrome&pbk=AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8&sid=0123456789abcdef&spx=%2Fsynthetic%2Fvisit&type=grpc&authority=authority.synthetic.invalid&serviceName=%2Fapi&mode=gun#synthetic",
+      "raw": "vless://11111111-2222-4333-8444-555555555555@192.0.2.44:443?encryption=none&security=reality&sni=sni.synthetic.invalid&fp=chrome&pbk=AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8&sid=0123456789abcdef&spx=%2Fsynthetic%2Fvisit&type=grpc&authority=authority.synthetic.invalid&serviceName=%2Fapi&mode=gun#synthetic",
+      "finalLink": "vless://11111111-2222-4333-8444-555555555555@192.0.2.44:443?encryption=none&security=reality&sni=sni.synthetic.invalid&fp=chrome&pbk=AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8&sid=0123456789abcdef&spx=%2Fsynthetic%2Fvisit&type=grpc&authority=authority.synthetic.invalid&serviceName=%2Fapi&mode=gun#synthetic",
+      "id": "real-shape-grpc",
+      "secured": "vless://11111111-2222-4333-8444-555555555555@192.0.2.44:443?encryption=none&security=reality&sni=sni.synthetic.invalid&fp=chrome&pbk=AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8&sid=0123456789abcdef&spx=%2Fsynthetic%2Fvisit&type=grpc&authority=authority.synthetic.invalid&serviceName=%2Fapi&mode=gun#synthetic"
+    },
+    {
+      "request": {
+        "apiVersion": 2,
+        "method": "convertShareLinksToXrayJson",
+        "payload": {
+          "text": "vless://11111111-2222-4333-8444-555555555555@node.synthetic.invalid:443?encryption=none&security=reality&sni=sni.synthetic.invalid&fp=chrome&pbk=AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8&sid=0123456789abcdef&spx=%2Fsynthetic%2Fvisit&type=xhttp&host=host.synthetic.invalid&path=%2Fapi&mode=packet-up#synthetic"
+        }
+      },
+      "normalized": "vless://11111111-2222-4333-8444-555555555555@node.synthetic.invalid:443?encryption=none&security=reality&sni=sni.synthetic.invalid&fp=chrome&pbk=AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8&sid=0123456789abcdef&spx=%2Fsynthetic%2Fvisit&type=xhttp&host=host.synthetic.invalid&path=%2Fapi&mode=packet-up#synthetic",
+      "raw": "vless://11111111-2222-4333-8444-555555555555@node.synthetic.invalid:443?encryption=none&security=reality&sni=sni.synthetic.invalid&fp=chrome&pbk=AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8&sid=0123456789abcdef&spx=%2Fsynthetic%2Fvisit&type=xhttp&host=host.synthetic.invalid&path=%2Fapi&mode=packet-up#synthetic",
+      "finalLink": "vless://11111111-2222-4333-8444-555555555555@node.synthetic.invalid:443?encryption=none&security=reality&sni=sni.synthetic.invalid&fp=chrome&pbk=AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8&sid=0123456789abcdef&spx=%2Fsynthetic%2Fvisit&type=xhttp&host=host.synthetic.invalid&path=%2Fapi&mode=packet-up#synthetic",
+      "id": "real-shape-xhttp",
+      "secured": "vless://11111111-2222-4333-8444-555555555555@node.synthetic.invalid:443?encryption=none&security=reality&sni=sni.synthetic.invalid&fp=chrome&pbk=AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8&sid=0123456789abcdef&spx=%2Fsynthetic%2Fvisit&type=xhttp&host=host.synthetic.invalid&path=%2Fapi&mode=packet-up#synthetic"
+    }
+  ],
+  "conversion": [
+    {
+      "id": "real-shape-trojan",
+      "response": {
+        "success": true,
+        "data": {
+          "api": null,
+          "burstObservatory": null,
+          "dns": null,
+          "env": null,
+          "fakeDns": null,
+          "geodata": null,
+          "inbounds": null,
+          "log": null,
+          "metrics": null,
+          "observatory": null,
+          "outbounds": [
+            {
+              "mux": null,
+              "protocol": "trojan",
+              "proxySettings": null,
+              "sendThrough": "synthetic",
+              "settings": {
+                "address": "192.0.2.44",
+                "email": "",
+                "flow": "",
+                "level": 0,
+                "password": "synthetic-password",
+                "port": 443,
+                "servers": null
+              },
+              "streamSettings": {
+                "address": null,
+                "finalmask": null,
+                "grpcSettings": null,
+                "httpupgradeSettings": null,
+                "hysteriaSettings": null,
+                "kcpSettings": null,
+                "method": null,
+                "network": "ws",
+                "port": 0,
+                "rawSettings": null,
+                "realitySettings": null,
+                "security": "tls",
+                "sockopt": null,
+                "splithttpSettings": null,
+                "tcpSettings": null,
+                "tlsSettings": {
+                  "allowInsecure": false,
+                  "alpn": null,
+                  "certificates": null,
+                  "cipherSuites": "",
+                  "curvePreferences": null,
+                  "disableSystemRoot": false,
+                  "echConfigList": "",
+                  "echServerKeys": "",
+                  "echSockopt": null,
+                  "enableSessionResumption": false,
+                  "fingerprint": "safari",
+                  "masterKeyLog": "",
+                  "maxVersion": "",
+                  "minVersion": "",
+                  "pinnedPeerCertSha256": "",
+                  "rejectUnknownSni": false,
+                  "serverName": "sni.synthetic.invalid",
+                  "verifyPeerCertByName": ""
+                },
+                "wsSettings": {
+                  "acceptProxyProtocol": false,
+                  "headers": null,
+                  "heartbeatPeriod": 0,
+                  "host": "host.synthetic.invalid",
+                  "path": "/synthetic?ed=2048"
+                },
+                "xhttpSettings": null
+              },
+              "tag": "",
+              "targetStrategy": ""
+            }
+          ],
+          "policy": null,
+          "reverse": null,
+          "routing": null,
+          "stats": null,
+          "transport": null,
+          "version": null
+        },
+        "error": ""
+      }
+    },
+    {
+      "id": "real-shape-hy2",
+      "response": {
+        "success": true,
+        "data": {
+          "api": null,
+          "burstObservatory": null,
+          "dns": null,
+          "env": null,
+          "fakeDns": null,
+          "geodata": null,
+          "inbounds": null,
+          "log": null,
+          "metrics": null,
+          "observatory": null,
+          "outbounds": [
+            {
+              "mux": null,
+              "protocol": "hysteria",
+              "proxySettings": null,
+              "sendThrough": "synthetic",
+              "settings": {
+                "address": "[2001:db8::44]",
+                "port": 443,
+                "version": 2
+              },
+              "streamSettings": {
+                "address": null,
+                "finalmask": {
+                  "quicParams": {
+                    "bbrProfile": "",
+                    "brutalDown": "",
+                    "brutalUp": "",
+                    "congestion": "",
+                    "debug": false,
+                    "disablePathMTUDiscovery": false,
+                    "initConnectionReceiveWindow": 0,
+                    "initStreamReceiveWindow": 0,
+                    "keepAlivePeriod": 0,
+                    "maxConnectionReceiveWindow": 0,
+                    "maxIdleTimeout": 0,
+                    "maxIncomingStreams": 0,
+                    "maxStreamReceiveWindow": 0,
+                    "udpHop": {
+                      "interval": "0",
+                      "ports": "1000-2000"
+                    }
+                  },
+                  "tcp": null,
+                  "udp": null
+                },
+                "grpcSettings": null,
+                "httpupgradeSettings": null,
+                "hysteriaSettings": {
+                  "auth": "synthetic-password",
+                  "congestion": null,
+                  "down": null,
+                  "masquerade": {
+                    "content": "",
+                    "dir": "",
+                    "headers": null,
+                    "insecure": false,
+                    "rewriteHost": false,
+                    "statusCode": 0,
+                    "type": "",
+                    "url": ""
+                  },
+                  "udpIdleTimeout": 0,
+                  "udphop": null,
+                  "up": null,
+                  "version": 2
+                },
+                "kcpSettings": null,
+                "method": null,
+                "network": "hysteria",
+                "port": 0,
+                "rawSettings": null,
+                "realitySettings": null,
+                "security": "tls",
+                "sockopt": null,
+                "splithttpSettings": null,
+                "tcpSettings": null,
+                "tlsSettings": {
+                  "allowInsecure": false,
+                  "alpn": null,
+                  "certificates": null,
+                  "cipherSuites": "",
+                  "curvePreferences": null,
+                  "disableSystemRoot": false,
+                  "echConfigList": "",
+                  "echServerKeys": "",
+                  "echSockopt": null,
+                  "enableSessionResumption": false,
+                  "fingerprint": "",
+                  "masterKeyLog": "",
+                  "maxVersion": "",
+                  "minVersion": "",
+                  "pinnedPeerCertSha256": "abababababababababababababababababababababababababababababababab",
+                  "rejectUnknownSni": false,
+                  "serverName": "sni.synthetic.invalid",
+                  "verifyPeerCertByName": ""
+                },
+                "wsSettings": null,
+                "xhttpSettings": null
+              },
+              "tag": "",
+              "targetStrategy": ""
+            }
+          ],
+          "policy": null,
+          "reverse": null,
+          "routing": null,
+          "stats": null,
+          "transport": null,
+          "version": null
+        },
+        "error": ""
+      }
+    },
+    {
+      "id": "real-shape-vmess",
+      "response": {
+        "success": true,
+        "data": {
+          "api": null,
+          "burstObservatory": null,
+          "dns": null,
+          "env": null,
+          "fakeDns": null,
+          "geodata": null,
+          "inbounds": null,
+          "log": null,
+          "metrics": null,
+          "observatory": null,
+          "outbounds": [
+            {
+              "mux": null,
+              "protocol": "vmess",
+              "proxySettings": null,
+              "sendThrough": "synthetic",
+              "settings": {
+                "address": "192.0.2.44",
+                "email": "",
+                "experiments": "",
+                "id": "11111111-2222-4333-8444-555555555555",
+                "level": 0,
+                "port": 443,
+                "security": "auto",
+                "vnext": null
+              },
+              "streamSettings": {
+                "address": null,
+                "finalmask": {
+                  "quicParams": null,
+                  "tcp": null,
+                  "udp": [
+                    {
+                      "settings": {
+                        "header": "",
+                        "value": "synthetic-seed"
+                      },
+                      "type": "mkcp-legacy"
+                    }
+                  ]
+                },
+                "grpcSettings": null,
+                "httpupgradeSettings": null,
+                "hysteriaSettings": null,
+                "kcpSettings": {
+                  "cwndMultiplier": null,
+                  "downlinkCapacity": null,
+                  "maxSendingWindow": null,
+                  "mtu": 1334,
+                  "tti": null,
+                  "uplinkCapacity": null
+                },
+                "method": null,
+                "network": "kcp",
+                "port": 0,
+                "rawSettings": null,
+                "realitySettings": null,
+                "security": "none",
+                "sockopt": null,
+                "splithttpSettings": null,
+                "tcpSettings": null,
+                "tlsSettings": null,
+                "wsSettings": null,
+                "xhttpSettings": null
+              },
+              "tag": "",
+              "targetStrategy": ""
+            }
+          ],
+          "policy": null,
+          "reverse": null,
+          "routing": null,
+          "stats": null,
+          "transport": null,
+          "version": null
+        },
+        "error": ""
+      }
+    },
+    {
+      "id": "real-shape-grpc",
+      "response": {
+        "success": true,
+        "data": {
+          "api": null,
+          "burstObservatory": null,
+          "dns": null,
+          "env": null,
+          "fakeDns": null,
+          "geodata": null,
+          "inbounds": null,
+          "log": null,
+          "metrics": null,
+          "observatory": null,
+          "outbounds": [
+            {
+              "mux": null,
+              "protocol": "vless",
+              "proxySettings": null,
+              "sendThrough": "synthetic",
+              "settings": {
+                "address": "192.0.2.44",
+                "email": "",
+                "encryption": "none",
+                "flow": "",
+                "id": "11111111-2222-4333-8444-555555555555",
+                "level": 0,
+                "port": 443,
+                "reverse": null,
+                "seed": "",
+                "testpre": 0,
+                "testseed": null,
+                "vnext": null
+              },
+              "streamSettings": {
+                "address": null,
+                "finalmask": null,
+                "grpcSettings": {
+                  "authority": "authority.synthetic.invalid",
+                  "health_check_timeout": 0,
+                  "idle_timeout": 0,
+                  "initial_windows_size": 0,
+                  "multiMode": false,
+                  "permit_without_stream": false,
+                  "serviceName": "/api",
+                  "user_agent": ""
+                },
+                "httpupgradeSettings": null,
+                "hysteriaSettings": null,
+                "kcpSettings": null,
+                "method": null,
+                "network": "grpc",
+                "port": 0,
+                "rawSettings": null,
+                "realitySettings": {
+                  "fingerprint": "chrome",
+                  "limitFallbackDownload": {
+                    "AfterBytes": 0,
+                    "BurstBytesPerSec": 0,
+                    "BytesPerSec": 0
+                  },
+                  "limitFallbackUpload": {
+                    "AfterBytes": 0,
+                    "BurstBytesPerSec": 0,
+                    "BytesPerSec": 0
+                  },
+                  "masterKeyLog": "",
+                  "maxClientVer": "",
+                  "maxTimeDiff": 0,
+                  "minClientVer": "",
+                  "mldsa65Seed": "",
+                  "mldsa65Verify": "",
+                  "password": "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8",
+                  "privateKey": "",
+                  "publicKey": "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8",
+                  "serverName": "sni.synthetic.invalid",
+                  "serverNames": null,
+                  "shortId": "0123456789abcdef",
+                  "shortIds": null,
+                  "show": false,
+                  "spiderX": "/synthetic/visit",
+                  "type": "",
+                  "xver": 0
+                },
+                "security": "reality",
+                "sockopt": null,
+                "splithttpSettings": null,
+                "tcpSettings": null,
+                "tlsSettings": null,
+                "wsSettings": null,
+                "xhttpSettings": null
+              },
+              "tag": "",
+              "targetStrategy": ""
+            }
+          ],
+          "policy": null,
+          "reverse": null,
+          "routing": null,
+          "stats": null,
+          "transport": null,
+          "version": null
+        },
+        "error": ""
+      }
+    },
+    {
+      "id": "real-shape-xhttp",
+      "response": {
+        "success": true,
+        "data": {
+          "api": null,
+          "burstObservatory": null,
+          "dns": null,
+          "env": null,
+          "fakeDns": null,
+          "geodata": null,
+          "inbounds": null,
+          "log": null,
+          "metrics": null,
+          "observatory": null,
+          "outbounds": [
+            {
+              "mux": null,
+              "protocol": "vless",
+              "proxySettings": null,
+              "sendThrough": "synthetic",
+              "settings": {
+                "address": "node.synthetic.invalid",
+                "email": "",
+                "encryption": "none",
+                "flow": "",
+                "id": "11111111-2222-4333-8444-555555555555",
+                "level": 0,
+                "port": 443,
+                "reverse": null,
+                "seed": "",
+                "testpre": 0,
+                "testseed": null,
+                "vnext": null
+              },
+              "streamSettings": {
+                "address": null,
+                "finalmask": null,
+                "grpcSettings": null,
+                "httpupgradeSettings": null,
+                "hysteriaSettings": null,
+                "kcpSettings": null,
+                "method": null,
+                "network": "xhttp",
+                "port": 0,
+                "rawSettings": null,
+                "realitySettings": {
+                  "fingerprint": "chrome",
+                  "limitFallbackDownload": {
+                    "AfterBytes": 0,
+                    "BurstBytesPerSec": 0,
+                    "BytesPerSec": 0
+                  },
+                  "limitFallbackUpload": {
+                    "AfterBytes": 0,
+                    "BurstBytesPerSec": 0,
+                    "BytesPerSec": 0
+                  },
+                  "masterKeyLog": "",
+                  "maxClientVer": "",
+                  "maxTimeDiff": 0,
+                  "minClientVer": "",
+                  "mldsa65Seed": "",
+                  "mldsa65Verify": "",
+                  "password": "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8",
+                  "privateKey": "",
+                  "publicKey": "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8",
+                  "serverName": "sni.synthetic.invalid",
+                  "serverNames": null,
+                  "shortId": "0123456789abcdef",
+                  "shortIds": null,
+                  "show": false,
+                  "spiderX": "/synthetic/visit",
+                  "type": "",
+                  "xver": 0
+                },
+                "security": "reality",
+                "sockopt": null,
+                "splithttpSettings": null,
+                "tcpSettings": null,
+                "tlsSettings": null,
+                "wsSettings": null,
+                "xhttpSettings": {
+                  "downloadSettings": null,
+                  "extra": null,
+                  "headers": null,
+                  "host": "host.synthetic.invalid",
+                  "mode": "packet-up",
+                  "noGRPCHeader": false,
+                  "noSSEHeader": false,
+                  "path": "/api",
+                  "scMaxBufferedPosts": 0,
+                  "scMaxEachPostBytes": "0",
+                  "scMinPostsIntervalMs": "0",
+                  "scStreamUpServerSecs": "0",
+                  "seqKey": "",
+                  "seqPlacement": "",
+                  "serverMaxHeaderBytes": 0,
+                  "sessionIDKey": "",
+                  "sessionIDLength": "0",
+                  "sessionIDPlacement": "",
+                  "sessionIDTable": "",
+                  "uplinkChunkSize": "0",
+                  "uplinkDataKey": "",
+                  "uplinkDataPlacement": "",
+                  "uplinkHTTPMethod": "",
+                  "xPaddingBytes": "0",
+                  "xPaddingHeader": "",
+                  "xPaddingKey": "",
+                  "xPaddingMethod": "",
+                  "xPaddingObfsMode": false,
+                  "xPaddingPlacement": "",
+                  "xmux": {
+                    "cMaxReuseTimes": "0",
+                    "hKeepAlivePeriod": 0,
+                    "hMaxRequestTimes": "0",
+                    "hMaxReusableSecs": "0",
+                    "maxConcurrency": "0",
+                    "maxConnections": "0"
+                  }
+                }
+              },
+              "tag": "",
+              "targetStrategy": ""
+            }
+          ],
+          "policy": null,
+          "reverse": null,
+          "routing": null,
+          "stats": null,
+          "transport": null,
+          "version": null
+        },
+        "error": ""
+      }
+    }
+  ],
+  "runtime": [
+    {
+      "id": "real-shape-trojan",
+      "runtime": {
+        "fakeDns": null,
+        "log": {
+          "loglevel": "warning"
+        },
+        "dns": {
+          "servers": [
+            {
+              "address": "https://1.1.1.1/dns-query",
+              "unexpectedIPs": [
+                "0.0.0.0/8",
+                "10.0.0.0/8",
+                "100.64.0.0/10",
+                "127.0.0.0/8",
+                "169.254.0.0/16",
+                "172.16.0.0/12",
+                "192.0.0.0/24",
+                "192.0.2.0/24",
+                "192.88.99.2/32",
+                "192.168.0.0/16",
+                "198.18.0.0/15",
+                "198.51.100.0/24",
+                "203.0.113.0/24",
+                "224.0.0.0/4",
+                "240.0.0.0/4",
+                "::/96",
+                "::ffff:0:0:0/96",
+                "64:ff9b:1::/48",
+                "100::/64",
+                "100:0:0:1::/64",
+                "2001:2::/48",
+                "2001:db8::/32",
+                "3fff::/20",
+                "5f00::/16",
+                "fc00::/7",
+                "fe00::/8",
+                "ff00::/8"
+              ]
+            },
+            {
+              "address": "https://8.8.8.8/dns-query",
+              "unexpectedIPs": [
+                "0.0.0.0/8",
+                "10.0.0.0/8",
+                "100.64.0.0/10",
+                "127.0.0.0/8",
+                "169.254.0.0/16",
+                "172.16.0.0/12",
+                "192.0.0.0/24",
+                "192.0.2.0/24",
+                "192.88.99.2/32",
+                "192.168.0.0/16",
+                "198.18.0.0/15",
+                "198.51.100.0/24",
+                "203.0.113.0/24",
+                "224.0.0.0/4",
+                "240.0.0.0/4",
+                "::/96",
+                "::ffff:0:0:0/96",
+                "64:ff9b:1::/48",
+                "100::/64",
+                "100:0:0:1::/64",
+                "2001:2::/48",
+                "2001:db8::/32",
+                "3fff::/20",
+                "5f00::/16",
+                "fc00::/7",
+                "fe00::/8",
+                "ff00::/8"
+              ]
+            },
+            {
+              "address": "tcp://1.1.1.1:53",
+              "unexpectedIPs": [
+                "0.0.0.0/8",
+                "10.0.0.0/8",
+                "100.64.0.0/10",
+                "127.0.0.0/8",
+                "169.254.0.0/16",
+                "172.16.0.0/12",
+                "192.0.0.0/24",
+                "192.0.2.0/24",
+                "192.88.99.2/32",
+                "192.168.0.0/16",
+                "198.18.0.0/15",
+                "198.51.100.0/24",
+                "203.0.113.0/24",
+                "224.0.0.0/4",
+                "240.0.0.0/4",
+                "::/96",
+                "::ffff:0:0:0/96",
+                "64:ff9b:1::/48",
+                "100::/64",
+                "100:0:0:1::/64",
+                "2001:2::/48",
+                "2001:db8::/32",
+                "3fff::/20",
+                "5f00::/16",
+                "fc00::/7",
+                "fe00::/8",
+                "ff00::/8"
+              ]
+            },
+            {
+              "address": "tcp://8.8.8.8:53",
+              "unexpectedIPs": [
+                "0.0.0.0/8",
+                "10.0.0.0/8",
+                "100.64.0.0/10",
+                "127.0.0.0/8",
+                "169.254.0.0/16",
+                "172.16.0.0/12",
+                "192.0.0.0/24",
+                "192.0.2.0/24",
+                "192.88.99.2/32",
+                "192.168.0.0/16",
+                "198.18.0.0/15",
+                "198.51.100.0/24",
+                "203.0.113.0/24",
+                "224.0.0.0/4",
+                "240.0.0.0/4",
+                "::/96",
+                "::ffff:0:0:0/96",
+                "64:ff9b:1::/48",
+                "100::/64",
+                "100:0:0:1::/64",
+                "2001:2::/48",
+                "2001:db8::/32",
+                "3fff::/20",
+                "5f00::/16",
+                "fc00::/7",
+                "fe00::/8",
+                "ff00::/8"
+              ]
+            }
+          ],
+          "enableParallelQuery": true,
+          "tag": "fongmi-xray-dns",
+          "queryStrategy": "UseIP"
+        },
+        "burstObservatory": null,
+        "transport": null,
+        "env": null,
+        "inbounds": [
+          {
+            "settings": {
+              "udp": true,
+              "auth": "noauth",
+              "ip": "127.0.0.1"
+            },
+            "protocol": "socks",
+            "port": 10808,
+            "tag": "fongmi-xray-session",
+            "listen": "127.0.0.1"
+          }
+        ],
+        "reverse": null,
+        "version": null,
+        "observatory": null,
+        "routing": {
+          "domainStrategy": "IPOnDemand",
+          "rules": [
+            {
+              "inboundTag": [
+                "fongmi-xray-dns"
+              ],
+              "type": "field",
+              "outboundTag": "fongmi-xray-proxy"
+            },
+            {
+              "inboundTag": [
+                "fongmi-xray-session"
+              ],
+              "domain": [
+                "localhost",
+                "domain:localhost",
+                "regexp:.*\\.localhost$",
+                "regexp:.*\\.local$"
+              ],
+              "type": "field",
+              "outboundTag": "fongmi-xray-private-block"
+            },
+            {
+              "inboundTag": [
+                "fongmi-xray-session"
+              ],
+              "ip": [
+                "0.0.0.0/8",
+                "10.0.0.0/8",
+                "100.64.0.0/10",
+                "127.0.0.0/8",
+                "169.254.0.0/16",
+                "172.16.0.0/12",
+                "192.0.0.0/24",
+                "192.0.2.0/24",
+                "192.88.99.2/32",
+                "192.168.0.0/16",
+                "198.18.0.0/15",
+                "198.51.100.0/24",
+                "203.0.113.0/24",
+                "224.0.0.0/4",
+                "240.0.0.0/4",
+                "::/96",
+                "::ffff:0:0:0/96",
+                "64:ff9b:1::/48",
+                "100::/64",
+                "100:0:0:1::/64",
+                "2001:2::/48",
+                "2001:db8::/32",
+                "3fff::/20",
+                "5f00::/16",
+                "fc00::/7",
+                "fe00::/8",
+                "ff00::/8"
+              ],
+              "type": "field",
+              "outboundTag": "fongmi-xray-private-block"
+            },
+            {
+              "inboundTag": [
+                "fongmi-xray-session"
+              ],
+              "type": "field",
+              "outboundTag": "fongmi-xray-proxy",
+              "network": "tcp,udp"
+            }
+          ]
+        },
+        "outbounds": [
+          {
+            "mux": null,
+            "settings": {
+              "password": "synthetic-password",
+              "address": "192.0.2.44",
+              "servers": null,
+              "level": 0,
+              "port": 443,
+              "email": "",
+              "flow": ""
+            },
+            "protocol": "trojan",
+            "streamSettings": {
+              "wsSettings": {
+                "headers": null,
+                "path": "/synthetic?ed=2048",
+                "acceptProxyProtocol": false,
+                "host": "host.synthetic.invalid",
+                "heartbeatPeriod": 0
+              },
+              "address": null,
+              "httpupgradeSettings": null,
+              "method": null,
+              "realitySettings": null,
+              "grpcSettings": null,
+              "tlsSettings": {
+                "echConfigList": "",
+                "minVersion": "",
+                "pinnedPeerCertSha256": "",
+                "rejectUnknownSni": false,
+                "alpn": null,
+                "echServerKeys": "",
+                "serverName": "sni.synthetic.invalid",
+                "masterKeyLog": "",
+                "certificates": null,
+                "verifyPeerCertByName": "",
+                "cipherSuites": "",
+                "fingerprint": "safari",
+                "disableSystemRoot": false,
+                "maxVersion": "",
+                "curvePreferences": null,
+                "echSockopt": null,
+                "allowInsecure": false,
+                "enableSessionResumption": false
+              },
+              "hysteriaSettings": null,
+              "splithttpSettings": null,
+              "network": "ws",
+              "xhttpSettings": null,
+              "kcpSettings": null,
+              "tcpSettings": null,
+              "security": "tls",
+              "rawSettings": null,
+              "sockopt": null,
+              "port": 0,
+              "finalmask": null
+            },
+            "proxySettings": null,
+            "tag": "fongmi-xray-proxy",
+            "targetStrategy": "ForceIP"
+          },
+          {
+            "settings": {},
+            "protocol": "blackhole",
+            "tag": "fongmi-xray-private-block"
+          }
+        ],
+        "stats": null,
+        "api": null,
+        "metrics": null,
+        "geodata": null,
+        "policy": null
+      }
+    },
+    {
+      "id": "real-shape-hy2",
+      "runtime": {
+        "fakeDns": null,
+        "log": {
+          "loglevel": "warning"
+        },
+        "dns": {
+          "servers": [
+            {
+              "address": "https://1.1.1.1/dns-query",
+              "unexpectedIPs": [
+                "0.0.0.0/8",
+                "10.0.0.0/8",
+                "100.64.0.0/10",
+                "127.0.0.0/8",
+                "169.254.0.0/16",
+                "172.16.0.0/12",
+                "192.0.0.0/24",
+                "192.0.2.0/24",
+                "192.88.99.2/32",
+                "192.168.0.0/16",
+                "198.18.0.0/15",
+                "198.51.100.0/24",
+                "203.0.113.0/24",
+                "224.0.0.0/4",
+                "240.0.0.0/4",
+                "::/96",
+                "::ffff:0:0:0/96",
+                "64:ff9b:1::/48",
+                "100::/64",
+                "100:0:0:1::/64",
+                "2001:2::/48",
+                "2001:db8::/32",
+                "3fff::/20",
+                "5f00::/16",
+                "fc00::/7",
+                "fe00::/8",
+                "ff00::/8"
+              ]
+            },
+            {
+              "address": "https://8.8.8.8/dns-query",
+              "unexpectedIPs": [
+                "0.0.0.0/8",
+                "10.0.0.0/8",
+                "100.64.0.0/10",
+                "127.0.0.0/8",
+                "169.254.0.0/16",
+                "172.16.0.0/12",
+                "192.0.0.0/24",
+                "192.0.2.0/24",
+                "192.88.99.2/32",
+                "192.168.0.0/16",
+                "198.18.0.0/15",
+                "198.51.100.0/24",
+                "203.0.113.0/24",
+                "224.0.0.0/4",
+                "240.0.0.0/4",
+                "::/96",
+                "::ffff:0:0:0/96",
+                "64:ff9b:1::/48",
+                "100::/64",
+                "100:0:0:1::/64",
+                "2001:2::/48",
+                "2001:db8::/32",
+                "3fff::/20",
+                "5f00::/16",
+                "fc00::/7",
+                "fe00::/8",
+                "ff00::/8"
+              ]
+            },
+            {
+              "address": "tcp://1.1.1.1:53",
+              "unexpectedIPs": [
+                "0.0.0.0/8",
+                "10.0.0.0/8",
+                "100.64.0.0/10",
+                "127.0.0.0/8",
+                "169.254.0.0/16",
+                "172.16.0.0/12",
+                "192.0.0.0/24",
+                "192.0.2.0/24",
+                "192.88.99.2/32",
+                "192.168.0.0/16",
+                "198.18.0.0/15",
+                "198.51.100.0/24",
+                "203.0.113.0/24",
+                "224.0.0.0/4",
+                "240.0.0.0/4",
+                "::/96",
+                "::ffff:0:0:0/96",
+                "64:ff9b:1::/48",
+                "100::/64",
+                "100:0:0:1::/64",
+                "2001:2::/48",
+                "2001:db8::/32",
+                "3fff::/20",
+                "5f00::/16",
+                "fc00::/7",
+                "fe00::/8",
+                "ff00::/8"
+              ]
+            },
+            {
+              "address": "tcp://8.8.8.8:53",
+              "unexpectedIPs": [
+                "0.0.0.0/8",
+                "10.0.0.0/8",
+                "100.64.0.0/10",
+                "127.0.0.0/8",
+                "169.254.0.0/16",
+                "172.16.0.0/12",
+                "192.0.0.0/24",
+                "192.0.2.0/24",
+                "192.88.99.2/32",
+                "192.168.0.0/16",
+                "198.18.0.0/15",
+                "198.51.100.0/24",
+                "203.0.113.0/24",
+                "224.0.0.0/4",
+                "240.0.0.0/4",
+                "::/96",
+                "::ffff:0:0:0/96",
+                "64:ff9b:1::/48",
+                "100::/64",
+                "100:0:0:1::/64",
+                "2001:2::/48",
+                "2001:db8::/32",
+                "3fff::/20",
+                "5f00::/16",
+                "fc00::/7",
+                "fe00::/8",
+                "ff00::/8"
+              ]
+            }
+          ],
+          "enableParallelQuery": true,
+          "tag": "fongmi-xray-dns",
+          "queryStrategy": "UseIP"
+        },
+        "burstObservatory": null,
+        "transport": null,
+        "env": null,
+        "inbounds": [
+          {
+            "settings": {
+              "udp": true,
+              "auth": "noauth",
+              "ip": "127.0.0.1"
+            },
+            "protocol": "socks",
+            "port": 10808,
+            "tag": "fongmi-xray-session",
+            "listen": "127.0.0.1"
+          }
+        ],
+        "reverse": null,
+        "version": null,
+        "observatory": null,
+        "routing": {
+          "domainStrategy": "IPOnDemand",
+          "rules": [
+            {
+              "inboundTag": [
+                "fongmi-xray-dns"
+              ],
+              "type": "field",
+              "outboundTag": "fongmi-xray-proxy"
+            },
+            {
+              "inboundTag": [
+                "fongmi-xray-session"
+              ],
+              "domain": [
+                "localhost",
+                "domain:localhost",
+                "regexp:.*\\.localhost$",
+                "regexp:.*\\.local$"
+              ],
+              "type": "field",
+              "outboundTag": "fongmi-xray-private-block"
+            },
+            {
+              "inboundTag": [
+                "fongmi-xray-session"
+              ],
+              "ip": [
+                "0.0.0.0/8",
+                "10.0.0.0/8",
+                "100.64.0.0/10",
+                "127.0.0.0/8",
+                "169.254.0.0/16",
+                "172.16.0.0/12",
+                "192.0.0.0/24",
+                "192.0.2.0/24",
+                "192.88.99.2/32",
+                "192.168.0.0/16",
+                "198.18.0.0/15",
+                "198.51.100.0/24",
+                "203.0.113.0/24",
+                "224.0.0.0/4",
+                "240.0.0.0/4",
+                "::/96",
+                "::ffff:0:0:0/96",
+                "64:ff9b:1::/48",
+                "100::/64",
+                "100:0:0:1::/64",
+                "2001:2::/48",
+                "2001:db8::/32",
+                "3fff::/20",
+                "5f00::/16",
+                "fc00::/7",
+                "fe00::/8",
+                "ff00::/8"
+              ],
+              "type": "field",
+              "outboundTag": "fongmi-xray-private-block"
+            },
+            {
+              "inboundTag": [
+                "fongmi-xray-session"
+              ],
+              "type": "field",
+              "outboundTag": "fongmi-xray-proxy",
+              "network": "tcp,udp"
+            }
+          ]
+        },
+        "outbounds": [
+          {
+            "mux": null,
+            "settings": {
+              "address": "[2001:db8::44]",
+              "port": 443,
+              "version": 2
+            },
+            "protocol": "hysteria",
+            "streamSettings": {
+              "wsSettings": null,
+              "address": null,
+              "httpupgradeSettings": null,
+              "method": null,
+              "realitySettings": null,
+              "grpcSettings": null,
+              "tlsSettings": {
+                "echConfigList": "",
+                "minVersion": "",
+                "pinnedPeerCertSha256": "abababababababababababababababababababababababababababababababab",
+                "rejectUnknownSni": false,
+                "alpn": null,
+                "echServerKeys": "",
+                "serverName": "sni.synthetic.invalid",
+                "masterKeyLog": "",
+                "certificates": null,
+                "verifyPeerCertByName": "",
+                "cipherSuites": "",
+                "fingerprint": "",
+                "disableSystemRoot": false,
+                "maxVersion": "",
+                "curvePreferences": null,
+                "echSockopt": null,
+                "allowInsecure": false,
+                "enableSessionResumption": false
+              },
+              "hysteriaSettings": {
+                "masquerade": {
+                  "headers": null,
+                  "insecure": false,
+                  "dir": "",
+                  "rewriteHost": false,
+                  "type": "",
+                  "content": "",
+                  "url": "",
+                  "statusCode": 0
+                },
+                "udpIdleTimeout": 0,
+                "udphop": null,
+                "auth": "synthetic-password",
+                "up": null,
+                "congestion": null,
+                "down": null,
+                "version": 2
+              },
+              "splithttpSettings": null,
+              "network": "hysteria",
+              "xhttpSettings": null,
+              "kcpSettings": null,
+              "tcpSettings": null,
+              "security": "tls",
+              "rawSettings": null,
+              "sockopt": null,
+              "port": 0,
+              "finalmask": {
+                "tcp": null,
+                "udp": null,
+                "quicParams": {
+                  "debug": false,
+                  "brutalUp": "",
+                  "bbrProfile": "",
+                  "keepAlivePeriod": 0,
+                  "maxIncomingStreams": 0,
+                  "maxConnectionReceiveWindow": 0,
+                  "udpHop": {
+                    "interval": "0",
+                    "ports": "1000-2000"
+                  },
+                  "initStreamReceiveWindow": 0,
+                  "maxStreamReceiveWindow": 0,
+                  "brutalDown": "",
+                  "maxIdleTimeout": 0,
+                  "congestion": "",
+                  "disablePathMTUDiscovery": false,
+                  "initConnectionReceiveWindow": 0
+                }
+              }
+            },
+            "proxySettings": null,
+            "tag": "fongmi-xray-proxy",
+            "targetStrategy": "ForceIP"
+          },
+          {
+            "settings": {},
+            "protocol": "blackhole",
+            "tag": "fongmi-xray-private-block"
+          }
+        ],
+        "stats": null,
+        "api": null,
+        "metrics": null,
+        "geodata": null,
+        "policy": null
+      }
+    },
+    {
+      "id": "real-shape-vmess",
+      "runtime": {
+        "fakeDns": null,
+        "log": {
+          "loglevel": "warning"
+        },
+        "dns": {
+          "servers": [
+            {
+              "address": "https://1.1.1.1/dns-query",
+              "unexpectedIPs": [
+                "0.0.0.0/8",
+                "10.0.0.0/8",
+                "100.64.0.0/10",
+                "127.0.0.0/8",
+                "169.254.0.0/16",
+                "172.16.0.0/12",
+                "192.0.0.0/24",
+                "192.0.2.0/24",
+                "192.88.99.2/32",
+                "192.168.0.0/16",
+                "198.18.0.0/15",
+                "198.51.100.0/24",
+                "203.0.113.0/24",
+                "224.0.0.0/4",
+                "240.0.0.0/4",
+                "::/96",
+                "::ffff:0:0:0/96",
+                "64:ff9b:1::/48",
+                "100::/64",
+                "100:0:0:1::/64",
+                "2001:2::/48",
+                "2001:db8::/32",
+                "3fff::/20",
+                "5f00::/16",
+                "fc00::/7",
+                "fe00::/8",
+                "ff00::/8"
+              ]
+            },
+            {
+              "address": "https://8.8.8.8/dns-query",
+              "unexpectedIPs": [
+                "0.0.0.0/8",
+                "10.0.0.0/8",
+                "100.64.0.0/10",
+                "127.0.0.0/8",
+                "169.254.0.0/16",
+                "172.16.0.0/12",
+                "192.0.0.0/24",
+                "192.0.2.0/24",
+                "192.88.99.2/32",
+                "192.168.0.0/16",
+                "198.18.0.0/15",
+                "198.51.100.0/24",
+                "203.0.113.0/24",
+                "224.0.0.0/4",
+                "240.0.0.0/4",
+                "::/96",
+                "::ffff:0:0:0/96",
+                "64:ff9b:1::/48",
+                "100::/64",
+                "100:0:0:1::/64",
+                "2001:2::/48",
+                "2001:db8::/32",
+                "3fff::/20",
+                "5f00::/16",
+                "fc00::/7",
+                "fe00::/8",
+                "ff00::/8"
+              ]
+            },
+            {
+              "address": "tcp://1.1.1.1:53",
+              "unexpectedIPs": [
+                "0.0.0.0/8",
+                "10.0.0.0/8",
+                "100.64.0.0/10",
+                "127.0.0.0/8",
+                "169.254.0.0/16",
+                "172.16.0.0/12",
+                "192.0.0.0/24",
+                "192.0.2.0/24",
+                "192.88.99.2/32",
+                "192.168.0.0/16",
+                "198.18.0.0/15",
+                "198.51.100.0/24",
+                "203.0.113.0/24",
+                "224.0.0.0/4",
+                "240.0.0.0/4",
+                "::/96",
+                "::ffff:0:0:0/96",
+                "64:ff9b:1::/48",
+                "100::/64",
+                "100:0:0:1::/64",
+                "2001:2::/48",
+                "2001:db8::/32",
+                "3fff::/20",
+                "5f00::/16",
+                "fc00::/7",
+                "fe00::/8",
+                "ff00::/8"
+              ]
+            },
+            {
+              "address": "tcp://8.8.8.8:53",
+              "unexpectedIPs": [
+                "0.0.0.0/8",
+                "10.0.0.0/8",
+                "100.64.0.0/10",
+                "127.0.0.0/8",
+                "169.254.0.0/16",
+                "172.16.0.0/12",
+                "192.0.0.0/24",
+                "192.0.2.0/24",
+                "192.88.99.2/32",
+                "192.168.0.0/16",
+                "198.18.0.0/15",
+                "198.51.100.0/24",
+                "203.0.113.0/24",
+                "224.0.0.0/4",
+                "240.0.0.0/4",
+                "::/96",
+                "::ffff:0:0:0/96",
+                "64:ff9b:1::/48",
+                "100::/64",
+                "100:0:0:1::/64",
+                "2001:2::/48",
+                "2001:db8::/32",
+                "3fff::/20",
+                "5f00::/16",
+                "fc00::/7",
+                "fe00::/8",
+                "ff00::/8"
+              ]
+            }
+          ],
+          "enableParallelQuery": true,
+          "tag": "fongmi-xray-dns",
+          "queryStrategy": "UseIP"
+        },
+        "burstObservatory": null,
+        "transport": null,
+        "env": null,
+        "inbounds": [
+          {
+            "settings": {
+              "udp": true,
+              "auth": "noauth",
+              "ip": "127.0.0.1"
+            },
+            "protocol": "socks",
+            "port": 10808,
+            "tag": "fongmi-xray-session",
+            "listen": "127.0.0.1"
+          }
+        ],
+        "reverse": null,
+        "version": null,
+        "observatory": null,
+        "routing": {
+          "domainStrategy": "IPOnDemand",
+          "rules": [
+            {
+              "inboundTag": [
+                "fongmi-xray-dns"
+              ],
+              "type": "field",
+              "outboundTag": "fongmi-xray-proxy"
+            },
+            {
+              "inboundTag": [
+                "fongmi-xray-session"
+              ],
+              "domain": [
+                "localhost",
+                "domain:localhost",
+                "regexp:.*\\.localhost$",
+                "regexp:.*\\.local$"
+              ],
+              "type": "field",
+              "outboundTag": "fongmi-xray-private-block"
+            },
+            {
+              "inboundTag": [
+                "fongmi-xray-session"
+              ],
+              "ip": [
+                "0.0.0.0/8",
+                "10.0.0.0/8",
+                "100.64.0.0/10",
+                "127.0.0.0/8",
+                "169.254.0.0/16",
+                "172.16.0.0/12",
+                "192.0.0.0/24",
+                "192.0.2.0/24",
+                "192.88.99.2/32",
+                "192.168.0.0/16",
+                "198.18.0.0/15",
+                "198.51.100.0/24",
+                "203.0.113.0/24",
+                "224.0.0.0/4",
+                "240.0.0.0/4",
+                "::/96",
+                "::ffff:0:0:0/96",
+                "64:ff9b:1::/48",
+                "100::/64",
+                "100:0:0:1::/64",
+                "2001:2::/48",
+                "2001:db8::/32",
+                "3fff::/20",
+                "5f00::/16",
+                "fc00::/7",
+                "fe00::/8",
+                "ff00::/8"
+              ],
+              "type": "field",
+              "outboundTag": "fongmi-xray-private-block"
+            },
+            {
+              "inboundTag": [
+                "fongmi-xray-session"
+              ],
+              "type": "field",
+              "outboundTag": "fongmi-xray-proxy",
+              "network": "tcp,udp"
+            }
+          ]
+        },
+        "outbounds": [
+          {
+            "mux": null,
+            "settings": {
+              "security": "auto",
+              "address": "192.0.2.44",
+              "level": 0,
+              "port": 443,
+              "experiments": "",
+              "id": "11111111-2222-4333-8444-555555555555",
+              "vnext": null,
+              "email": ""
+            },
+            "protocol": "vmess",
+            "streamSettings": {
+              "wsSettings": null,
+              "address": null,
+              "httpupgradeSettings": null,
+              "method": null,
+              "realitySettings": null,
+              "grpcSettings": null,
+              "tlsSettings": null,
+              "hysteriaSettings": null,
+              "splithttpSettings": null,
+              "network": "kcp",
+              "xhttpSettings": null,
+              "kcpSettings": {
+                "maxSendingWindow": null,
+                "tti": null,
+                "uplinkCapacity": null,
+                "cwndMultiplier": null,
+                "downlinkCapacity": null,
+                "mtu": 1334
+              },
+              "tcpSettings": null,
+              "security": "none",
+              "rawSettings": null,
+              "sockopt": null,
+              "port": 0,
+              "finalmask": {
+                "tcp": null,
+                "udp": [
+                  {
+                    "settings": {
+                      "header": "",
+                      "value": "synthetic-seed"
+                    },
+                    "type": "mkcp-legacy"
+                  }
+                ],
+                "quicParams": null
+              }
+            },
+            "proxySettings": null,
+            "tag": "fongmi-xray-proxy",
+            "targetStrategy": "ForceIP"
+          },
+          {
+            "settings": {},
+            "protocol": "blackhole",
+            "tag": "fongmi-xray-private-block"
+          }
+        ],
+        "stats": null,
+        "api": null,
+        "metrics": null,
+        "geodata": null,
+        "policy": null
+      }
+    },
+    {
+      "id": "real-shape-grpc",
+      "runtime": {
+        "fakeDns": null,
+        "log": {
+          "loglevel": "warning"
+        },
+        "dns": {
+          "servers": [
+            {
+              "address": "https://1.1.1.1/dns-query",
+              "unexpectedIPs": [
+                "0.0.0.0/8",
+                "10.0.0.0/8",
+                "100.64.0.0/10",
+                "127.0.0.0/8",
+                "169.254.0.0/16",
+                "172.16.0.0/12",
+                "192.0.0.0/24",
+                "192.0.2.0/24",
+                "192.88.99.2/32",
+                "192.168.0.0/16",
+                "198.18.0.0/15",
+                "198.51.100.0/24",
+                "203.0.113.0/24",
+                "224.0.0.0/4",
+                "240.0.0.0/4",
+                "::/96",
+                "::ffff:0:0:0/96",
+                "64:ff9b:1::/48",
+                "100::/64",
+                "100:0:0:1::/64",
+                "2001:2::/48",
+                "2001:db8::/32",
+                "3fff::/20",
+                "5f00::/16",
+                "fc00::/7",
+                "fe00::/8",
+                "ff00::/8"
+              ]
+            },
+            {
+              "address": "https://8.8.8.8/dns-query",
+              "unexpectedIPs": [
+                "0.0.0.0/8",
+                "10.0.0.0/8",
+                "100.64.0.0/10",
+                "127.0.0.0/8",
+                "169.254.0.0/16",
+                "172.16.0.0/12",
+                "192.0.0.0/24",
+                "192.0.2.0/24",
+                "192.88.99.2/32",
+                "192.168.0.0/16",
+                "198.18.0.0/15",
+                "198.51.100.0/24",
+                "203.0.113.0/24",
+                "224.0.0.0/4",
+                "240.0.0.0/4",
+                "::/96",
+                "::ffff:0:0:0/96",
+                "64:ff9b:1::/48",
+                "100::/64",
+                "100:0:0:1::/64",
+                "2001:2::/48",
+                "2001:db8::/32",
+                "3fff::/20",
+                "5f00::/16",
+                "fc00::/7",
+                "fe00::/8",
+                "ff00::/8"
+              ]
+            },
+            {
+              "address": "tcp://1.1.1.1:53",
+              "unexpectedIPs": [
+                "0.0.0.0/8",
+                "10.0.0.0/8",
+                "100.64.0.0/10",
+                "127.0.0.0/8",
+                "169.254.0.0/16",
+                "172.16.0.0/12",
+                "192.0.0.0/24",
+                "192.0.2.0/24",
+                "192.88.99.2/32",
+                "192.168.0.0/16",
+                "198.18.0.0/15",
+                "198.51.100.0/24",
+                "203.0.113.0/24",
+                "224.0.0.0/4",
+                "240.0.0.0/4",
+                "::/96",
+                "::ffff:0:0:0/96",
+                "64:ff9b:1::/48",
+                "100::/64",
+                "100:0:0:1::/64",
+                "2001:2::/48",
+                "2001:db8::/32",
+                "3fff::/20",
+                "5f00::/16",
+                "fc00::/7",
+                "fe00::/8",
+                "ff00::/8"
+              ]
+            },
+            {
+              "address": "tcp://8.8.8.8:53",
+              "unexpectedIPs": [
+                "0.0.0.0/8",
+                "10.0.0.0/8",
+                "100.64.0.0/10",
+                "127.0.0.0/8",
+                "169.254.0.0/16",
+                "172.16.0.0/12",
+                "192.0.0.0/24",
+                "192.0.2.0/24",
+                "192.88.99.2/32",
+                "192.168.0.0/16",
+                "198.18.0.0/15",
+                "198.51.100.0/24",
+                "203.0.113.0/24",
+                "224.0.0.0/4",
+                "240.0.0.0/4",
+                "::/96",
+                "::ffff:0:0:0/96",
+                "64:ff9b:1::/48",
+                "100::/64",
+                "100:0:0:1::/64",
+                "2001:2::/48",
+                "2001:db8::/32",
+                "3fff::/20",
+                "5f00::/16",
+                "fc00::/7",
+                "fe00::/8",
+                "ff00::/8"
+              ]
+            }
+          ],
+          "enableParallelQuery": true,
+          "tag": "fongmi-xray-dns",
+          "queryStrategy": "UseIP"
+        },
+        "burstObservatory": null,
+        "transport": null,
+        "env": null,
+        "inbounds": [
+          {
+            "settings": {
+              "udp": true,
+              "auth": "noauth",
+              "ip": "127.0.0.1"
+            },
+            "protocol": "socks",
+            "port": 10808,
+            "tag": "fongmi-xray-session",
+            "listen": "127.0.0.1"
+          }
+        ],
+        "reverse": null,
+        "version": null,
+        "observatory": null,
+        "routing": {
+          "domainStrategy": "IPOnDemand",
+          "rules": [
+            {
+              "inboundTag": [
+                "fongmi-xray-dns"
+              ],
+              "type": "field",
+              "outboundTag": "fongmi-xray-proxy"
+            },
+            {
+              "inboundTag": [
+                "fongmi-xray-session"
+              ],
+              "domain": [
+                "localhost",
+                "domain:localhost",
+                "regexp:.*\\.localhost$",
+                "regexp:.*\\.local$"
+              ],
+              "type": "field",
+              "outboundTag": "fongmi-xray-private-block"
+            },
+            {
+              "inboundTag": [
+                "fongmi-xray-session"
+              ],
+              "ip": [
+                "0.0.0.0/8",
+                "10.0.0.0/8",
+                "100.64.0.0/10",
+                "127.0.0.0/8",
+                "169.254.0.0/16",
+                "172.16.0.0/12",
+                "192.0.0.0/24",
+                "192.0.2.0/24",
+                "192.88.99.2/32",
+                "192.168.0.0/16",
+                "198.18.0.0/15",
+                "198.51.100.0/24",
+                "203.0.113.0/24",
+                "224.0.0.0/4",
+                "240.0.0.0/4",
+                "::/96",
+                "::ffff:0:0:0/96",
+                "64:ff9b:1::/48",
+                "100::/64",
+                "100:0:0:1::/64",
+                "2001:2::/48",
+                "2001:db8::/32",
+                "3fff::/20",
+                "5f00::/16",
+                "fc00::/7",
+                "fe00::/8",
+                "ff00::/8"
+              ],
+              "type": "field",
+              "outboundTag": "fongmi-xray-private-block"
+            },
+            {
+              "inboundTag": [
+                "fongmi-xray-session"
+              ],
+              "type": "field",
+              "outboundTag": "fongmi-xray-proxy",
+              "network": "tcp,udp"
+            }
+          ]
+        },
+        "outbounds": [
+          {
+            "mux": null,
+            "settings": {
+              "testseed": null,
+              "address": "192.0.2.44",
+              "encryption": "none",
+              "seed": "",
+              "level": 0,
+              "port": 443,
+              "testpre": 0,
+              "id": "11111111-2222-4333-8444-555555555555",
+              "vnext": null,
+              "reverse": null,
+              "email": "",
+              "flow": ""
+            },
+            "protocol": "vless",
+            "streamSettings": {
+              "wsSettings": null,
+              "address": null,
+              "httpupgradeSettings": null,
+              "method": null,
+              "realitySettings": {
+                "shortId": "0123456789abcdef",
+                "mldsa65Verify": "",
+                "show": false,
+                "serverName": "sni.synthetic.invalid",
+                "shortIds": null,
+                "publicKey": "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8",
+                "masterKeyLog": "",
+                "type": "",
+                "mldsa65Seed": "",
+                "privateKey": "",
+                "spiderX": "/synthetic/visit",
+                "password": "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8",
+                "xver": 0,
+                "minClientVer": "",
+                "serverNames": null,
+                "fingerprint": "chrome",
+                "maxClientVer": "",
+                "limitFallbackDownload": {
+                  "BurstBytesPerSec": 0,
+                  "AfterBytes": 0,
+                  "BytesPerSec": 0
+                },
+                "limitFallbackUpload": {
+                  "BurstBytesPerSec": 0,
+                  "AfterBytes": 0,
+                  "BytesPerSec": 0
+                },
+                "maxTimeDiff": 0
+              },
+              "grpcSettings": {
+                "multiMode": false,
+                "health_check_timeout": 0,
+                "initial_windows_size": 0,
+                "permit_without_stream": false,
+                "authority": "authority.synthetic.invalid",
+                "idle_timeout": 0,
+                "serviceName": "/api",
+                "user_agent": ""
+              },
+              "tlsSettings": null,
+              "hysteriaSettings": null,
+              "splithttpSettings": null,
+              "network": "grpc",
+              "xhttpSettings": null,
+              "kcpSettings": null,
+              "tcpSettings": null,
+              "security": "reality",
+              "rawSettings": null,
+              "sockopt": null,
+              "port": 0,
+              "finalmask": null
+            },
+            "proxySettings": null,
+            "tag": "fongmi-xray-proxy",
+            "targetStrategy": "ForceIP"
+          },
+          {
+            "settings": {},
+            "protocol": "blackhole",
+            "tag": "fongmi-xray-private-block"
+          }
+        ],
+        "stats": null,
+        "api": null,
+        "metrics": null,
+        "geodata": null,
+        "policy": null
+      }
+    },
+    {
+      "id": "real-shape-xhttp",
+      "runtime": {
+        "fakeDns": null,
+        "log": {
+          "loglevel": "warning"
+        },
+        "dns": {
+          "servers": [
+            {
+              "address": "https://1.1.1.1/dns-query",
+              "unexpectedIPs": [
+                "0.0.0.0/8",
+                "10.0.0.0/8",
+                "100.64.0.0/10",
+                "127.0.0.0/8",
+                "169.254.0.0/16",
+                "172.16.0.0/12",
+                "192.0.0.0/24",
+                "192.0.2.0/24",
+                "192.88.99.2/32",
+                "192.168.0.0/16",
+                "198.18.0.0/15",
+                "198.51.100.0/24",
+                "203.0.113.0/24",
+                "224.0.0.0/4",
+                "240.0.0.0/4",
+                "::/96",
+                "::ffff:0:0:0/96",
+                "64:ff9b:1::/48",
+                "100::/64",
+                "100:0:0:1::/64",
+                "2001:2::/48",
+                "2001:db8::/32",
+                "3fff::/20",
+                "5f00::/16",
+                "fc00::/7",
+                "fe00::/8",
+                "ff00::/8"
+              ]
+            },
+            {
+              "address": "https://8.8.8.8/dns-query",
+              "unexpectedIPs": [
+                "0.0.0.0/8",
+                "10.0.0.0/8",
+                "100.64.0.0/10",
+                "127.0.0.0/8",
+                "169.254.0.0/16",
+                "172.16.0.0/12",
+                "192.0.0.0/24",
+                "192.0.2.0/24",
+                "192.88.99.2/32",
+                "192.168.0.0/16",
+                "198.18.0.0/15",
+                "198.51.100.0/24",
+                "203.0.113.0/24",
+                "224.0.0.0/4",
+                "240.0.0.0/4",
+                "::/96",
+                "::ffff:0:0:0/96",
+                "64:ff9b:1::/48",
+                "100::/64",
+                "100:0:0:1::/64",
+                "2001:2::/48",
+                "2001:db8::/32",
+                "3fff::/20",
+                "5f00::/16",
+                "fc00::/7",
+                "fe00::/8",
+                "ff00::/8"
+              ]
+            },
+            {
+              "address": "tcp://1.1.1.1:53",
+              "unexpectedIPs": [
+                "0.0.0.0/8",
+                "10.0.0.0/8",
+                "100.64.0.0/10",
+                "127.0.0.0/8",
+                "169.254.0.0/16",
+                "172.16.0.0/12",
+                "192.0.0.0/24",
+                "192.0.2.0/24",
+                "192.88.99.2/32",
+                "192.168.0.0/16",
+                "198.18.0.0/15",
+                "198.51.100.0/24",
+                "203.0.113.0/24",
+                "224.0.0.0/4",
+                "240.0.0.0/4",
+                "::/96",
+                "::ffff:0:0:0/96",
+                "64:ff9b:1::/48",
+                "100::/64",
+                "100:0:0:1::/64",
+                "2001:2::/48",
+                "2001:db8::/32",
+                "3fff::/20",
+                "5f00::/16",
+                "fc00::/7",
+                "fe00::/8",
+                "ff00::/8"
+              ]
+            },
+            {
+              "address": "tcp://8.8.8.8:53",
+              "unexpectedIPs": [
+                "0.0.0.0/8",
+                "10.0.0.0/8",
+                "100.64.0.0/10",
+                "127.0.0.0/8",
+                "169.254.0.0/16",
+                "172.16.0.0/12",
+                "192.0.0.0/24",
+                "192.0.2.0/24",
+                "192.88.99.2/32",
+                "192.168.0.0/16",
+                "198.18.0.0/15",
+                "198.51.100.0/24",
+                "203.0.113.0/24",
+                "224.0.0.0/4",
+                "240.0.0.0/4",
+                "::/96",
+                "::ffff:0:0:0/96",
+                "64:ff9b:1::/48",
+                "100::/64",
+                "100:0:0:1::/64",
+                "2001:2::/48",
+                "2001:db8::/32",
+                "3fff::/20",
+                "5f00::/16",
+                "fc00::/7",
+                "fe00::/8",
+                "ff00::/8"
+              ]
+            }
+          ],
+          "enableParallelQuery": true,
+          "tag": "fongmi-xray-dns",
+          "queryStrategy": "UseIP"
+        },
+        "burstObservatory": null,
+        "transport": null,
+        "env": null,
+        "inbounds": [
+          {
+            "settings": {
+              "udp": true,
+              "auth": "noauth",
+              "ip": "127.0.0.1"
+            },
+            "protocol": "socks",
+            "port": 10808,
+            "tag": "fongmi-xray-session",
+            "listen": "127.0.0.1"
+          }
+        ],
+        "reverse": null,
+        "version": null,
+        "observatory": null,
+        "routing": {
+          "domainStrategy": "IPOnDemand",
+          "rules": [
+            {
+              "inboundTag": [
+                "fongmi-xray-dns"
+              ],
+              "type": "field",
+              "outboundTag": "fongmi-xray-proxy"
+            },
+            {
+              "inboundTag": [
+                "fongmi-xray-session"
+              ],
+              "domain": [
+                "localhost",
+                "domain:localhost",
+                "regexp:.*\\.localhost$",
+                "regexp:.*\\.local$"
+              ],
+              "type": "field",
+              "outboundTag": "fongmi-xray-private-block"
+            },
+            {
+              "inboundTag": [
+                "fongmi-xray-session"
+              ],
+              "ip": [
+                "0.0.0.0/8",
+                "10.0.0.0/8",
+                "100.64.0.0/10",
+                "127.0.0.0/8",
+                "169.254.0.0/16",
+                "172.16.0.0/12",
+                "192.0.0.0/24",
+                "192.0.2.0/24",
+                "192.88.99.2/32",
+                "192.168.0.0/16",
+                "198.18.0.0/15",
+                "198.51.100.0/24",
+                "203.0.113.0/24",
+                "224.0.0.0/4",
+                "240.0.0.0/4",
+                "::/96",
+                "::ffff:0:0:0/96",
+                "64:ff9b:1::/48",
+                "100::/64",
+                "100:0:0:1::/64",
+                "2001:2::/48",
+                "2001:db8::/32",
+                "3fff::/20",
+                "5f00::/16",
+                "fc00::/7",
+                "fe00::/8",
+                "ff00::/8"
+              ],
+              "type": "field",
+              "outboundTag": "fongmi-xray-private-block"
+            },
+            {
+              "inboundTag": [
+                "fongmi-xray-session"
+              ],
+              "type": "field",
+              "outboundTag": "fongmi-xray-proxy",
+              "network": "tcp,udp"
+            }
+          ]
+        },
+        "outbounds": [
+          {
+            "mux": null,
+            "settings": {
+              "testseed": null,
+              "address": "node.synthetic.invalid",
+              "encryption": "none",
+              "seed": "",
+              "level": 0,
+              "port": 443,
+              "testpre": 0,
+              "id": "11111111-2222-4333-8444-555555555555",
+              "vnext": null,
+              "reverse": null,
+              "email": "",
+              "flow": ""
+            },
+            "protocol": "vless",
+            "streamSettings": {
+              "wsSettings": null,
+              "address": null,
+              "httpupgradeSettings": null,
+              "method": null,
+              "realitySettings": {
+                "shortId": "0123456789abcdef",
+                "mldsa65Verify": "",
+                "show": false,
+                "serverName": "sni.synthetic.invalid",
+                "shortIds": null,
+                "publicKey": "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8",
+                "masterKeyLog": "",
+                "type": "",
+                "mldsa65Seed": "",
+                "privateKey": "",
+                "spiderX": "/synthetic/visit",
+                "password": "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8",
+                "xver": 0,
+                "minClientVer": "",
+                "serverNames": null,
+                "fingerprint": "chrome",
+                "maxClientVer": "",
+                "limitFallbackDownload": {
+                  "BurstBytesPerSec": 0,
+                  "AfterBytes": 0,
+                  "BytesPerSec": 0
+                },
+                "limitFallbackUpload": {
+                  "BurstBytesPerSec": 0,
+                  "AfterBytes": 0,
+                  "BytesPerSec": 0
+                },
+                "maxTimeDiff": 0
+              },
+              "grpcSettings": null,
+              "tlsSettings": null,
+              "hysteriaSettings": null,
+              "splithttpSettings": null,
+              "network": "xhttp",
+              "xhttpSettings": {
+                "downloadSettings": null,
+                "seqKey": "",
+                "xPaddingKey": "",
+                "seqPlacement": "",
+                "serverMaxHeaderBytes": 0,
+                "xPaddingPlacement": "",
+                "noSSEHeader": false,
+                "scMaxBufferedPosts": 0,
+                "scStreamUpServerSecs": "0",
+                "uplinkDataPlacement": "",
+                "noGRPCHeader": false,
+                "scMaxEachPostBytes": "0",
+                "mode": "packet-up",
+                "path": "/api",
+                "extra": null,
+                "host": "host.synthetic.invalid",
+                "xPaddingBytes": "0",
+                "xmux": {
+                  "hMaxReusableSecs": "0",
+                  "hKeepAlivePeriod": 0,
+                  "cMaxReuseTimes": "0",
+                  "hMaxRequestTimes": "0",
+                  "maxConcurrency": "0",
+                  "maxConnections": "0"
+                },
+                "headers": null,
+                "uplinkHTTPMethod": "",
+                "sessionIDKey": "",
+                "xPaddingObfsMode": false,
+                "xPaddingMethod": "",
+                "xPaddingHeader": "",
+                "sessionIDLength": "0",
+                "scMinPostsIntervalMs": "0",
+                "uplinkDataKey": "",
+                "sessionIDTable": "",
+                "sessionIDPlacement": "",
+                "uplinkChunkSize": "0"
+              },
+              "kcpSettings": null,
+              "tcpSettings": null,
+              "security": "reality",
+              "rawSettings": null,
+              "sockopt": null,
+              "port": 0,
+              "finalmask": null
+            },
+            "proxySettings": null,
+            "tag": "fongmi-xray-proxy",
+            "targetStrategy": "ForceIP"
+          },
+          {
+            "settings": {},
+            "protocol": "blackhole",
+            "tag": "fongmi-xray-private-block"
+          }
+        ],
+        "stats": null,
+        "api": null,
+        "metrics": null,
+        "geodata": null,
+        "policy": null
+      }
+    }
+  ],
+  "validation": [
+    {
+      "id": "real-shape-trojan",
+      "response": {
+        "success": true,
+        "data": {},
+        "error": ""
+      }
+    },
+    {
+      "id": "real-shape-hy2",
+      "response": {
+        "success": true,
+        "data": {},
+        "error": ""
+      }
+    },
+    {
+      "id": "real-shape-vmess",
+      "response": {
+        "success": true,
+        "data": {},
+        "error": ""
+      }
+    },
+    {
+      "id": "real-shape-grpc",
+      "response": {
+        "success": true,
+        "data": {},
+        "error": ""
+      }
+    },
+    {
+      "id": "real-shape-xhttp",
+      "response": {
+        "success": true,
+        "data": {},
+        "error": ""
+      }
+    }
+  ]
+}

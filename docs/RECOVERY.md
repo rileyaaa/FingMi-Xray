@@ -1112,3 +1112,9 @@ Invoke 无 cancel 方法；没有引入猜测的 native 抢占取消或实例替
 - `scripts/test-v2rayn-share-chain.py`：13/13 经当前 `:xray` normalizer/security/bridge/config factory → 发布 v7 native converter → 发布 `testXray`，冻结 `published-v7.json`；仅证书探测 I/O 与 pin 存储为测试替身。
 - 覆盖 VMess KCP none/path seed（含 IPv4）、gRPC Reality gun、XHTTP Reality packet-up、HY2 mixed mport（校验证书/TOFU+salamander）、Trojan WS TLS safari；五组均覆盖 domain/IPv6。保留协议 hostname、百分号及 query；HY2 probe 取1000，配置端口443、完整 udpHop ports 和 interval默认值0分别验证。
 - 当前生产代码无需修改；本组完成后冻结 converter，不重跑327矩阵。此回归不等于真实节点连接、ART/Keystore 或播放验收；节点 DNS 真实 dial 路径另行确认。
+
+### 原始导出输入与独立 reference 对照（2026-09-27）
+
+- 用户补充的5条原始分享链接仅在临时目录执行，原始输入/响应未持久化到仓库；另保存结构等价的 `real-shape-inputs.json`（含 VMess 空host、空tls但fp=safari、HY2 IPv6单range、WS内层query）。未取得实际 v2rayN 版本号，不把当前 exporter SHA 冒充这些历史字符串的 exact exporter version。
+- `test-v2rayn-reference-chain.py` 分离 raw published JNI、冻结 `recovery/legacy-src` normalize/security → published JNI、reference runtime、当前 `:xray` runtime，并逐层比较；真实5/5、synthetic5/5及独立冻结回放通过。Java reference 为此前 DEX 核对的 reconstructed behavior，非 ART 真执行；证书探测/存储仍是 synthetic 边界。
+- 新 `published-v7-reference.json` 的 expected 从冻结 reference 与真实发布JNI取得，不由当前模块产生。关键实测：HY2原始mport输入直接交 native 失败，经reference normalizer/security后成功；其余4条raw转换成功。最终5条均通过发布 `testXray`。当前实现无需修改，保留既有13-case，converter冻结。
