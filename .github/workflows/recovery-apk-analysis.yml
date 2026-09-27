@@ -21,10 +21,10 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Set up Java
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v6
         with:
           distribution: temurin
           java-version: "21"
@@ -207,7 +207,7 @@ jobs:
 
       - name: Upload v7 full JADX evidence
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: fingmi-v7-jadx-v5.6.0-xray.5
           path: recovery/evidence/jadx-v7
@@ -216,7 +216,7 @@ jobs:
 
       - name: Upload dual-ABI DEX and smali evidence
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: fingmi-v7-v8-dex-smali-v5.6.0-xray.5
           path: |
