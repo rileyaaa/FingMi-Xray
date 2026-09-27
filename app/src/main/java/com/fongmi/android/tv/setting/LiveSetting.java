@@ -1,5 +1,7 @@
 package com.fongmi.android.tv.setting;
 
+import com.fongmi.android.tv.utils.RuntimeCompat;
+
 import com.github.catvod.utils.Prefers;
 
 public class LiveSetting {
@@ -37,10 +39,10 @@ public class LiveSetting {
     }
 
     public static int getScale() {
-        return Math.clamp(Prefers.getInt("scale_live", PlayerSetting.getScale()), PlayerSetting.MIN_SCALE, PlayerSetting.MAX_SCALE);
+        return RuntimeCompat.clamp(Prefers.getInt("scale_live", PlayerSetting.getScale()), PlayerSetting.MIN_SCALE, PlayerSetting.MAX_SCALE);
     }
 
     public static void putScale(int scale) {
-        Prefers.put("scale_live", Math.clamp(scale, PlayerSetting.MIN_SCALE, PlayerSetting.MAX_SCALE));
+        Prefers.put("scale_live", RuntimeCompat.clamp(scale, PlayerSetting.MIN_SCALE, PlayerSetting.MAX_SCALE));
     }
 }
