@@ -1,340 +1,294 @@
 # FingMi-Xray 开发与维护
 
-本文是当前 main、模块化 Xray、5.6.3 上游适配、构建验证和工程协作的唯一主文档。
+本文面向继续维护当前 `main` 的开发者，说明**当前工程基线、模块接线、构建依赖、上游同步方式和验证规则**。
 
-v5.6.0 发布版 faithful 事实只维护在 [RECOVERY.md](RECOVERY.md)；长期产品边界只维护在 [PROJECT.md](PROJECT.md)。
+发布版 `v5.6.0-xray.5` 的恢复证据见 [RECOVERY.md](RECOVERY.md)；长期架构边界见 [PROJECT.md](PROJECT.md)。
 
 ## 1. 当前工程基线
 
-当前 main 已从固定 FongMi/TV 5.6.0 基线升级到 FongMi/TV 5.6.3：
+当前应用基于 FongMi/TV 5.6.3：
 
-- 5.6.0 基线 commit：1a19fee278fa2234da725d61a53bf59b69fe9127
-- 5.6.3 目标 commit：4afc4473e22a7ed3d98ee12233e0c2a490061000
-- 上游升级主提交：2916f06d777ca34c3e7344db891c06ad078dc674
+- 上游目标 commit：`4afc4473e22a7ed3d98ee12233e0c2a490061000`
+- app `versionCode`：`563`
+- app `versionName`：`5.6.3`
+- Java：21
+- Gradle wrapper：9.7.1
+- Android Gradle Plugin：9.3.1
+- `compileSdk` / `targetSdk`：37
+- `minSdk`：24
 
-当前 main 不是“原版 5.6.0 faithful 源码目录的直接继续开发”，而是升级后的普通工程。faithful 5.6.0 仍由 recovery/legacy-src 独立维护。
+当前 main 是面向后续开发的重构工程；`recovery/legacy-src/` 则保留 5.6.0 faithful 恢复，两者用途不同。
 
-## 2. 当前架构已经接到什么程度
+## 2. Gradle 模块
 
-### :xray
+`settings.gradle` 中的主要模块：
 
-当前 app 已依赖独立 :xray Android library。模块持有：
+| 模块 | 职责 |
+| --- | --- |
+| `:app` | FongMi/TV 应用、VOD / Live、播放器、UI 与项目接线 |
+| `:catvod` | Spider 与普通网络基础 |
+| `:chaquo` | Python / Chaquopy 相关能力 |
+| `:quickjs` | QuickJS 相关能力 |
+| `:libxray` | 本地 `libXray.aar` 依赖容器 |
+| `:xray` | 模块化 Xray 实现 |
 
-- libXray bridge；
-- config / share-link / certificate；
-- Service / Binder；
-- generation / operation；
-- XrayPlaybackSession / XraySessionController；
-- SOCKS HTTP / SocketFactory；
-- public destination guard；
-- 设置控制。
+`:app` 直接依赖 `:xray`，`:xray` 再依赖 `:libxray`。这样可以把 Xray 的 Service、配置与网络资源从 FongMi 业务代码中分离。
 
-当前模块已经进入真实普通工程，不再是最初的空壳。
+## 3. 当前 Xray 接线
 
-### 播放链
+### `:xray`
 
-当前 Leanback VideoActivity 和 LiveActivity 已直接创建 XrayPlaybackSession。
+当前模块源码位于 `xray/src/main/`，主要分为：
 
-现有接线包括：
+- `config/`：配置、显示与分享链接归一化；
+- `core/`：`LibXrayBridge`；
+- `network/`：SOCKS HTTP client、RTSP SocketFactory、destination guard；
+- `security/`：证书 pin 与分享链接安全存储；
+- `service/`：私有 `XrayService`、operation / generation；
+- `session/`：Service client、播放会话、设置控制；
+- `util/`：错误去敏。
 
-- VOD / Live playback identity；
-- 用户手动开启 / 关闭；
-- 切集、切台、换地址等 identity 变化；
-- PlayerManager 的 playback proxy 切换；
-- ExoPlayerSession 的 proxy 注入；
-- ExoMediaSourceFactory 的媒体 / DRM / RTSP 网络适配；
-- Live EPG / XML metadata 跟随当前 Xray client；
-- artwork / logo 的网络身份处理。
+Manifest 中的 `XrayService`：
 
-因此旧文档中“普通播放器主链尚未接 Xray”的描述已经失效。
+- `android:exported="false"`
+- `android:process=":xray"`
 
-但这仍不等于“正式模块迁移完成”。原因是：
+### VOD / Live
 
-- 当前模块 Binder descriptor 与 v5.6.0 faithful descriptor 不同；
-- 当前模块实现经历过重构和上游适配，仍需用 faithful 行为基准做真机回归；
-- 当前 5.6.3 只完成 compile / assemble，没有完成 Xray / DRM / RTSP / Binder race 的 TV 运行验收。
+Leanback `VideoActivity` 和 `LiveActivity` 直接持有 `XrayPlaybackSession`。
 
-### TV 网络恢复
+Activity 负责：
 
-TV 网络恢复继续留在 app / catvod，不迁入 :xray。
+- 建立当前播放 identity；
+- 响应用户开启 / 关闭 Xray；
+- 在切集、切台、换源等身份变化时结束旧会话；
+- 把新的 `XrayHttpClient` 交给播放器；
+- 在 Activity 销毁时关闭 session。
 
-当前普通工程已经保留：
+业务页面只决定“当前是什么播放身份”，不实现 Xray Core 细节。
 
-- Home 生命周期接入；
-- BaseLoader / SiteViewModel 的代际失效；
-- TvNetworkLifecycle / coordinator；
-- OkHttp / OkDns 重建 hook；
-- Leanback DLNA renderer 生命周期。
+### 播放器
 
-为避免 mobile flavor 引用 Leanback-only DLNARendererService，当前通过 flavor-specific TvDlnaLifecycle 隔离：
+`PlayerManager` 通过 `setPlaybackProxy(...)` 切换当前播放网络资源。
 
-- Leanback 实际 start / stop renderer；
+启用 Xray 后：
+
+- 预加载不会复用普通直连身份；
+- Exo engine 按当前 proxy 边界重建；
+- `ExoMediaSourceFactory` 的 HTTP / HTTPS 使用 Xray client；
+- DRM license 跟随相同 DataSource；
+- RTSP / RTSPT 使用 Xray SocketFactory；
+- Xray 播放 DataSource 不允许用本地 / 非 HTTP(S) scheme 静默绕过当前会话。
+
+关闭或切换身份后，播放器重新回到普通 FongMi 网络资源。
+
+## 4. TV 网络恢复
+
+TV 网络恢复没有放进 `:xray`。
+
+主要入口：
+
+- `app/src/main/java/com/fongmi/android/tv/network/TvNetworkLifecycle.java`
+- `app/src/main/java/com/fongmi/android/tv/network/NetworkRecoveryCoordinator.java`
+
+`TvNetworkLifecycle` 负责生成前后台 / screen 网络代际；`NetworkRecoveryCoordinator` 每个需要恢复的 generation 执行一次普通网络重建：
+
+1. 取消旧业务请求；
+2. 重建 API / DNS；
+3. 清理 Spider；
+4. 等待网络稳定；
+5. 刷新 Home。
+
+DLNA 生命周期使用 flavor-specific `TvDlnaLifecycle`：
+
+- Leanback 实际启停 DLNA renderer；
 - Mobile 为 no-op。
 
-这项修改只解决 flavor 编译边界，不改变 mobile 运行语义。
+因此 Mobile 不需要依赖 Leanback-only 的 DLNA Service。
 
-## 3. 5.6.3 上游合并
+## 5. 当前媒体兼容层
 
-升级时对目标上游变更做逐文件三方合并：
+FongMi/TV 5.6.3 对 Media3 / MPV 的调用面比恢复时固定的部分播放器二进制更新。仓库没有用 compile-only 空壳掩盖差异，而是保留明确的 compatibility layer。
 
-- 目标上游共有 114 个相关变更路径；
-- 9 个文本冲突被按 5.6.3 API 化解；
-- 97 个路径最终与目标上游字节一致；
-- 17 个路径保留项目适配；
-- :xray 在上游升级提交中修改 0 个文件。
+### Media3 / Libass
 
-主要冲突集中在：
+当前构建流程固定一组 FongMi/media AAR 输入，再通过仓库中的源码和补丁重建 5.6.3 所需的 Libass compatibility AAR。
 
-- PlayerManager；
-- PlayerEngineFactory；
-- ExoMediaSourceFactory；
-- ExoPlayerEngine；
-- ExoPlayerSession；
-- PlaybackActivity；
-- Download；
-- mobile ConfigDialog / LinkDialog。
+主要材料：
 
-上游带来的播放器变化包括 Libass 双字幕、播放器重建判定和 Download 取消流程。项目适配同时保留当前会话 Xray 网络资源与 TV 网络恢复。
+- `recovery/media3-libass/`
+- `recovery/libass-tests/`
+- `scripts/build-libass-extractor.py`
+- `scripts/build-libass-candidate.py`
+- `scripts/check-libass-contract.py`
+- `scripts/import-libass-candidate.py`
 
-该次升级证明 :xray 能在较新的上游下保持相对稳定，但它还不是 PROJECT.md 所定义的最终模块化验收，因为 faithful 5.6.0 的真机基准尚未闭环。
+恢复 / 适配范围包括：
 
-## 4. 5.6.3 媒体兼容层
+- native loader；
+- Matroska / ASS extractor hook；
+- primary / secondary subtitle 状态；
+- parser 与 playback session；
+- clock / renderer；
+- EGL / GLES frame 生命周期；
+- PlayerView controller；
+- subtitle sample timestamp。
 
-### Libass
+固定 candidate 与相关 AAR 的具体 SHA 由 `current-main-build.yml` 和 recovery fixture 保存；构建时按 hash 校验，不在本文重复维护另一份容易过期的 pin 表。
 
-固定 player candidate：
+### app adapter
 
-- artifact：10859533459
-- SHA-256：0ed42581af11ac7163ebde148b318807c244e2a318f40c41d33f50b70bf967ee
+当前 app 还包含 FongMi 5.6.3 调用面需要的少量 adapter，例如：
 
-该候选缺少 5.6.3 app 所需的新 Libass / SecondaryText API，因此不能直接完成 5.6.3 构建。
+- `LibassFontFile`
+- `DanmakuPlayerViewController`
 
-当前工程使用可重复重建的 Libass compatibility candidate：
-
-- Libass candidate SHA-256：2318eb904a016d0160aed2a4b7de8501578cd0f223c65e5c61086f7a9a80f573
-- extractor compatibility AAR SHA-256：feb8be30e3d431391ce4b3b165a6cbfb18313969d7ba7da2d6ccfeb96d25ee68
-- media3-container 1.11.0 被固定作为缺失依赖；
-- 新版 JNI 使用相邻发布版已验证的 v7 / arm64 SO；
-- 源码、class、JNI、AAR 输入均有固定哈希和 contract gate。
-
-已经重建并测试的范围包括：
-
-- Libass native loader；
-- library / track 所有权；
-- primary / secondary frame；
-- media / preload 状态；
-- parser / extractor；
-- playback session / clock；
-- subtitle controller；
-- PlayerView / EGL 所有权；
-- GLES 组合与失败清理；
-- Matroska attachment / ASS timing。
-
-这些测试包含 JVM / Robolectric、QEMU/JNI 和 headless rendering 等多种证据，但仍不等于 Android TV 实际 EGL / GPU / 字幕显示验收。
-
-### app 侧缺失适配
-
-真实 Gradle 编译进一步暴露并修正：
-
-- LibassFontFile；
-- DanmakuPlayerViewController。
-
-这两个类是 5.6.3 app 对 Media3 / FongMi 扩展 API 的适配边界，不用 compile-only stub 替代真实调用。
+这些是当前 app 与固定媒体依赖之间的兼容边界。
 
 ### MPV
 
-5.6.3 app 使用的部分 secondary subtitle / font API 新于固定 MPV AAR。
+固定 MPV AAR 缺少 5.6.3 app 使用的部分 secondary subtitle / font 新接口。
 
-当前 MpvPlayerEngine / MpvUtil 通过固定 AAR 已有能力做兼容映射，包括：
+`MpvPlayerEngine` / `MpvUtil` 通过固定二进制已有能力做映射，包括 secondary subtitle 与 MPV config option。它是一层兼容桥，不应描述成“已经恢复了一个不存在的新版 MPV 二进制”。
 
-- MpvSubtitleOptions.Builder.setSecondarySubtitle；
-- MPV config string option；
-- 本地 secondary selection 状态。
+## 6. 二进制依赖
 
-这是一层兼容桥，不代表缺失的更新版 MPV 二进制已经被逐字节恢复。
+大型 AAR / APK / SO 不作为普通源码直接提交。
 
-### 其他编译边界
+当前可重复构建依赖以下几类输入：
 
-本轮 5.6.3 构建还修正了：
+- 固定 FongMi/media player candidate；
+- 从正式 `v5.6.0-xray.5` APK 恢复的 FFmpeg JNI；
+- 官方 libXray AAR + 正式 APK 中恢复的 Go JNI；
+- 按固定输入重建的 Libass compatibility AAR。
 
-- QuickJS crypto 集成；
-- Chaquo ABI packaging；
-- Libass extractor / candidate pin；
-- flavor-specific DLNA 生命周期。
+`current-main-build.yml` 会下载、校验、恢复并导入这些依赖，再进行 Java 编译和 APK assemble。
 
-这些结论已经落到当前 main，不再按每个 commit 另写时间线。
+相关脚本集中在 `scripts/`。修改任何二进制来源或 hash 时，必须同步修改对应验证脚本 / workflow，不能只把一个新 AAR 丢进 `app/libs`。
 
-## 5. 当前 5.6.3 构建基准
+## 7. 构建
 
-GitHub Actions run 36301217767：
+### GitHub Actions
 
-- 源码 commit：7e2111a2d14b04e034eae3cf83c456659586a799
-- JDK：21
-- Android SDK：37
-- Gradle：9.7.1
-- Leanback / Mobile Java 编译通过；
-- Leanback / Mobile Debug assemble 通过。
+仓库所有可执行 workflow 都必须保持**纯手动**：
 
-产物 SHA-256：
+```yaml
+on:
+  workflow_dispatch:
+```
 
-| 产物 | SHA-256 |
-| --- | --- |
-| Leanback armeabi-v7a | 409415aeced5428f2ea0df0df7cfe6f807a2918494a68ba2fc61b62c9081d3a3 |
-| Leanback arm64-v8a | 949e19a65f1d4006fae9f181d359afa72806337a389bb5d8167d0a0dc1ca2f8c |
-| Mobile armeabi-v7a | 7daec34e1c6cbcf35cd7bbaaaf2eaa13866bd0101c4f598a842336610ed8e9f6 |
-| Mobile arm64-v8a | 9be80c47032b23c872f4b8beaca9d557bde3fe05b19d6d2ea03940050f0f60e8 |
+不保留 `push`、`pull_request`、`schedule`、`workflow_call` 等自动触发。
 
-Actions artifact：
+当前工程主构建：
 
-- id：10925572471
-- name：fingmi-xray-5.6.3-current-main-debug
-- digest：sha256:9702b6ee9230fd839e9fc025a02eebc5e4822a39b0449d292d87ecc02d4be2d0
+`.github/workflows/current-main-build.yml`
 
-这组结果证明的是当前 main Debug compile / assemble。它不证明：
+它负责：
 
-- 正式 release signing；
-- v5.6.0 faithful 行为一致；
-- Android TV Xray 播放运行正确；
-- Libass 真机 EGL / GPU 输出正确；
-- MPV secondary subtitle 兼容映射在真机完整通过；
-- TV 长后台恢复已经在真实设备验证。
+1. 准备 JDK / Android SDK；
+2. 下载并校验固定媒体输入；
+3. 恢复 FFmpeg / libXray native；
+4. 重建并导入 Libass compatibility AAR；
+5. 编译 Leanback / Mobile Java；
+6. assemble Leanback / Mobile Debug APK；
+7. 上传 APK 与构建说明 artifact。
 
-## 6. 测试发布
+测试发布器：
 
-仓库已准备 .github/workflows/publish-current-main-test-release.yml。
+`.github/workflows/publish-current-main-test-release.yml`
 
-该 workflow：
+它是一个**固定输入的测试发布 workflow**，不是通用 release 脚本。更换测试基线时，应先更新 YAML 中的 build pin、APK hash 和 tag，再手动执行。
 
-- 只允许 workflow_dispatch；
-- 固定使用 run 36301217767 和 artifact 10925572471；
-- 先核成功 run、artifact digest 和 Leanback APK SHA；
-- 只上传 Android TV / Leanback 的 v7 与 arm64；
-- 目标 tag 为 v5.6.3-xray.test.1；
-- 创建 Pre-release；
-- 不替换正式 Latest v5.6.0-xray.5；
-- 不重新编译 APK。
+发布版恢复相关 workflow 由 [RECOVERY.md](RECOVERY.md) 说明。
 
-测试 Pre-release 已于 2026-09-27 通过手动 run 36303614722 成功发布。Release tag 为 v5.6.3-xray.test.1，包含 Leanback armeabi-v7a 与 arm64-v8a 两个 APK；两份 Release asset 的 SHA-256 与第 5 节固定构建产物一致。该 Release 为 Pre-release，正式 Latest 仍为 v5.6.0-xray.5。
+### 本地
 
-## 7. 当前运行验证重点
+直接运行 Gradle 前，需要先准备 `app/libs` 与 `libxray/libs/libXray.aar` 所需的固定依赖。最完整的依赖准备顺序以 `current-main-build.yml` 为准。
 
-当前 5.6.3 main 下一阶段重点是真机，而不是继续增加静态门。
+完成依赖准备后，主要验证命令为：
 
-Android TV 至少应覆盖：
+```bash
+./gradlew --no-daemon :app:compileLeanbackDebugJavaWithJavac
+./gradlew --no-daemon :app:compileMobileDebugJavaWithJavac
+./gradlew --no-daemon :app:assembleLeanbackDebug :app:assembleMobileDebug
+```
 
-- 安装 / 启动；
-- 节点保存、测试、手机导入；
-- VOD 手动开启 / 关闭 Xray；
-- Live 手动开启 / 关闭 Xray；
-- 切集、自动下一集、切频道、换源、换线路；
+## 8. 跟随 FongMi/TV 上游
+
+升级上游时不要从 recovery faithful tree 直接继续开发。
+
+建议流程：
+
+1. 固定目标 FongMi/TV commit；
+2. 比较当前 main 与目标上游；
+3. 以上游新代码为主体合并；
+4. 只重新应用 FingMi-Xray 必需的 adapter；
+5. `:xray` 除非模块 API 本身需要变化，否则尽量不动；
+6. 重新核对 VOD / Live identity 边界；
+7. 重新核对 PlayerManager、Exo / MPV、DRM、RTSP 与媒体旁路；
+8. 重新核对 TV 网络 generation / DLNA；
+9. 执行当前构建 workflow；
+10. 再进行 Android TV 运行回归。
+
+如果上游改变了播放器 API，优先新增小型适配层，不把上游大块代码复制进 `:xray`。
+
+## 9. 验证清单
+
+影响 Xray / 播放器 / 网络生命周期的修改，至少考虑以下场景：
+
+### Xray 基础
+
+- 节点保存、删除、测试；
+- 手机导入；
+- VOD 开启 / 关闭；
+- Live 开启 / 关闭；
+- Xray 启动失败后的直连恢复；
+- Service disconnect / Binder death / stale callback。
+
+### 播放身份
+
+- 切集与自动下一集；
+- 切频道；
+- 换线路 / 换源；
+- 实际播放地址变化；
 - 换播放器；
+- Activity 退出 / 销毁。
+
+### 媒体网络
+
 - HTTP / HTTPS；
 - DRM；
 - RTSP / RTSPT；
 - subtitle / danmaku；
-- Libass primary / secondary 字幕；
-- MPV secondary subtitle / font；
 - EPG / XML metadata；
-- Xray 启动失败后的直连恢复；
-- Binder / Service 异常；
-- 长后台、待机、SCREEN_ON/OFF 与网络恢复；
+- artwork / logo；
+- preload / cache 边界。
+
+### 播放器兼容
+
+- Libass primary / secondary subtitle；
+- Matroska ASS attachment；
+- EGL / GLES 渲染生命周期；
+- MPV secondary subtitle / font；
+- Exo / MPV 切换。
+
+### TV 生命周期
+
+- 长后台恢复；
+- SCREEN_OFF / SCREEN_ON；
+- Fast Start / 待机恢复；
+- DNS / DoH 重建；
+- Spider 重建；
 - DLNA renderer 生命周期。
 
-发现行为与 v5.6.0 faithful 基准冲突时，先判断是上游变化、兼容层问题还是模块化偏差，不直接用 current main 反向修改 faithful 事实。
+静态比较、单元测试、Gradle 编译、APK assemble 与真机运行是不同层级的证据，提交说明和文档必须准确写明实际验证到了哪一层。
 
-## 8. GitHub Actions 规则
+## 10. 文档维护
 
-仓库所有可执行 workflow 都必须保持纯手动 workflow_dispatch。
+- 项目架构变化：修改 `PROJECT.md`；
+- 当前源码结构、构建或上游维护方式变化：修改本文；
+- 对旧发布版行为的新证据：修改 `RECOVERY.md`；
+- 新增 / 删除反编译文本证据：修改 `apk-reference/README.md`；
+- `ORIGINAL_README.md` 保持冻结。
 
-当前 workflow：
-
-| Workflow | 用途 |
-| --- | --- |
-| current-main-build.yml | 构建当前 5.6.3 main |
-| publish-current-main-test-release.yml | 发布固定 5.6.3 TV 测试 Pre-release |
-| recovery-apk-analysis.yml | 分析正式 APK |
-| recovery-player-aars.yml | 构建固定 FongMi Media3 候选 AAR |
-| recovery-restore-ffmpegjni.yml | 准备 faithful native dependencies |
-| recovery-build.yml | 构建 v5.6.0 faithful TV APK |
-| recovery-upstream-snapshot.yml | 获取固定 5.6.0 上游快照 |
-
-不得保留：
-
-- push；
-- pull_request；
-- schedule；
-- workflow_call；
-- 其他会因为代码提交或外部事件自动运行的触发器。
-
-手动执行 workflow 已获得项目所有者授权，但“workflow 文件存在”“YAML 正确”“历史 run 成功”都不等于当前 HEAD 已实际运行。
-
-## 9. 工程工作规则
-
-### main 是当前工程真相
-
-开始工作时：
-
-1. 读取最新 main；
-2. 读取与任务对应的主文档；
-3. 查看最近相关 commits；
-4. 再进入具体代码和测试。
-
-旧聊天、旧总结和模型记忆只作为线索，不能覆盖仓库新状态。
-
-### 小步提交
-
-确定的代码修改应及时落到 main。每个提交保持单一目的，避免几十个无关变化一次堆积。
-
-### 区分验证级别
-
-必须明确区分：
-
-- 源码静态比较；
-- DEX / ELF 证据；
-- JVM / Python / Robolectric 测试；
-- Gradle Java 编译；
-- APK assemble；
-- Android TV 真机运行。
-
-低级别证据不能被写成更高级别验收。
-
-### 文档不是提交日志
-
-Git 历史负责回答“什么时候改了什么”。
-
-主文档只回答：
-
-- 现在是什么状态；
-- 为什么可以这么判断；
-- 哪个证据可以复核；
-- 哪些范围还没有验证；
-- 下一步是什么。
-
-文档职责固定为：
-
-- PROJECT.md：长期目标与边界；
-- RECOVERY.md：v5.6.0 faithful；
-- DEVELOPMENT.md：当前工程与开发；
-- apk-reference/：反编译证据；
-- ORIGINAL_README.md：冻结的原发布说明。
-
-同一个详细事实只在一个主文档维护，其余位置只保留必要摘要和链接。
-
-## 10. 接手顺序
-
-继续 v5.6.0 恢复：
-
-1. README.md
-2. docs/PROJECT.md
-3. docs/RECOVERY.md
-4. 最近相关 commits
-5. 具体恢复源码 / evidence
-
-继续当前 main、模块化或 5.6.3 开发：
-
-1. README.md
-2. docs/PROJECT.md
-3. docs/DEVELOPMENT.md
-4. 涉及发布行为时再查 docs/RECOVERY.md
-5. 最近相关 commits
-6. 具体源码
+Git 历史负责记录“哪一次提交做了什么”。长期文档只描述仍然有效的结构、规则与可复核事实，不保存逐次调试流水账。

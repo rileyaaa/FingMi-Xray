@@ -1,71 +1,58 @@
 # FingMi-Xray
 
-FingMi-Xray 是基于 FongMi/TV 的 Android TV 二次开发项目。项目长期保留两项能力：按当前播放会话启用 Xray，以及电视长后台 / 待机后的网络恢复。
+FingMi-Xray 是基于 [FongMi/TV](https://github.com/FongMi/TV) 的 Android TV 二次开发项目。
 
-当前仓库同时维护两条互不替代的验证线：
+项目主要面向一种很具体的播放场景：**影视接口、节目单和播放地址本身可以正常获取，但部分港澳台、海外或跨境媒体线路在当前网络环境下直连质量较差。**
 
-- 发布版恢复线：恢复并验证已发布的 v5.6.0-xray.5；
-- 当前开发线：维护已经升级到 FongMi/TV 5.6.3 的 main，并继续验证模块化 Xray、播放器和电视网络恢复。
+FingMi-Xray 将 Xray 集成到播放器内部。遇到这类内容时，可以只为**当前正在播放的媒体会话**临时启用 Xray，而不需要给整台电视建立系统 VPN，也不要求路由器长期运行代理。
 
-两条线可以并行推进，但 current main 能编译并不代表 v5.6.0 faithful 恢复已经验收；同样，faithful 恢复完成也不自动证明 5.6.3 的真机运行没有回退。
+## 核心设计
 
-## 当前状态
+- **默认直连**：首页、搜索、详情、普通接口等仍使用 FongMi 原有网络。
+- **按需开启**：只有用户在当前播放中手动开启 Xray，当前媒体连接才进入 Xray。
+- **会话隔离**：切集、切频道、换源、换地址或换播放器后，新播放默认重新直连。
+- **非全局代理**：不使用 Android `VpnService`，不接管其他应用或整台设备的网络。
+- **独立进程**：Xray Core 运行在应用自己的 `:xray` 私有进程中，会话结束后收口相关网络与运行资源。
+- **电视网络恢复**：另外保留针对部分 Android TV 长后台、待机或 Fast Start 后旧连接失效的网络恢复逻辑；这项能力与 Xray 播放代理彼此独立。
 
-### v5.6.0-xray.5 发布版恢复
+实际使用原则很简单：**直连正常就直接播放；直连卡顿时再尝试 Xray；开启后不适合当前线路就关闭。**
 
-已经完成的核心工作包括：
+## Xray 节点
 
-- 固定两份正式 APK、FongMi/TV 5.6.0 上游和 libXray 版本；
-- 保存与恢复直接相关的 APK / JADX / DEX 文本证据；
-- 恢复 Xray Service、Binder、会话生命周期、播放器接线、设置、安全、手机导入和 TV 网络恢复的主要 faithful 源码；
-- 恢复并校验发布版 FFmpeg JNI 和 libXray Go JNI；
-- 建立固定来源、固定哈希的播放器 AAR 与 native 依赖门；
-- 对发布版 libXray 的分享链接转换、API v2、证书探测、age、生命周期和多项边界行为建立可重复验证证据。
+设置页支持保存和测试 Xray 分享链接，也可以在同一局域网内通过手机向电视导入较长的分享链接。
 
-尚未完成：
+主要兼容：
 
-- 手动生成受来源约束的云端 faithful native dependency artifact；
-- 完成独立的 v5.6.0 faithful Gradle 构建；
-- 完成 Android TV v7 真机回归；
-- 完成 v8 构建 / ABI 最终验收。
+- VLESS
+- VMess
+- Trojan
+- Shadowsocks
+- Hysteria2 / hy2
 
-详细状态只维护在 [docs/RECOVERY.md](docs/RECOVERY.md)。
+兼容目标以常见单节点分享格式为主。不同客户端生成的非标准链接可能存在差异。
 
-### 当前 5.6.3 main
+## 重构后的结构
 
-当前 main 已完成 FongMi/TV 5.6.3 合并，并保留 Xray 播放会话接线与 TV 网络恢复。
+早期版本的 Xray 逻辑与 FongMi 播放代码耦合较深。源码恢复后，仓库重新整理了职责边界：
 
-GitHub Actions run 36301217767 已通过：
+- `:xray`：Xray 配置、Service / Binder、会话控制、SOCKS 网络资源与安全逻辑；
+- `:libxray`：Android 侧 `libXray.aar` 依赖入口；
+- `:app`：FongMi 的 VOD / Live 播放身份、播放器与 UI 接线；
+- `:catvod`：普通业务网络、DNS / DoH 与 Spider；
+- `recovery/`：发布版恢复、反编译验证和兼容性测试材料。
 
-- Leanback Debug Java 编译；
-- Mobile Debug Java 编译；
-- Leanback v7 / arm64 APK assemble；
-- Mobile v7 / arm64 APK assemble。
+这样做的目的，是让项目自己的能力尽量集中在稳定边界内，减少后续跟随 FongMi/TV 上游升级时的侵入式修改。
 
-这证明当前工程构建链已经闭环，但仍未完成 Android TV 真机运行验收。
+## 文档
 
-已验证构建的 Leanback v7 / arm64 APK 已通过手动工作流发布为测试 Pre-release v5.6.3-xray.test.1。该测试发布不会替换正式 Latest，当前正式 Latest 仍为 v5.6.0-xray.5。
+- [PROJECT.md](docs/PROJECT.md)：项目设计、职责边界与长期架构约束。
+- [DEVELOPMENT.md](docs/DEVELOPMENT.md)：当前源码结构、构建方式、上游同步和开发维护说明。
+- [RECOVERY.md](docs/RECOVERY.md)：`v5.6.0-xray.5` 发布版源码恢复与可复核证据。
+- [apk-reference](docs/apk-reference/README.md)：正式 APK 反编译文本证据索引。
+- [ORIGINAL_README.md](docs/ORIGINAL_README.md)：冻结保存的原 `v5.6.0-xray.5` 发布说明。
 
-当前工程、上游适配和构建记录只维护在 [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md)。
+## 说明
 
-## 文档分工
+本项目不提供影视资源、点播源、直播源、Spider、第三方 Jar、Xray 节点、代理订阅或代理网络服务。用户自行导入的第三方资源由相应提供方负责，请自行判断其合法性、安全性和可用性，并遵守所在地法律法规。
 
-| 文档 | 唯一职责 |
-| --- | --- |
-| [docs/PROJECT.md](docs/PROJECT.md) | 长期产品目标、架构边界、验收原则 |
-| [docs/ORIGINAL_README.md](docs/ORIGINAL_README.md) | 冻结的 v5.6.0-xray.5 原始发布说明，不随开发改写 |
-| [docs/RECOVERY.md](docs/RECOVERY.md) | v5.6.0 faithful 恢复事实、证据、依赖、构建门和回归门 |
-| [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) | 当前 main、模块化、5.6.3 上游适配、工程规则和运行验证 |
-| [docs/apk-reference/README.md](docs/apk-reference/README.md) | 发布 APK 反编译证据索引 |
-
-Git 提交历史负责时间线。主文档只保留当前有效结论，不按提交顺序重复记录过程。
-
-## GitHub Actions
-
-仓库中的所有可执行 workflow 都只允许手动 workflow_dispatch。不会因 push、pull_request、schedule 或 workflow_call 自动触发。
-
-需要执行恢复、构建、分析或测试发布时，由维护者在 Actions 页面明确选择对应 workflow。
-
-## 许可证
-
-第三方项目分别遵循其自身许可证。仓库许可证见 [LICENSE.md](LICENSE.md)。
+FongMi/TV、XTLS/libXray、Xray-core 以及其他第三方代码分别遵循其自身许可证。仓库许可证见 [LICENSE.md](LICENSE.md)。
