@@ -14,7 +14,8 @@ def main():
   with ZipFile(io.BytesIO(bundle.read('lib-common-release.aar'))) as aar:(work/'jars/lib-common-release.jar').write_bytes(aar.read('classes.jar'))
  tests=work/'tests/androidx/media3/exoplayer/libass';tests.mkdir(parents=True,exist_ok=True)
  shutil.copyfile(ROOT/'recovery/libass-tests/java/androidx/media3/exoplayer/libass/LibassNative.java',tests/'LibassNative.java')
- shutil.copyfile(ROOT/'recovery/libass-tests/media/src/test/java/androidx/media3/exoplayer/libass/LibassMediaStateTest.java',tests/'LibassMediaStateTest.java')
+ for test in (ROOT/'recovery/libass-tests/media/src/test/java/androidx/media3/exoplayer/libass').glob('*Test.java'):
+  shutil.copyfile(test,tests/test.name)
  cmd=[str(Path(a.maven).resolve()),'-B','-f',str(ROOT/'recovery/libass-tests/media/pom.xml'),'-Dlibass.work='+str(work),'-Drecovery.root='+str(ROOT),'-Dmaven.repo.local='+str(a.local_repository.resolve())]
  settings=ET.Element('settings');proxies=ET.SubElement(settings,'proxies')
  for protocol in ['http','https']:
@@ -32,5 +33,5 @@ def main():
    directory=work/'target'/name;directory.mkdir(parents=True,exist_ok=True)
    with ZipFile(a.local_repository/artifact) as aar:(directory/'classes.jar').write_bytes(aar.read('classes.jar'))
   subprocess.run(cmd+['test'],check=True)
- print('PASS recovered Libass source compile and12 Media3 media-state tests; instrumented JNI, not full app/EGL build')
+ print('PASS recovered Libass source compile and Media3 tests (counts in surefire reports); instrumented JNI, not full app/EGL build')
 if __name__=='__main__':main()

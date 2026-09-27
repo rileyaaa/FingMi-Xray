@@ -1,0 +1,13 @@
+{
+  "provenance": "reconstructed upstream-missing integration; retained historical public API",
+  "historical_commit": "9dae39e9689ee305c83f94bd11cf3bcecb9d6171",
+  "historical_path": "libraries/exoplayer_libass/src/main/java/androidx/media3/exoplayer/libass/LibassLibrary.java",
+  "published_dex_sha256": "a1b7f5735678e7b09dbd522d080ff6ada3fc4cf6ffe064278c35ebccb49020f8",
+  "published_contract": {
+    "ok1": "static nk1 loader with media3ass name; media3.exoplayer.libass registration",
+    "nk1": "Media3 LibraryLoader subclass delegates loadLibrary to System.loadLibrary",
+    "sk1_constructor": "enabled short-circuits loader check, captures final availability snapshot"
+  },
+  "verification": "4 isolated-loader Robolectric tests plus12 existing media-state tests pass",
+  "limits": "Empty library-name list tests loader success branch, not Android SO/ABI execution. Session snapshot integration pending. No full app, APK or EGL claim."
+}
