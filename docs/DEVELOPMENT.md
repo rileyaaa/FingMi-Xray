@@ -214,7 +214,7 @@ Actions artifact：
 - 不替换正式 Latest v5.6.0-xray.5；
 - 不重新编译 APK。
 
-截至本文整理时，该 Pre-release 尚未实际创建。执行后应以 Releases 页面实际状态为准，并在状态变化时更新本节，而不是保留“准备发布”的旧描述。
+测试 Pre-release 已于 2026-09-27 通过手动 run 36303614722 成功发布。Release tag 为 v5.6.3-xray.test.1，包含 Leanback armeabi-v7a 与 arm64-v8a 两个 APK；两份 Release asset 的 SHA-256 与第 5 节固定构建产物一致。该 Release 为 Pre-release，正式 Latest 仍为 v5.6.0-xray.5。
 
 ## 7. 当前运行验证重点
 
