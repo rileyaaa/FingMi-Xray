@@ -196,9 +196,7 @@ FongMi/TV 5.6.3 对 Media3 / MPV 的调用面与当前固定的部分播放器�
 
 ### GitHub Actions
 
-仓库所有可执行 workflow 都必须保持**纯手动**。GitHub 官方 helper action 同时保持 Node 24 兼容 major（当前为 checkout v7、setup-java v6、setup-python v7、upload-artifact v7），避免 runner 强制兼容旧 Node 20 action 所产生的弃用告警。
-
-仓库所有可执行 workflow 都必须保持**纯手动**：
+仓库所有可执行 workflow 都必须保持**纯手动**。GitHub 官方 helper action 同时保持 Node 24 兼容 major（当前为 checkout v7、setup-java v6、setup-python v7、upload-artifact v7），避免 runner 强制兼容旧 Node 20 action 所产生的弃用告警：
 
 ```yaml
 on:
