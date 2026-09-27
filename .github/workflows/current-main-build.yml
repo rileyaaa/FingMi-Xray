@@ -20,7 +20,9 @@ jobs:
       LIBASS_V7_APK_SHA256: "43efc084598782820079347f00e0d26bb2b594ce7087579b8859856c0c6b2132"
       LIBASS_V8_APK_SHA256: "5ea69f5dab085f25948f4dfac5ef4cf4ed42bc49e54a86e6075fba83b6b46123"
       MEDIA3_CONTAINER_SHA256: "930fca2f018f06f1d08c12599f8c97f31eddbd728edee5de06eb53a882f8fc54"
-      LIBASS_CANDIDATE_SHA256: "2318eb904a016d0160aed2a4b7de8501578cd0f223c65e5c61086f7a9a80f573"\n      JADX_VERSION: "1.5.6"\n      JADX_SHA256: "545ea2be9c242511bc145755cf4bda2485ade42966e096f8b4d3da2a230e8974"
+      LIBASS_CANDIDATE_SHA256: "2318eb904a016d0160aed2a4b7de8501578cd0f223c65e5c61086f7a9a80f573"
+      JADX_VERSION: "1.5.6"
+      JADX_SHA256: "545ea2be9c242511bc145755cf4bda2485ade42966e096f8b4d3da2a230e8974"
 
     steps:
       - uses: actions/checkout@v7
@@ -89,7 +91,12 @@ jobs:
 
           curl -fL --retry 3             'https://dl.google.com/dl/android/maven2/androidx/media3/media3-container/1.11.0/media3-container-1.11.0.aar'             -o build/work/current-main/input/media3-container-1.11.0.aar
 
-          printf '%s  %s\n'             "$PLAYER_ZIP_SHA256" build/work/current-main/input/player-candidate.zip             "$OLD_V7_SHA256" build/work/current-main/input/published-v560-v7.apk             "$OLD_V8_SHA256" build/work/current-main/input/published-v560-v8.apk             "$LIBASS_V7_APK_SHA256" build/work/current-main/input/published-v565-v7.apk             "$LIBASS_V8_APK_SHA256" build/work/current-main/input/published-v565-v8.apk             "$MEDIA3_CONTAINER_SHA256" build/work/current-main/input/media3-container-1.11.0.aar             "$JADX_SHA256" build/work/current-main/input/jadx.zip             | sha256sum -c -\n\n          mkdir -p build/work/current-main/tools/jadx\n          unzip -q build/work/current-main/input/jadx.zip -d build/work/current-main/tools/jadx\n          chmod +x build/work/current-main/tools/jadx/bin/jadx
+          printf '%s  %s
+'             "$PLAYER_ZIP_SHA256" build/work/current-main/input/player-candidate.zip             "$OLD_V7_SHA256" build/work/current-main/input/published-v560-v7.apk             "$OLD_V8_SHA256" build/work/current-main/input/published-v560-v8.apk             "$LIBASS_V7_APK_SHA256" build/work/current-main/input/published-v565-v7.apk             "$LIBASS_V8_APK_SHA256" build/work/current-main/input/published-v565-v8.apk             "$MEDIA3_CONTAINER_SHA256" build/work/current-main/input/media3-container-1.11.0.aar             "$JADX_SHA256" build/work/current-main/input/jadx.zip             | sha256sum -c -
+
+          mkdir -p build/work/current-main/tools/jadx
+          unzip -q build/work/current-main/input/jadx.zip -d build/work/current-main/tools/jadx
+          chmod +x build/work/current-main/tools/jadx/bin/jadx
 
       - name: Prepare pinned decoder and Xray native dependencies
         shell: bash
