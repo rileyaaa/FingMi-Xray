@@ -1,0 +1,176 @@
+name: Current main Android build
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    env:
+      PLAYER_ARTIFACT_ID: "10859533459"
+      PLAYER_ZIP_SHA256: "0ed42581af11ac7163ebde148b318807c244e2a318f40c41d33f50b70bf967ee"
+      OLD_V7_SHA256: "cacc7a90ce082adf955fc80a444b54f8cc86d5b5c3ac7acb13d1392b59928bda"
+      OLD_V8_SHA256: "b5ac05193c1e19809fc7ffb3048f7d75aaa2124eace9953d669f4a81a477c21d"
+      LIBASS_V7_APK_SHA256: "43efc084598782820079347f00e0d26bb2b594ce7087579b8859856c0c6b2132"
+      LIBASS_V8_APK_SHA256: "5ea69f5dab085f25948f4dfac5ef4cf4ed42bc49e54a86e6075fba83b6b46123"
+      MEDIA3_CONTAINER_SHA256: "930fca2f018f06f1d08c12599f8c97f31eddbd728edee5de06eb53a882f8fc54"
+      LIBASS_CANDIDATE_SHA256: "8b4e7cf1e9971295f55c29548b04c1ab715eb9f5fba71a3de9087ae6ea6768ee"
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+
+      - name: Prepare Android SDK 37
+        shell: bash
+        run: |
+          set -euo pipefail
+          sdk_root="${ANDROID_HOME:-/usr/local/lib/android/sdk}"
+          sdkmanager="$sdk_root/cmdline-tools/latest/bin/sdkmanager"
+          test -x "$sdkmanager"
+          yes | "$sdkmanager" --licenses >/dev/null || true
+          "$sdkmanager" --install 'platforms;android-37' 'build-tools;36.0.0'
+
+      - name: Prepare debug-only local signing configuration
+        shell: bash
+        run: |
+          set -euo pipefail
+          keytool -genkeypair -noprompt             -keystore "$RUNNER_TEMP/recovery-debug.jks"             -storepass android             -keypass android             -alias recovery             -dname "CN=FingMi-Xray Recovery,O=Local,C=US"             -keyalg RSA -keysize 2048 -validity 3650
+          cat > local.properties <<EOF
+          storeFile=$RUNNER_TEMP/recovery-debug.jks
+          keyAlias=recovery
+          storePassword=android
+          EOF
+
+      - name: Download and verify pinned player/native inputs
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p recovery/work/current-main/input recovery/work/current-main/restored
+
+          info="$(gh api "repos/rileyaaa/FingMi-Xray/actions/artifacts/$PLAYER_ARTIFACT_ID")"
+          jq -e --arg sha "sha256:$PLAYER_ZIP_SHA256" '
+            .name == "fongmi-media3-aar-candidate-1.11.0" and
+            .expired == false and
+            .size_in_bytes == 44336768 and
+            .digest == $sha
+          ' <<< "$info" >/dev/null
+          curl -fL --retry 3 -H "Authorization: Bearer ${GH_TOKEN}"             "https://api.github.com/repos/rileyaaa/FingMi-Xray/actions/artifacts/$PLAYER_ARTIFACT_ID/zip"             -o recovery/work/current-main/input/player-candidate.zip
+
+          gh release download v5.6.0-xray.5             --repo rileyaaa/FingMi-Xray             --pattern 'FongMi-Xray-TV-v5.6.0-xray.5-armeabi-v7a.apk'             --pattern 'FongMi-Xray-TV-v5.6.0-xray.5-arm64-v8a.apk'             --dir recovery/work/current-main/input
+          mv recovery/work/current-main/input/FongMi-Xray-TV-v5.6.0-xray.5-armeabi-v7a.apk             recovery/work/current-main/input/published-v560-v7.apk
+          mv recovery/work/current-main/input/FongMi-Xray-TV-v5.6.0-xray.5-arm64-v8a.apk             recovery/work/current-main/input/published-v560-v8.apk
+
+          curl -fL --retry 3             'https://github.com/FongMi/Release/releases/download/5.6.5/leanback-armeabi_v7a.apk'             -o recovery/work/current-main/input/published-v565-v7.apk
+          curl -fL --retry 3             'https://github.com/FongMi/Release/releases/download/5.6.5/leanback-arm64_v8a.apk'             -o recovery/work/current-main/input/published-v565-v8.apk
+
+          curl -fL --retry 3             'https://dl.google.com/dl/android/maven2/androidx/media3/media3-container/1.11.0/media3-container-1.11.0.aar'             -o recovery/work/current-main/input/media3-container-1.11.0.aar
+
+          printf '%s  %s\n'             "$PLAYER_ZIP_SHA256" recovery/work/current-main/input/player-candidate.zip             "$OLD_V7_SHA256" recovery/work/current-main/input/published-v560-v7.apk             "$OLD_V8_SHA256" recovery/work/current-main/input/published-v560-v8.apk             "$LIBASS_V7_APK_SHA256" recovery/work/current-main/input/published-v565-v7.apk             "$LIBASS_V8_APK_SHA256" recovery/work/current-main/input/published-v565-v8.apk             "$MEDIA3_CONTAINER_SHA256" recovery/work/current-main/input/media3-container-1.11.0.aar             | sha256sum -c -
+
+      - name: Restore faithful decoder and Xray native dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 scripts/restore-published-ffmpegjni.py             --candidate recovery/work/current-main/input/player-candidate.zip             --v7-apk recovery/work/current-main/input/published-v560-v7.apk             --v8-apk recovery/work/current-main/input/published-v560-v8.apk             --to recovery/work/current-main/restored/lib-decoder-ffmpeg-release.aar
+
+          python3 scripts/import-player-aar-candidate.py             recovery/work/current-main/input/player-candidate.zip             --restored-decoder recovery/work/current-main/restored/lib-decoder-ffmpeg-release.aar
+
+          python3 scripts/check-player-ffmpegjni-against-published.py --aar-dir app/libs
+
+          bash scripts/fetch-libxray.sh
+          python3 scripts/restore-published-libxrayjni.py             --official-aar libxray/libs/libXray.aar             --v7-apk recovery/work/current-main/input/published-v560-v7.apk             --v8-apk recovery/work/current-main/input/published-v560-v8.apk             --to recovery/work/current-main/restored/libXray.aar
+
+          python3 scripts/check-libxray-gojni.py             --aar recovery/work/current-main/restored/libXray.aar             --official-aar libxray/libs/libXray.aar
+          cp recovery/work/current-main/restored/libXray.aar libxray/libs/libXray.aar
+
+      - name: Build and import reconstructed Libass candidate
+        shell: bash
+        run: |
+          set -euo pipefail
+          work="recovery/work/current-main"
+          mvn -B dependency:get -Dartifact=org.robolectric:android-all:15-robolectric-12650502
+          mvn -B dependency:get -Dartifact=com.google.guava:guava:33.3.1-android
+          mvn -B dependency:get -Dartifact=androidx.annotation:annotation-jvm:1.9.1
+
+          python3 scripts/build-libass-extractor.py             --candidate "$work/input/player-candidate.zip"             --workdir "$work/extractor"             --container "$work/input/media3-container-1.11.0.aar"             --maven "$(command -v mvn)"
+
+          android_all="$HOME/.m2/repository/org/robolectric/android-all/15-robolectric-12650502/android-all-15-robolectric-12650502.jar"
+          test -s "$android_all"
+
+          python3 scripts/build-libass-candidate.py             --candidate "$work/input/player-candidate.zip"             --extractor "$work/extractor/lib-extractor-libass-release.aar"             --container "$work/input/media3-container-1.11.0.aar"             --v7-apk "$work/input/published-v565-v7.apk"             --v8-apk "$work/input/published-v565-v8.apk"             --android-jar "$android_all"             --output "$work/lib-exoplayer-libass-reconstructed.aar"
+
+          echo "$LIBASS_CANDIDATE_SHA256  $work/lib-exoplayer-libass-reconstructed.aar" | sha256sum -c -
+          python3 scripts/check-libass-contract.py --aar "$work/lib-exoplayer-libass-reconstructed.aar"
+
+          python3 scripts/import-libass-candidate.py             --aar "$work/lib-exoplayer-libass-reconstructed.aar"             --extractor "$work/extractor/lib-extractor-libass-release.aar"             --container "$work/input/media3-container-1.11.0.aar"
+
+      - name: Compile current 5.6.3 Leanback source
+        shell: bash
+        run: |
+          set -euo pipefail
+          chmod +x gradlew
+          ./gradlew --no-daemon :app:compileLeanbackDebugJavaWithJavac --stacktrace
+
+      - name: Compile current 5.6.3 mobile source
+        shell: bash
+        run: |
+          set -euo pipefail
+          ./gradlew --no-daemon :app:compileMobileDebugJavaWithJavac --stacktrace
+
+      - name: Assemble debug APKs
+        shell: bash
+        run: |
+          set -euo pipefail
+          ./gradlew --no-daemon :app:assembleLeanbackDebug :app:assembleMobileDebug --stacktrace
+
+      - name: Record build inputs and outputs
+        if: success()
+        shell: bash
+        run: |
+          set -euo pipefail
+          {
+            echo "commit=$GITHUB_SHA"
+            java -version 2>&1 | head -n 1
+            ./gradlew --version | sed -n '1,12p'
+            echo "libass_candidate_sha256=$LIBASS_CANDIDATE_SHA256"
+            find app/build/outputs/apk -type f -name '*.apk' -print0 | sort -z | xargs -0 sha256sum
+          } | tee recovery/work/current-main/BUILD_RESULT.txt
+
+      - name: Upload current-main debug APKs
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fingmi-xray-5.6.3-current-main-debug
+          path: |
+            app/build/outputs/apk/**/*.apk
+            recovery/work/current-main/BUILD_RESULT.txt
+          if-no-files-found: error
+          retention-days: 7
+          compression-level: 0
+
+      - name: Upload build reports on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fingmi-xray-5.6.3-build-failure-reports
+          path: |
+            app/build/reports/
+            **/build/reports/
+          if-no-files-found: ignore
+          retention-days: 3
