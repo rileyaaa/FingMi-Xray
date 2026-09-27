@@ -7,7 +7,7 @@ from pathlib import Path
 from zipfile import ZipFile,ZipInfo,ZIP_DEFLATED
 ROOT=Path(__file__).resolve().parents[1]
 CANDIDATE='0ed42581af11ac7163ebde148b318807c244e2a318f40c41d33f50b70bf967ee'
-EXTRACTOR='22ed5d53e6a6977faf12a97d9bdfb97f1cfea9cb39ccfc6418fa1899d3669e6b'
+EXTRACTOR='feb8be30e3d431391ce4b3b165a6cbfb18313969d7ba7da2d6ccfeb96d25ee68'
 CONTAINER='930fca2f018f06f1d08c12599f8c97f31eddbd728edee5de06eb53a882f8fc54'
 ANDROID='6c0670454f6fcee9f1b17aa393e81d71bf26e7e6ae7c5777ed3924b062191d5b'
 DEPS={'com/google/guava/guava/33.3.1-android/guava-33.3.1-android.jar':'2c3e41d1b380f2044d257947a3aa82dabf3ae4b978622745254aa18b6cf89ab0','androidx/annotation/annotation-jvm/1.9.1/annotation-jvm-1.9.1.jar':'1e343917ebf27ba96fe4dc52b1cad7fd32b738fbc6355bb6cd5b3b305d7212d0'}
