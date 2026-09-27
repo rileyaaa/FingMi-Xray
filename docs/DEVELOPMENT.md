@@ -468,3 +468,7 @@ Git commit history 已经承担时间线职责。
 - `test-published-libass-render.py` 用固定synthetic ASS和SHA固定DejaVuSans字体，经发布5.6.5 v7 SO实际渲染8个观察点，冻结glyph mask FNV摘要、坐标、尺寸、颜色、textureId；不是手写期望图形。
 - 真值确认forceUpdate绕过“不变帧”跳过；tryUploadTextures分支由GL_VERSION/extensions检测与texture上传调用约束，无EGL context时实测回退CPU bitmap。字体scale与bottom fraction实际改变几何；事件结束为changed=1空帧，随后重复为changed=0空帧。
 - Java绑定已使用有证据的render参数名；16个所有权用例和native失败清理继续通过。GL context下的texture创建/销毁、完整MediaState/view/controller联动仍未闭环，不能把CPU位图回归写成真机/EGL验收。
+
+#### Libass dual-frame ownership recovery
+
+Reconstructed published5.6.5 `libass.d/e/f` frame ownership: independent primary/secondary caches, changed-empty vs unchanged, ASS inverse-transparency color, native texture transfer and render-thread cleanup. `FrameRendererTest` passes11 deterministic cases (27 ownership cases total). Per-media stale-frame rejection and atomic two-lane upload rollback are explicit reconstruction hardening. Evidence: `recovery/libass-tests/frame-ownership-evidence.json`; actual native glyph observations remain in `published-565-render.json`. GLES/surface/public-session integration and actual EGL display remain incomplete; this is not a full Libass/Android build claim.
