@@ -320,10 +320,18 @@ public final class XrayShareLinkSecurity {
             result.add(
                     new QueryPart(
                             raw,
-                            URLDecoder.decode(rawKey, StandardCharsets.UTF_8),
-                            URLDecoder.decode(rawValue, StandardCharsets.UTF_8)));
+                            decodeUtf8(rawKey),
+                            decodeUtf8(rawValue)));
         }
         return result;
+    }
+
+    private static String decodeUtf8(String value) {
+        try {
+            return URLDecoder.decode(value, StandardCharsets.UTF_8.name());
+        } catch (java.io.UnsupportedEncodingException error) {
+            throw new IllegalStateException("UTF-8 is unavailable", error);
+        }
     }
 
     private static String first(
