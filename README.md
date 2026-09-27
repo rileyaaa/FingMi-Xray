@@ -61,7 +61,8 @@ FingMi-Xray 是基于 FongMi/TV 的 Android TV 二次开发项目。
 - Xray / Binder / Service / 分享链接 / 证书安全 / 播放网络 / TV 待机恢复的大量行为已经完成静态 APK / DEX 对照；
 - 当前普通 app 已依赖实验性 `:xray` 模块，但播放器侧 Xray 会话与媒体网络接线仍未完成正式迁移；
 - faithful 构建所需的播放器 AAR、FFmpeg JNI、libXray Go JNI 等已经建立严格的来源与哈希校验流程；
-- **尚不能宣称 faithful APK 已成功构建或已完成 Android TV 真机回归**；
+- 当前 5.6.3 `main` 已在 GitHub Actions 完成 Leanback / Mobile 双 flavor Debug javac 与 APK assemble，并同时产出 v7 / arm64 APK；这证明当前工程构建链已经闭环，但不等于原 `v5.6.0-xray.5` faithful 基准或设备行为已经验收；
+- **仍不能宣称 faithful recovery 已完成或 Android TV 真机回归已完成**；
 - 正式模块迁移和较新 FongMi 上游升级仍在后续阶段。
 
 准确进度和剩余门槛以恢复文档为准，不以历史聊天中的经验百分比作为验收标准。
@@ -101,7 +102,7 @@ JADX 输出只是证据，不应在明显控制流损坏时直接作为最终语
 
 ## 构建说明
 
-当前仓库仍处于恢复阶段。虽然已经存在 faithful 组装、依赖检查和手动 GitHub Actions 工作流，但**不能仅凭工作流存在或历史红灯/绿灯推断整套 APK 已完成恢复**。
+当前仓库仍处于恢复阶段。2026-09-27 的 current-main build 已成功完成 5.6.3 Leanback / Mobile Debug compile + assemble，但这只证明当前工程可构建；原 `v5.6.0-xray.5` faithful 基准、正式签名与真机回归仍按 `RECOVERY.md` 的门槛执行。构建结论必须绑定具体 commit / run / hash，不能只凭工作流存在或历史红灯/绿灯推断恢复完成。
 
 具体依赖门、构建状态和允许执行的流程请查看：
 

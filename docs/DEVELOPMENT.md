@@ -13,7 +13,8 @@
 - 实验性 `:xray` 中已有配置、Service、Binder、session、安全和网络基础类；
 - 多处实验实现已经根据恢复层静态对齐；
 - 普通 app 的播放器主链路仍没有完成正式 Xray 会话和媒体网络接线；
-- faithful 基准尚未完成整套 APK 构建与设备回归；
+- 原 `v5.6.0-xray.5` faithful 基准仍未完成专门的整套 APK 构建与设备回归；
+- current 5.6.3 `main` 已于 2026-09-27 完成 Leanback / Mobile 双 flavor Debug compile + assemble，说明升级后的普通工程构建链已经闭环；
 - 因此不能以实验模块代替 `recovery/legacy-src/` 的恢复真相。
 
 正式迁移必须等恢复门达到 [PROJECT.md](PROJECT.md) 定义的阶段顺序。
@@ -87,7 +88,7 @@
 - `catvod/src/main/java/com/github/catvod/net/OkDns.java`
 - `catvod/src/main/java/com/github/catvod/net/OkHttp.java`
 
-因此第二核心能力的源码接线已经进入普通工程。剩余门槛是 Android 编译和真实 TV 长后台 / 待机回归，而不是再次重写这一组文件。
+因此第二核心能力的源码接线已经进入普通工程。current-main Android 编译门已通过；剩余门槛是真实 TV 长后台 / 待机回归，而不是再次重写这一组文件。
 
 ### 尚未迁入普通播放器主链：Xray playback wiring
 
@@ -132,7 +133,7 @@
 
 - AIDL 已二进制兼容；
 - 普通播放器主链已经接好；
-- Android 编译已经通过；
+- 原 faithful 基准构建或真机验收已经通过；
 - 真机 playback / Binder race 已经通过。
 
 ## Binder 协议边界
@@ -218,15 +219,15 @@ Xray Core、Binder、share-link、安全、session generation、SOCKS 资源应�
 - 上游 114 个变更路径逐文件三方合并，9 个文本冲突（PlayerManager、PlayerEngineFactory、ExoMediaSourceFactory、ExoPlayerEngine、ExoPlayerSession、PlaybackActivity、Download、mobile ConfigDialog/LinkDialog）已按目标版 API 化解。97 个路径与目标上游字节相同，17 个路径保留本项目接线。未用旧 `recovery/legacy-src/upstream` 整批覆盖。
 - 目标上游带来 Libass 双字幕播放路径、播放器重建判定、新 Download 取消流程，以及 catvod Auth/Crypto/Path/Util 四文件变化。Xray 媒体工厂同时接入新版 Libass 和当前会话 HTTP/DRM/RTSP 资源；VOD/Live 弹幕走新版 `DanmakuPlayerViewController`。catvod OkHttp/OkDns 上游未改变，本项目的重建 hook 留在原处。
 - 与目标上游整树对照：`:xray` 在升级提交中修改 **0** 文件；app 相对上游修改 **31** 个既有文件、增加 **6** 个文件（含 Manifest、资源、设置及网络能力，不能全算播放 adapter）；catvod 相对上游修改 **2** 个既有文件（OkHttp/OkDns），增加 **0** 文件。升级提交本身对上游新增差异集中在 17 个既有 app 路径；其余差异是升级前已存在的能力接线。TV network recovery 主要在 app 的 HomeActivity、BaseLoader、SiteViewModel、ViewModelTaskRunner 和新增 coordinator/TvNetworkLifecycle，catvod 仅 OkHttp/OkDns hook；没有复制整份上游 catvod。
-- 静态门：合并的 94 个 Java 文件经 tree-sitter 解析无语法错误，15 个 XML 解析通过；关键 HTTP/DRM/RTSP、Libass、VOD/Live 弹幕和 Download 代理调用点已核对。模块的纯 JVM session identity 与 network epoch smoke，以及 reconstructed native 定向 Go regression 在各自代码提交前通过。**尚未在 5.6.3 HEAD 上完成 Gradle/Android 编译或 TV 设备回归**；当前容器无 Android SDK，GitHub 插件未提供 `workflow_dispatch`，不得把静态门写成构建通过。
-- 后续编译重点：目标版新增的 Media3 Libass API/依赖、两种 ABI、Manifest/AIDL/resources，及 TV 待机后真实网络恢复。构建必须使用手动 `workflow_dispatch`，不得改 workflow 触发条件。
+- 静态门：合并的 94 个 Java 文件经 tree-sitter 解析无语法错误，15 个 XML 解析通过；关键 HTTP/DRM/RTSP、Libass、VOD/Live 弹幕和 Download 代理调用点已核对。模块的纯 JVM session identity 与 network epoch smoke，以及 reconstructed native 定向 Go regression 在各自代码提交前通过。**5.6.3 current main 已于 2026-09-27 在 Actions 完成 Leanback / Mobile javac 与双 flavor Debug assemble；TV 设备回归仍未完成。**
+- 当前 5.6.3 compile / assemble 门已过；后续重点转为产物/ABI 抽查、Libass/MPV/Xray 运行时行为和 TV 待机后真实网络恢复。构建入口恢复为手动 `workflow_dispatch`，不保留临时 push 自动构建。
 
 
-### 5.6.3 编译依赖门的确定阻塞
+### 5.6.3 编译依赖门（已闭环）
 
-目标上游 5.6.3 新增 `androidx.media3.exoplayer.libass.*`、`SecondaryTextTrackSelector` / `SecondaryTextOutput` 等引用。固定候选 `fongmi-media3-aar-candidate-1.11.0` 的 artifact `10859533459` 下载后 SHA-256 为 `0ed42581af11ac7163ebde148b318807c244e2a318f40c41d33f50b70bf967ee`，其 `lib-exoplayer-release.aar/classes.jar` 缺少这些类；固定 `FongMi/media@3c2cbe8a` 当前公开树也没有相应源码；Libass 历史真实源码与 AAR 已找到（见下），当前 tip 缺失不代表历史不存在。上游 FongMi/TV issue #729 明确报告了相同缺失，上游回复未提供源码。故旧候选不能支持完整 5.6.3 Android 编译；不能因为三方合并语法通过就宣称升级构建成功。
+目标上游 5.6.3 新增 `androidx.media3.exoplayer.libass.*`、`SecondaryTextTrackSelector` / `SecondaryTextOutput` 等引用。固定候选 `fongmi-media3-aar-candidate-1.11.0` 的 artifact `10859533459` 下载后 SHA-256 为 `0ed42581af11ac7163ebde148b318807c244e2a318f40c41d33f50b70bf967ee`，其 `lib-exoplayer-release.aar/classes.jar` 缺少这些类；固定 `FongMi/media@3c2cbe8a` 当前公开树也没有相应源码；Libass 历史真实源码与 AAR 已找到（见下），当前 tip 缺失不代表历史不存在。上游 FongMi/TV issue #729 明确报告了相同缺失，上游回复未提供源码。故旧候选本身不能支持完整 5.6.3 Android 编译；当前构建链通过固定重建 Libass candidate / extractor、恢复缺失 app adapter，并继续保留来源与哈希门后才完成真实 Gradle 编译。
 
-临时编译桩会牺牲新版 Libass/双字幕行为，只能作为 **compile-only** 诊断，不能作为正式产品依赖或完整 5.6.3 功能验收。优先取得可核 SHA 的相应 Media3 产物或恢复可运行的实现，再做 v7/arm64 Gradle build。现有 `recovery-build.yml` 仍编译 5.6.0 faithful 源，不是 5.6.3 构建门。当前插件可读取 Actions 和产物，却没有 `workflow_dispatch` 操作；浏览器未登录私有仓库，未触发当前 HEAD 的构建。
+临时编译桩会牺牲新版 Libass/双字幕行为，只能作为 **compile-only** 诊断，不能作为正式产品依赖或完整 5.6.3 功能验收。当前 green build 未使用禁用 Libass / 双字幕的 compile-only stub。优先取得可核 SHA 的相应 Media3 产物或恢复可运行的实现，再做 v7/arm64 Gradle build。现有 `recovery-build.yml` 仍编译 5.6.0 faithful 源，不是 5.6.3 构建门。当前插件可读取 Actions 和产物，却没有 `workflow_dispatch` 操作；浏览器未登录私有仓库，未触发当前 HEAD 的构建。
 
 ### 稳定接线边界
 
@@ -540,4 +541,8 @@ The existing published native JNI/lifecycle and8 actual native rendering observa
 
 This is a call-site contract compilation, not compilation of the entire Exo* source files, PlayerManager, resources, D8 or the Android app. No Gradle task was executed. The execution environment has only Java17, no JDK21 or Android SDK37, no authenticated terminal Git checkout, and the available GitHub connector does not expose workflow dispatch. Existing `.github/workflows/recovery-build.yml` explicitly prepares/builds the legacy5.6.0 checkout; invoking it would not validate current5.6.3. No workflow trigger was changed.
 
-The next build prerequisite is a current-main checkout in a JDK21/SDK37 runner with the existing pinned native/player imports followed by the new Libass import. Execute `:app:compileLeanbackDebugJavaWithJavac`, then `:app:compileMobileDebugJavaWithJavac`, then `:app:assembleLeanbackDebug` / `:app:assembleMobileDebug`; record the first real Gradle error before making further compatibility changes. None of these tasks or APK assembly/device/EGL checks has passed yet. The candidate is a reproducible integration result, not a complete5.6.3 build certification.
+The current-main build prerequisite has now been executed. Actions run `36301217767` at commit `7e2111a2d14b04e034eae3cf83c456659586a799` passed `:app:compileLeanbackDebugJavaWithJavac`, `:app:compileMobileDebugJavaWithJavac`, and combined `:app:assembleLeanbackDebug :app:assembleMobileDebug` under JDK21 / SDK37 / Gradle9.7.1. The fixed Libass candidate SHA remains `2318eb904a016d0160aed2a4b7de8501578cd0f223c65e5c61086f7a9a80f573`.
+
+The compile path exposed and closed three additional integration boundaries after the packaged Libass contract had already passed: missing app-facing `LibassFontFile` / `DanmakuPlayerViewController` adapters; 5.6.3 MPV secondary-subtitle/font calls newer than the pinned MPV AAR, bridged onto its existing `MpvSubtitleOptions.setSecondarySubtitle` and config string-option API; and a shared `TvNetworkLifecycle` reference to Leanback-only `DLNARendererService`, isolated through flavor-specific lifecycle bridges. The MPV mapping is a compatibility bridge to the pinned artifact, not a claim that the missing newer upstream MPV binary was recovered byte-for-byte.
+
+The successful run produced four debug APKs: Leanback arm64 `949e19a65f1d4006fae9f181d359afa72806337a389bb5d8167d0a0dc1ca2f8c`, Leanback v7 `409415aeced5428f2ea0df0df7cfe6f807a2918494a68ba2fc61b62c9081d3a3`, Mobile arm64 `9be80c47032b23c872f4b8beaca9d557bde3fe05b19d6d2ea03940050f0f60e8`, and Mobile v7 `7daec34e1c6cbcf35cd7bbaaaf2eaa13866bd0101c4f598a842336610ed8e9f6`. Artifact `10925572471` is named `fingmi-xray-5.6.3-current-main-debug` with digest `9702b6ee9230fd839e9fc025a02eebc5e4822a39b0449d292d87ecc02d4be2d0`. This certifies current-main debug compile/assemble only; it does not certify release signing, exact original binary identity, real EGL/display behavior, Xray/MPV/Libass device playback, or the separate v5.6.0 faithful recovery gate.

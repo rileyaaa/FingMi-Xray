@@ -885,6 +885,7 @@ python3 scripts/test-native-share-chain.py --workdir /tmp/fongmi-native --jni /t
 - APK 分析 run `36095249788` 最终为 failure，但 **v7 完整 JADX 步骤成功**；失败发生在后续 targeted dexdump 筛选。完整 v7 JADX 已保存为 artifact `10847466987`，双 ABI DEX / 报告为 `10847337361`。因此“run 红灯”不能解释为“v7 没有反编译成功”。
 - Player AAR run `36123459832` 中固定 FongMi/media 源码的 **484 个 Gradle task 全部成功，BUILD SUCCESSFUL**；run 最终失败是旧 artifact 收集脚本查错输出目录，未把已编出的 AAR 带回。这个 run 证明当时源码能完成该构建，不等于已经得到可使用的候选 artifact。
 - 后续经明确授权的 run `36124817040` 完整成功，产生 artifact `10859533459`，其中 16 个候选 AAR 与清单 SHA-256 一致；这是当前固定 player candidate 的来源。
+- current-main integration run `36301217767` 在 commit `7e2111a2d14b04e034eae3cf83c456659586a799` 完整成功：5.6.3 Leanback / Mobile javac 与双 flavor Debug assemble 全部通过，并产出 v7 / arm64 四个 APK。该 run 验证的是当前升级工程构建链，不是第 12 节固定 5.6.0 faithful build，因此不改变 faithful Gradle build / 真机回归仍未完成的状态。
 - 提交标题、workflow 是否存在、或 run 总体红/绿灯，都不能替代“具体哪一步成功、实际 artifact 内容和哈希是什么”的核查。
 
 ## 13.2 高风险行为的维护规则
@@ -927,6 +928,7 @@ python3 scripts/test-native-share-chain.py --workdir /tmp/fongmi-native --jni /t
 | FFmpeg JNI 真包恢复 | 已从固定 full JADX 证据恢复；faithful decoder AAR 已持久保存；2026-09-26 真实本地 gate 通过，entry 名称/顺序不变且只有 v7/v8 两个 `libffmpegJNI.so` 改变 |
 | libXray Go JNI 真包恢复 | 已从固定 full JADX 发布证据恢复；official / faithful AAR 均持久保存；2026-09-26 真实本地 gate 通过，Java `invoke(String): String` 存在，entry 名称/顺序不变且只有 v7/v8 两个 Go JNI entry 改变 |
 | native dependency workflow | 已配置且手动；未实际成功跑完 |
+| 5.6.3 current-main Debug build | run `36301217767` 已通过 Leanback / Mobile javac 与 v7 / arm64 APK assemble；未做设备运行验收 |
 | faithful Gradle build | 未完成 |
 | Android TV v7 真机回归 | 未完成 |
 | v8 构建 / ABI 最终验收 | 未完成 |
@@ -1008,6 +1010,8 @@ python3 scripts/test-native-share-chain.py --workdir /tmp/fongmi-native --jni /t
 不能拿“workflow success”四个字直接当依赖完成证明。
 
 ### 阻塞 B：faithful build 尚未运行
+
+current-main 5.6.3 的 run `36301217767` 已经绿灯，但它不替代第 12 节固定上游 / faithful overlay / native artifact 来源约束下的 faithful build。
 
 native artifact 本地 / 静态复核通过后，直接运行已授权的 faithful build 手动入口。
 
