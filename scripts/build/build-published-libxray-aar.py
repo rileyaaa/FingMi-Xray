@@ -42,7 +42,6 @@ REQUIRED_BINDINGS = {
     "libXray/GenerateAgeKeyPairResponse.class",
     "libXray/ProbeTLSCertificateRequest.class",
     "libXray/ProbeHysteria2CertificateRequest.class",
-    "libXray/ProbeCertificateResponse.class",
 }
 
 
