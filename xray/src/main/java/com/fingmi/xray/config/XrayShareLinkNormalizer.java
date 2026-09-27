@@ -4,6 +4,7 @@ import java.math.BigDecimal;
 import java.net.URI;
 import java.net.URLDecoder;
 import java.net.URLEncoder;
+import java.io.UnsupportedEncodingException;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Base64;
@@ -606,17 +607,25 @@ public final class XrayShareLinkNormalizer {
     }
 
     private static String decodeQuery(String value) {
-        return URLDecoder.decode(value, StandardCharsets.UTF_8);
+        try {
+            return URLDecoder.decode(value, StandardCharsets.UTF_8.name());
+        } catch (UnsupportedEncodingException e) {
+            throw new AssertionError(e);
+        }
     }
 
     private static String encodeQuery(String value) {
-        return URLEncoder.encode(value, StandardCharsets.UTF_8).replace("+", "%20");
+        try {
+            return URLEncoder.encode(value, StandardCharsets.UTF_8.name()).replace("+", "%20");
+        } catch (UnsupportedEncodingException e) {
+            throw new AssertionError(e);
+        }
     }
 
     private static String decodeBase64(String value) {
         String padded = value;
         int remainder = padded.length() & 3;
-        if (remainder != 0) padded += "=".repeat(4 - remainder);
+        if (remainder != 0) padded += "====".substring(0, 4 - remainder);
 
         for (Base64.Decoder decoder : new Base64.Decoder[]{
                 Base64.getDecoder(),
