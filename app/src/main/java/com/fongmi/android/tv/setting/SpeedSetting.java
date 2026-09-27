@@ -1,5 +1,7 @@
 package com.fongmi.android.tv.setting;
 
+import com.fongmi.android.tv.utils.RuntimeCompat;
+
 import com.github.catvod.utils.Prefers;
 import com.google.android.material.slider.Slider;
 
@@ -32,11 +34,11 @@ public class SpeedSetting {
     }
 
     public static float clamp(float speed) {
-        return Math.clamp(speed, MIN, MAX);
+        return RuntimeCompat.clamp(speed, MIN, MAX);
     }
 
     public static float clampLongPress(float speed) {
-        return Math.clamp(speed, LONG_PRESS_MIN, MAX);
+        return RuntimeCompat.clamp(speed, LONG_PRESS_MIN, MAX);
     }
 
     public static float[] getPresets() {
