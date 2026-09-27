@@ -1,7 +1,7 @@
 {
   "kind": "reconstructed compatibility candidate, not exact5.6.3 original",
   "candidate_zip_sha256": "0ed42581af11ac7163ebde148b318807c244e2a318f40c41d33f50b70bf967ee",
-  "extractor_aar_sha256": "22ed5d53e6a6977faf12a97d9bdfb97f1cfea9cb39ccfc6418fa1899d3669e6b",
+  "extractor_aar_sha256": "feb8be30e3d431391ce4b3b165a6cbfb18313969d7ba7da2d6ccfeb96d25ee68",
   "container_aar_sha256": "930fca2f018f06f1d08c12599f8c97f31eddbd728edee5de06eb53a882f8fc54",
   "native_source": "neighboring official5.6.5 APKs",
   "apk_sha256": {
@@ -12,7 +12,7 @@
     "armeabi-v7a": "052c81b548649a0a3d697f034640f8c4b00530b6572662b16cc6ca3f6efb1f26",
     "arm64-v8a": "c625360ef9224a516a1092ea757130f4c6f11c63544c50a1b279b654cf4710f7"
   },
-  "aar_sha256": "8b4e7cf1e9971295f55c29548b04c1ab715eb9f5fba71a3de9087ae6ea6768ee",
+  "aar_sha256": "2318eb904a016d0160aed2a4b7de8501578cd0f223c65e5c61086f7a9a80f573",
   "production_class_count": 49,
   "production_class_sha256": {
     "androidx/media3/exoplayer/libass/LibassClockRenderer$Listener.class": "b2ceca2972853ade1a9c373cbfef8ac5e8ad6e7aae80806e697fd54aa30dc81b",
