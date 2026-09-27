@@ -1,0 +1,84 @@
+[
+  {
+    "id": "vmess-kcp-domain",
+    "raw": "vmess://ewogICJ2IjogIjIiLAogICJwcyI6ICJzeW50aGV0aWMiLAogICJhZGQiOiAibm9kZS5zeW50aGV0aWMuaW52YWxpZCIsCiAgInBvcnQiOiAiNDQzIiwKICAiaWQiOiAiMTExMTExMTEtMjIyMi00MzMzLTg0NDQtNTU1NTU1NTU1NTU1IiwKICAiYWlkIjogIjAiLAogICJzY3kiOiAiYXV0byIsCiAgIm5ldCI6ICJrY3AiLAogICJ0eXBlIjogIm5vbmUiLAogICJwYXRoIjogInN5bnRoZXRpYy1zZWVkIiwKICAidGxzIjogIiIsCiAgInNuaSI6ICIiLAogICJhbHBuIjogIiIsCiAgImZwIjogIiIsCiAgImluc2VjdXJlIjogIjAiLAogICJ2Y24iOiAiIiwKICAicGNzIjogIiIKfQ==",
+    "address": "node.synthetic.invalid",
+    "kind": "vmess"
+  },
+  {
+    "id": "vmess-kcp-ipv4",
+    "raw": "vmess://ewogICJ2IjogIjIiLAogICJwcyI6ICJzeW50aGV0aWMiLAogICJhZGQiOiAiMTkyLjAuMi40NCIsCiAgInBvcnQiOiAiNDQzIiwKICAiaWQiOiAiMTExMTExMTEtMjIyMi00MzMzLTg0NDQtNTU1NTU1NTU1NTU1IiwKICAiYWlkIjogIjAiLAogICJzY3kiOiAiYXV0byIsCiAgIm5ldCI6ICJrY3AiLAogICJ0eXBlIjogIm5vbmUiLAogICJwYXRoIjogInN5bnRoZXRpYy1zZWVkIiwKICAidGxzIjogIiIsCiAgInNuaSI6ICIiLAogICJhbHBuIjogIiIsCiAgImZwIjogIiIsCiAgImluc2VjdXJlIjogIjAiLAogICJ2Y24iOiAiIiwKICAicGNzIjogIiIKfQ==",
+    "address": "192.0.2.44",
+    "kind": "vmess"
+  },
+  {
+    "id": "vmess-kcp-ipv6",
+    "raw": "vmess://ewogICJ2IjogIjIiLAogICJwcyI6ICJzeW50aGV0aWMiLAogICJhZGQiOiAiMjAwMTpkYjg6OjQ0IiwKICAicG9ydCI6ICI0NDMiLAogICJpZCI6ICIxMTExMTExMS0yMjIyLTQzMzMtODQ0NC01NTU1NTU1NTU1NTUiLAogICJhaWQiOiAiMCIsCiAgInNjeSI6ICJhdXRvIiwKICAibmV0IjogImtjcCIsCiAgInR5cGUiOiAibm9uZSIsCiAgInBhdGgiOiAic3ludGhldGljLXNlZWQiLAogICJ0bHMiOiAiIiwKICAic25pIjogIiIsCiAgImFscG4iOiAiIiwKICAiZnAiOiAiIiwKICAiaW5zZWN1cmUiOiAiMCIsCiAgInZjbiI6ICIiLAogICJwY3MiOiAiIgp9",
+    "address": "2001:db8::44",
+    "kind": "vmess"
+  },
+  {
+    "id": "vless-grpc-reality-domain",
+    "raw": "vless://11111111-2222-4333-8444-555555555555@node.synthetic.invalid:443?encryption=none&security=reality&sni=sni.synthetic.invalid&fp=chrome&pbk=AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8&sid=0123456789abcdef&spx=%2Fspider%3Fx%3D1%26y%3D%2541&type=grpc&authority=authority.synthetic.invalid&serviceName=%2Fapi&mode=gun#synthetic",
+    "address": "node.synthetic.invalid",
+    "kind": "grpc"
+  },
+  {
+    "id": "vless-grpc-reality-ipv6",
+    "raw": "vless://11111111-2222-4333-8444-555555555555@[2001:db8::44]:443?encryption=none&security=reality&sni=sni.synthetic.invalid&fp=chrome&pbk=AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8&sid=0123456789abcdef&spx=%2Fspider%3Fx%3D1%26y%3D%2541&type=grpc&authority=authority.synthetic.invalid&serviceName=%2Fapi&mode=gun#synthetic",
+    "address": "2001:db8::44",
+    "kind": "grpc"
+  },
+  {
+    "id": "vless-xhttp-reality-domain",
+    "raw": "vless://11111111-2222-4333-8444-555555555555@node.synthetic.invalid:443?encryption=none&security=reality&sni=sni.synthetic.invalid&fp=chrome&pbk=AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8&sid=0123456789abcdef&spx=%2Fspider%3Fx%3D1%26y%3D%2541&type=xhttp&host=host.synthetic.invalid&path=%2Fapi&mode=packet-up#synthetic",
+    "address": "node.synthetic.invalid",
+    "kind": "xhttp"
+  },
+  {
+    "id": "vless-xhttp-reality-ipv6",
+    "raw": "vless://11111111-2222-4333-8444-555555555555@[2001:db8::44]:443?encryption=none&security=reality&sni=sni.synthetic.invalid&fp=chrome&pbk=AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8&sid=0123456789abcdef&spx=%2Fspider%3Fx%3D1%26y%3D%2541&type=xhttp&host=host.synthetic.invalid&path=%2Fapi&mode=packet-up#synthetic",
+    "address": "2001:db8::44",
+    "kind": "xhttp"
+  },
+  {
+    "id": "hy2-hopping-domain-verified",
+    "raw": "hysteria2://synthetic%2Bp%2541ss@node.synthetic.invalid:443?sni=sni.synthetic.invalid&mport=1000-2000%2C3000%2C4000#synthetic",
+    "address": "node.synthetic.invalid",
+    "kind": "hy2",
+    "insecure": false
+  },
+  {
+    "id": "hy2-hopping-domain-tofu",
+    "raw": "hysteria2://synthetic%2Bp%2541ss@node.synthetic.invalid:443?sni=sni.synthetic.invalid&insecure=1&obfs=salamander&obfs-password=synthetic-ob%2541fs&mport=1000-2000%2C3000%2C4000#synthetic",
+    "address": "node.synthetic.invalid",
+    "kind": "hy2",
+    "insecure": true
+  },
+  {
+    "id": "hy2-hopping-ipv6-verified",
+    "raw": "hysteria2://synthetic%2Bp%2541ss@[2001:db8::44]:443?sni=sni.synthetic.invalid&mport=1000-2000%2C3000%2C4000#synthetic",
+    "address": "2001:db8::44",
+    "kind": "hy2",
+    "insecure": false
+  },
+  {
+    "id": "hy2-hopping-ipv6-tofu",
+    "raw": "hysteria2://synthetic%2Bp%2541ss@[2001:db8::44]:443?sni=sni.synthetic.invalid&insecure=1&obfs=salamander&obfs-password=synthetic-ob%2541fs&mport=1000-2000%2C3000%2C4000#synthetic",
+    "address": "2001:db8::44",
+    "kind": "hy2",
+    "insecure": true
+  },
+  {
+    "id": "trojan-ws-safari-domain",
+    "raw": "trojan://synthetic%2Bp%2541ss@node.synthetic.invalid:443?security=tls&sni=sni.synthetic.invalid&fp=safari&type=ws&host=ws.synthetic.invalid&path=%2Fapi%3Fx%3D1%26literal%3D%2541%26eq%3Da%3Db#synthetic",
+    "address": "node.synthetic.invalid",
+    "kind": "trojan"
+  },
+  {
+    "id": "trojan-ws-safari-ipv6",
+    "raw": "trojan://synthetic%2Bp%2541ss@[2001:db8::44]:443?security=tls&sni=sni.synthetic.invalid&fp=safari&type=ws&host=ws.synthetic.invalid&path=%2Fapi%3Fx%3D1%26literal%3D%2541%26eq%3Da%3Db#synthetic",
+    "address": "2001:db8::44",
+    "kind": "trojan"
+  }
+]

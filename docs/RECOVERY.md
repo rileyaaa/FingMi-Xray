@@ -1105,3 +1105,10 @@ Invoke 无 cancel 方法；没有引入猜测的 native 抢占取消或实例替
 
 `prepare-native-converter-harness.py --abi arm64-v8a --jni <固定 arm64 SO> --workdir <独立目录>` 已实际运行：aarch64 GCC + QEMU user + 官方 Android API24 arm64 Bionic/linker64，所有输入固定 SHA-256；系统镜像另核官方 metadata SHA-1 `e88ebdf4533efa0370603ee4ab0e7834e0cc364f`。没有修改发布 SO。
 `test-native-abi-parity.py` 和 `published-native-abi-parity.json`：28 个结构化响应 v7/arm64 相等，覆盖 API v2、Trojan/VLESS/VMess/KCP/HY2、test/run/重复 run/stop/state、运行/未运行时 pingBatch 错误、age x25519/PQ 成功及关键错误；另在同一合成 TLS/QUIC peer 上确认两 ABI pin 相同及连接关闭。未重跑 327，未声称 ARM ART/真机回归。probe 成功无需已有 core 实例，pingBatch 错误在全局 running 前后相同；official 的独立 batch instance/worker 生命周期仍可继承。
+
+### v2rayN 实际导出组合回归（2026-09-27）
+
+- 固定 `2dust/v2rayN@d433aa3b0484c43d10e6de1c441e30d5e4a2525b` exporter/encoding/DTO 源码；`recovery/v2rayn-tests/exporter-evidence.json` 保存路径与 SHA。输入为源码推导的 synthetic 格式，不声称执行了 v2rayN C#。
+- `scripts/test-v2rayn-share-chain.py`：13/13 经当前 `:xray` normalizer/security/bridge/config factory → 发布 v7 native converter → 发布 `testXray`，冻结 `published-v7.json`；仅证书探测 I/O 与 pin 存储为测试替身。
+- 覆盖 VMess KCP none/path seed（含 IPv4）、gRPC Reality gun、XHTTP Reality packet-up、HY2 mixed mport（校验证书/TOFU+salamander）、Trojan WS TLS safari；五组均覆盖 domain/IPv6。保留协议 hostname、百分号及 query；HY2 probe 取1000，配置端口443、完整 udpHop ports 和 interval默认值0分别验证。
+- 当前生产代码无需修改；本组完成后冻结 converter，不重跑327矩阵。此回归不等于真实节点连接、ART/Keystore 或播放验收；节点 DNS 真实 dial 路径另行确认。
