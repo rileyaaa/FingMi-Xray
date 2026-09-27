@@ -10,7 +10,6 @@ import java.util.ArrayList;
 import java.util.Base64;
 import java.util.List;
 import java.util.Locale;
-import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -25,8 +24,6 @@ import java.util.regex.Pattern;
 public final class XrayShareLinkNormalizer {
 
     private static final int MAX_LENGTH = 16_384;
-    private static final Set<String> SUPPORTED =
-            Set.of("vless", "vmess", "trojan", "ss", "hy2", "hysteria2");
     private static final Pattern VMESS_PORT = Pattern.compile(
             "\"port\"\\s*:\\s*(?:\"([+-]?\\d+)\"|([+-]?\\d+(?:\\.\\d+)?(?:[eE][+-]?\\d+)?))");
     private static final Pattern SHA256 = Pattern.compile("(?i)[0-9a-f]{64}");
@@ -47,7 +44,7 @@ public final class XrayShareLinkNormalizer {
 
         String scheme = value.substring(0, colon);
         String normalizedScheme = scheme.toLowerCase(Locale.ROOT);
-        if (!SUPPORTED.contains(normalizedScheme)) {
+        if (!isSupportedScheme(normalizedScheme)) {
             throw new IllegalArgumentException("Unsupported Xray link protocol");
         }
         if (!scheme.equals(normalizedScheme)) {
@@ -79,6 +76,15 @@ public final class XrayShareLinkNormalizer {
             if (isKnownValidationError(error.getMessage())) throw error;
             throw new IllegalArgumentException("Invalid Xray link", error);
         }
+    }
+
+    private static boolean isSupportedScheme(String scheme) {
+        return "vless".equals(scheme)
+                || "vmess".equals(scheme)
+                || "trojan".equals(scheme)
+                || "ss".equals(scheme)
+                || "hy2".equals(scheme)
+                || "hysteria2".equals(scheme);
     }
 
     private static boolean isKnownValidationError(String message) {
