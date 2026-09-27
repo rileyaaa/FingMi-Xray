@@ -18,8 +18,6 @@ import java.util.concurrent.CopyOnWriteArraySet;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
-import com.fongmi.android.tv.service.DLNARendererService;
-
 /**
  * Behavior reconstruction of the shipped TV foreground/network generation
  * monitor (R8 name: gn3).
@@ -168,7 +166,7 @@ public final class TvNetworkLifecycle
 
         if (stopDlna) {
             try {
-                DLNARendererService.stop(application);
+                TvDlnaLifecycle.stop(application);
             } catch (RuntimeException ignored) {
             }
         }
@@ -197,7 +195,7 @@ public final class TvNetworkLifecycle
         if (!startDlna) return;
 
         try {
-            DLNARendererService.start(application);
+            TvDlnaLifecycle.start(application);
         } catch (RuntimeException ignored) {
             synchronized (this) {
                 dlnaStarted = false;
