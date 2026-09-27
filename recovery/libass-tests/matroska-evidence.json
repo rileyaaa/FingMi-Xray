@@ -1,0 +1,39 @@
+{
+  "candidate_zip_sha256": "0ed42581af11ac7163ebde148b318807c244e2a318f40c41d33f50b70bf967ee",
+  "original_source_sha256": "e6178a00ac3e092e1836d058ddd0517060b7c32e1889b3fb2bc2c077eedfe0c1",
+  "restored_source_sha256": "c47a70a61f8d25cba7a07567727e72fb29a2487e7a07c860a12998e9babe59cd",
+  "source_provenance": "real FongMi/media@9dae39e9689ee305c83f94bd11cf3bcecb9d6171 source, exact restored bytes",
+  "official_container_aar_sha256": "930fca2f018f06f1d08c12599f8c97f31eddbd728edee5de06eb53a882f8fc54",
+  "original_extractor_aar_sha256": "9f5d306cabf3118ae26417c02870200dd245da853f980cdc8d51b27db34accd9",
+  "output_aar_sha256": "129d22c505c234ffed9f673d0356ccc5d17f59d064e3e3c09930f51fe34af111",
+  "replaced_classes": [
+    "androidx/media3/extractor/mkv/MatroskaExtractor$1.class",
+    "androidx/media3/extractor/mkv/MatroskaExtractor$Attachment.class",
+    "androidx/media3/extractor/mkv/MatroskaExtractor$ChapterEntry.class",
+    "androidx/media3/extractor/mkv/MatroskaExtractor$Flags.class",
+    "androidx/media3/extractor/mkv/MatroskaExtractor$InnerEbmlProcessor.class",
+    "androidx/media3/extractor/mkv/MatroskaExtractor$MatroskaSeekMap$CuePointData.class",
+    "androidx/media3/extractor/mkv/MatroskaExtractor$MatroskaSeekMap.class",
+    "androidx/media3/extractor/mkv/MatroskaExtractor$Track.class",
+    "androidx/media3/extractor/mkv/MatroskaExtractor.class"
+  ],
+  "other_class_contents_unchanged": true,
+  "tests": "5 synthetic public extractor read-path tests including unmodified pinned AAR output comparison",
+  "limitation": "restores Matroska callbacks only; not a complete newer Libass API/AAR",
+  "source_baseline": "FongMi/media@3c2cbe8ac742c2fe15eff52f03eeb3b1b648848d",
+  "published_565_dex_evidence": {
+    "sha256": "a1b7f5735678e7b09dbd522d080ff6ada3fc4cf6ffe064278c35ebccb49020f8",
+    "libass.a.A": "attachment size/mime decision;32MiB item and128MiB media budgets",
+    "libass.a.r": "ASS CodecPrivate creates isolated track under shared media library",
+    "libass.a.q": "original sample range plus microsecond start/duration forwarded to nativeProcessChunk after usToMs",
+    "libass.a.s": "font dedup by name/length/SHA256; nativeAddFont uses shared library; reload existing track fonts"
+  },
+  "source_patch_scope": {
+    "files": 1,
+    "added_lines": 126,
+    "removed_lines": 0
+  },
+  "java_runtime": "openjdk version \"17.0.20\" 2026-07-21\nOpenJDK Runtime Environment (build 17.0.20+8-1-24.04-Ubuntu)\nOpenJDK 64-Bit Server VM (build 17.0.20+8-1-24.04-Ubuntu, mixed mode, sharing)",
+  "target_class_major": 52,
+  "dependency_note": "media3-container:1.11.0 is a real Google Maven dependency, missing from the16-AAR bundle; used for compilation/tests, not bundled into the patched extractor AAR"
+}
