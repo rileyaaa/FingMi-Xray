@@ -456,3 +456,9 @@ Git commit history 已经承担时间线职责。
 - 新 `LibassNativeLibrary/LibassTrack` 集中在重建边界，真实调用新版JNI；统一owner锁防止create/process/render与parent close交叉，失败清理/重复close/重入不会返回已释放track。JVM instrumented JNI仅在测试目录，不打入产物。
 - `test-libass-native-ownership.py` 8个确定性用例通过；发布v7真执行额外覆盖null library错误、null release、UTF获取失败后的资源清理路径及同library后续成功创建。两ABI签名门继续通过。
 - 尚未恢复完整native渲染参数语义、MediaState/session/controller/preload集成及新版AAR；本阶段不宣称完整Libass可用或5.6.3已编译。
+
+### Libass media/preload 所有权状态机（2026-09-27）
+
+- 精准沿邻版5.6.5 `sk1.g/j/k/m/n/p/s` 及 `vr0.e` 内联组件工厂恢复：current、previous、preload、timeline与preparing五类保留条件；空timeline不清preparing，非空timeline确认后才清除，preload晋升复用同一media对象。
+- `LibassMediaOwnership` 集中实现这部分状态，不依赖Activity；播放器按对象身份接收callback，替换后旧callback不能写新状态。detach保留显式preload，close拒绝新组件并忽略迟到状态通知。
+- 新8例（连同native owner共16例）确定性JVM回归通过，双ABI声明门继续通过。它尚未与完整Media3 session/parser/controller连接；MediaState的迟到解析/渲染任务失效仍需恢复，不能把此状态机单独称作完整preload pipeline通过。

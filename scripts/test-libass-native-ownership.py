@@ -8,4 +8,5 @@ tests=ROOT/'recovery/libass-tests/java'
 with tempfile.TemporaryDirectory(prefix='libass-owners-') as td:
  files=[p for p in src.glob('*.java') if p.name!='LibassNative.java']+list(tests.rglob('*.java'))
  subprocess.run(['java','com.sun.tools.javac.Main','--release','17','-d',td,*map(str,files)],check=True)
- subprocess.run(['java','-cp',td,'androidx.media3.exoplayer.libass.NativeOwnershipTest'],check=True,timeout=30)
+ for name in ['NativeOwnershipTest','MediaOwnershipTest']:
+  subprocess.run(['java','-cp',td,'androidx.media3.exoplayer.libass.'+name],check=True,timeout=30)

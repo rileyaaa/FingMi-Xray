@@ -29,5 +29,23 @@
     "Native render flag/style semantics not fully recovered; wrappers preserve5.6.5 argument order/second render flag true",
     "Media/session/preload/controller ownership remains to integrate",
     "No full subtitle rendering, ART, Android build or exact5.6.3-source claim"
-  ]
+  ],
+  "media_ownership": {
+    "reference": {
+      "sk1.g": "get/create media by MediaItem equality",
+      "sk1.j": "collect only if not current(o),previous(p),preload(q),timeline(h),preparing(i)",
+      "sk1.k": "new current retains previous; null clears both; promotion removes preparing entry",
+      "sk1.m": "player identity replacement clears timeline/current/previous; detach additionally clears preparing; explicit preload remains",
+      "sk1.n": "set preload and remove its preparing marker",
+      "sk1.p": "ignore callbacks when source player != active player",
+      "sk1.s": "replace timeline and clear preparing only if timeline nonempty",
+      "vr0.e": "inlined createMediaComponents: add preparing marker if neither current/preload nor in timeline (previous is intentionally not excluded)"
+    },
+    "implementation": "LibassMediaOwnership: host-testable internal state portion, not complete playback session/controller",
+    "tests": 8,
+    "limitations": [
+      "Not yet wired to Media3 listeners/parser/extractor; no complete pipeline claim",
+      "Underlying MediaState must invalidate pending parse/render callbacks before native disposal; this registry alone does not establish that boundary"
+    ]
+  }
 }
