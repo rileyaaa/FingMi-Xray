@@ -47,6 +47,12 @@ for path in sorted(XRAY.rglob("*.java")):
             line = text.count("\n", 0, offset) + 1
             errors.append(f"{rel}:{line}: StringBuilder.isEmpty is not safe on Android 12")
 
+
+proguard = (ROOT / "app/proguard-rules.pro").read_text(encoding="utf-8")
+for keep_rule in ("-keep class libXray.** { *; }", "-keep class go.** { *; }"):
+    if keep_rule not in proguard:
+        errors.append(f"missing release JNI keep rule: {keep_rule}")
+
 if errors:
     raise SystemExit("\n".join(errors))
 
