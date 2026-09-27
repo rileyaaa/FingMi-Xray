@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """Restore exact historical upstream Libass hooks in the pinned Media3 extractor; test and repack AAR.
 
-Only MatroskaExtractor and its nested classes change. This is one prerequisite, not a complete Libass AAR.
+Only MatroskaExtractor, SubtitleParser, SubtitleTranscodingTrackOutput and their nested classes change.
+This is one prerequisite, not a complete Libass AAR.
 """
 import argparse,hashlib,io,json,os,subprocess,tempfile,urllib.parse,urllib.request,xml.etree.ElementTree as ET
 from pathlib import Path
@@ -11,7 +12,10 @@ SOURCE='libraries/extractor/src/main/java/androidx/media3/extractor/mkv/Matroska
 SOURCE_SHA='e6178a00ac3e092e1836d058ddd0517060b7c32e1889b3fb2bc2c077eedfe0c1'
 RESTORED_SHA='c47a70a61f8d25cba7a07567727e72fb29a2487e7a07c860a12998e9babe59cd'
 CONTAINER_SHA='930fca2f018f06f1d08c12599f8c97f31eddbd728edee5de06eb53a882f8fc54'
-PREFIX='androidx/media3/extractor/mkv/MatroskaExtractor'
+TIMED_SOURCES={
+ 'SubtitleParser':('529d8a48083cb491cab0479431253774a512e36d4c365735c4a51a173658cca7','216d67d9c56d0697623342216aed36d9440b117152db91a5b8a0150d301b2b1b'),
+ 'SubtitleTranscodingTrackOutput':('59568aaa1aad5db1c2a19faf8124ba6f8184365de3fbc8f0342813429e27cc8b','069c2ddce570350cba81bd9512945ba99c9b5e20789bbce4a60df58b2f708ce1')}
+PREFIXES=['androidx/media3/extractor/mkv/MatroskaExtractor']+['androidx/media3/extractor/text/'+n for n in TIMED_SOURCES]
 def sha(b):return hashlib.sha256(b).hexdigest()
 def write_zip(entries):
  b=io.BytesIO()
@@ -20,7 +24,7 @@ def write_zip(entries):
    info=ZipInfo(name,(1980,1,1,0,0,0));info.compress_type=ZIP_DEFLATED;info.external_attr=0o644<<16;z.writestr(info,data)
  return b.getvalue()
 def main():
- p=argparse.ArgumentParser(description=__doc__);p.add_argument('--candidate',type=Path,required=True);p.add_argument('--workdir',type=Path,required=True);p.add_argument('--maven',required=True);p.add_argument('--source',type=Path);p.add_argument('--container',type=Path);p.add_argument('--local-repository',type=Path,default=Path.home()/'.m2/repository');a=p.parse_args()
+ p=argparse.ArgumentParser(description=__doc__);p.add_argument('--candidate',type=Path,required=True);p.add_argument('--workdir',type=Path,required=True);p.add_argument('--maven',required=True);p.add_argument('--source',type=Path);p.add_argument('--source-root',type=Path);p.add_argument('--container',type=Path);p.add_argument('--local-repository',type=Path,default=Path.home()/'.m2/repository');a=p.parse_args()
  assert sha(a.candidate.read_bytes())=='0ed42581af11ac7163ebde148b318807c244e2a318f40c41d33f50b70bf967ee'
  work=a.workdir.resolve();(work/'jars').mkdir(parents=True,exist_ok=True)
  # Official same-version container is an explicit upstream extractor dependency, absent from
@@ -34,13 +38,24 @@ def main():
   aar=bundle.read('lib-extractor-release.aar')
   for name in ['common','extractor']:
    with ZipFile(io.BytesIO(bundle.read('lib-'+name+'-release.aar'))) as z:(work/'jars'/('lib-'+name+'-release.jar')).write_bytes(z.read('classes.jar'))
- if a.source:source=a.source.read_bytes()
+ if a.source_root:source=(a.source_root/SOURCE).read_bytes()
+ elif a.source:source=a.source.read_bytes()
  else:
   with urllib.request.urlopen('https://raw.githubusercontent.com/FongMi/media/3c2cbe8ac742c2fe15eff52f03eeb3b1b648848d/'+SOURCE) as r:source=r.read()
  assert sha(source)==SOURCE_SHA,'Wrong fixed source'
  target=work/'source'/SOURCE;target.parent.mkdir(parents=True,exist_ok=True);target.write_bytes(source)
  subprocess.run(['patch','--batch','--fuzz=0','-p1','-i',str(ROOT/'recovery/media3-libass/patches/matroska-libass-hooks.patch')],cwd=work/'source',check=True)
  assert sha(target.read_bytes())==RESTORED_SHA,'Restored source must be byte-identical to real upstream9dae39e9'
+ for name,(before,after) in TIMED_SOURCES.items():
+  path='libraries/extractor/src/main/java/androidx/media3/extractor/text/'+name+'.java'
+  original=a.source_root/path if a.source_root else work/'input'/path
+  if not original.exists():
+   original.parent.mkdir(parents=True,exist_ok=True)
+   with urllib.request.urlopen('https://raw.githubusercontent.com/FongMi/media/3c2cbe8ac742c2fe15eff52f03eeb3b1b648848d/'+path) as r:original.write_bytes(r.read())
+  content=original.read_bytes();assert sha(content)==before,'Wrong fixed timed-parser source'
+  destination=work/'source'/path;destination.parent.mkdir(parents=True,exist_ok=True);destination.write_bytes(content)
+ subprocess.run(['patch','--batch','--fuzz=0','-p1','-i',str(ROOT/'recovery/media3-libass/patches/subtitle-sample-time.patch')],cwd=work/'source',check=True)
+ for name,(before,after) in TIMED_SOURCES.items():assert sha((work/'source/libraries/extractor/src/main/java/androidx/media3/extractor/text'/ (name+'.java')).read_bytes())==after
  cmd=[str(Path(a.maven).resolve()),'-B','-f',str(ROOT/'recovery/libass-tests/matroska/pom.xml'),'-Dlibass.work='+str(work),'-Dmaven.repo.local='+str(a.local_repository.resolve())]
  settings=ET.Element('settings');proxies=ET.SubElement(settings,'proxies')
  for protocol in ['http','https']:
@@ -60,13 +75,13 @@ def main():
   subprocess.run(cmd+['test'],check=True)
  with ZipFile(io.BytesIO(aar)) as z:entries={n:z.read(n) for n in z.namelist()}
  with ZipFile(io.BytesIO(entries['classes.jar'])) as z:original={n:z.read(n) for n in z.namelist()}
- def selected(n):return n==PREFIX+'.class' or n.startswith(PREFIX+'$') and n.endswith('.class')
+ def selected(n):return any(n==prefix+'.class' or n.startswith(prefix+'$') and n.endswith('.class') for prefix in PREFIXES)
  classes={n:b for n,b in original.items() if not selected(n)}
  produced={str(f.relative_to(work/'target/classes')):f.read_bytes() for f in (work/'target/classes').rglob('*.class')}
  assert produced and all(selected(n) for n in produced),'Unexpected compiled classes'
  classes.update(produced)
  assert all(classes[n]==b for n,b in original.items() if not selected(n))
  entries['classes.jar']=write_zip(classes);out=work/'lib-extractor-libass-release.aar';out.write_bytes(write_zip(entries))
- report={'candidate_zip_sha256':sha(a.candidate.read_bytes()),'original_source_sha256':SOURCE_SHA,'restored_source_sha256':RESTORED_SHA,'source_provenance':'real FongMi/media@9dae39e9689ee305c83f94bd11cf3bcecb9d6171 source, exact restored bytes','official_container_aar_sha256':CONTAINER_SHA,'original_extractor_aar_sha256':sha(aar),'output_aar_sha256':sha(out.read_bytes()),'replaced_classes':sorted(produced),'other_class_contents_unchanged':True,'tests':'5 synthetic public extractor read-path tests including unmodified pinned AAR output comparison','limitation':'restores Matroska callbacks only; not a complete newer Libass API/AAR'}
+ report={'candidate_zip_sha256':sha(a.candidate.read_bytes()),'original_source_sha256':SOURCE_SHA,'restored_source_sha256':RESTORED_SHA,'source_provenance':'Matroska: real FongMi/media@9dae39e9689ee305c83f94bd11cf3bcecb9d6171 source, exact restored bytes; timed parser: reconstructed published5.6.5 behavior','reconstructed_timed_parser_source_sha256':TIMED_SOURCES,'official_container_aar_sha256':CONTAINER_SHA,'original_extractor_aar_sha256':sha(aar),'output_aar_sha256':sha(out.read_bytes()),'replaced_classes':sorted(produced),'other_class_contents_unchanged':True,'tests':'5 synthetic public extractor read-path tests plus4 timed-parser propagation/compatibility tests','limitation':'restores Matroska callbacks and parser timestamps; not a complete newer Libass API/AAR'}
  (work/'extractor-evidence.json').write_text(json.dumps(report,indent=2)+'\n');print(json.dumps(report,indent=2))
 if __name__=='__main__':main()
