@@ -8,16 +8,84 @@ FingMi-Xray 将 Xray 集成到播放器内部。遇到这类内容时，可以�
 
 ## 项目版本
 
-当前重构工程使用和适配的主要版本：
+当前 `main` 基于 FongMi/TV 5.6.3，主要组件版本如下：
 
-| 组件 | 版本 |
+| 组件 | 当前版本 / 基线 |
 | --- | --- |
-| FongMi/TV | **5.6.3** |
-| FingMi-Xray | **5.6.3** |
+| FongMi/TV | **5.6.3**（commit `4afc4473e22a7ed3d98ee12233e0c2a490061000`） |
+| FongMi/media / Media3 fork | **1.11.0**（commit `3c2cbe8ac742c2fe15eff52f03eeb3b1b648848d`） |
+| Media3 container | **1.11.0** |
 | libXray AAR | **v26.7.28** |
 | Xray-core | **v26.7.28** |
+| QuickJS wrapper | **3.2.3** |
+| Chaquopy Gradle Plugin | **17.0.0** |
+| Python runtime | **3.10** |
+| OkHttp | **5.5.0** |
+| AndroidX Media | **1.8.0** |
+| AndroidX Leanback | **1.2.0** |
+| AndroidX AppCompat | **1.8.0** |
+| AndroidX Lifecycle Service | **2.11.0** |
+| AndroidX RecyclerView | **1.4.0** |
+| Room | **2.8.4** |
+| Glide | **5.0.9** |
+| Material Components | **1.14.0** |
 
-当前应用 `versionCode` 为 **563**。Android 端仍以 XTLS/libXray `v26.7.28` 的 AAR 为基础，并按本项目已经固定和验证的发布版 JNI 恢复流程准备实际构建依赖。
+当前播放器 AAR 统一来自固定的 FongMi/media 1.11.0 候选。MPV、FFmpeg 等 native 组件没有在当前工程中维护独立、可直接声明的 semver，因此不另外虚构版本号；它们的二进制来源和校验方式见 [DEVELOPMENT.md](docs/DEVELOPMENT.md) 与 [RECOVERY.md](docs/RECOVERY.md)。
+
+### 构建环境
+
+| 项目 | 版本 |
+| --- | --- |
+| Java | **21** |
+| Gradle | **9.7.1** |
+| Android Gradle Plugin | **9.3.1** |
+| compileSdk | **37** |
+| targetSdk | **37** |
+| minSdk | **24** |
+| Android SDK Platform（CI） | **37.0** |
+| Android Build Tools（CI） | **37.0.0** |
+| desugar_jdk_libs_nio | **2.1.5** |
+
+<details>
+<summary>其他 Gradle 依赖版本</summary>
+
+| 依赖 | 版本 |
+| --- | --- |
+| AndroidX Annotation | 1.10.0 |
+| AndroidX Biometric | 1.1.0 |
+| AndroidX Palette | 1.0.0 |
+| AndroidX Preference | 1.2.1 |
+| AndroidX SplashScreen | 1.2.0 |
+| AndroidX Startup | 1.2.0 |
+| AndroidX SwipeRefreshLayout | 1.2.0 |
+| AndroidX ViewPager2 | 1.1.0 |
+| android-gif-drawable | 1.2.32 |
+| AndroidAutoSize | 1.2.1 |
+| Brotli | 0.1.2 |
+| Apache Commons Compress | 1.28.0 |
+| CustomActivityOnCrash | 2.4.0 |
+| Flexbox | 3.0.0 |
+| EventBus | 3.3.1 |
+| Gson | 2.14.0 |
+| Guava | 33.7.1-android |
+| JNA | 5.19.1 |
+| juniversalchardet | 1.0.3 |
+| Logger | 2.2.0 |
+| Lottie | 6.7.1 |
+| MaterialDesignColors | 1.0.0 |
+| NanoHTTPD | 2.3.1 |
+| NewPipeExtractor | v0.26.5 |
+| PermissionX | 1.8.1 |
+| RTMP Client | v3.2.0.m2 |
+| Sardine Android | 0.9 |
+| Simple XML | 2.7.1 |
+| SMBJ | 0.15.0 |
+| TextDrawable | 1.0.3 |
+| ZXing Android Embedded | 4.3.0 |
+| ZXing Core | 3.5.4 |
+| JUnit（test） | 4.13.2 |
+
+</details>
 
 ## 核心设计
 
