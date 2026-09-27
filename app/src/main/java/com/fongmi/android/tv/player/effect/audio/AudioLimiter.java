@@ -1,5 +1,7 @@
 package com.fongmi.android.tv.player.effect.audio;
 
+import com.fongmi.android.tv.utils.RuntimeCompat;
+
 final class AudioLimiter {
 
     private static final float LIMIT = 0.98f;
@@ -20,7 +22,7 @@ final class AudioLimiter {
     }
 
     float limit(float sample) {
-        return Math.clamp(sample, -LIMIT, LIMIT);
+        return RuntimeCompat.clamp(sample, -LIMIT, LIMIT);
     }
 
     void reset() {
