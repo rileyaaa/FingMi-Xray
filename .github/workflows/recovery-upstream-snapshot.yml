@@ -10,7 +10,7 @@ jobs:
 
     steps:
       - name: Checkout recovery branch
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Fetch exact FongMi 5.6.0 baseline
         shell: bash
@@ -25,7 +25,7 @@ jobs:
           rm -rf .git
 
       - name: Upload upstream source
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: fongmi-tv-5.6.0-baseline
           path: recovery/work/fongmi-upstream
