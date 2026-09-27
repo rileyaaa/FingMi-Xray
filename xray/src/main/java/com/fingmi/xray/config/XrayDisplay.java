@@ -8,8 +8,18 @@ public final class XrayDisplay {
     private XrayDisplay() {
     }
 
+    private static boolean isBlank(String value) {
+        if (value == null) return true;
+        for (int offset = 0; offset < value.length();) {
+            int codePoint = value.codePointAt(offset);
+            if (!Character.isWhitespace(codePoint)) return false;
+            offset += Character.charCount(codePoint);
+        }
+        return true;
+    }
+
     public static String describe(String shareLink) {
-        if (shareLink == null || shareLink.isBlank()) return "Not configured";
+        if (isBlank(shareLink)) return "Not configured";
 
         try {
             URI uri = URI.create(shareLink);
