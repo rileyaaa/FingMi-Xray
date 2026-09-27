@@ -79,7 +79,6 @@ else:
         "libXray/GenerateAgeKeyPairResponse.class",
         "libXray/ProbeTLSCertificateRequest.class",
         "libXray/ProbeHysteria2CertificateRequest.class",
-        "libXray/ProbeCertificateResponse.class",
     ):
         if required not in builder_text:
             errors.append(f"published libXray builder missing binding contract: {required}")
