@@ -51,7 +51,7 @@ def main():
   sources=sorted((ROOT/'compat/media3-libass/src/main/java').rglob('*.java'))
   app_sources=[ROOT/'app/src/main/java/androidx/media3/exoplayer'/path for path in ['trackselection/SecondaryTextTrackSelector.java','text/SecondaryTextOutput.java']]
   classes=work/'classes';classes.mkdir()
-  command=['java','com.sun.tools.javac.Main','--release','17','-g:none','-cp',os.pathsep.join(map(str,[*jars,a.android_jar,*deps])),'-d',str(classes),*map(str,sources+app_sources)]
+  command=['java','com.sun.tools.javac.Main','--release','17','-g:none','-Xlint:-classfile','-cp',os.pathsep.join(map(str,[*jars,a.android_jar,*deps])),'-d',str(classes),*map(str,sources+app_sources)]
   subprocess.run(command,check=True)
   produced={str(path.relative_to(classes)):path.read_bytes() for path in classes.rglob('*.class') if str(path.relative_to(classes)).startswith(PREFIX)}
   assert produced and all(name not in owned for name in produced),'Libass collides with dependency classes'
