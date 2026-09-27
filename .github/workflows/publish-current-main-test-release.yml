@@ -1,0 +1,112 @@
+name: Publish 5.6.3 test pre-release
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  actions: read
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    env:
+      BUILD_RUN_ID: "36301217767"
+      BUILD_ARTIFACT_ID: "10925572471"
+      BUILD_ARTIFACT_NAME: "fingmi-xray-5.6.3-current-main-debug"
+      BUILD_ARTIFACT_DIGEST: "sha256:9702b6ee9230fd839e9fc025a02eebc5e4822a39b0449d292d87ecc02d4be2d0"
+      BUILD_COMMIT: "7e2111a2d14b04e034eae3cf83c456659586a799"
+      RELEASE_TAG: "v5.6.3-xray.test.1"
+      TV_V7_SHA256: "409415aeced5428f2ea0df0df7cfe6f807a2918494a68ba2fc61b62c9081d3a3"
+      TV_ARM64_SHA256: "949e19a65f1d4006fae9f181d359afa72806337a389bb5d8167d0a0dc1ca2f8c"
+
+    steps:
+      - name: Verify pinned successful build
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+
+          run_json="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$BUILD_RUN_ID")"
+          jq -e --arg sha "$BUILD_COMMIT" '
+            .conclusion == "success" and
+            .head_sha == $sha
+          ' <<< "$run_json" >/dev/null
+
+          artifacts_json="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$BUILD_RUN_ID/artifacts?per_page=100")"
+          jq -e             --argjson id "$BUILD_ARTIFACT_ID"             --arg name "$BUILD_ARTIFACT_NAME"             --arg digest "$BUILD_ARTIFACT_DIGEST" '
+              any(.artifacts[];
+                .id == $id and
+                .name == $name and
+                .expired == false and
+                .digest == $digest
+              )
+            ' <<< "$artifacts_json" >/dev/null
+
+      - name: Download pinned current-main APK artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ env.BUILD_ARTIFACT_NAME }}
+          path: input
+          github-token: ${{ github.token }}
+          repository: ${{ github.repository }}
+          run-id: ${{ env.BUILD_RUN_ID }}
+
+      - name: Verify and stage Android TV APKs
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          tv_v7="$(find input -type f -name 'app-leanback-armeabi-v7a-debug.apk' -print -quit)"
+          tv_arm64="$(find input -type f -name 'app-leanback-arm64-v8a-debug.apk' -print -quit)"
+
+          test -n "$tv_v7"
+          test -n "$tv_arm64"
+
+          printf '%s  %s\n'             "$TV_V7_SHA256" "$tv_v7"             "$TV_ARM64_SHA256" "$tv_arm64"             | sha256sum -c -
+
+          mkdir -p release
+          cp "$tv_v7" "release/FongMi-Xray-TV-v5.6.3-xray.test.1-armeabi-v7a.apk"
+          cp "$tv_arm64" "release/FongMi-Xray-TV-v5.6.3-xray.test.1-arm64-v8a.apk"
+
+          sha256sum release/*.apk
+
+      - name: Publish GitHub pre-release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+
+          notes_file="$RUNNER_TEMP/release-notes.md"
+          cat > "$notes_file" <<EOF
+          ## 5.6.3 current-main 真机测试包
+
+          > 测试发布（Pre-release），不是正式版，也不会替代当前 Latest：`v5.6.0-xray.5`。
+
+          - 源码 commit：`$BUILD_COMMIT`
+          - GitHub Actions run：`$BUILD_RUN_ID`
+          - 状态：Leanback / Mobile Debug javac 与 APK assemble 已通过
+          - 本 Release 仅上传 Android TV / Leanback 两个 ABI，用于真机回归
+
+          ### APK SHA-256
+
+          - armeabi-v7a：`$TV_V7_SHA256`
+          - arm64-v8a：`$TV_ARM64_SHA256`
+
+          ### 尚未完成
+
+          - Android TV 真机行为回归
+          - 原 `v5.6.0-xray.5` faithful 基准的独立 cloud build / 最终验收
+
+          如果测试发现问题，以本 Release 对应的 commit / run / APK hash 作为定位基准。
+          EOF
+
+          if gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release upload "$RELEASE_TAG"               --repo "$GITHUB_REPOSITORY"               --clobber               release/*.apk
+          else
+            gh release create "$RELEASE_TAG"               --repo "$GITHUB_REPOSITORY"               --target "$BUILD_COMMIT"               --title "$RELEASE_TAG"               --notes-file "$notes_file"               --prerelease               release/*.apk
+          fi
