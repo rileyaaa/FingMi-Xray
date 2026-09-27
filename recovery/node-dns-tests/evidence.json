@@ -1,0 +1,145 @@
+{
+  "core_version": "v1.260327.1-0.20260728075948-5ca6f4b7d4dc",
+  "core_sum": "h1:fkOkmgHWbF2Q8MdV9VxrsyxRz4OndcrUXUkh1ANBTg0=",
+  "go_version": "go1.26.3",
+  "published_build_info": [
+    "native-harness/published-v7-libgojni.so: go1.26.3",
+    "dep\tgithub.com/xtls/xray-core\tv1.260327.1-0.20260728075948-5ca6f4b7d4dc\th1:fkOkmgHWbF2Q8MdV9VxrsyxRz4OndcrUXUkh1ANBTg0=",
+    "build\tCGO_ENABLED=1",
+    "build\tGOARCH=arm",
+    "build\tGOOS=android"
+  ],
+  "sources": [
+    {
+      "path": "app/proxyman/outbound/handler.go",
+      "sha256": "c957a7f96789829e2121e58c901332b89b959b39f3248daa80e78d0ab83caf16"
+    },
+    {
+      "path": "common/net/system.go",
+      "sha256": "06e799bf0cb7f6a063df176fdda39eb752b1c8643a95f56f6637d4ad1eac1ccc"
+    },
+    {
+      "path": "proxy/hysteria/client.go",
+      "sha256": "a8da6f47d56636d57063ca23803e3f16f4daee0403d0c775ae5871e70820911f"
+    },
+    {
+      "path": "proxy/trojan/client.go",
+      "sha256": "0ea53361495e0372bd5b898140be3e243589822fdd58179640f80a1340296f64"
+    },
+    {
+      "path": "proxy/vless/outbound/outbound.go",
+      "sha256": "cbca62b236df83e9e1466bd95c5ddf68ce82d5e0534bef61813878287dcd769a"
+    },
+    {
+      "path": "proxy/vmess/outbound/outbound.go",
+      "sha256": "0aac8f98f7b98cffc7fc6da539a16126558cb692613f19a1ef5c6ad11dac205c"
+    },
+    {
+      "path": "transport/internet/dialer.go",
+      "sha256": "334879cb885dd0701e593eb3a2f98e117aca18af0df7613eb119dda4dcccaf0d"
+    },
+    {
+      "path": "transport/internet/grpc/dial.go",
+      "sha256": "63843c562f9f6e77e371b98b58af493a41f361ee9781b34aa3824aacac493312"
+    },
+    {
+      "path": "transport/internet/hysteria/dialer.go",
+      "sha256": "176c5c497328d4970da7c15f89b0897db12582a40d6c07e4a183edf8e4288326"
+    },
+    {
+      "path": "transport/internet/reality/reality.go",
+      "sha256": "30765daf9b9ffcbb4fc9afeb15b2244b1409208059eb5bbdc020c1f3405bed45"
+    },
+    {
+      "path": "transport/internet/splithttp/dialer.go",
+      "sha256": "8b3f58b4b34e6b8fb104fe2f299ea42e30292c8102ed18ce419b4d6392edc007"
+    },
+    {
+      "path": "transport/internet/system_dialer.go",
+      "sha256": "296da0c0d42eeddc7e513a8108d6100ce82cf10ea681a9db6682df9fd69a1e53"
+    },
+    {
+      "path": "transport/internet/tcp/dialer.go",
+      "sha256": "9f5009bc9c1696b22ad0cef54513d4a2a2cb8e1de08f67bceb34bc7839da4707"
+    },
+    {
+      "path": "transport/internet/tls/config.go",
+      "sha256": "4fd6cccdaeb83698878548ae4743c1edd31c7f86bce423ec519dc34778db145d"
+    }
+  ],
+  "claims": [
+    {
+      "claim": "targetStrategy resolves playback target ob.Target, not node rec/server.Destination",
+      "refs": [
+        "app/proxyman/outbound/handler.go:Dispatch",
+        "proxy/vless/outbound/outbound.go:Process",
+        "proxy/vmess/outbound/outbound.go:Process",
+        "proxy/trojan/client.go:Process",
+        "proxy/hysteria/client.go:Process"
+      ]
+    },
+    {
+      "claim": "Handler.Dial -> internet.Dial -> transport -> DialSystem. nil sockopt directly uses effectiveSystemDialer; AsIs bypasses LookupForIP",
+      "refs": [
+        "app/proxyman/outbound/handler.go:Dial",
+        "transport/internet/dialer.go:DialSystem"
+      ]
+    },
+    {
+      "claim": "TCP node DNS uses Go net.Dialer.DialContext; UDP node DNS uses Go net.ResolveUDPAddr. No configured Xray dns client for nil/AsIs",
+      "refs": [
+        "transport/internet/system_dialer.go:DefaultSystemDialer.Dial",
+        "common/net/system.go"
+      ]
+    },
+    {
+      "claim": "TCP uses family partition and dialParallel with default300ms fallback; UDP forResolve prefers an IPv4 answer, otherwise first address. UDP has no address racing/fallback",
+      "refs": [
+        "Go1.26.3/src/net/dial.go:DialContext/fallbackDelay",
+        "Go1.26.3/src/net/ipsock.go:addrList.forResolve/first"
+      ]
+    },
+    {
+      "claim": "HY2 chooses a random configured hopping port before first DialSystem; subsequent hops keep resolvedIP. probe firstPort and config basePort do not imply first actual data port",
+      "refs": [
+        "transport/internet/hysteria/dialer.go:client.dial"
+      ]
+    },
+    {
+      "claim": "gRPC passthrough target reaches custom DialSystem, authority separate; XHTTP requestURL.Host separate from captured dest; TLS explicit ServerName overrides fallback and Reality explicit ServerName retained",
+      "refs": [
+        "transport/internet/grpc/dial.go:getGrpcClient",
+        "transport/internet/splithttp/dialer.go:createHTTPClient/Dial",
+        "transport/internet/tls/config.go:GetTLSConfig/WithDestination",
+        "transport/internet/reality/reality.go:UClient"
+      ]
+    },
+    {
+      "claim": "Android Go default prefers cgo getaddrinfo; published JNI has CGO_ENABLED=1 and no netgo tag. Default behavior may be overridden by GODEBUG/controller; current XrayService/LibXrayBridge never call SetDNS",
+      "refs": [
+        "Go1.26.3/src/net/conf.go:goosPrefersCgo",
+        "libXray/android_wrapper.go:SetDNS",
+        "libXray/dns/dns_android.go:SetDNS",
+        "xray/src/main/java/com/fingmi/xray/service/XrayService.java",
+        "xray/src/main/java/com/fingmi/xray/core/LibXrayBridge.java"
+      ]
+    },
+    {
+      "claim": "Configured IPv4 DNS servers are routed through proxy by fongmi-xray-dns tag; they are not local bootstrap resolvers for node address. IPv6-only device does not need local IPv4 route/NAT64 just to reach these proxiedDNS servers; proxy egress must be able to reach them. Android/system node resolver must itself work",
+      "refs": [
+        "xray/src/main/java/com/fingmi/xray/config/XrayConfigFactory.java:create",
+        "app/proxyman/outbound/handler.go:Dispatch"
+      ]
+    }
+  ],
+  "tests": {
+    "command": "cd recovery/node-dns-tests && go test -count=1 -v ./...",
+    "cases": 9,
+    "scope": "Actual pinned Xray-core DialSystem; local DNS/IPv6 TCP+UDP peers; nil and AsIs sockopt; TLS ServerName separation; no initialized Xray configuredDNS client",
+    "limits": [
+      "Host Linux, Go customresolver; not Android getaddrinfo/device/NAT64 verification",
+      "HY2 QUIC handshake already covered elsewhere; here validates the exact UDP dial branch, not repeats that handshake",
+      "Dual-stack UDP prefers returned A even if unreachable; no invented Happy Eyeballs guarantee or Java pre-resolution fix"
+    ]
+  }
+}

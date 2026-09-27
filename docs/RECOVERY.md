@@ -1118,3 +1118,11 @@ Invoke 无 cancel 方法；没有引入猜测的 native 抢占取消或实例替
 - 用户补充的5条原始分享链接仅在临时目录执行，原始输入/响应未持久化到仓库；另保存结构等价的 `real-shape-inputs.json`（含 VMess 空host、空tls但fp=safari、HY2 IPv6单range、WS内层query）。未取得实际 v2rayN 版本号，不把当前 exporter SHA 冒充这些历史字符串的 exact exporter version。
 - `test-v2rayn-reference-chain.py` 分离 raw published JNI、冻结 `recovery/legacy-src` normalize/security → published JNI、reference runtime、当前 `:xray` runtime，并逐层比较；真实5/5、synthetic5/5及独立冻结回放通过。Java reference 为此前 DEX 核对的 reconstructed behavior，非 ART 真执行；证书探测/存储仍是 synthetic 边界。
 - 新 `published-v7-reference.json` 的 expected 从冻结 reference 与真实发布JNI取得，不由当前模块产生。关键实测：HY2原始mport输入直接交 native 失败，经reference normalizer/security后成功；其余4条raw转换成功。最终5条均通过发布 `testXray`。当前实现无需修改，保留既有13-case，converter冻结。
+
+### 节点 DNS / IPv6 dial 责任（2026-09-27）
+
+- 发布JNI build-info确认 Go1.26.3、CGO/Android、Xray-core `5ca6f4b7d4dc`；`recovery/node-dns-tests/evidence.json` 保存源码路径/hash与调用链。`targetStrategy=ForceIP` 解析播放目标 `ob.Target`，节点则用各proxy的 `server/rec.Destination` → transport → `DialSystem`。
+- 当前nil/AsIs sockopt绕过Xray配置DNS：TCP为Go `DialContext`，UDP/HY2/KCP为 `ResolveUDPAddr`。Android默认倾向cgo/getaddrinfo；当前Service/Bridge未调用VPN用途SetDNS。显式SNI、Reality serverName、gRPC authority、XHTTP host与节点地址分离，Java不预解析。
+- 固定core真实 `DialSystem` 的9个host用例通过（`cd recovery/node-dns-tests && go test -count=1 -v ./...`）：localhost DNS、AAAA-only/dual-stack TCP+UDP、literal IPv6无DNS、nil/AsIs、TLS ServerName保留。测试使用host自定义resolver，不冒充Android设备/NAT64验收。
+- TCP按Go双栈fallback连接；UDP优先返回的A、没有TCP式回退，若A不可达而AAAA可达仍可能失败，属于已解释的固定core限制。HY2实际首连接从hopping端口表随机选择，后续保留已解析IP；不能把probe首端口1000或config base443当成数据连接必选端口。
+- `config.dns` 四个IPv4 DNS地址由DNS tag路由经代理访问，不用于节点域名bootstrap，不要求设备为这些代理内请求具备本地IPv4/NAT64；代理出口仍需能访问它们，Android节点resolver本身仍需正常。没有证据要求修改当前配置，未添加Java预解析。
