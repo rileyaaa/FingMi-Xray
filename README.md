@@ -44,7 +44,7 @@ GitHub Actions run 36301217767 已通过：
 
 这证明当前工程构建链已经闭环，但仍未完成 Android TV 真机运行验收。
 
-仓库已准备手动测试发布工作流 Publish 5.6.3 test pre-release，用于把已验证构建的 Leanback v7 / arm64 APK 发布为 Pre-release。它不会替换当前正式 Latest v5.6.0-xray.5。
+已验证构建的 Leanback v7 / arm64 APK 已通过手动工作流发布为测试 Pre-release v5.6.3-xray.test.1。该测试发布不会替换正式 Latest，当前正式 Latest 仍为 v5.6.0-xray.5。
 
 当前工程、上游适配和构建记录只维护在 [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md)。
 
