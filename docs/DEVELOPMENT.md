@@ -449,3 +449,10 @@ Git commit history 已经承担时间线职责。
 - `check-libass-contract.py --source --v7-so … --v8-so …` 实际编译Java并核对17签名/2构造器；`--aar`可拒绝Java/native不配套的候选产物，但不等于完整Libass API/渲染认证。
 - `test-published-libass-jni.py --workdir native-harness --jni …` 使用fake JNI函数表、现有QEMU/API24真执行发布v7 JNI_OnLoad与library/track/cache/release；通过。无ART/字幕图像输出声明。
 - 待恢复：Configuration/session/controller、parser/extractor、双字幕与preload ownership、native渲染/失败清理及候选AAR集成。已定位邻版 sk1(session)、libass.b(media)、c(library)、g(track)；下一步沿这些对象所有权收口。
+
+### Libass library/track 所有权（2026-09-27）
+
+- 从5.6.5 `libass.c/g/b` 与 `bl1` 恢复共享字体library、隔离track、timed-data SHA256/length/time去重及初始化失败回收；native静态确认library没有引用计数，必须先关闭tracks。证据与重建时加强的同步规则见 `recovery/libass-tests/ownership-evidence.json`。
+- 新 `LibassNativeLibrary/LibassTrack` 集中在重建边界，真实调用新版JNI；统一owner锁防止create/process/render与parent close交叉，失败清理/重复close/重入不会返回已释放track。JVM instrumented JNI仅在测试目录，不打入产物。
+- `test-libass-native-ownership.py` 8个确定性用例通过；发布v7真执行额外覆盖null library错误、null release、UTF获取失败后的资源清理路径及同library后续成功创建。两ABI签名门继续通过。
+- 尚未恢复完整native渲染参数语义、MediaState/session/controller/preload集成及新版AAR；本阶段不宣称完整Libass可用或5.6.3已编译。

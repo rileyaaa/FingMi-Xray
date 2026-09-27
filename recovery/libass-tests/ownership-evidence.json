@@ -1,0 +1,33 @@
+{
+  "evidence": "reconstructed upstream-missing implementation; neighbor5.6.5 not exact5.6.3 source",
+  "dex": "a1b7f5735678e7b09dbd522d080ff6ada3fc4cf6ffe064278c35ebccb49020f8",
+  "classes": {
+    "androidx.media3.exoplayer.libass.c": "shared library handle,32MiB/font and128MiB/media budget; addFont/close synchronized",
+    "androidx.media3.exoplayer.libass.g": "track handle, SHA256 timed-data dedup, JNI error guards, scale/position checks",
+    "bl1": "dedup key = payload SHA256 + length + microsecond timestamp",
+    "androidx.media3.exoplayer.libass.b.e": "create shared library then track; apply scale/position/style/cache/frame, close track on initializer RuntimeException/Error",
+    "androidx.media3.exoplayer.libass.b.n": "close every track before shared library; clear attachments and active formats"
+  },
+  "v7_native": {
+    "nativeCreateLibrary": "0x7da61: allocates4-byte owner with ASS_Library pointer; no refcount",
+    "nativeReleaseLibrary": "0x7db71: ass_library_done then free owner; null is a no-op",
+    "nativeCreate": "0x7db8d: allocates renderer/track, applies fonts; failure frees partially initialized resources; null library throws",
+    "nativeRelease": "0x7dcb5: frees track/renderer/context, not shared library"
+  },
+  "reconstructed_hardening": [
+    "All operations use owner monitor; no early parent free concurrent with create/process/render",
+    "Parent owns tracks; close children first; initializer rollback even on Error and reentrant close",
+    "Handles invalidated once before cleanup; best-effort remaining releases with suppressed failures",
+    "setFonts commits cached family only after successful JNI call"
+  ],
+  "tests": [
+    "8 deterministic JVM tests using instrumented native boundary",
+    "Published v7 actual JNI null-library error, null-release no-op, failed UTF acquisition after allocations then successful create on same library",
+    "Both published ELF method tables match compiled real Java native declarations"
+  ],
+  "remaining": [
+    "Native render flag/style semantics not fully recovered; wrappers preserve5.6.5 argument order/second render flag true",
+    "Media/session/preload/controller ownership remains to integrate",
+    "No full subtitle rendering, ART, Android build or exact5.6.3-source claim"
+  ]
+}

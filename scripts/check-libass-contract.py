@@ -33,7 +33,7 @@ def main():
     verify_elf(path.read_bytes(),abi)
    cp=td/'classes';cp.mkdir()
    src=ROOT/'recovery/media3-libass/src/main/java/androidx/media3/exoplayer/libass'
-   subprocess.run(['java','com.sun.tools.javac.Main','--release','17','-d',str(cp),*[str(src/(n+'.java')) for n in ['LibassNative','LibassFrame','LibassImage']]],check=True)
+   subprocess.run(['java','com.sun.tools.javac.Main','--release','17','-d',str(cp),*map(str,src.glob("*.java"))],check=True)
   expected={r['name']:r['descriptor'] for r in E['abis']['armeabi-v7a']['methods']}
   got=java_methods(cp,'LibassNative');got.pop('LibassNative',None)
   assert got==expected,'Java native declarations differ from published RegisterNatives'

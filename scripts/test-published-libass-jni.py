@@ -22,5 +22,7 @@ def main():
   constructors={x[1].split('/')[-1]:x[3] for x in rows if x[0]=='CONSTRUCTOR'}
   assert constructors==e['constructors']
   assert any(x[0]=='PASS' for x in rows) and not any(x[0]=='THROW' for x in rows)
-  print('PASS: published v7 JNI_OnLoad17 methods/2 constructors + create library/track/cache/release lifecycle')
+  assert sum(x[0]=='EXPECTED_THROW' for x in rows)==1
+  assert sum(x[0]=='EXPECTED_FAILURE' for x in rows)==1
+  print('PASS: published v7 JNI_OnLoad17 methods/2 constructors + library/track lifecycle + null-handle/UTF-acquisition failure recovery')
 if __name__=='__main__':main()
