@@ -23,7 +23,14 @@
     "type": "real ownership source with instrumented texture backend; no EGL/ART claim"
   },
   "remaining": [
-    "GLES backend, surface/thread and public playback/session wiring not complete",
+    "surface/EGL thread and public playback/session integration not complete",
     "GPU upload/display/context-loss behavior still requires actual EGL integration validation"
-  ]
+  ],
+  "gles_backend": {
+    "source": "LibassGlTextures.java, actual GLES20 calls reconstructed from libass.e/f and zk1.a/d",
+    "source_compile": "scripts/test-libass-gl.py against pinned real Android API jar",
+    "android_api_jar_sha256": "84072541cbb711eff89f7277100ff854929a446dba7ceb1b195c340e0b4fd3cb",
+    "targeted_test": "recording GLES20 API verifies shader compile/link cleanup, GL upload failure cleanup, coverage data/format, blend function, dual draw order, vertex transform, ASS color, and empty-frame clear",
+    "limitation": "recording API is test-only; not an EGL shader compiler or actual display execution"
+  }
 }
