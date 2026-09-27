@@ -1,5 +1,7 @@
 package com.fongmi.android.tv.setting;
 
+import com.fongmi.android.tv.utils.RuntimeCompat;
+
 import com.github.catvod.utils.Prefers;
 
 public class PreloadSetting {
@@ -30,20 +32,20 @@ public class PreloadSetting {
     }
 
     public static int getThreads() {
-        return Math.clamp(Prefers.getInt("preload_threads", MIN_THREADS), MIN_THREADS, MAX_THREADS);
+        return RuntimeCompat.clamp(Prefers.getInt("preload_threads", MIN_THREADS), MIN_THREADS, MAX_THREADS);
     }
 
     public static void putThreads(int threads) {
-        Prefers.put("preload_threads", Math.clamp(threads, MIN_THREADS, MAX_THREADS));
+        Prefers.put("preload_threads", RuntimeCompat.clamp(threads, MIN_THREADS, MAX_THREADS));
     }
 
     public static int getSizeMb() {
-        int size = Math.clamp(Prefers.getInt("preload_size", MIN_SIZE_MB), MIN_SIZE_MB, MAX_SIZE_MB);
-        return Math.clamp(MIN_SIZE_MB + (long) Math.round((float) (size - MIN_SIZE_MB) / STEP_SIZE_MB) * STEP_SIZE_MB, MIN_SIZE_MB, MAX_SIZE_MB);
+        int size = RuntimeCompat.clamp(Prefers.getInt("preload_size", MIN_SIZE_MB), MIN_SIZE_MB, MAX_SIZE_MB);
+        return RuntimeCompat.clamp(MIN_SIZE_MB + (long) Math.round((float) (size - MIN_SIZE_MB) / STEP_SIZE_MB) * STEP_SIZE_MB, MIN_SIZE_MB, MAX_SIZE_MB);
     }
 
     public static void putSizeMb(int size) {
-        Prefers.put("preload_size", Math.clamp(size, MIN_SIZE_MB, MAX_SIZE_MB));
+        Prefers.put("preload_size", RuntimeCompat.clamp(size, MIN_SIZE_MB, MAX_SIZE_MB));
     }
 
     public static long getSizeBytes() {
@@ -51,12 +53,12 @@ public class PreloadSetting {
     }
 
     public static int getTimeSeconds() {
-        int seconds = Math.clamp(Prefers.getInt("preload_time", MAX_TIME_SECONDS), MIN_TIME_SECONDS, MAX_TIME_SECONDS);
-        return Math.clamp(MIN_TIME_SECONDS + (long) Math.round((float) (seconds - MIN_TIME_SECONDS) / STEP_TIME_SECONDS) * STEP_TIME_SECONDS, MIN_TIME_SECONDS, MAX_TIME_SECONDS);
+        int seconds = RuntimeCompat.clamp(Prefers.getInt("preload_time", MAX_TIME_SECONDS), MIN_TIME_SECONDS, MAX_TIME_SECONDS);
+        return RuntimeCompat.clamp(MIN_TIME_SECONDS + (long) Math.round((float) (seconds - MIN_TIME_SECONDS) / STEP_TIME_SECONDS) * STEP_TIME_SECONDS, MIN_TIME_SECONDS, MAX_TIME_SECONDS);
     }
 
     public static void putTimeSeconds(int seconds) {
-        Prefers.put("preload_time", Math.clamp(seconds, MIN_TIME_SECONDS, MAX_TIME_SECONDS));
+        Prefers.put("preload_time", RuntimeCompat.clamp(seconds, MIN_TIME_SECONDS, MAX_TIME_SECONDS));
     }
 
     public static long getDurationMs() {
