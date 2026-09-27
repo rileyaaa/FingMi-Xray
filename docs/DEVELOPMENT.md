@@ -207,10 +207,10 @@ FongMi/TV 5.6.3 对 Media3 / MPV 的调用面与当前固定的部分播放器�
 
 - 固定 FongMi/media player candidate；
 - 当前构建使用的 FFmpeg JNI；
-- 官方 libXray AAR 容器与当前构建使用的 Go JNI；
+- 官方 libXray v26.7.28 AAR 外层容器，以及从固定历史发布 APK 恢复、彼此匹配的 API v2 gomobile Java bindings 与 v7 / arm64 Go JNI；
 - 按固定输入重建的 Libass compatibility AAR。
 
-目前 FFmpeg JNI 与 v7 / arm64 Go JNI 的字节来源仍可追溯到历史 `v5.6.0-xray.5` APK，因此 current-main workflow 会下载该历史 Release 并按固定 SHA 提取这些 native payload。**这只是二进制 provenance / reproducibility 输入，不代表当前 5.6.3 需要通过 5.6.0 faithful 行为验收。** 当未来为当前架构建立新的独立 native 发布源后，应切换构建输入并同步更新 pin。
+目前 FFmpeg JNI 与 libXray API v2 的 Java/native 绑定来源仍可追溯到历史 `v5.6.0-xray.5` APK，因此 current-main workflow 会下载该历史 Release 并按固定 SHA 作为 provenance / reproducibility 输入。libXray 的 gomobile Java bindings 与 `libgojni.so` 必须视为同一个 JNI ABI 单元：不能把官方 v26.7.28 的 `classes.jar` 与历史发布版 API v2 `libgojni.so` 单独拼接，否则 native 初始化可能查找官方旧 bindings 不包含的模型类（例如 `libXray.AgeDecryptConfig`）并导致进程崩溃。当前构建由 `scripts/build/build-published-libxray-aar.py` 从经过 SHA 校验的发布 APK 恢复 `libXray` / `go` Java bindings，并与同一发布版的 v7 / arm64 Go JNI 配套放回官方 v26.7.28 AAR 外层容器。**这些旧 APK 只是二进制来源证据，不代表当前 5.6.3 需要通过 5.6.0 faithful 行为验收。** 当未来为当前架构建立新的独立 libXray 发布源后，应整套切换 Java bindings 与 native，并同步更新 pin。
 
 `current-main-build.yml` 会下载、校验并准备这些固定依赖，再进行 Java 编译和 APK assemble。
 
@@ -237,7 +237,7 @@ on:
 
 1. 准备 JDK / Android SDK；
 2. 下载并校验固定媒体输入；
-3. 准备并校验当前固定的 FFmpeg / libXray native；
+3. 准备并校验固定 FFmpeg JNI，并重建 Java bindings 与 Go JNI 配套的 libXray compatibility AAR；
 4. 重建并导入 Libass compatibility AAR；
 5. 编译 Leanback / Mobile Java；
 6. assemble Leanback / Mobile Debug APK；
@@ -251,7 +251,7 @@ on:
 
 两个 current-main workflow 都必须先执行：
 
-- `tests/test-xray-android-runtime-compat.py`：防止 Java 21 可编译、但旧 Android ART 运行时不存在的 API 再进入 `:xray`；
+- `tests/test-xray-android-runtime-compat.py`：防止 Java 21 可编译、但旧 Android ART 运行时不存在的 API 再进入 `:xray`，并防止 current-main 构建重新退回“官方旧 Java bindings + 单独替换发布版 Go JNI”的不匹配组合；
 - `tests/test-upstream-update-disabled.py`：防止 FongMi 上游自更新入口、直接 release endpoint 调用或 APK 安装权限重新进入当前 fork；
 - `tests/test-build-hygiene.py`：防止错误 XLIFF namespace、非 positional 多参数 string、废弃 ABI API 和仍基于 Node 20 的旧 Actions major 再进入构建。
 
