@@ -85,7 +85,7 @@ public final class XrayPlaybackSession implements XraySessionListener, AutoClose
     }
 
     public static boolean supports(String url) {
-        if (url == null || url.isBlank()) return false;
+        if (isBlank(url)) return false;
         Uri uri = Uri.parse(url);
         String scheme = uri.getScheme();
         String host = uri.getHost();
@@ -128,6 +128,16 @@ public final class XrayPlaybackSession implements XraySessionListener, AutoClose
         end();
         closed = true;
         service.close();
+    }
+
+    private static boolean isBlank(String value) {
+        if (value == null) return true;
+        for (int offset = 0; offset < value.length();) {
+            int codePoint = value.codePointAt(offset);
+            if (!Character.isWhitespace(codePoint)) return false;
+            offset += Character.charCount(codePoint);
+        }
+        return true;
     }
 
     private static void assertMain() {
