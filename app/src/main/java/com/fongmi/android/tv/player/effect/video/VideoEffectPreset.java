@@ -1,5 +1,7 @@
 package com.fongmi.android.tv.player.effect.video;
 
+import com.fongmi.android.tv.utils.RuntimeCompat;
+
 public final class VideoEffectPreset {
 
     public static final int OFF = 0;
@@ -18,6 +20,6 @@ public final class VideoEffectPreset {
     public static final int CUSTOM = 13;
 
     public static int clamp(int preset) {
-        return Math.clamp(preset, OFF, CUSTOM);
+        return RuntimeCompat.clamp(preset, OFF, CUSTOM);
     }
 }
