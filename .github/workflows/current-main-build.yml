@@ -90,7 +90,7 @@ jobs:
 
           printf '%s  %s\n'             "$PLAYER_ZIP_SHA256" build/work/current-main/input/player-candidate.zip             "$OLD_V7_SHA256" build/work/current-main/input/published-v560-v7.apk             "$OLD_V8_SHA256" build/work/current-main/input/published-v560-v8.apk             "$LIBASS_V7_APK_SHA256" build/work/current-main/input/published-v565-v7.apk             "$LIBASS_V8_APK_SHA256" build/work/current-main/input/published-v565-v8.apk             "$MEDIA3_CONTAINER_SHA256" build/work/current-main/input/media3-container-1.11.0.aar             | sha256sum -c -
 
-      - name: Restore faithful decoder and Xray native dependencies
+      - name: Prepare pinned decoder and Xray native dependencies
         shell: bash
         run: |
           set -euo pipefail
