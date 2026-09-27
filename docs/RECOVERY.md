@@ -34,7 +34,7 @@
 
 判断发布行为时遵循 [PROJECT.md](PROJECT.md) 的可信依据顺序。
 
-## 2. Faithful 源码
+## 2. 忠实恢复源码
 
 恢复源码集中在 recovery/legacy-src：
 
@@ -199,7 +199,7 @@ Live：
 - RTSP User-Agent、artwork scheme、Xray scheme、libXray error 的空白判断语义；
 - settings timeout 先通知 UI，再 cancel 精确 operation；
 - settings abandon / 手机导入不会误杀远端 operation；
--请求 / 结果对象不擅自把 null 归一化为空串或 no-op。
+- 请求 / 结果对象不擅自把 null 归一化为空串或 no-op。
 
 ## 5. 播放器与 FFmpeg JNI
 
@@ -292,7 +292,7 @@ scripts/restore-published-libxrayjni.py 与 scripts/check-libxray-gojni.py 负�
 
 这些重建源码用于理解和回归发布行为。faithful APK 继续使用固定发布 Go JNI，不使用重建 Go 产物冒充原二进制。
 
-## 7. Faithful 构建链
+## 7. 忠实恢复构建链
 
 ### 本地入口
 
