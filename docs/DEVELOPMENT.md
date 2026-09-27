@@ -58,6 +58,13 @@ Manifest 中的 `XrayService`：
 
 源码使用 Java 21 编译并启用 desugaring，但 Android 设备上的 `java.*` 运行时仍由 ART 提供，不能把“javac 可编译”当成“Android 12 / SDK 32 一定可调用”。
 
+兼容策略以**不破坏上游 FongMi/TV 已验证行为**为前提：
+
+- FongMi/TV 5.6.3 原样代码如果已经由上游在其 `minSdk` / desugaring 构建链中使用，不做机械式“低版本改写”；例如上游本身使用的 `Math.clamp(...)`、`java.time` 等，先以对应上游源码与发布构建为兼容依据；
+- 低版本兼容审计重点放在 FingMi-Xray 新增代码、从旧 APK 恢复后重新编写的代码，以及我们改动过的上游接线；
+- 如果反编译 APK 显示 `j$.*` / desugared-library 调用，恢复源码必须保留等价的 desugaring 语义，不能因为“可读性”把它改成旧 ART 不存在的直接 `java.*` 调用；
+- 只有确认某个调用是我们引入、且在目标 Android 运行时会真实 linkage failure 时才改代码，避免为兼容而偏离上游行为。
+
 当前 Xray 路径已经明确约束：
 
 - 不使用 `StringBuilder.isEmpty()`；
