@@ -9,7 +9,7 @@ from pathlib import Path
 from zipfile import ZipFile,ZipInfo,ZIP_DEFLATED
 ROOT=Path(__file__).resolve().parents[1]
 SOURCE='libraries/extractor/src/main/java/androidx/media3/extractor/mkv/MatroskaExtractor.java'
-SOURCE_SHA='e6178a00ac3e092e1836d058ddd0517060b7c32e1889b3fb2bc2c077eedfe0c1'
+SOURCE_SHA='84e01966733fec404de062fce4aa5c221af432c570afcef9eb1ad0cab07f495f'
 RESTORED_SHA='c47a70a61f8d25cba7a07567727e72fb29a2487e7a07c860a12998e9babe59cd'
 COPY_SHA='a6e5d4932d552fe74ee9c168335e474bccd0ffaae0dad5f854f4d60617e72623'
 CONTAINER_SHA='930fca2f018f06f1d08c12599f8c97f31eddbd728edee5de06eb53a882f8fc54'
