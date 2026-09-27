@@ -46,7 +46,7 @@ public final class SettingXrayActivity extends BaseActivity
         try {
             mBinding.link.setText(mXray.getShareLink());
             mBinding.link.setSelection(mBinding.link.length());
-        } catch (Exception error) {
+        } catch (Exception | LinkageError error) {
             Notify.show(XrayErrorSanitizer.sanitize(error));
         }
         mBinding.link.requestFocus();
@@ -70,7 +70,7 @@ public final class SettingXrayActivity extends BaseActivity
         try {
             mXray.save(readLink(), mBinding.udpSwitch.isChecked());
             Notify.show(R.string.xray_saved);
-        } catch (Exception error) {
+        } catch (Exception | LinkageError error) {
             Notify.show(XrayErrorSanitizer.sanitize(error));
         }
     }
@@ -83,7 +83,7 @@ public final class SettingXrayActivity extends BaseActivity
             Notify.progress(getActivity());
             mOperation = XrayOperation.TEST;
             mOperationId = mXray.test(mTestLink, mTestUdp);
-        } catch (Exception error) {
+        } catch (Exception | LinkageError error) {
             clearOperation();
             Notify.dismiss();
             Notify.show(XrayErrorSanitizer.sanitize(error));
@@ -102,7 +102,7 @@ public final class SettingXrayActivity extends BaseActivity
             mBinding.udpSwitch.setChecked(false);
             mOperation = XrayOperation.RESET_SECURITY;
             mOperationId = mXray.delete();
-        } catch (Exception error) {
+        } catch (Exception | LinkageError error) {
             clearOperation();
             Notify.dismiss();
             Notify.show(XrayErrorSanitizer.sanitize(error));
@@ -143,7 +143,7 @@ public final class SettingXrayActivity extends BaseActivity
         try {
             return XrayShareLinkNormalizer.normalize(readLink()).equals(mTestLink)
                     && mBinding.udpSwitch.isChecked() == mTestUdp;
-        } catch (Exception ignored) {
+        } catch (Exception | LinkageError ignored) {
             return false;
         }
     }
