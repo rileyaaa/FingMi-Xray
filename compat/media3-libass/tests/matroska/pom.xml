@@ -17,7 +17,7 @@
   <directory>${libass.work}/target</directory>
   <sourceDirectory>${libass.work}/source/libraries/extractor/src/main/java</sourceDirectory>
   <plugins>
-   <plugin><groupId>org.apache.maven.plugins</groupId><artifactId>maven-compiler-plugin</artifactId><version>3.14.0</version></plugin>
+   <plugin><groupId>org.apache.maven.plugins</groupId><artifactId>maven-compiler-plugin</artifactId><version>3.14.0</version><configuration><compilerArgs><arg>-Xlint:-options</arg><arg>-Xlint:-classfile</arg></compilerArgs></configuration></plugin>
    <plugin><groupId>org.apache.maven.plugins</groupId><artifactId>maven-surefire-plugin</artifactId><version>3.5.3</version><configuration><systemPropertyVariables><robolectric.dependency.repo.url>https://repo.maven.apache.org/maven2</robolectric.dependency.repo.url><libass.baseline>${libass.work}/jars/lib-extractor-release.jar</libass.baseline></systemPropertyVariables><additionalClasspathElements><additionalClasspathElement>${libass.work}/target/monitor/classes.jar</additionalClasspathElement><additionalClasspathElement>${libass.work}/target/espresso/classes.jar</additionalClasspathElement></additionalClasspathElements></configuration></plugin>
   </plugins>
  </build>
