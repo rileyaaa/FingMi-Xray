@@ -198,7 +198,24 @@ on:
 
 `.github/workflows/publish-current-main-test-release.yml`
 
-它是一个**固定输入的测试发布 workflow**，不是通用 release 脚本。更换测试基线时，应先更新 YAML 中的 build pin、APK hash 和 tag，再手动执行。
+它会从触发时的当前 `main` 重新准备固定依赖、执行源码 guard、编译 Leanback / Mobile、assemble Debug APK，然后发布新的测试 Pre-release。新测试 Release 与两个 Leanback APK 都验证成功后，workflow 才删除 YAML 中指定的上一版测试 Release / tag；稳定版 `v5.6.0-xray.5` 不参与这条替换链。
+
+两个 current-main workflow 都必须先执行：
+
+- `tests/test-xray-android-runtime-compat.py`：防止 Java 21 可编译、但旧 Android ART 运行时不存在的 API 再进入 `:xray`；
+- `tests/test-upstream-update-disabled.py`：防止 FongMi 上游自更新入口、直接 release endpoint 调用或 APK 安装权限重新进入当前 fork。
+
+### 应用内更新策略
+
+FingMi-Xray 当前**不使用 FongMi/Release 的应用内自更新**。原因是上游 APK 会覆盖当前带 Xray 模块和兼容层的构建。
+
+当前约束：
+
+- Home 不做自动更新检查；
+- 设置页版本号只用于显示，不触发更新；
+- `Updater` 保留为 no-op 兼容壳，防止以后合并上游时旧调用点直接恢复下载逻辑；
+- Manifest 不申请 `REQUEST_INSTALL_PACKAGES`；
+- 测试包 / 正式包只通过本仓库明确发布并由用户主动安装。
 
 发布版恢复相关 workflow 由 [RECOVERY.md](RECOVERY.md) 说明。
 
