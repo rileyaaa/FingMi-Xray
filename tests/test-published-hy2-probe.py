@@ -21,7 +21,7 @@ def main():
     parser.add_argument('--peer', type=Path, required=True)
     parser.add_argument('--capture', type=Path)
     args = parser.parse_args()
-    spec = importlib.util.spec_from_file_location('native', Path(__file__).resolve().parents[1] / 'scripts/run-published-libxray-converter.py')
+    spec = importlib.util.spec_from_file_location('native', Path(__file__).resolve().parents[1] / 'scripts/recovery/run-published-libxray-converter.py')
     native = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(native)
     peer = subprocess.Popen([str(args.peer.resolve())], stdout=subprocess.PIPE, text=True)

@@ -157,11 +157,10 @@ FingMi-Xray 应尽可能继续跟随 FongMi/TV，而不是复制整个上游长�
 | `catvod/` | FongMi 普通网络与 Spider 基础 |
 | `compat/media3-libass/` | 当前 5.6.3 构建使用的 Media3 / Libass compatibility 源码与补丁 |
 | `recovery/legacy-src/` | `v5.6.0-xray.5` faithful 恢复源码 |
-| `recovery/*-tests/` | 发布版行为、native 与媒体恢复证据 / fixture |
+| `recovery/legacy-tests/`、`recovery/native-tests/`、`recovery/node-dns-tests/`、`recovery/v2rayn-tests/` | 发布版 faithful / native / 节点兼容行为证据与 fixture |
 | `tests/` | 当前源码回归测试入口与测试 fixture |
 | `docs/apk-reference/` | 可直接进 Git 的反编译文本证据 |
 | `scripts/build/` | 当前依赖与 compatibility 构建工具 |
 | `scripts/recovery/` | faithful / native 恢复工具 |
-| `scripts/` | 少量跨测试共享的恢复执行 helper |
 
 当前工程代码与 faithful 恢复代码是两种不同用途的材料。前者用于继续开发，后者用于回答“原发布版实际上是什么行为”。

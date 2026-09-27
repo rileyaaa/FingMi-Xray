@@ -117,7 +117,8 @@ FongMi/TV 5.6.3 对 Media3 / MPV 的调用面比恢复时固定的部分播放�
 主要材料：
 
 - `compat/media3-libass/`
-- `recovery/libass-tests/`
+- `compat/media3-libass/tests/`
+- `compat/media3-libass/media-tests/`
 - `scripts/build/build-libass-extractor.py`
 - `scripts/build/build-libass-candidate.py`
 - `scripts/build/check-libass-contract.py`

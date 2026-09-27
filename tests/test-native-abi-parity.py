@@ -20,7 +20,7 @@ def main():
     parser.add_argument('--peer', type=Path, required=True)
     parser.add_argument('--capture', type=Path)
     args = parser.parse_args()
-    spec = importlib.util.spec_from_file_location('native', ROOT / 'scripts/run-published-libxray-converter.py')
+    spec = importlib.util.spec_from_file_location('native', ROOT / 'scripts/recovery/run-published-libxray-converter.py')
     native = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(native)
     def capture(cases, abi):

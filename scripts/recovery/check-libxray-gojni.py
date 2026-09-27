@@ -43,7 +43,7 @@ def check(path, official_path=None):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--aar", type=Path, default=ROOT.parent / "libxray/libs/libXray.aar")
+    parser.add_argument("--aar", type=Path, default=ROOT.parents[1] / "libxray/libs/libXray.aar")
     parser.add_argument("--official-aar", type=Path,
                         help="official AAR extracted from the pinned v26.7.28 ZIP")
     args = parser.parse_args()
