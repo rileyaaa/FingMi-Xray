@@ -441,3 +441,11 @@ Git commit history 已经承担时间线职责。
 
 真实 `XraySessionController` 的确定性 JVM 驱动先复现 4 个失败：旧 STOP failure/timeout 取消新 START，START 通知内 stop 后仍派发旧 START，STOP 通知内重启后旧 STOP 才派发。现由 operation ID 限定旧 cleanup 所有权；STOP 先派发再通知，START 通知后重查有效性；失败先清理 transport 再通知，close 先封闭生命周期，避免同步回调复活旧请求。
 `scripts/test-xray-session-races.py` 通过 9 场景，额外覆盖 Binder failure/启动 timeout 的重入 retry、迟到 START、有效 timeout、close。只替换 Android 主队列/配置/Binder 边界，实际 controller 直接参与测试，无 sleep。VOD/Live 共用此 module 修复；没有新增 Activity boolean 或改 faithful frozen reference。该闭环不等于 Activity resolver、DRM、RTSP、metadata 所有异步路径已全量验证。
+
+### 新版 Libass JNI 边界（2026-09-27）
+
+- 邻版官方5.6.5 v7/arm64 APK/SO与DEX SHA保存在 `recovery/libass-tests/published-565-contract.json`；按ELF真实JNINativeMethod表恢复17个签名，两ABI一致。不是5.6.3 exact original source。
+- `recovery/media3-libass` 开始承载 `reconstructed upstream-missing implementation`，当前仅Native绑定及Frame/Image值对象；Image ctor新增textureId，Create改为library handle，render/fontScale/frameSize/style等签名与历史AAR不同。尚未装入app，不把旧SO包装成兼容。
+- `check-libass-contract.py --source --v7-so … --v8-so …` 实际编译Java并核对17签名/2构造器；`--aar`可拒绝Java/native不配套的候选产物，但不等于完整Libass API/渲染认证。
+- `test-published-libass-jni.py --workdir native-harness --jni …` 使用fake JNI函数表、现有QEMU/API24真执行发布v7 JNI_OnLoad与library/track/cache/release；通过。无ART/字幕图像输出声明。
+- 待恢复：Configuration/session/controller、parser/extractor、双字幕与preload ownership、native渲染/失败清理及候选AAR集成。已定位邻版 sk1(session)、libass.b(media)、c(library)、g(track)；下一步沿这些对象所有权收口。
