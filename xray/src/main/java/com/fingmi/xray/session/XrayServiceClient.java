@@ -142,6 +142,8 @@ final class XrayServiceClient {
             request.onDispatched.run();
         } catch (Exception error) {
             failLocked(connection, XrayErrorSanitizer.fromException(error));
+        } catch (LinkageError error) {
+            failLocked(connection, XrayErrorSanitizer.sanitize(error));
         }
     }
 
