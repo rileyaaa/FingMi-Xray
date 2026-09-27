@@ -11,14 +11,14 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 50
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           repository: FongMi/media
           ref: 3c2cbe8ac742c2fe15eff52f03eeb3b1b648848d
           path: media
           persist-credentials: false
 
-      - uses: actions/setup-java@v4
+      - uses: actions/setup-java@v6
         with:
           distribution: temurin
           java-version: '21'
@@ -104,7 +104,7 @@ jobs:
 
       - name: Upload compiled player libraries
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: fongmi-media3-aar-candidate-1.11.0
           path: player-aars/
