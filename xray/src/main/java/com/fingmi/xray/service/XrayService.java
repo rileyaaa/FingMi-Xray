@@ -240,6 +240,22 @@ public final class XrayService extends Service {
                     -1L,
                     message);
             if (!cleaned || !delivered) cancelInternal(XrayOperation.START, operationId);
+        } catch (LinkageError error) {
+            boolean cleaned = stopCoreQuietly();
+            if (!ensureSessionCurrent(operationId, callback)) return;
+
+            String message = XrayErrorSanitizer.sanitize(error);
+            if (!cleaned) message = "Xray cleanup required process reset: " + message;
+
+            boolean delivered = send(
+                    callback,
+                    operationId,
+                    XrayOperation.START,
+                    false,
+                    0,
+                    -1L,
+                    message);
+            if (!cleaned || !delivered) cancelInternal(XrayOperation.START, operationId);
         }
     }
 
@@ -267,6 +283,21 @@ public final class XrayService extends Service {
                     -1L,
                     "Xray cleanup required process reset: " + errorMessage(error));
             if (!delivered) cancelInternal(XrayOperation.STOP, operationId);
+        } catch (LinkageError error) {
+            if (!sessionGate.isCurrent(operationId)) {
+                send(callback, operationId, XrayOperation.STOP, true, 0, -1L, "");
+                return;
+            }
+
+            boolean delivered = send(
+                    callback,
+                    operationId,
+                    XrayOperation.STOP,
+                    false,
+                    0,
+                    -1L,
+                    "Xray cleanup required process reset: " + XrayErrorSanitizer.sanitize(error));
+            if (!delivered) cancelInternal(XrayOperation.STOP, operationId);
         }
     }
 
@@ -290,6 +321,15 @@ public final class XrayService extends Service {
                     0,
                     -1L,
                     errorMessage(error));
+        } catch (LinkageError error) {
+            send(
+                    callback,
+                    operationId,
+                    XrayOperation.RESET_SECURITY,
+                    false,
+                    0,
+                    -1L,
+                    XrayErrorSanitizer.sanitize(error));
         }
     }
 
