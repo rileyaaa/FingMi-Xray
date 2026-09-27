@@ -239,7 +239,6 @@ jobs:
             echo "### 尚未完成"
             echo
             echo "- Android TV 真机行为回归"
-            echo "- 原 \`v5.6.0-xray.5\` faithful 基准的独立 cloud build / 最终验收"
             echo
             echo "如果测试发现问题，以这里记录的 APK 构建 commit / run / SHA-256 作为定位基准。"
           } > "$notes_file"
