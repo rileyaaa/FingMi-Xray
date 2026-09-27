@@ -1,5 +1,7 @@
 package com.fongmi.android.tv.player.effect.audio;
 
+import com.fongmi.android.tv.utils.RuntimeCompat;
+
 public final class AudioChannelMode {
 
     public static final int AUTO = 0;
@@ -8,7 +10,7 @@ public final class AudioChannelMode {
     public static final int REVERSE = 3;
 
     public static int clamp(int mode) {
-        return Math.clamp(mode, AUTO, REVERSE);
+        return RuntimeCompat.clamp(mode, AUTO, REVERSE);
     }
 
     public static boolean isAuto(int mode) {
