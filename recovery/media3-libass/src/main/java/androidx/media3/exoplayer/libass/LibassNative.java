@@ -2,7 +2,7 @@ package androidx.media3.exoplayer.libass;
 
 /** Reconstructed upstream-missing implementation: 5.6.5 DEX + both ELF method tables.
  * Not compatible with the historical9dae39e9 SO. Runtime loading must pass the ABI gate.
- * Flag names remain neutral until their native rendering semantics are established.
+ * Render flags verified with published v7 synthetic ASS execution and GL call sites.
  */
 final class LibassNative {
     private LibassNative() {
@@ -26,7 +26,7 @@ final class LibassNative {
 
     public static native void nativeReleaseLibrary(long j);
 
-    public static native LibassFrame nativeRenderFrame(long j, long j2, boolean z, boolean z2);
+    public static native LibassFrame nativeRenderFrame(long handle, long timeMs, boolean forceUpdate, boolean tryUploadTextures);
 
     public static native void nativeSetBottomPositionFraction(long j, float f);
 

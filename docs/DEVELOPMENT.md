@@ -462,3 +462,9 @@ Git commit history 已经承担时间线职责。
 - 精准沿邻版5.6.5 `sk1.g/j/k/m/n/p/s` 及 `vr0.e` 内联组件工厂恢复：current、previous、preload、timeline与preparing五类保留条件；空timeline不清preparing，非空timeline确认后才清除，preload晋升复用同一media对象。
 - `LibassMediaOwnership` 集中实现这部分状态，不依赖Activity；播放器按对象身份接收callback，替换后旧callback不能写新状态。detach保留显式preload，close拒绝新组件并忽略迟到状态通知。
 - 新8例（连同native owner共16例）确定性JVM回归通过，双ABI声明门继续通过。它尚未与完整Media3 session/parser/controller连接；MediaState的迟到解析/渲染任务失效仍需恢复，不能把此状态机单独称作完整preload pipeline通过。
+
+### Libass native 渲染 contract 真执行（2026-09-27）
+
+- `test-published-libass-render.py` 用固定synthetic ASS和SHA固定DejaVuSans字体，经发布5.6.5 v7 SO实际渲染8个观察点，冻结glyph mask FNV摘要、坐标、尺寸、颜色、textureId；不是手写期望图形。
+- 真值确认forceUpdate绕过“不变帧”跳过；tryUploadTextures分支由GL_VERSION/extensions检测与texture上传调用约束，无EGL context时实测回退CPU bitmap。字体scale与bottom fraction实际改变几何；事件结束为changed=1空帧，随后重复为changed=0空帧。
+- Java绑定已使用有证据的render参数名；16个所有权用例和native失败清理继续通过。GL context下的texture创建/销毁、完整MediaState/view/controller联动仍未闭环，不能把CPU位图回归写成真机/EGL验收。

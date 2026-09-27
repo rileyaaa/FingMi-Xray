@@ -78,9 +78,9 @@ final class LibassTrack implements AutoCloseable {
                           int field3,int field4,float metric1,float metric2) { synchronized(owner) {
         checkOpen();LibassNative.nativeSetStyleOverride(handle,enabled,family,size,field1,field2,field3,field4,metric1,metric2);
     }}
-    LibassFrame renderFrame(long positionUs,boolean flag) { synchronized(owner) {
+    LibassFrame renderFrame(long positionUs,boolean forceUpdate) { synchronized(owner) {
         checkOpen();if(!frameSizeSet)throw new IllegalStateException("Frame size must be set before rendering");
-        return LibassNative.nativeRenderFrame(handle,ms(positionUs),flag,true);
+        return LibassNative.nativeRenderFrame(handle,ms(positionUs),forceUpdate,true);
     }}
     @Override public void close() { synchronized(owner) {
         if(handle==0)return;

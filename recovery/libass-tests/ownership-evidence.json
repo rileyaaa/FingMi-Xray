@@ -26,7 +26,7 @@
     "Both published ELF method tables match compiled real Java native declarations"
   ],
   "remaining": [
-    "Native render flag/style semantics not fully recovered; wrappers preserve5.6.5 argument order/second render flag true",
+    "Native style override parameter meanings and GL-context texture ownership still require recovery; render flags now evidenced by published synthetic execution.",
     "Media/session/preload/controller ownership remains to integrate",
     "No full subtitle rendering, ART, Android build or exact5.6.3-source claim"
   ],
@@ -47,5 +47,18 @@
       "Not yet wired to Media3 listeners/parser/extractor; no complete pipeline claim",
       "Underlying MediaState must invalidate pending parse/render callbacks before native disposal; this registry alone does not establish that boundary"
     ]
+  },
+  "render_evidence": {
+    "fixture": "published-565-render.json",
+    "cases": 8,
+    "native_function": "v7 nativeRenderFrame0x7e6d9",
+    "static": "force flag tested before unchanged return; second flag guards glGetString(GL_VERSION/GL_EXTENSIONS), then texture upload calls",
+    "observed": [
+      "changed=false has no image array; consumer must retain previous frame",
+      "force=true reproduces images even when libass reports no change",
+      "tryUploadTextures=true with no current EGL context falls back to byte arrays and textureId0",
+      "font scale and bottom fraction change actual mask geometry; expired event yields changed=true empty, then changed=false empty"
+    ],
+    "limits": "No EGL context/GL texture lifecycle assertion. Fixed glyph masks depend on supplied SHA-pinned DejaVu font."
   }
 }

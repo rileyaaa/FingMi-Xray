@@ -26,16 +26,19 @@ static jint register_natives(ptr ignored,ptr klass,Method *m,jint n){
  return 0;
 }
 static ptr get_method(ptr ignored,ptr klass,const char *name,const char *sig){
- (void)ignored;out("CONSTRUCTOR\t");out((const char*)klass);out("\t");out(name);out("\t");out(sig);out("\n");return (ptr)1;
+ (void)ignored;out("CONSTRUCTOR\t");out((const char*)klass);out("\t");out(name);out("\t");out(sig);out("\n");return klass;
 }
 static unsigned char exception_check(ptr ignored){(void)ignored;return failed;}
 static jint throw_new(ptr ignored,ptr klass,const char*message){(void)ignored;(void)klass;out(expected_exception ? "EXPECTED_THROW\t" : "THROW\t");out(message);out("\n");failed=1;return 0;}
 static ptr fail_string(ptr ignored,ptr value,ptr copy){(void)ignored;(void)value;(void)copy;failed=1;return 0;}
 static ptr method(const char *name){for(jint i=0;i<count;i++)if(equal(methods[i].name,name))return methods[i].function;return 0;}
-void _start(void){
+static void setup_jni(void){
  env_table[6]=(ptr)find_class;env_table[14]=(ptr)throw_new;env_table[21]=(ptr)global;
  env_table[22]=(ptr)drop;env_table[23]=(ptr)drop;env_table[33]=(ptr)get_method;
  env_table[169]=(ptr)fail_string;env_table[215]=(ptr)register_natives;env_table[228]=(ptr)exception_check;vm_table[6]=(ptr)get_env;
+}
+void _start(void){
+ setup_jni();
  jint version=JNI_OnLoad(&vm,0);if(version!=0x10006||count!=17||failed)_exit(2);
  expected_exception=1;
  jlong rejected=((jlong(*)(ptr,ptr,jlong,ptr,ptr))method("nativeCreate"))(&env,0,0,0,0);
