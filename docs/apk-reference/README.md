@@ -1,8 +1,8 @@
-# v5.6.0-xray.5 APK 证据索引
+# v5.6.0-xray.5 历史 APK 证据索引
 
-本目录只保存 `v5.6.0-xray.5` 正式 APK 中**适合直接进入 Git、并且对发布版恢复有长期价值的文本证据**。
+本目录只保存 `v5.6.0-xray.5` 正式 APK 中**适合直接进入 Git、并且对历史发布版复核有长期价值的文本证据**。
 
-这里不是维护源码，也不记录恢复进度。faithful 实现与恢复方法见 [../RECOVERY.md](../RECOVERY.md)。
+这里不是维护源码，也不是当前版本验收材料。5.6.3 重构线以后，当前 `main` 才是现行行为和测试基线；本目录只用于追溯旧发布行为或 native 来源。历史 faithful 实现与恢复方法见 [../RECOVERY.md](../RECOVERY.md)。
 
 ## 1. 固定 APK 身份
 
@@ -89,7 +89,7 @@ native 的动态行为 fixture 不放在本目录，见：
 | `nq0` | Exo MediaSource factory | faithful `ExoMediaSourceFactory` |
 | `or2` | Xray scheme guard DataSource | `LegacyXraySchemeGuardDataSource` |
 
-具体发布语义以 [../RECOVERY.md](../RECOVERY.md) 和对应测试为准。
+这里的“发布语义”仅指 `v5.6.0-xray.5` 的历史事实，以 [../RECOVERY.md](../RECOVERY.md) 和对应历史测试为准；当前产品语义以当前 `main` 为准。
 
 ## 4. 使用方法
 
