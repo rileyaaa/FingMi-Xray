@@ -2,7 +2,7 @@
 
 本文定义 FingMi-Xray 的**产品边界、模块职责和长期架构约束**。
 
-它不记录构建结果、恢复进度、Actions run、发布状态或调试过程。发布版恢复依据见 [RECOVERY.md](RECOVERY.md)，当前工程维护方式见 [DEVELOPMENT.md](DEVELOPMENT.md)。
+它不记录构建结果、恢复进度、Actions run、发布状态或调试过程。当前工程维护与验收规则见 [DEVELOPMENT.md](DEVELOPMENT.md)；[RECOVERY.md](RECOVERY.md) 只保存旧发布版的历史恢复与二进制来源证据，不作为当前版本验收基线。
 
 ## 1. 项目为什么存在
 
@@ -79,7 +79,7 @@ Xray 是**当前播放会话的可选网络通道**，不是设备级代理。
 
 `:libxray` 只提供 Android AAR 依赖入口，让 `:xray` 不需要把大型二进制直接塞进业务源码。
 
-二进制来源、恢复和校验规则属于恢复 / 构建流程，不属于业务模块职责。
+二进制来源与校验规则属于构建流程，不属于业务模块职责。历史 APK 可以作为当前部分 native 字节的来源证据，但不能反过来充当当前架构的行为或验收基线。
 
 ### `:app`
 
@@ -134,7 +134,35 @@ HTTP / HTTPS、DRM license 和 RTSP 等与当前媒体播放直接相关的连�
 - Binder Service 不对其他应用导出；
 - Service 运行在应用私有 `:xray` 进程。
 
-## 7. 上游升级原则
+
+## 7. Android 运行时与 native 故障边界
+
+当前源码可以使用 Java 21 编译，但 Android 运行时能力由设备 ART 决定。项目不能因为编译器接受某个 JDK API，就默认 Android 12 / SDK 32 等旧运行时一定存在对应方法。
+
+长期约束：
+
+- Xray 关键路径避免直接调用旧 ART 不具备的新 JDK API；
+- URL 编解码等兼容点优先使用在低 Android 版本上已有的 overload；
+- `StringBuilder.isEmpty()`、`String.isBlank()`、集合 factory 等已知风险 API 由源码 guard 阻止重新进入 Xray 路径；
+- `LibXrayBridge`、Service 与 client 对 Java linkage failure 做明确收口，尽量返回可诊断错误而不是只留下 Binder process death；
+- libXray 调用只记录不含节点、密码等敏感内容的阶段日志，用于判断 native 调用在哪一步中止；
+- release 混淆必须保留 gomobile / libXray JNI 所需类名与方法名。
+
+这些约束属于当前架构本身，不是旧发布版兼容测试的临时补丁。
+
+## 8. 更新与发布边界
+
+FingMi-Xray 不允许应用内从 FongMi/Release 下载并安装上游 APK。上游自更新会直接覆盖当前 fork，因此：
+
+- Home 不做上游版本检查；
+- 设置页版本信息不承担更新入口；
+- `Updater` 仅保留 no-op 兼容壳；
+- Manifest 不申请 `REQUEST_INSTALL_PACKAGES`；
+- 测试包和正式包只由本仓库明确构建、发布并由用户主动安装。
+
+从 5.6.3 重构线开始，**当前 `main` 和由当前架构生成的最新 FingMi-Xray 包是开发、回归和发布验收的基线**。旧 `v5.6.0-xray.5` 仅是历史证据 / 二进制来源档案，不要求再通过 faithful build、旧 APK 行为 parity 或旧版本 cloud build 才能接受当前版本。
+
+## 9. 上游升级原则
 
 FingMi-Xray 应尽可能继续跟随 FongMi/TV，而不是复制整个上游长期独立演化。
 
@@ -145,9 +173,9 @@ FingMi-Xray 应尽可能继续跟随 FongMi/TV，而不是复制整个上游长�
 3. `:app` 只保留必要的播放身份、播放器和 UI 适配；
 4. TV 网络恢复保持独立、少量、可审计；
 5. 媒体二进制或 API 不匹配时，通过明确的 compatibility adapter 处理，不伪装成上游原生实现；
-6. 发布版行为恢复与当前工程重构分开维护，不能用新实现反向篡改旧发布行为事实。
+6. 历史发布版证据与当前工程重构分开保存；历史证据可以解释来源，但不能作为当前 main 的行为定义或发布阻断条件；
 
-## 8. 仓库中各类材料的定位
+## 10. 仓库中各类材料的定位
 
 | 路径 | 定位 |
 | --- | --- |
@@ -156,11 +184,11 @@ FingMi-Xray 应尽可能继续跟随 FongMi/TV，而不是复制整个上游长�
 | `libxray/` | `libXray.aar` 依赖容器 |
 | `catvod/` | FongMi 普通网络与 Spider 基础 |
 | `compat/media3-libass/` | 当前 5.6.3 构建使用的 Media3 / Libass compatibility 源码与补丁 |
-| `recovery/legacy-src/` | `v5.6.0-xray.5` faithful 恢复源码 |
-| `recovery/legacy-tests/`、`recovery/native-tests/`、`recovery/node-dns-tests/`、`recovery/v2rayn-tests/` | 发布版 faithful / native / 节点兼容行为证据与 fixture |
+| `recovery/legacy-src/` | `v5.6.0-xray.5` 历史 faithful 恢复源码，仅用于归档与来源复核 |
+| `recovery/legacy-tests/`、`recovery/native-tests/`、`recovery/node-dns-tests/`、`recovery/v2rayn-tests/` | 历史发布版 faithful / native / 节点行为证据与 fixture，不属于当前发布验收矩阵 |
 | `tests/` | 当前源码回归测试入口与测试 fixture |
 | `docs/apk-reference/` | 可直接进 Git 的反编译文本证据 |
 | `scripts/build/` | 当前依赖与 compatibility 构建工具 |
-| `scripts/recovery/` | faithful / native 恢复工具 |
+| `scripts/recovery/` | 历史 faithful / native 恢复与来源提取工具 |
 
-当前工程代码与 faithful 恢复代码是两种不同用途的材料。前者用于继续开发，后者用于回答“原发布版实际上是什么行为”。
+当前工程代码与历史 faithful 恢复代码是两种不同用途的材料。当前 `main` 决定现行产品行为与验收标准；历史恢复材料只用于回答“旧发布版当时是什么行为、当前某些二进制从哪里来”，不会再要求当前版本回到旧行为。
