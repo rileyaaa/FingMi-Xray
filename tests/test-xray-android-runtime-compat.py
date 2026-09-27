@@ -68,6 +68,35 @@ for keep_rule in ("-keep class libXray.** { *; }", "-keep class go.** { *; }"):
     if keep_rule not in proguard:
         errors.append(f"missing release JNI keep rule: {keep_rule}")
 
+
+builder = ROOT / "scripts/build/build-published-libxray-aar.py"
+if not builder.is_file():
+    errors.append("missing published libXray binding/JNI builder")
+else:
+    builder_text = builder.read_text(encoding="utf-8")
+    for required in (
+        "libXray/AgeDecryptConfig.class",
+        "libXray/GenerateAgeKeyPairResponse.class",
+        "libXray/ProbeTLSCertificateRequest.class",
+        "libXray/ProbeHysteria2CertificateRequest.class",
+        "libXray/ProbeCertificateResponse.class",
+    ):
+        if required not in builder_text:
+            errors.append(f"published libXray builder missing binding contract: {required}")
+
+for workflow_name in (
+    ".github/workflows/current-main-build.yml",
+    ".github/workflows/publish-current-main-test-release.yml",
+):
+    workflow = ROOT / workflow_name
+    workflow_text = workflow.read_text(encoding="utf-8")
+    if "scripts/build/build-published-libxray-aar.py" not in workflow_text:
+        errors.append(f"{workflow_name}: current build must rebuild matching libXray Java bindings and JNI")
+    if "scripts/recovery/restore-published-libxrayjni.py" in workflow_text:
+        errors.append(f"{workflow_name}: native-only libXray restore would recreate the gomobile binding mismatch")
+    if "JADX_SHA256" not in workflow_text:
+        errors.append(f"{workflow_name}: JADX input must be pinned for reproducible libXray binding recovery")
+
 if errors:
     raise SystemExit("\n".join(errors))
 
