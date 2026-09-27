@@ -2,7 +2,10 @@ package com.fongmi.android.tv.player.mpv;
 
 import android.content.pm.PackageManager;
 
+import androidx.annotation.Nullable;
+import androidx.media3.common.Format;
 import androidx.media3.common.Player;
+import androidx.media3.common.TrackSelectionOverride;
 import androidx.media3.common.util.Util;
 import androidx.media3.mpvplayer.MpvAndroidOptions;
 import androidx.media3.mpvplayer.MpvPlayer;
@@ -56,8 +59,8 @@ public final class MpvUtil {
         return player;
     }
 
-    public static void applySubtitleStyle(MpvPlayer player) {
-        player.setSubtitleOptions(buildSubtitleOptions());
+    public static void applySubtitleStyle(MpvPlayer player, int secondaryMode, @Nullable TrackSelectionOverride secondarySelection) {
+        player.setSubtitleOptions(buildSubtitleOptions(secondaryMode, secondarySelection));
     }
 
     static List<String> getManagedOptionNames() {
@@ -78,9 +81,21 @@ public final class MpvUtil {
     private static MpvPlayerConfig buildConfig() {
         File cacheDir = Path.mpvCache();
         AndroidFontConfig.prepare();
-        MpvPlayerConfig.Builder builder = new MpvPlayerConfig.Builder().addConfigDirectory(Path.mpv()).addAndroidDefaults(buildAndroidOptions(cacheDir)).addTlsCaFileFromAsset(App.get(), ASSET_CA_FILE, Path.files(ASSET_CA_FILE)).addAndroidSubtitleOptions(App.get(), buildSubtitleOptions());
+        MpvPlayerConfig.Builder builder = new MpvPlayerConfig.Builder()
+                .addConfigDirectory(Path.mpv())
+                .addAndroidDefaults(buildAndroidOptions(cacheDir))
+                .addTlsCaFileFromAsset(App.get(), ASSET_CA_FILE, Path.files(ASSET_CA_FILE))
+                .addAndroidSubtitleOptions(App.get(), buildSubtitleOptions(SubtitleSetting.getSecondaryMode(), null));
+        addFontOptions(builder);
         addPreloadOptions(builder);
         return builder.build();
+    }
+
+    private static void addFontOptions(MpvPlayerConfig.Builder builder) {
+        String fontFamily = SubtitleSetting.getFontFamily();
+        if (fontFamily == null) return;
+        builder.addSubtitleStringOption("sub-font", fontFamily);
+        builder.addSubtitleStringOption("sub-fonts-dir", ExternalFont.getDirectory().getAbsolutePath());
     }
 
     private static MpvAndroidOptions buildAndroidOptions(File shaderCacheDirectory) {
@@ -99,17 +114,35 @@ public final class MpvUtil {
         builder.addDiskCacheOptions(Path.mpvCache(), PreloadSetting.getTimeSeconds());
     }
 
-    private static MpvSubtitleOptions buildSubtitleOptions() {
+    private static MpvSubtitleOptions buildSubtitleOptions(int secondaryMode, @Nullable TrackSelectionOverride secondarySelection) {
         MpvSubtitleOptions.Builder builder = new MpvSubtitleOptions.Builder();
         if (SubtitleSetting.isPositionSet()) builder.setPosition(getSubtitlePosition());
         if (SubtitleSetting.isScaleApplied()) builder.setScale(SubtitleSetting.getAppliedScale());
-        if (SubtitleSetting.isSecondaryPositionSet()) builder.setSecondarySubtitlePosition(SubtitleSetting.getSecondaryPosition());
-        if (SubtitleSetting.isStyleForced()) builder.setSecondaryAssStyleOverride(true);
-        String fontFamily = SubtitleSetting.getFontFamily();
-        if (fontFamily != null) builder.setFontFamily(fontFamily).setFontsDirectory(ExternalFont.getDirectory().getAbsolutePath());
+        int secondaryTrack = resolveSecondaryTrack(secondaryMode, secondarySelection);
+        if (secondaryTrack != Integer.MIN_VALUE) {
+            builder.setSecondarySubtitle(secondaryTrack, SubtitleSetting.getSecondaryPosition(), SubtitleSetting.isStyleForced());
+        }
         if (SubtitleSetting.isCustomStyle()) builder.setCustomStyle(SubtitleSetting.getTextColor(), SubtitleSetting.getBackgroundColor(), SubtitleSetting.getEdgeType(), SubtitleSetting.getEdgeColor(), SubtitleSetting.getEdgeWidth(), SubtitleSetting.getShadow());
         else if (SubtitleSetting.isSystemStyle()) builder.setSystemCaptionStyle();
         return builder.build();
+    }
+
+    private static int resolveSecondaryTrack(int mode, @Nullable TrackSelectionOverride selection) {
+        if (selection != null && !selection.trackIndices.isEmpty()) {
+            int index = selection.trackIndices.get(0);
+            if (index >= 0 && index < selection.mediaTrackGroup.length) {
+                Format format = selection.mediaTrackGroup.getFormat(index);
+                if (format.id != null) {
+                    try {
+                        return Integer.parseInt(format.id);
+                    } catch (NumberFormatException ignored) {
+                    }
+                }
+            }
+        }
+        if (mode == SubtitleSetting.SECONDARY_MODE_OFF) return MpvSubtitleOptions.SECONDARY_TRACK_OFF;
+        if (mode == SubtitleSetting.SECONDARY_MODE_AUTO) return MpvSubtitleOptions.SECONDARY_TRACK_AUTO;
+        return Integer.MIN_VALUE;
     }
 
     private static double getSubtitlePosition() {
