@@ -118,6 +118,15 @@ public final class XrayService extends Service {
             throw new IllegalStateException("Unable to allocate Xray port");
         } catch (Exception error) {
             send(callback, operationId, XrayOperation.VALIDATE, false, 0, -1L, errorMessage(error));
+        } catch (LinkageError error) {
+            send(
+                    callback,
+                    operationId,
+                    XrayOperation.VALIDATE,
+                    false,
+                    0,
+                    -1L,
+                    XrayErrorSanitizer.sanitize(error));
         }
     }
 
@@ -151,6 +160,15 @@ public final class XrayService extends Service {
             throw new IllegalStateException("Unable to allocate Xray port");
         } catch (Exception error) {
             send(callback, operationId, XrayOperation.TEST, false, 0, -1L, errorMessage(error));
+        } catch (LinkageError error) {
+            send(
+                    callback,
+                    operationId,
+                    XrayOperation.TEST,
+                    false,
+                    0,
+                    -1L,
+                    XrayErrorSanitizer.sanitize(error));
         }
     }
 
