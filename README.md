@@ -6,6 +6,19 @@ FingMi-Xray 是基于 [FongMi/TV](https://github.com/FongMi/TV) 的 Android TV �
 
 FingMi-Xray 将 Xray 集成到播放器内部。遇到这类内容时，可以只为**当前正在播放的媒体会话**临时启用 Xray，而不需要给整台电视建立系统 VPN，也不要求路由器长期运行代理。
 
+## 项目版本
+
+当前重构工程使用和适配的主要版本：
+
+| 组件 | 版本 |
+| --- | --- |
+| FongMi/TV | **5.6.3** |
+| FingMi-Xray | **5.6.3** |
+| libXray AAR | **v26.7.28** |
+| Xray-core | **v26.7.28** |
+
+当前应用 `versionCode` 为 **563**。Android 端仍以 XTLS/libXray `v26.7.28` 的 AAR 为基础，并按本项目已经固定和验证的发布版 JNI 恢复流程准备实际构建依赖。
+
 ## 核心设计
 
 - **默认直连**：首页、搜索、详情、普通接口等仍使用 FongMi 原有网络。
