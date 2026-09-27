@@ -10,3 +10,5 @@
 - `v2rayn-tests/`：分享链接兼容基准。
 
 当前 5.6.3 直接参与构建的 Media3 / Libass 兼容代码已经迁到 `compat/`；当前源码回归入口位于 `tests/`。
+
+运行 workflow 时可能临时创建 `recovery/work/` 与 `recovery/evidence/`；两者都已由 `.gitignore` 排除，不属于仓库中的恢复源码或固定 fixture。

@@ -2,7 +2,7 @@
 """Compile/test reconstructed dual text against the pinned real Media3 AARs.
 
 Requires Java 17+, Maven 3.9+, and network access for pinned test dependencies.
-This tests the selector/output, not the still-missing newer Libass control API.
+This tests the selector/output compatibility path; it is not full Libass rendering or device playback validation.
 """
 import argparse
 import hashlib
