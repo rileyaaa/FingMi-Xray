@@ -1,5 +1,7 @@
 package com.fingmi.xray.core;
 
+import android.util.Log;
+
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -8,6 +10,7 @@ import libXray.LibXray;
 
 public final class LibXrayBridge {
 
+    private static final String TAG = "FingMiXray";
     public static final long API_VERSION = 2;
 
     public Object invoke(String method, JSONObject payload) throws Exception {
@@ -18,7 +21,9 @@ public final class LibXrayBridge {
 
         String rawResponse;
         try {
+            Log.d(TAG, "native invoke begin: " + method);
             rawResponse = LibXray.invoke(request.toString());
+            Log.d(TAG, "native invoke end: " + method);
         } catch (LinkageError error) {
             throw new IllegalStateException(
                     "Xray native bridge unavailable (" + error.getClass().getSimpleName() + ")",
