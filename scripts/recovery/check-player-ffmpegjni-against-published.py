@@ -11,17 +11,18 @@ import argparse
 import hashlib
 from io import BytesIO
 from pathlib import Path
-import runpy
+import sys
 from zipfile import ZipFile
+
+BUILD_DIR = Path(__file__).resolve().parents[1] / "build"
+sys.path.insert(0, str(BUILD_DIR))
+from player_candidate import read_verified_candidate  # noqa: E402
 
 
 PUBLISHED = {
     "armeabi-v7a": "3af1fcaa21f28071994fc51936889e2441edec57d5009e7a4043bf9f06435d42",
     "arm64-v8a": "26594d573765fc86a3d242c81e11369ced639d76cb4465cdf4b31a7c2d9da91c",
 }
-ARTIFACT_SHA256 = runpy.run_path(
-    str(Path(__file__).resolve().parents[1] / "build" / "import-player-aar-candidate.py")
-)["ARTIFACT_SHA256"]
 NAME = "lib-decoder-ffmpeg-release.aar"
 
 
@@ -46,10 +47,10 @@ def main() -> None:
     source.add_argument("--aar-dir", type=Path)
     args = parser.parse_args()
     if args.artifact:
-        with ZipFile(args.artifact) as archive:
-            if hashlib.sha256(args.artifact.read_bytes()).hexdigest() != ARTIFACT_SHA256:
-                parser.error("Candidate artifact SHA-256 differs from the verified AC run")
-            data = archive.read(NAME)
+        try:
+            data = read_verified_candidate(args.artifact)[NAME]
+        except ValueError as error:
+            parser.error(str(error))
     else:
         data = (args.aar_dir / NAME).read_bytes()
     if not check(data):
