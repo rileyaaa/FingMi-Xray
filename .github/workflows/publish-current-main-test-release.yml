@@ -26,7 +26,7 @@ jobs:
       JADX_SHA256: "545ea2be9c242511bc145755cf4bda2485ade42966e096f8b4d3da2a230e8974"
       PREVIOUS_RELEASE_TAG: "v5.6.3-xray.test.4"
       RELEASE_TAG: "v5.6.3-xray.test.5"
-      BUILD_SOURCE_SHA: ${{ github.event_name == 'push' && github.event.before || github.sha }}
+      BUILD_SOURCE_SHA: ${{ github.sha }}
 
     steps:
       - uses: actions/checkout@v7
@@ -39,11 +39,12 @@ jobs:
         run: |
           set -euo pipefail
           test -n "$BUILD_SOURCE_SHA"
-          test "$BUILD_SOURCE_SHA" != "0000000000000000000000000000000000000000"
+          test "$BUILD_SOURCE_SHA" = "$GITHUB_SHA"
           git fetch --no-tags --depth=2 origin "$GITHUB_SHA"
-          test "$(git rev-parse "$GITHUB_SHA^")" = "$BUILD_SOURCE_SHA"
-          changed="$(git diff --name-only "$BUILD_SOURCE_SHA" "$GITHUB_SHA")"
-          test "$changed" = ".github/workflows/publish-current-main-test-release.yml"
+          parent="$(git rev-parse "$GITHUB_SHA^")"
+          test -n "$parent"
+          changed="$(git diff --name-only "$parent" "$GITHUB_SHA")"
+          test "$changed" = ".github/.trigger-publish-current-main-test"
 
       - uses: actions/setup-java@v6
         with:
