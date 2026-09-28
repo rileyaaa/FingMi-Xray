@@ -280,7 +280,7 @@ AI 与用户共同开发时的固定操作限制独立维护在 [AI_COLLABORATIO
 两个 current-main workflow 都必须先执行：
 
 - `tests/test-xray-android-runtime-compat.py`：防止 Java 21 可编译、但旧 Android ART 运行时不存在的 API 再进入 `:xray`，并防止 current-main 构建重新退回“官方旧 Java bindings + 单独替换发布版 Go JNI”的不匹配组合；
-- `tests/test-xray-core-parity.py`：守住配置生成、存储 / TOFU、Service 重试清理、Settings 核心语义，并要求 current public destination guard 与发布 `qz3` readable mirror 保持逐行为等价；
+- `tests/test-xray-core-parity.py`：守住配置生成、存储 / TOFU、Service 重试清理、Settings 核心语义与手机导入的 EventBus / operation 中断边界，并要求 current public destination guard 与发布 `qz3` readable mirror 保持逐行为等价；
 - `tests/test-xray-playback-parity.py`：守住 VOD / Live、播放器代理切换、媒体旁路和资源释放语义；
 - `tests/test-xray-session-races.py`：锁住发布版 STOP / timeout / callback 的竞态顺序；
 - `tests/test-xray-service-client-lifecycle.py`：直接编译真实 Service client，锁住 bind timeout、cancel/unbind、Binder death 与 stale callback / connection generation；
