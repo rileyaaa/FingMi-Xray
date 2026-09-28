@@ -57,6 +57,9 @@ require(
     "clearPlaybackProxyPreservingState()",
     "XrayRestore",
     "xrayRestore == null",
+    "return !hasXraySession()",
+    "if (next == null && !preservePlayback)",
+    "if (spec != null) ensureEngine(spec.checkUa());",
 )
 
 require(

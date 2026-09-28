@@ -186,7 +186,11 @@ public class PlayerManager implements ParseCallback {
     }
 
     public boolean canPreloadNext() {
-        return PreloadSetting.isEnabled() && PreloadSetting.isNextEpisodeEnabled() && engine != null && engine.getType() == PlayerEngine.Type.EXO;
+        return !hasXraySession()
+                && PreloadSetting.isEnabled()
+                && PreloadSetting.isNextEpisodeEnabled()
+                && engine != null
+                && engine.getType() == PlayerEngine.Type.EXO;
     }
 
     public boolean isPortrait() {
@@ -537,9 +541,15 @@ public class PlayerManager implements ParseCallback {
 
         clearPreload();
 
-        // A new playback identity forgets Xray without rebuilding the old
-        // engine. The next start rebuilds exactly once on the requested path.
-        if (next == null && !preservePlayback) return;
+        // Released th2.m9308A()/m9316c() releases the old Xray engine at
+        // an identity boundary without resuming the old media. Current 5.6.3
+        // keeps an engine object available for its controllers, so rebuild an
+        // empty direct engine here instead of leaving an engine backed by the
+        // Xray resources that are about to be closed.
+        if (next == null && !preservePlayback) {
+            if (spec != null) ensureEngine(spec.checkUa());
+            return;
+        }
         if (spec == null) return;
 
         if (snapshot != null) {
