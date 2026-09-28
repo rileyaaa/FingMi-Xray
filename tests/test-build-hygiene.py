@@ -41,11 +41,25 @@ for path in sorted((ROOT / ".github/workflows").glob("*.yml")):
 current_workflow = (ROOT / ".github/workflows/current-main-build.yml").read_text(encoding="utf-8")
 publish_workflow = (ROOT / ".github/workflows/publish-current-main-test-release.yml").read_text(encoding="utf-8")
 
-if "permissions:\n  contents: write\n  actions: write" not in publish_workflow:
+if "permissions:\n  contents: write\n  actions: read" not in publish_workflow:
     errors.append(
-        "publish workflow must retain the release-capable GITHUB_TOKEN permission pair "
-        "(contents: write + actions: write)"
+        "publish workflow must retain the least-privilege release-capable GITHUB_TOKEN pair "
+        "(contents: write + actions: read)"
     )
+
+for required in (
+    "BUILD_SOURCE_SHA: ${{ github.event_name == 'push' && github.event.before || github.sha }}",
+    "Verify temporary push trigger source",
+    "ref: ${{ env.BUILD_SOURCE_SHA }}",
+    'test "$changed" = ".github/workflows/publish-current-main-test-release.yml"',
+    '--target "$BUILD_SOURCE_SHA"',
+    ".object.sha == $sha",
+):
+    if required not in publish_workflow:
+        errors.append(f"publish workflow is missing stable source targeting guard: {required}")
+
+if '--target "$GITHUB_SHA"' in publish_workflow:
+    errors.append("publish workflow must never release the temporary trigger commit itself")
 
 for name, text in (
     ("current-main-build.yml", current_workflow),

@@ -14,7 +14,7 @@
 - 向用户报告 Actions 状态前，先刷新仓库最新 runs 列表，再定位目标 run。
 - 之前读取的单个 run、jobs 或日志结果只能代表当时状态，不能直接当成当前状态。
 - 最新 runs 列表确认 run 已完成后，才读取该 run 的 jobs / logs 核对实际成功步骤或失败原因。
-- 临时 `push` trigger 只允许用于必要验证；触发后应尽快恢复 `workflow_dispatch`，避免后续提交制造重叠 CI。验证结束还要确认 current-main 与 publish workflow 都是纯手动。
+- 临时 `push` trigger 只允许用于必要验证；trigger commit 必须只修改目标 workflow 的触发器，run 入队后立即恢复 `workflow_dispatch`，避免后续提交制造重叠 CI。对 publish workflow，临时 push run 必须以触发前的稳定 source SHA 做 checkout / build / Release target，并验证 trigger commit 没有混入其他文件；不得在已经撤回 trigger 后把临时 trigger commit 自身作为 Release target。验证结束还要确认 current-main 与 publish workflow 都是纯手动。
 
 ## 3. 会话接近平台时限时立即交接
 

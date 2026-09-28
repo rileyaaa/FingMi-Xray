@@ -271,7 +271,9 @@ AI 与用户共同开发时的固定操作限制独立维护在 [AI_COLLABORATIO
 
 `.github/workflows/publish-current-main-test-release.yml`
 
-它会从触发时的当前 `main` 重新准备固定依赖、执行源码 guard、执行 current Java → 发布版 native 动态 Xray chain parity、只编译/assemble Android TV / Leanback 两个 ABI，然后直接发布新的测试 Pre-release；成功包不再额外复制一份到 Actions artifact。新测试 Release 与两个 Leanback APK 都验证成功后，workflow 才删除 YAML 中指定的上一版测试 Release / tag。其他历史 Release 不在这条替换链中，也不参与当前版本的最终验收。 发布 job 使用 `contents: write + actions: write` 的 GITHUB_TOKEN 权限组合；这是本仓库已经验证能创建/更新长期 build-input Release 的权限边界，build hygiene 会阻止误降回只读 Actions 权限。
+它以 `BUILD_SOURCE_SHA` 作为唯一构建与发布源码，重新准备固定依赖、执行源码 guard、执行 current Java → 发布版 native 动态 Xray chain parity、只编译/assemble Android TV / Leanback 两个 ABI，然后直接发布新的测试 Pre-release；成功包不再额外复制一份到 Actions artifact。正常手动触发时 `BUILD_SOURCE_SHA = github.sha`。如果因为当前 GitHub connector 缺少 workflow dispatch 能力而临时给本 workflow 增加 `push` 触发，临时 trigger commit 必须只修改这个 workflow，`BUILD_SOURCE_SHA` 固定为该 push 的 `github.event.before`；workflow 会验证父提交关系和唯一改动文件，并从这个稳定源码 commit checkout、构建和创建 Release。入队后仍立即把仓库恢复为纯 `workflow_dispatch`。
+
+这样做同时规避 GitHub Release API 的权限边界：当 Release 的 `target_commitish` 相对当前默认分支修改了 `.github/workflows/` 时，GitHub 会额外要求 workflow 写权限，而 Actions 自带的 `GITHUB_TOKEN` 无法获得该权限。临时 trigger commit 因此不得在撤回 trigger 后继续作为 Release target。发布 job 保持最小权限 `contents: write + actions: read`；`actions: write` 不是创建 Release 的修复手段。新测试 Release、tag 指向的 `BUILD_SOURCE_SHA` 与两个 Leanback APK digest 全部验证成功后，workflow 才删除 YAML 中指定的上一版测试 Release / tag。其他历史 Release 不在这条替换链中，也不参与当前版本的最终验收。
 
 两个 current-main workflow 都必须先执行：
 

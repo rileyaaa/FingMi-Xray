@@ -5,7 +5,7 @@ on:
 
 permissions:
   contents: write
-  actions: write
+  actions: read
 
 jobs:
   build:
@@ -26,9 +26,24 @@ jobs:
       JADX_SHA256: "545ea2be9c242511bc145755cf4bda2485ade42966e096f8b4d3da2a230e8974"
       PREVIOUS_RELEASE_TAG: "v5.6.3-xray.test.4"
       RELEASE_TAG: "v5.6.3-xray.test.5"
+      BUILD_SOURCE_SHA: ${{ github.event_name == 'push' && github.event.before || github.sha }}
 
     steps:
       - uses: actions/checkout@v7
+        with:
+          ref: ${{ env.BUILD_SOURCE_SHA }}
+
+      - name: Verify temporary push trigger source
+        if: github.event_name == 'push'
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$BUILD_SOURCE_SHA"
+          test "$BUILD_SOURCE_SHA" != "0000000000000000000000000000000000000000"
+          git fetch --no-tags --depth=2 origin "$GITHUB_SHA"
+          test "$(git rev-parse "$GITHUB_SHA^")" = "$BUILD_SOURCE_SHA"
+          changed="$(git diff --name-only "$BUILD_SOURCE_SHA" "$GITHUB_SHA")"
+          test "$changed" = ".github/workflows/publish-current-main-test-release.yml"
 
       - uses: actions/setup-java@v6
         with:
@@ -200,7 +215,8 @@ jobs:
         run: |
           set -euo pipefail
           {
-            echo "commit=$GITHUB_SHA"
+            echo "commit=$BUILD_SOURCE_SHA"
+            echo "workflow_run_commit=$GITHUB_SHA"
             java -version 2>&1 | head -n 1
             ./gradlew --version | sed -n '1,12p'
             echo "libass_candidate_sha256=$LIBASS_CANDIDATE_SHA256"
@@ -258,7 +274,7 @@ jobs:
             echo
             echo "> current-main 决定架构与构建；Xray 外部行为以 v5.6.0-xray.5 v7 为黄金参考做 parity。faithful APK 重建不是 current 发布前置，本包用于 Android TV 真机回归。"
             echo
-            printf -- "- APK 构建源码 commit：\`%s\`\n" "$GITHUB_SHA"
+            printf -- "- APK 构建源码 commit：\`%s\`\n" "$BUILD_SOURCE_SHA"
             printf -- "- APK 构建 Actions run：\`%s\`\n" "$GITHUB_RUN_ID"
             echo "- 状态：Android TV / Leanback Debug javac 与 APK assemble 已通过"
             echo "- 本 Release 仅上传 Android TV / Leanback 两个 ABI，用于 MuMu / Android TV 回归"
@@ -292,11 +308,17 @@ jobs:
 
           gh release create "$RELEASE_TAG" \
             --repo "$GITHUB_REPOSITORY" \
-            --target "$GITHUB_SHA" \
+            --target "$BUILD_SOURCE_SHA" \
             --title "$RELEASE_TAG" \
             --notes-file "$notes_file" \
             --prerelease \
             release/*.apk
+
+          tag_json="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$RELEASE_TAG")"
+          jq -e --arg sha "$BUILD_SOURCE_SHA" '
+            .object.type == "commit" and
+            .object.sha == $sha
+          ' <<< "$tag_json" >/dev/null
 
           release_json="$(gh api "repos/$GITHUB_REPOSITORY/releases/tags/$RELEASE_TAG")"
           jq -e \
