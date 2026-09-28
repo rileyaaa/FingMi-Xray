@@ -67,6 +67,14 @@ if "fingmi-xray-5.6.3-current-main-debug" not in current_workflow:
     errors.append("current-main-build.yml must retain the short-lived TV debug artifact")
 if "retention-days: 2" not in current_workflow:
     errors.append("current-main-build.yml debug artifact must remain short-lived (2 days)")
+for required in (
+    "actions: write",
+    "Remove superseded current-main debug artifacts",
+    'select(.name == "fingmi-xray-5.6.3-current-main-debug")',
+    'gh api --method DELETE "repos/${GITHUB_REPOSITORY}/actions/artifacts/$id"',
+):
+    if required not in current_workflow:
+        errors.append(f"current-main-build.yml must auto-prune superseded debug artifacts: {required}")
 if "fingmi-xray-5.6.3-current-main-debug" in publish_workflow:
     errors.append("publish workflow must not duplicate successful APKs into Actions artifacts")
 

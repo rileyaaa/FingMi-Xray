@@ -5,7 +5,7 @@ on:
 
 permissions:
   contents: read
-  actions: read
+  actions: write
 
 jobs:
   build:
@@ -217,6 +217,26 @@ jobs:
           if-no-files-found: error
           retention-days: 2
           compression-level: 0
+
+      - name: Remove superseded current-main debug artifacts
+        if: success()
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mapfile -t stale_ids < <(
+            gh api "repos/${GITHUB_REPOSITORY}/actions/artifacts?per_page=100"               --jq '.artifacts
+                    | map(select(.name == "fingmi-xray-5.6.3-current-main-debug"))
+                    | sort_by(.id)
+                    | reverse
+                    | .[1:][]
+                    | .id'
+          )
+          for id in "${stale_ids[@]}"; do
+            gh api --method DELETE "repos/${GITHUB_REPOSITORY}/actions/artifacts/$id"
+            echo "DELETE superseded debug artifact $id"
+          done
 
       - name: Upload build reports on failure
         if: failure()
