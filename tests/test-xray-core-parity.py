@@ -67,6 +67,18 @@ if current_proxy_socket != released_proxy_socket:
 
 
 require(
+    "xray/src/main/AndroidManifest.xml",
+    'android:name=".service.XrayService"',
+    'android:exported="false"',
+    'android:process=":xray"',
+)
+forbid(
+    "xray/src/main/AndroidManifest.xml",
+    "VpnService",
+    "android.permission.BIND_VPN_SERVICE",
+)
+
+require(
     "xray/src/main/java/com/fingmi/xray/config/XrayShareLinkNormalizer.java",
     '"vless".equals(scheme)',
     '"vmess".equals(scheme)',
