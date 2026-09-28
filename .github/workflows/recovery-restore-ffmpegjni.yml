@@ -10,13 +10,31 @@ permissions:
 jobs:
   restore:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 75
     env:
       V7_SHA256: cacc7a90ce082adf955fc80a444b54f8cc86d5b5c3ac7acb13d1392b59928bda
       V8_SHA256: b5ac05193c1e19809fc7ffb3048f7d75aaa2124eace9953d669f4a81a477c21d
-      CANDIDATE_SHA256: 0ed42581af11ac7163ebde148b318807c244e2a318f40c41d33f50b70bf967ee
     steps:
       - uses: actions/checkout@v7
+
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.10"
+
+      - name: Prepare Android platform 36
+        shell: bash
+        run: |
+          set -euo pipefail
+          sdk_root="${ANDROID_HOME:-/usr/local/lib/android/sdk}"
+          sdkmanager="$sdk_root/cmdline-tools/latest/bin/sdkmanager"
+          test -x "$sdkmanager"
+          yes | "$sdkmanager" --licenses >/dev/null 2>&1 || true
+          "$sdkmanager" --install 'platforms;android-36' 'build-tools;36.0.0'
 
       - name: Download and verify pinned inputs
         shell: bash
@@ -24,13 +42,6 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          artifact_info="$(gh api repos/rileyaaa/FingMi-Xray/actions/artifacts/10859533459)"
-          if ! jq -e --arg sha "sha256:$CANDIDATE_SHA256" \
-            '.name == "fongmi-media3-aar-candidate-1.11.0" and .expired == false and .size_in_bytes == 44336768 and .digest == $sha' \
-            <<< "$artifact_info" >/dev/null; then
-            echo 'Pinned player candidate artifact is missing, expired, or differs from the verified input.' >&2
-            exit 1
-          fi
           release_info="$(gh api repos/rileyaaa/FingMi-Xray/releases/tags/v5.6.0-xray.5)"
           if ! jq -e --arg v7 "sha256:$V7_SHA256" --arg v8 "sha256:$V8_SHA256" '
             ([.assets[] | select(.name == "FongMi-Xray-TV-v5.6.0-xray.5-armeabi-v7a.apk" and .size == 129871795 and .digest == $v7)] | length) == 1 and
@@ -40,6 +51,10 @@ jobs:
             exit 1
           fi
           mkdir -p recovery/work/verified recovery/work/restored
+          bash scripts/build/build-player-aar-candidate.sh \
+            --workdir recovery/work/player-source \
+            --output recovery/work/verified/candidate.zip
+          python3 scripts/build/player_candidate.py recovery/work/verified/candidate.zip
           gh release download v5.6.0-xray.5 \
             --repo rileyaaa/FingMi-Xray \
             --pattern 'FongMi-Xray-TV-v5.6.0-xray.5-armeabi-v7a.apk' \
@@ -49,13 +64,8 @@ jobs:
             recovery/work/verified/v7.apk
           mv recovery/work/verified/FongMi-Xray-TV-v5.6.0-xray.5-arm64-v8a.apk \
             recovery/work/verified/v8.apk
-          curl -fL --retry 3 --retry-delay 2 \
-            -H "Authorization: Bearer ${GH_TOKEN}" \
-            'https://api.github.com/repos/rileyaaa/FingMi-Xray/actions/artifacts/10859533459/zip' \
-            -o recovery/work/verified/candidate.zip
           printf '%s  %s\n' "$V7_SHA256" recovery/work/verified/v7.apk \
             "$V8_SHA256" recovery/work/verified/v8.apk \
-            "$CANDIDATE_SHA256" recovery/work/verified/candidate.zip \
             | sha256sum -c -
           python3 scripts/recovery/inspect-published-libxray-native.py \
             --v7-apk recovery/work/verified/v7.apk \
