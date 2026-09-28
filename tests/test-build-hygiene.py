@@ -78,6 +78,11 @@ for required in (
 if "fingmi-xray-5.6.3-current-main-debug" in publish_workflow:
     errors.append("publish workflow must not duplicate successful APKs into Actions artifacts")
 
+if 'PREVIOUS_RELEASE_TAG: "v5.6.3-xray.test.4"' not in publish_workflow:
+    errors.append("publish workflow must retire the current test.4 release only after replacement verification")
+if 'RELEASE_TAG: "v5.6.3-xray.test.5"' not in publish_workflow:
+    errors.append("publish workflow must target the next v5.6.3-xray.test.5 pre-release")
+
 for name, text in (
     ("current-main-build.yml", current_workflow),
     ("publish-current-main-test-release.yml", publish_workflow),

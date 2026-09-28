@@ -24,7 +24,7 @@ jobs:
       LIBASS_CANDIDATE_SHA256: "2318eb904a016d0160aed2a4b7de8501578cd0f223c65e5c61086f7a9a80f573"
       JADX_VERSION: "1.5.6"
       JADX_SHA256: "545ea2be9c242511bc145755cf4bda2485ade42966e096f8b4d3da2a230e8974"
-      PREVIOUS_RELEASE_TAG: "v5.6.3-xray.test.3"
+      PREVIOUS_RELEASE_TAG: "v5.6.3-xray.test.5"
       RELEASE_TAG: "v5.6.3-xray.test.4"
 
     steps:
@@ -277,8 +277,8 @@ jobs:
             echo "如果测试发现问题，以这里记录的 APK 构建 commit / run / SHA-256 作为定位基准。"
           } > "$notes_file"
 
-          # A rerun of this workflow should replace test.2 cleanly rather than
-          # accumulate stale assets or leave the tag pointing at an older commit.
+          # A rerun of this workflow should replace the same test tag cleanly
+          # rather than accumulate stale assets or leave it on an older commit.
           if gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
             gh release delete "$RELEASE_TAG" \
               --repo "$GITHUB_REPOSITORY" \
