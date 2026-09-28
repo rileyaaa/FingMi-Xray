@@ -76,6 +76,9 @@ for path in sorted((ROOT / ".github/workflows").glob("*.yml")):
 
 current_workflow = (ROOT / ".github/workflows/current-main-build.yml").read_text(encoding="utf-8")
 publish_workflow = (ROOT / ".github/workflows/publish-current-main-test-release.yml").read_text(encoding="utf-8")
+recovery_player_workflow = (ROOT / ".github/workflows/recovery-player-aars.yml").read_text(encoding="utf-8")
+recovery_native_workflow = (ROOT / ".github/workflows/recovery-restore-ffmpegjni.yml").read_text(encoding="utf-8")
+recovery_faithful_workflow = (ROOT / ".github/workflows/recovery-build.yml").read_text(encoding="utf-8")
 
 publish_marker_exists = (ROOT / ".github/.trigger-publish-current-main-test").exists()
 for name, text in (
@@ -136,6 +139,20 @@ for name, text in (
     ):
         if required not in text:
             errors.append(f"{name} is missing pinned TV build contract: {required}")
+
+for name, text in (
+    ("recovery-player-aars.yml", recovery_player_workflow),
+    ("recovery-restore-ffmpegjni.yml", recovery_native_workflow),
+    ("recovery-build.yml", recovery_faithful_workflow),
+):
+    if "bash scripts/build/build-player-aar-candidate.sh" not in text:
+        errors.append(f"{name} must rebuild the pinned player candidate from source")
+    for forbidden in (
+        "10859533459",
+        "0ed42581af11ac7163ebde148b318807c244e2a318f40c41d33f50b70bf967ee",
+    ):
+        if forbidden in text:
+            errors.append(f"{name} still depends on retired player artifact storage: {forbidden}")
 
 if "fingmi-xray-5.6.3-current-main-debug" not in current_workflow:
     errors.append("current-main-build.yml must retain the short-lived TV debug artifact")
