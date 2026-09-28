@@ -473,7 +473,7 @@ Android TV / Leanback APK：
 
 #### 结论
 
-用户确认 GitHub Release 中的 `v5.6.0-xray.5` armeabi-v7a APK 在 Xray 行为上是完整且稳定的参考实现，包括节点导入、连接测试、START / STOP、播放代理、会话切换与网络资源释放。后续维护采用“当前模块化架构 + 旧 APK 行为语义”的原则：不回退到 5.6.0 的混合架构，只从发布 APK 恢复 Xray 行为细节并映射到当前 `:xray` 模块。
+用户确认 GitHub Release 中的 `v5.6.0-xray.5` armeabi-v7a APK 在 Xray 行为上是完整且稳定的参考实现，包括节点导入、连接测试、START / STOP、播放代理、会话切换与网络资源释放。后续维护采用“当前模块化架构 + 旧 APK 完整 Xray 行为语义”的原则：不回退到 5.6.0 的混合架构，也不只针对 KCP 或单一协议修补；分享链接兼容、节点存储与安全、VALIDATE / TEST / START / STOP、Binder / Service 生命周期、播放会话、HTTP / SOCKS / RTSP 接入、错误去敏、超时/竞态与网络资源释放均以发布 APK 的已验证行为为黄金参考，再映射到当前 `:xray` 模块。
 
 #### 重新取证
 
