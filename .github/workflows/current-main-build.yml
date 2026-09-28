@@ -2,9 +2,6 @@ name: Current main Android build
 
 on:
   workflow_dispatch:
-  push:
-    branches:
-      - main
 
 permissions:
   contents: read
