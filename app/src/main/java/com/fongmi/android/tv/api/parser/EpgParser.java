@@ -59,15 +59,25 @@ public class EpgParser {
         }
     }
 
-    public static void start(Live live, String url) throws Exception { start(live, url, null); }
+    public static void start(Live live, String url) throws Exception {
+        start(live, url, null, url);
+    }
 
     public static void start(Live live, String url, OkHttpClient client) throws Exception {
+        start(live, url, client, url);
+    }
+
+    public static void start(Live live, String url, OkHttpClient client, String tag) throws Exception {
         long t0 = System.currentTimeMillis();
         File file = Path.epg(UrlUtil.path(url));
         String reason = refreshReason(file);
         boolean refresh = reason != null;
         Log.i(TAG, "start url=" + url + " file=" + file.getName() + " refresh=" + refresh + (refresh ? " reason=" + reason : ""));
-        if (refresh) Download.create(url, file).client(client).get();
+        if (refresh) {
+            Download download = Download.create(url, file).tag(tag == null ? url : tag);
+            if (client != null) download.client(client);
+            download.get();
+        }
         boolean gzip = isGzip(file);
         if (gzip) readGzip(live, file, refresh);
         else readXml(live, file);
