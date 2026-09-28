@@ -2,11 +2,6 @@ name: Recovery APK analysis
 
 on:
   workflow_dispatch:
-  push:
-    branches:
-      - main
-    paths:
-      - .github/.trigger-recovery-apk-analysis
 
 permissions:
   contents: read
