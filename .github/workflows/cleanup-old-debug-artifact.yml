@@ -1,0 +1,45 @@
+name: Remove superseded current-main debug artifact
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - .github/workflows/cleanup-old-debug-artifact.yml
+
+permissions:
+  contents: read
+  actions: write
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      KEEP_ARTIFACT_ID: "10979892075"
+      DELETE_ARTIFACT_ID: "10971156322"
+
+    steps:
+      - name: Verify new debug and delete superseded debug
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+
+          keep="$(gh api "repos/${GITHUB_REPOSITORY}/actions/artifacts/$KEEP_ARTIFACT_ID")"
+          jq -e '
+            .id == 10979892075 and
+            .name == "fingmi-xray-5.6.3-current-main-debug" and
+            .expired == false
+          ' <<< "$keep" >/dev/null
+
+          if gh api "repos/${GITHUB_REPOSITORY}/actions/artifacts/$DELETE_ARTIFACT_ID" >/dev/null 2>&1; then
+            gh api --method DELETE "repos/${GITHUB_REPOSITORY}/actions/artifacts/$DELETE_ARTIFACT_ID"
+            echo "DELETE $DELETE_ARTIFACT_ID"
+          else
+            echo "OLD_ARTIFACT_ALREADY_ABSENT $DELETE_ARTIFACT_ID"
+          fi
+
+          gh api "repos/${GITHUB_REPOSITORY}/actions/artifacts/$KEEP_ARTIFACT_ID" \
+            --jq '"KEEP \(.id) \(.name) \(.size_in_bytes)"'
