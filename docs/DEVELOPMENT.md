@@ -273,7 +273,7 @@ AI 与用户共同开发时的固定操作限制独立维护在 [AI_COLLABORATIO
 
 它以 `BUILD_SOURCE_SHA` 作为唯一构建与发布源码，重新准备固定依赖、执行源码 guard、执行 current Java → 发布版 native 动态 Xray chain parity、只编译/assemble Android TV / Leanback 两个 ABI，然后直接发布新的测试 Pre-release；成功包不再额外复制一份到 Actions artifact。正常手动触发时 `BUILD_SOURCE_SHA = github.sha`。
 
-如果因为当前 GitHub connector 缺少 workflow dispatch 能力而临时触发 publish，必须采用**两阶段 marker 触发**：先单独提交一次只给 publish workflow 增加、且只匹配 `.github/.trigger-publish-current-main-test` 的临时 `push.paths`；再用第二个只修改该 marker 的 commit 真正触发 run。workflow 会验证触发 commit 的唯一变更就是 marker，并以该 commit 自身作为 checkout / build / Release target。run 入队后立即恢复 publish workflow 为纯 `workflow_dispatch`，随后可以删除 marker。
+如果因为当前 GitHub connector 缺少 workflow dispatch 能力而临时触发 publish，必须采用**两阶段 marker 触发**：先单独提交一次只给 publish workflow 临时增加 `push`；这个“arm” commit 自身会触发一条 run，但 workflow 的首个 source guard 会因为它不是 marker-only commit 而立即失败，不进入 SDK、native parity 或 Gradle 构建。随后用第二个只修改 `.github/.trigger-publish-current-main-test` 的 commit 真正触发完整 run；workflow 会验证该触发 commit 的唯一变更就是 marker，并以该 commit 自身作为 checkout / build / Release target。完整 run 入队后立即把 publish workflow 恢复为纯 `workflow_dispatch`，再删除 marker。
 
 这个约束来自已复核的发布记录：成功的 `test.4` 显式 Release target 自身只修改 marker；两次失败的 `test.5` 显式 target 自身都直接修改 workflow YAML，并在 `gh release create` 得到 `HTTP 403: Resource not accessible by integration`；同日 `build-inputs-5.6.3` 未显式指定 SHA target 时又能由同类 `contents: write` Actions token 正常创建。因此临时启用 `push` 的 workflow 修改 commit 不得直接作为显式 Release target。发布 job 保持最小权限 `contents: write + actions: read`。新测试 Release、tag 指向的 `BUILD_SOURCE_SHA` 与两个 Leanback APK digest 全部验证成功后，workflow 才删除 YAML 中指定的上一版测试 Release / tag。其他历史 Release 不在这条替换链中，也不参与当前版本的最终验收。
 
