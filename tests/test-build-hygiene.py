@@ -32,7 +32,7 @@ for path in sorted((ROOT / ".github/workflows").glob("*.yml")):
     text = path.read_text(encoding="utf-8")
 
     upload_count = text.count("actions/upload-artifact@")
-    retention_values = [int(value) for value in re.findall(r"retention-days:\\s*(\\d+)", text)]
+    retention_values = [int(value) for value in re.findall(r"retention-days:\s*(\d+)", text)]
     if upload_count != len(retention_values):
         errors.append(
             f"{path.relative_to(ROOT)} must set an explicit retention-days value for every upload-artifact step"
