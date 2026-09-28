@@ -56,7 +56,7 @@ public interface VodPlaybackHost {
 
     void stopPlaybackForRefresh();
 
-    void resetXrayForPlaybackChange();
+    default void resetXrayForPlaybackChange() { }
 
     void resetPlaybackForError(String msg);
 
