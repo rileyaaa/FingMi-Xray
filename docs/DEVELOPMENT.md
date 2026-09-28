@@ -221,7 +221,7 @@ FongMi/TV 5.6.3 对 Media3 / MPV 的调用面与当前固定的部分播放器�
 
 当前可重复构建依赖以下几类输入：
 
-- 固定 FongMi/media player candidate；长期副本保存在项目 Release `build-inputs-5.6.3`，workflow 下载后继续按固定 SHA 校验，不再依赖会过期的 Actions artifact；
+- 固定 FongMi/media player candidate 由 `scripts/build/build-player-aar-candidate.sh` 从 `FongMi/media@3c2cbe8ac742c2fe15eff52f03eeb3b1b648848d` 现场重建；`scripts/build/player_candidate.py` 校验固定 commit、16 个 AAR、manifest digest 与关键播放器 class。构建输入不再放进项目 Release；
 - 当前构建使用的 FFmpeg JNI；
 - 官方 libXray v26.7.28 AAR 外层容器，以及从固定历史发布 APK 恢复、彼此匹配的 API v2 gomobile Java bindings 与 v7 / arm64 Go JNI；
 - 按固定输入重建的 Libass compatibility AAR。
@@ -259,17 +259,19 @@ AI 与用户共同开发时的固定操作限制独立维护在 [AI_COLLABORATIO
 它负责：
 
 1. 准备 JDK / Android SDK；
-2. 下载并校验固定媒体输入；
+2. 从固定 FongMi/media commit 重建 player AAR candidate，并下载 / 校验其余固定媒体与黄金发布输入；
 3. 准备并校验固定 FFmpeg JNI，并重建 Java bindings 与 Go JNI 配套的 libXray compatibility AAR；
 4. 重建并导入 Libass compatibility AAR；
 5. 执行 current Java → 发布版 v7 / arm64 native 动态 Xray chain parity（统一以 v7 发布行为为黄金 oracle，包含 KCP golden cases 与发布版 `testXray` runtime validation）；
 6. 只编译 Android TV / Leanback Java；
 7. 只 assemble Android TV / Leanback 两个 ABI 的 Debug APK；
-8. 上传短期 TV debug artifact（保留 2 天）供临时验证；上传成功后自动删除同名旧 debug，只保留最新一份。失败报告只保留 1 天。历史 recovery workflow 的 JADX/DEX、faithful APK、native dependency、player AAR 和 upstream snapshot artifacts 也只作临时复核，统一最多保留 3 天；长期 build input 只进入项目 Release。Gradle 命令继续使用 `--warning-mode all`；当前剩余会在 Gradle 10 失败的 deprecation 已确认全部来自固定上游同样使用的 Chaquopy Gradle plugin 17.0.0（multi-string dependency notation 与 execution-time `Task.project`），不是本仓库 Gradle 脚本。当前保持 FongMi/TV 5.6.3 的 17.0.0 pin，待上游或 Chaquopy 升级时再单独验证 Python runtime 与双 ABI assets，不在本 fork 中为消 warning 私自升级。自定义 `com.fongmi.chaquo.Platform` 保持 FongMi/TV 5.6.3 上游 ABI 选择逻辑；其中选中的 ABI 必须同步到 Chaquopy 17 的 `AndroidPlatform.ABI`，因为其 `java.android.importer` 会读取这个内部字段来装载 ABI-specific requirements ZIP。
+8. 上传短期 TV debug artifact（保留 2 天）供临时验证；上传成功后自动删除同名旧 debug，只保留最新一份。失败报告只保留 1 天。历史 recovery workflow 的 JADX/DEX、faithful APK、native dependency、player AAR 和 upstream snapshot artifacts 也只作临时复核，统一最多保留 3 天；长期可重建输入只保留源码 commit、脚本、fixture 与 hash，不再占用 Release。Gradle 命令继续使用 `--warning-mode all`；当前剩余会在 Gradle 10 失败的 deprecation 已确认全部来自固定上游同样使用的 Chaquopy Gradle plugin 17.0.0（multi-string dependency notation 与 execution-time `Task.project`），不是本仓库 Gradle 脚本。当前保持 FongMi/TV 5.6.3 的 17.0.0 pin，待上游或 Chaquopy 升级时再单独验证 Python runtime 与双 ABI assets，不在本 fork 中为消 warning 私自升级。自定义 `com.fongmi.chaquo.Platform` 保持 FongMi/TV 5.6.3 上游 ABI 选择逻辑；其中选中的 ABI 必须同步到 Chaquopy 17 的 `AndroidPlatform.ABI`，因为其 `java.android.importer` 会读取这个内部字段来装载 ABI-specific requirements ZIP。
 
 测试发布器：
 
 `.github/workflows/publish-current-main-test-release.yml`
+
+Release 只承载发布版本：长期保留 `v5.6.0-xray.5` 黄金参考和一个当前可上真机测试的 pre-release。构建输入、恢复材料、临时归档和旧测试版不得长期堆在 Releases；新测试版验证成功后发布器会清理上一测试版和历史 `build-inputs-5.6.3`，并校验 Release 集合只剩黄金版 + 当前测试版。
 
 它以 `BUILD_SOURCE_SHA` 作为唯一构建与发布源码，重新准备固定依赖、执行源码 guard、执行 current Java → 发布版 native 动态 Xray chain parity、只编译/assemble Android TV / Leanback 两个 ABI，然后直接发布新的测试 Pre-release；成功包不再额外复制一份到 Actions artifact。正常手动触发时 `BUILD_SOURCE_SHA = github.sha`。
 
