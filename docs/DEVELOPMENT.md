@@ -649,3 +649,10 @@ KCP 收口不再只依赖 recovered Go patch 或 source-level 推断。本轮新
 测试把 current 结果逐项对比已冻结的发布版 chain oracle，覆盖 26 组链路，其中 6 组是 KCP golden cases：SRTP+seed、wechat-video+seed、VMess wireguard+seed、none/no-seed、uTP+seed、DTLS+seed；同时覆盖 WS/gRPC/HTTPUpgrade、VMess QR、HY2 authority/mport/TOFU、Trojan TOFU、SS、Reality、IPv6 与 XHTTP/SplitHTTP。证书 probe 和 pin store 是确定性的 test boundary；converter 与 runtime validation 使用的是真实发布 native。
 
 current-main workflow 临时加入 main push trigger 以跑本轮 TV-only 验证；成功后必须撤回。publish workflow 仍保持纯手动触发。
+
+
+#### 动态 chain 首轮 harness 修复
+
+- Actions run `36418576303` 在进入实际 native parity 前失败：`prepare-native-converter-harness.py` 使用了 Python 3.11 才提供的 `hashlib.file_digest()`，而 current-main/publish workflow 固定 Python 3.10。
+- 发布版 v7 `libgojni.so` 在失败前已再次通过固定 SHA-256 校验；此失败不代表 Xray/KCP 行为差异。
+- harness 的 digest 改为兼容 Python 3.10 的分块 `hashlib.sha256().update()`，保持同一校验语义并避免大文件整块读入内存。

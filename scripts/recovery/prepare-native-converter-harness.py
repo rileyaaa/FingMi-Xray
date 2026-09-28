@@ -35,8 +35,11 @@ JADX_SHA = '7aab8c3419717516167eba7cf6a6f320df894b9ef554761c0cfc98d90c580e8d'
 
 
 def digest(path):
+    value = hashlib.sha256()
     with path.open('rb') as f:
-        return hashlib.file_digest(f, 'sha256').hexdigest()
+        for block in iter(lambda: f.read(1024 * 1024), b''):
+            value.update(block)
+    return value.hexdigest()
 
 
 def main():
