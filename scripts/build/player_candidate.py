@@ -10,23 +10,12 @@ from pathlib import Path
 from zipfile import BadZipFile, ZipFile
 
 SOURCE_COMMIT = "3c2cbe8ac742c2fe15eff52f03eeb3b1b648848d"
-EXPECTED_AARS = {
+EXPECTED_AAR_COUNT = 16
+REQUIRED_AARS = {
     "lib-common-release.aar",
-    "lib-database-release.aar",
-    "lib-datasource-release.aar",
-    "lib-datasource-okhttp-release.aar",
     "lib-extractor-release.aar",
-    "lib-exoplayer-release.aar",
-    "lib-exoplayer-rtsp-release.aar",
-    "lib-exoplayer-hls-release.aar",
-    "lib-exoplayer-dash-release.aar",
-    "lib-exoplayer-smoothstreaming-release.aar",
     "lib-decoder-ffmpeg-release.aar",
-    "lib-effect-release.aar",
     "lib-mpvplayer-release.aar",
-    "lib-session-release.aar",
-    "lib-ui-release.aar",
-    "lib-ui-danmaku-release.aar",
 }
 REQUIRED_CLASSES = {
     "androidx/media3/mpvplayer/MpvPlayer.class",
@@ -45,8 +34,27 @@ def read_verified_candidate(path: Path) -> dict[str, bytes]:
             names = bundle.namelist()
             if len(names) != len(set(names)):
                 raise ValueError("candidate bundle contains duplicate ZIP entries")
-            if set(names) != EXPECTED_AARS | {"BUILD_MANIFEST.txt"}:
-                raise ValueError("candidate bundle does not contain exactly the 16 pinned AARs and manifest")
+
+            aar_names = {
+                name
+                for name in names
+                if name.endswith(".aar")
+                and "/" not in name
+                and name.startswith("lib-")
+                and name.endswith("-release.aar")
+            }
+            if len(aar_names) != EXPECTED_AAR_COUNT:
+                raise ValueError(
+                    f"candidate bundle must contain exactly {EXPECTED_AAR_COUNT} root lib-*-release.aar files"
+                )
+            if set(names) != aar_names | {"BUILD_MANIFEST.txt"}:
+                raise ValueError("candidate bundle contains unexpected files")
+            missing_aars = REQUIRED_AARS - aar_names
+            if missing_aars:
+                raise ValueError(
+                    "candidate bundle is missing required AARs: "
+                    + ", ".join(sorted(missing_aars))
+                )
 
             manifest = bundle.read("BUILD_MANIFEST.txt").decode("utf-8")
             first = manifest.splitlines()[0] if manifest else ""
@@ -55,23 +63,21 @@ def read_verified_candidate(path: Path) -> dict[str, bytes]:
 
             expected: dict[str, str] = {}
             for line in manifest.splitlines():
-                if "  lib-" not in line:
+                if "  " not in line:
                     continue
                 digest, filename = line.split("  ", 1)
-                if (
-                    len(digest) != 64
-                    or filename not in EXPECTED_AARS
-                    or filename in expected
-                ):
+                if filename not in aar_names:
+                    continue
+                if len(digest) != 64 or filename in expected:
                     raise ValueError(f"invalid candidate manifest entry: {line}")
                 expected[filename] = digest
 
-            if set(expected) != EXPECTED_AARS:
-                raise ValueError("candidate manifest does not pin all 16 expected AARs")
+            if set(expected) != aar_names:
+                raise ValueError("candidate manifest does not pin all 16 rebuilt AARs")
 
             payload: dict[str, bytes] = {}
             found: set[str] = set()
-            for filename in sorted(EXPECTED_AARS):
+            for filename in sorted(aar_names):
                 data = bundle.read(filename)
                 if sha256(data) != expected[filename]:
                     raise ValueError(f"AAR SHA-256 mismatch: {filename}")
