@@ -63,11 +63,26 @@ require(
 )
 
 require(
+    "app/src/main/java/com/fongmi/android/tv/player/exo/ExoPlayerEngine.java",
+    "this.session = new ExoPlayerSession(decode, listener, effect.getAudioProcessor(), proxy);",
+    "if (proxy == null) session.preload(MediaItemFactory.from(spec), startPositionMs);",
+    "public XrayHttpClient proxy() { return proxy; }",
+)
+
+require(
     "app/src/main/java/com/fongmi/android/tv/player/exo/ExoMediaSourceFactory.java",
     '"file".equalsIgnoreCase(scheme)',
     '"content".equalsIgnoreCase(scheme)',
     '"android.resource".equalsIgnoreCase(scheme)',
     "Unsupported data source scheme while Xray is enabled",
+    'if ("rtsp".equalsIgnoreCase(scheme) || "rtspt".equalsIgnoreCase(scheme))',
+    ".setSocketFactory(proxy.rtspSocketFactory())",
+    "DefaultDrmSessionManagerProvider drm = new DefaultDrmSessionManagerProvider();",
+    "drm.setDrmHttpDataSourceFactory(getDataSourceFactory());",
+    "factory.setDrmSessionManagerProvider(drm);",
+    "new OkHttpDataSource.Factory(proxy == null ? OkHttp.player() : proxy.client())",
+    "dataSourceFactory = proxy == null",
+    "new GuardedPlaybackDataSource(upstream.createDataSource())",
 )
 
 require(
@@ -162,6 +177,8 @@ require(
     "player().clearPlaybackProxyPreservingState()",
     "mXrayProxyFailed",
     "state == XraySessionListener.IDLE && !message.isEmpty()",
+    "if (mXray != null) mXray.stop(preservePlayback);",
+    "if (mXray != null) mXray.close();",
 )
 
 require(
@@ -177,6 +194,8 @@ require(
     "if (!startedFromExisting && !message.isEmpty()) showError(message);",
     "XrayPlaybackSession.supportsDirectLiveSource(mChannel.getCurrent())",
     "if (!message.isEmpty()) Notify.show(message);",
+    "if (mXray != null) mXray.stop(preservePlayback);",
+    "if (mXray != null) mXray.close();",
 )
 
 forbid(
