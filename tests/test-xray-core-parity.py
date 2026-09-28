@@ -2,6 +2,7 @@
 """Guard core Xray behavior recovered from v5.6.0-xray.5."""
 
 from pathlib import Path
+import re
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -15,6 +16,31 @@ def require(path: str, *needles: str) -> None:
     missing = [needle for needle in needles if needle not in text]
     if missing:
         raise SystemExit(f"{path}: missing released-Xray contract: {missing}")
+
+
+def normalized_java_mirror(path: str, package_name: str, class_name: str) -> str:
+    text = read(path)
+    text = re.sub(r"/\\*.*?\\*/", "", text, flags=re.S)
+    text = re.sub(r"//[^\\n]*", "", text)
+    text = text.replace(f"package {package_name};", "package parity;")
+    text = text.replace(class_name, "PlaybackDestinationInterceptor")
+    return " ".join(text.split())
+
+
+current_destination = normalized_java_mirror(
+    "xray/src/main/java/com/fingmi/xray/network/PublicPlaybackDestinationInterceptor.java",
+    "com.fingmi.xray.network",
+    "PublicPlaybackDestinationInterceptor",
+)
+released_destination = normalized_java_mirror(
+    "recovery/legacy-src/com/fongmi/android/tv/xray/legacy/LegacyPublicPlaybackDestinationInterceptor.java",
+    "com.fongmi.android.tv.xray.legacy",
+    "LegacyPublicPlaybackDestinationInterceptor",
+)
+if current_destination != released_destination:
+    raise SystemExit(
+        "PublicPlaybackDestinationInterceptor diverged from the released qz3 behavioral mirror"
+    )
 
 
 require(
@@ -172,6 +198,7 @@ for reference in (
     "recovery/legacy-src/com/fongmi/android/tv/xray/legacy/LegacyXraySettingsController.java",
     "recovery/legacy-src/com/fongmi/android/tv/xray/legacy/LegacyXrayProxySocketFactory.java",
     "recovery/legacy-src/com/fongmi/android/tv/xray/legacy/LegacyXrayGenerationGate.java",
+    "recovery/legacy-src/com/fongmi/android/tv/xray/legacy/LegacyPublicPlaybackDestinationInterceptor.java",
     "docs/apk-reference/shared/sources/p000/pz3.java",
     "docs/apk-reference/shared/sources/p000/nz3.java",
 ):
