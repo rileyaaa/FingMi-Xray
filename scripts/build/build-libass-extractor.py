@@ -4,10 +4,12 @@
 Only MatroskaExtractor, SubtitleParser, SubtitleTranscodingTrackOutput and their nested classes change.
 This is one prerequisite, not a complete Libass AAR.
 """
-import argparse,hashlib,io,json,os,subprocess,tempfile,urllib.parse,urllib.request,xml.etree.ElementTree as ET
+import argparse,hashlib,io,json,os,subprocess,sys,tempfile,urllib.parse,urllib.request,xml.etree.ElementTree as ET
 from pathlib import Path
 from zipfile import ZipFile,ZipInfo,ZIP_DEFLATED
 ROOT=Path(__file__).resolve().parents[2]
+sys.path.insert(0,str(Path(__file__).resolve().parent))
+from player_candidate import read_verified_candidate
 SOURCE='libraries/extractor/src/main/java/androidx/media3/extractor/mkv/MatroskaExtractor.java'
 SOURCE_SHA='84e01966733fec404de062fce4aa5c221af432c570afcef9eb1ad0cab07f495f'
 RESTORED_SHA='203c3ef5626afa3bc0401befc07a347a3e32e6e2b835b0164b0c05eeba1560db'
@@ -26,7 +28,7 @@ def write_zip(entries):
  return b.getvalue()
 def main():
  p=argparse.ArgumentParser(description=__doc__);p.add_argument('--candidate',type=Path,required=True);p.add_argument('--workdir',type=Path,required=True);p.add_argument('--maven',required=True);p.add_argument('--source',type=Path);p.add_argument('--source-root',type=Path);p.add_argument('--container',type=Path);p.add_argument('--local-repository',type=Path,default=Path.home()/'.m2/repository');a=p.parse_args()
- assert sha(a.candidate.read_bytes())=='0ed42581af11ac7163ebde148b318807c244e2a318f40c41d33f50b70bf967ee'
+ payload=read_verified_candidate(a.candidate)
  work=a.workdir.resolve();(work/'jars').mkdir(parents=True,exist_ok=True)
  # Official same-version container is an explicit upstream extractor dependency, absent from
  # the16-AAR candidate bundle; use the real artifact rather than substitute its classes.
@@ -35,10 +37,9 @@ def main():
   with urllib.request.urlopen('https://dl.google.com/dl/android/maven2/androidx/media3/media3-container/1.11.0/media3-container-1.11.0.aar') as r:container.write_bytes(r.read())
  assert sha(container.read_bytes())==CONTAINER_SHA
  with ZipFile(container) as z:(work/'jars/media3-container.jar').write_bytes(z.read('classes.jar'))
- with ZipFile(a.candidate) as bundle:
-  aar=bundle.read('lib-extractor-release.aar')
-  for name in ['common','extractor']:
-   with ZipFile(io.BytesIO(bundle.read('lib-'+name+'-release.aar'))) as z:(work/'jars'/('lib-'+name+'-release.jar')).write_bytes(z.read('classes.jar'))
+ aar=payload['lib-extractor-release.aar']
+ for name in ['common','extractor']:
+  with ZipFile(io.BytesIO(payload['lib-'+name+'-release.aar'])) as z:(work/'jars'/('lib-'+name+'-release.jar')).write_bytes(z.read('classes.jar'))
  if a.source_root:source=(a.source_root/SOURCE).read_bytes()
  elif a.source:source=a.source.read_bytes()
  else:
