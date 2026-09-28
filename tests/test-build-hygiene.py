@@ -38,6 +38,45 @@ for path in sorted((ROOT / ".github/workflows").glob("*.yml")):
                     f"{path.relative_to(ROOT)} uses {action}@v{major}; require v{minimum}+ for Node 24 runners"
                 )
 
+current_workflow = (ROOT / ".github/workflows/current-main-build.yml").read_text(encoding="utf-8")
+publish_workflow = (ROOT / ".github/workflows/publish-current-main-test-release.yml").read_text(encoding="utf-8")
+
+for name, text in (
+    ("current-main-build.yml", current_workflow),
+    ("publish-current-main-test-release.yml", publish_workflow),
+):
+    for forbidden in (
+        ":app:compileMobile",
+        ":app:assembleMobile",
+        "MobileDebug",
+        "PLAYER_ARTIFACT_ID",
+    ):
+        if forbidden in text:
+            errors.append(f"{name} must stay TV-only / Release-input based; found {forbidden}")
+
+    for required in (
+        'PLAYER_RELEASE_TAG: "build-inputs-5.6.3"',
+        'PLAYER_RELEASE_ASSET: "fongmi-media3-aar-candidate-1.11.0.zip"',
+        ":app:compileLeanbackDebugJavaWithJavac",
+        ":app:assembleLeanbackDebug",
+    ):
+        if required not in text:
+            errors.append(f"{name} is missing pinned TV build contract: {required}")
+
+if "fingmi-xray-5.6.3-current-main-debug" not in current_workflow:
+    errors.append("current-main-build.yml must retain the short-lived TV debug artifact")
+if "retention-days: 2" not in current_workflow:
+    errors.append("current-main-build.yml debug artifact must remain short-lived (2 days)")
+if "fingmi-xray-5.6.3-current-main-debug" in publish_workflow:
+    errors.append("publish workflow must not duplicate successful APKs into Actions artifacts")
+
+for name, text in (
+    ("current-main-build.yml", current_workflow),
+    ("publish-current-main-test-release.yml", publish_workflow),
+):
+    if "fingmi-xray-5.6.3-build-failure-reports" not in text or "retention-days: 1" not in text:
+        errors.append(f"{name} failure reports must remain short-lived (1 day)")
+
 if errors:
     raise SystemExit("\n".join(errors))
 

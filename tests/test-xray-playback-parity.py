@@ -45,7 +45,7 @@ forbid(
     "xray/src/main/java/com/fingmi/xray/session/XrayPlaybackSession.java",
     "if (playback.resolved(url)) stop(false);",
     "service.isRunning() && !supports(url)",
-    "!playback.hasIdentity() || !supports(playback.mediaUrl())",
+    "if (!playback.hasIdentity() || !supports(playback.mediaUrl())) {\n                service.stop();",
 )
 
 require(
