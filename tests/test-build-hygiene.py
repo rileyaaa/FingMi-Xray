@@ -19,6 +19,7 @@ for path in sorted((ROOT / "app/src").rglob("strings.xml")):
 
 player_builder = (ROOT / "scripts/build/build-player-aar-candidate.sh").read_text(encoding="utf-8")
 player_verifier = (ROOT / "scripts/build/player_candidate.py").read_text(encoding="utf-8")
+libass_builder = (ROOT / "scripts/build/build-libass-candidate.py").read_text(encoding="utf-8")
 for required in (
     'SOURCE_COMMIT="3c2cbe8ac742c2fe15eff52f03eeb3b1b648848d"',
     "https://github.com/FongMi/media.git",
@@ -35,6 +36,15 @@ for required in (
 ):
     if required not in player_verifier:
         errors.append(f"player candidate verifier lost pinned-source contract: {required}")
+
+for required in (
+    "74f578537e063e01423667b2acad4b152eb8e1fdae0f75c98ed9a1c9b05c5789",
+    "0799e9942972a642149105ada63b483f5de0f4dddf546ce698b7a6ef2299a679",
+    "052c81b548649a0a3d697f034640f8c4b00530b6572662b16cc6ca3f6efb1f26",
+    "c625360ef9224a516a1092ea757130f4c6f11c63544c50a1b279b654cf4710f7",
+):
+    if required not in libass_builder:
+        errors.append(f"Libass builder lost pinned APK/SO provenance: {required}")
 
 platform = (ROOT / "chaquo/src/main/java/com/fongmi/chaquo/Platform.java").read_text(encoding="utf-8")
 for required in (
@@ -139,6 +149,16 @@ for name, text in (
     ):
         if required not in text:
             errors.append(f"{name} is missing pinned TV build contract: {required}")
+
+    if "releases/download/5.6.5/" in text:
+        errors.append(f"{name} still references the deleted FongMi 5.6.5 Release assets")
+    for required in (
+        "releases/download/5.6.6/",
+        "74f578537e063e01423667b2acad4b152eb8e1fdae0f75c98ed9a1c9b05c5789",
+        "0799e9942972a642149105ada63b483f5de0f4dddf546ce698b7a6ef2299a679",
+    ):
+        if required not in text:
+            errors.append(f"{name} is missing pinned FongMi 5.6.6 Libass provenance: {required}")
 
 for name, text in (
     ("recovery-player-aars.yml", recovery_player_workflow),
