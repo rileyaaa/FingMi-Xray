@@ -640,3 +640,12 @@ current-main 的 `XrayConfigFactory`、`LibXrayBridge.testLatency`、`XrayServic
 - `36416537162`：首次 push 验证因新加 core parity guard 把换行写成字面 `\\n` 而在 source guard 失败；这是测试 guard 误报，不是生产代码编译/运行失败。
 - `ea96bbbd8267cbf98fc022ca4a2ab7213807b594` 修正 guard 后，Actions run `36416710086` 完整成功：source guards、Android SDK/native 输入、Libass 重建、Leanback javac、Android TV APK assemble、artifact upload 全部通过。
 - 成功后已撤回 `current-main-build.yml` 的临时 `main` push trigger，workflow 恢复为纯 `workflow_dispatch`；发布 workflow 始终保持手动触发。
+
+
+### 2026-09-28 — current Java → published v7 native 整链动态 parity
+
+KCP 收口不再只依赖 recovered Go patch 或 source-level 推断。本轮新增 `tests/test-current-native-share-chain.py` 与 current-chain JVM harness，直接执行 current 的 `XrayShareLinkNormalizer`、`XrayShareLinkSecurity`、`XrayConfigFactory`，中间 converter 与最终 `testXray` 都调用固定 SHA-256 的 `v5.6.0-xray.5` armeabi-v7a `libgojni.so`（QEMU + Android API24 Bionic harness）。
+
+测试把 current 结果逐项对比已冻结的发布版 chain oracle，覆盖 26 组链路，其中 6 组是 KCP golden cases：SRTP+seed、wechat-video+seed、VMess wireguard+seed、none/no-seed、uTP+seed、DTLS+seed；同时覆盖 WS/gRPC/HTTPUpgrade、VMess QR、HY2 authority/mport/TOFU、Trojan TOFU、SS、Reality、IPv6 与 XHTTP/SplitHTTP。证书 probe 和 pin store 是确定性的 test boundary；converter 与 runtime validation 使用的是真实发布 native。
+
+current-main workflow 临时加入 main push trigger 以跑本轮 TV-only 验证；成功后必须撤回。publish workflow 仍保持纯手动触发。

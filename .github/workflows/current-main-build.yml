@@ -2,6 +2,9 @@ name: Current main Android build
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - main
 
 permissions:
   contents: read
@@ -117,6 +120,27 @@ jobs:
           python3 scripts/build/build-published-libxray-aar.py             --official-aar libxray/libs/libXray.aar             --v7-apk build/work/current-main/input/published-v560-v7.apk             --v8-apk build/work/current-main/input/published-v560-v8.apk             --jadx build/work/current-main/tools/jadx/bin/jadx             --android-jar "$sdk_root/platforms/android-37.0/android.jar"             --work-dir build/work/current-main/libxray-bindings             --to build/work/current-main/restored/libXray.aar
 
           cp build/work/current-main/restored/libXray.aar libxray/libs/libXray.aar
+
+      - name: Verify current Xray chain against published v7 native
+        shell: bash
+        run: |
+          set -euo pipefail
+          work="build/work/current-main/xray-native-chain"
+          mkdir -p "$work"
+          unzip -p build/work/current-main/input/published-v560-v7.apk \
+            lib/armeabi-v7a/libgojni.so > "$work/published-v7-libgojni.so"
+          echo "6f01f219fe4087790cd8e647394de9dbefc61e0d750d927924b93f120b06fb7e  $work/published-v7-libgojni.so" | sha256sum -c -
+
+          python3 scripts/recovery/prepare-native-converter-harness.py \
+            --workdir "$work/harness" \
+            --jni "$work/published-v7-libgojni.so"
+
+          python3 tests/test-current-native-share-chain.py \
+            --workdir "$work/test" \
+            --jni "$work/published-v7-libgojni.so" \
+            --bridge "$work/harness/invoke-bridge" \
+            --qemu "$work/harness/qemu/usr/bin/qemu-arm-static" \
+            --android-root "$work/harness/android/root"
 
       - name: Build and import reconstructed Libass candidate
         shell: bash
