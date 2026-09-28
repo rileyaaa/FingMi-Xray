@@ -33,6 +33,7 @@ public final class XrayPlaybackSession implements XraySessionListener, AutoClose
     private final Listener listener;
     private final PlaybackIdentityGate playback = new PlaybackIdentityGate();
     private XrayHttpClient resources;
+    private boolean preserveOnStart = true;
     private boolean preserveOnStop;
     private boolean closed;
 
@@ -59,6 +60,7 @@ public final class XrayPlaybackSession implements XraySessionListener, AutoClose
     public boolean enable() {
         assertMain();
         if (closed || !playback.hasIdentity() || !supports(playback.mediaUrl())) return false;
+        preserveOnStart = true;
         service.start();
         return true;
     }
@@ -68,7 +70,10 @@ public final class XrayPlaybackSession implements XraySessionListener, AutoClose
         assertMain();
         if (!supportsDirectLiveSource(directSource)) return false;
         playback.provisional(directSource);
-        return enable();
+        if (closed || !playback.hasIdentity() || !supports(playback.mediaUrl())) return false;
+        preserveOnStart = false;
+        service.start();
+        return true;
     }
 
     public void stop(boolean preservePlayback) {
@@ -134,7 +139,7 @@ public final class XrayPlaybackSession implements XraySessionListener, AutoClose
             }
             clearResources(false);
             resources = new XrayHttpClient(socksPort, baseClient);
-            listener.onProxyChanged(resources, true);
+            listener.onProxyChanged(resources, preserveOnStart);
         } else if (state == ERROR) {
             clearResourcesAfterError();
         } else if (state == IDLE) {

@@ -138,6 +138,9 @@ require(
     "this::resetXrayForPlaybackChange",
     "mXray.stop(preservePlayback)",
     "player().clearPlaybackProxyPreservingState()",
+    "mXrayPendingChannelResume",
+    "mXrayStartedFromExistingPlayback",
+    "mLive.resumeChannelAfterXrayStart()",
 )
 
 require(
@@ -148,6 +151,19 @@ require(
     "XrayOperationIds.next()",
 )
 
+
+require(
+    "app/src/main/java/com/fongmi/android/tv/playback/live/LivePlaybackController.java",
+    "selectChannel(Channel channel, boolean resetXray)",
+    "resumeChannelAfterXrayStart()",
+    "if (resetXray) host.resetXrayForPlaybackChange()",
+    "requestPlayback(request, true, false)",
+)
+
+require(
+    "app/src/main/java/com/fongmi/android/tv/playback/live/LivePlaybackHost.java",
+    "void resetXrayForPlaybackChange()",
+)
 
 require(
     "app/src/main/java/com/fongmi/android/tv/api/LiveApi.java",

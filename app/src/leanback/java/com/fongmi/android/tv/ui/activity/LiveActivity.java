@@ -90,9 +90,9 @@ public class LiveActivity extends PlaybackActivity implements GroupAdapter.OnCli
     private LiveViewModel mViewModel;
     private LivePlaybackController mLive;
     private XrayPlaybackSession mXray;
-    private PlaybackResult<LivePlayRequest> mHeldResult;
     private CustomTarget<Drawable> mArtworkTarget;
-    private boolean mWaitingXrayStart;
+    private boolean mXrayPendingChannelResume;
+    private boolean mXrayStartedFromExistingPlayback;
     private long mPlaybackEpoch;
     private GroupAdapter mGroupAdapter;
     private ChannelAdapter mChannelAdapter;
@@ -201,14 +201,22 @@ public class LiveActivity extends PlaybackActivity implements GroupAdapter.OnCli
                         ? R.string.xray_on : state == XraySessionListener.STARTING
                         ? R.string.xray_starting : state == XraySessionListener.ERROR
                         ? R.string.xray_error : R.string.xray_off);
-                if (state == XraySessionListener.RUNNING || state == XraySessionListener.ERROR
-                        || (state == XraySessionListener.IDLE && mWaitingXrayStart)) {
-                    mWaitingXrayStart = false;
-                    PlaybackResult<LivePlayRequest> held = mHeldResult;
-                    mHeldResult = null;
-                    if (held != null) mLive.onPlaybackResult(held);
+                if (state == XraySessionListener.RUNNING) {
+                    mXrayStartedFromExistingPlayback = false;
+                    if (mXrayPendingChannelResume) {
+                        mXrayPendingChannelResume = false;
+                        mLive.resumeChannelAfterXrayStart();
+                    }
+                } else if (state == XraySessionListener.ERROR) {
+                    boolean startedFromExisting = mXrayStartedFromExistingPlayback;
+                    mXrayPendingChannelResume = false;
+                    mXrayStartedFromExistingPlayback = false;
+                    if (!startedFromExisting && !message.isEmpty()) showError(message);
+                    if (!message.isEmpty()) Notify.show(message);
+                } else if (state == XraySessionListener.IDLE) {
+                    mXrayPendingChannelResume = false;
+                    mXrayStartedFromExistingPlayback = false;
                 }
-                if (state == XraySessionListener.ERROR && !message.isEmpty()) Notify.show(message);
             }
         });
         mXray.begin("live:" + ++mPlaybackEpoch);
@@ -303,7 +311,6 @@ public class LiveActivity extends PlaybackActivity implements GroupAdapter.OnCli
     }
 
     private void onPlaybackObserved(PlaybackResult<LivePlayRequest> result) {
-        if (mWaitingXrayStart) { mHeldResult = result; return; }
         mLive.onPlaybackResult(result);
     }
 
@@ -491,8 +498,8 @@ public class LiveActivity extends PlaybackActivity implements GroupAdapter.OnCli
     private void onXray() {
         if (service() == null || !isOwner()) return;
         if (mXray.state() == XraySessionListener.RUNNING || mXray.state() == XraySessionListener.STARTING) {
-            mWaitingXrayStart = false;
-            mHeldResult = null;
+            mXrayPendingChannelResume = false;
+            mXrayStartedFromExistingPlayback = false;
             mXray.stop(true);
             return;
         }
@@ -503,7 +510,9 @@ public class LiveActivity extends PlaybackActivity implements GroupAdapter.OnCli
                 : XrayPlaybackSession.supports(mChannel.getCurrent());
         if (!supported) { Notify.show(R.string.xray_public_http_required); return; }
         player().clearPreload();
-        mWaitingXrayStart = !existing;
+        mXrayPendingChannelResume = !existing;
+        mXrayStartedFromExistingPlayback = existing;
+
         boolean enabled;
         if (existing) {
             mXray.mediaUrlChanged(player().getUrl());
@@ -512,7 +521,8 @@ public class LiveActivity extends PlaybackActivity implements GroupAdapter.OnCli
             enabled = mXray.enableForPending(mChannel.getCurrent());
         }
         if (!enabled) {
-            mWaitingXrayStart = false;
+            mXrayPendingChannelResume = false;
+            mXrayStartedFromExistingPlayback = false;
             Notify.show(R.string.xray_public_http_required);
         }
     }
@@ -526,9 +536,10 @@ public class LiveActivity extends PlaybackActivity implements GroupAdapter.OnCli
         hideControl();
     }
 
-    private void resetXrayForPlaybackChange() {
-        mWaitingXrayStart = false;
-        mHeldResult = null;
+    @Override
+    public void resetXrayForPlaybackChange() {
+        mXrayPendingChannelResume = false;
+        mXrayStartedFromExistingPlayback = false;
         if (mXray != null) mXray.begin("live:" + ++mPlaybackEpoch);
     }
 
@@ -901,9 +912,6 @@ public class LiveActivity extends PlaybackActivity implements GroupAdapter.OnCli
 
     @Override
     public void stopPlaybackForRefresh() {
-        mWaitingXrayStart = false;
-        mHeldResult = null;
-        mXray.begin("live:" + ++mPlaybackEpoch);
         stopPlayer();
     }
 
@@ -915,8 +923,8 @@ public class LiveActivity extends PlaybackActivity implements GroupAdapter.OnCli
 
     @Override
     public void resetPlaybackForError(String msg) {
-        mWaitingXrayStart = false;
-        mHeldResult = null;
+        mXrayPendingChannelResume = false;
+        mXrayStartedFromExistingPlayback = false;
         if (mXray != null) mXray.stop(false);
         PlaybackReset.afterError(player());
         showError(msg);
@@ -1005,8 +1013,8 @@ public class LiveActivity extends PlaybackActivity implements GroupAdapter.OnCli
 
     @Override
     public void setLive(Live item) {
-        mWaitingXrayStart = false;
-        mHeldResult = null;
+        mXrayPendingChannelResume = false;
+        mXrayStartedFromExistingPlayback = false;
         mXray.begin("live:" + ++mPlaybackEpoch);
         if (item.isSelected()) item.getGroups().clear();
         LiveConfig.get().setHome(item);
@@ -1184,8 +1192,8 @@ public class LiveActivity extends PlaybackActivity implements GroupAdapter.OnCli
                 && service() != null
                 && isOwner()
                 && player().hasPlaySpec();
-        mWaitingXrayStart = false;
-        mHeldResult = null;
+        mXrayPendingChannelResume = false;
+        mXrayStartedFromExistingPlayback = false;
         if (mXray != null) mXray.stop(preservePlayback);
         super.onStop();
         if (PlayerSetting.isBackgroundOff()) mClock.stop();
