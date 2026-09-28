@@ -28,6 +28,8 @@ import androidx.media3.ui.danmaku.DanmakuConfig;
 import com.fongmi.android.tv.App;
 import com.fongmi.android.tv.BuildConfig;
 import com.fongmi.android.tv.R;
+import com.fongmi.android.tv.api.DanmakuApi;
+import com.fongmi.android.tv.api.SubtitleApi;
 import com.fongmi.android.tv.bean.Result;
 import com.fongmi.android.tv.browse.BrowseTree;
 import com.fongmi.android.tv.event.ActionEvent;
@@ -35,6 +37,7 @@ import com.fongmi.android.tv.event.ConfigEvent;
 import com.fongmi.android.tv.player.PlayerManager;
 import com.fongmi.android.tv.player.media.ArtworkBitmapLoader;
 import com.fongmi.android.tv.player.media.PlaySpec;
+import com.fongmi.android.tv.player.media.XrayArtworkBitmapLoader;
 import com.fongmi.android.tv.server.Server;
 import com.fongmi.android.tv.utils.Task;
 import com.google.common.collect.ImmutableList;
@@ -68,6 +71,7 @@ public class PlaybackService extends MediaLibraryService implements MediaLibrary
     private PlayerManager player;
     private String navigationKey;
     private Player sessionPlayer;
+    private XrayArtworkBitmapLoader xrayBitmapLoader;
 
     public static boolean isRunning() {
         return running;
@@ -105,7 +109,10 @@ public class PlaybackService extends MediaLibraryService implements MediaLibrary
         player = new PlayerManager(this);
         sessionPlayer = player.getPlayer();
         sessionPlayer.addListener(listener);
-        session = new MediaLibrarySession.Builder(this, wrap(sessionPlayer), this).setBitmapLoader(new ArtworkBitmapLoader(this)).build();
+        xrayBitmapLoader = new XrayArtworkBitmapLoader(player, new ArtworkBitmapLoader(this));
+        session = new MediaLibrarySession.Builder(this, wrap(sessionPlayer), this)
+                .setBitmapLoader(xrayBitmapLoader)
+                .build();
         session.setSessionActivity(buildDefaultIntent());
         EventBus.getDefault().register(this);
         Server.get().setService(this);
@@ -186,6 +193,7 @@ public class PlaybackService extends MediaLibraryService implements MediaLibrary
     @Override
     public void onDestroy() {
         running = false;
+        if (xrayBitmapLoader != null) xrayBitmapLoader.cancelRemoteLoads();
         releaseSession();
         player.release();
         removeForeground();
@@ -471,6 +479,13 @@ public class PlaybackService extends MediaLibraryService implements MediaLibrary
 
     private void startBrowse(MediaItem item, Result result, long startPositionMs) {
         player.browse(PlaySpec.from(result, item.mediaId, item.mediaMetadata), startPositionMs);
+    }
+
+    @Override
+    public void onXrayTransitionStarted() {
+        DanmakuApi.cancelForXrayTransition();
+        SubtitleApi.cancelForXrayTransition();
+        if (xrayBitmapLoader != null) xrayBitmapLoader.cancelRemoteLoads();
     }
 
     @Override
