@@ -40,7 +40,10 @@
 
 ## 5. 六份项目文档的职责
 
-除 `LICENSE.md` 外，项目长期维护 6 份 Markdown 文档：
+除 `LICENSE.md` 外，项目长期只维护 6 份 Markdown 项目文档。**未经用户明确同意，不得新增第 7 份项目文档，也不得重新创建已经合并删除的目录 README。**
+
+新增文档属于项目结构变化，必须先向用户说明为什么现有 6 份文档无法承载该内容，并取得明确同意后才能创建。不能因为“方便记录”“临时交接”“单独说明某个目录”就自行增加 Markdown 文档。
+
 
 | 文档 | 职责 |
 | --- | --- |
@@ -52,6 +55,17 @@
 | `docs/ORIGINAL_README.md` | 冻结的旧发布说明，不随 current-main 改写 |
 
 `tests/`、`compat/` 的说明属于 DEVELOPMENT；`recovery/`、`docs/apk-reference/` 的说明属于 RECOVERY。
+
+后续维护遵循“**按时更新，只更新对应文档**”：
+
+- 工程结构、构建、测试、compat、验证矩阵和精选维护记录，只更新 `DEVELOPMENT.md`；
+- 产品边界和长期架构，只更新 `PROJECT.md`；
+- AI 协作限制，只更新 `AI_COLLABORATION.md`；
+- 历史恢复、APK/JADX/DEX/native provenance 和黄金行为证据，只更新 `RECOVERY.md`；
+- 仓库入口、版本概览和导航，只更新 `README.md`；
+- `ORIGINAL_README.md` 保持冻结，不随 current-main 更新。
+
+一个事实如果已经有明确 canonical 文档，不得为了“同步”而在其他文档复制同一段说明；其他文档只有在确实需要导航时保留最短链接。对应事实发生稳定变化时，应在同一工作阶段及时更新它所属的 canonical 文档，避免文档晚于代码事实。
 
 ## 执行优先级
 
