@@ -24,6 +24,8 @@ import java.time.ZoneId;
 
 public class LiveApi {
 
+    public static final String METADATA_TAG = LiveApi.class.getName().concat(".metadata");
+
     public static void parse(@NonNull Live item) throws Exception {
         LiveParser.start(item.recent());
         item.getGroups().removeIf(Group::isEmpty);
@@ -35,7 +37,12 @@ public class LiveApi {
     public static boolean parseXml(@NonNull Live item) { return parseXml(item, null); }
 
     public static boolean parseXml(@NonNull Live item, OkHttpClient client) {
-        return item.getEpgXml().stream().map(url -> startXml(item, url, client)).reduce(false, Boolean::logicalOr);
+        boolean success = false;
+        for (String url : item.getEpgXml()) {
+            if (Thread.currentThread().isInterrupted()) break;
+            success |= startXml(item, url, client);
+        }
+        return success;
     }
 
     @NonNull
@@ -44,7 +51,10 @@ public class LiveApi {
     @NonNull
     public static Epg getEpg(@NonNull Channel item, @NonNull ZoneId zoneId, OkHttpClient client) {
         String today = LocalDate.now(zoneId).format(Formatters.DATE);
-        for (int offset : new int[]{-1, 0, 1}) fetchEpgDay(item, zoneId, offset, client);
+        for (int offset : new int[]{-1, 0, 1}) {
+            if (Thread.currentThread().isInterrupted()) break;
+            fetchEpgDay(item, zoneId, offset, client);
+        }
         return item.getDataList().stream().filter(epg -> epg.equal(today)).findFirst().orElseGet(Epg::new).selected();
     }
 
@@ -65,8 +75,9 @@ public class LiveApi {
     }
 
     private static boolean startXml(Live item, String url, OkHttpClient client) {
+        if (Thread.currentThread().isInterrupted()) return false;
         try {
-            EpgParser.start(item, url, client);
+            EpgParser.start(item, url, client, METADATA_TAG);
             return true;
         } catch (Exception e) {
             e.printStackTrace();
@@ -75,14 +86,21 @@ public class LiveApi {
     }
 
     private static void fetchEpgDay(@NonNull Channel item, @NonNull ZoneId zoneId, int offset, OkHttpClient client) {
+        if (Thread.currentThread().isInterrupted()) return;
+
         String date = LocalDate.now(zoneId).plusDays(offset).format(Formatters.DATE);
         String url = item.getEpg().replace("{date}", date);
         boolean need = url.startsWith("http") && item.getDataList().stream().noneMatch(epg -> epg.equal(date));
-        if (need && client == null) { item.setData(Epg.objectFrom(OkHttp.string(url), item.getTvgId(), zoneId)); return; }
-        if (need) {
-            try (Response response = (client == null ? OkHttp.newCall(url) : OkHttp.newCall(client, url, "live-metadata")).execute()) {
-                if (response.body() != null) item.setData(Epg.objectFrom(response.body().string(), item.getTvgId(), zoneId));
-            } catch (IOException ignored) { }
+        if (!need || Thread.currentThread().isInterrupted()) return;
+
+        OkHttpClient actual = client == null ? OkHttp.client() : client;
+        try (Response response = OkHttp.newCall(actual, url, METADATA_TAG).execute()) {
+            if (Thread.currentThread().isInterrupted()) return;
+            if (response.body() != null) {
+                item.setData(Epg.objectFrom(response.body().string(), item.getTvgId(), zoneId));
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
         }
     }
 }
