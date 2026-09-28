@@ -64,6 +64,7 @@ public class PlayerManager implements ParseCallback {
     private ParseJob parseJob;
     private PlaySpec spec;
     private XrayHttpClient playbackProxy;
+    private XrayRestore xrayRestore;
     private Player player;
 
     private long pendingStartPositionMs;
@@ -280,7 +281,7 @@ public class PlayerManager implements ParseCallback {
         PlayerSetting.putEngine(targetEngine);
         if (isEmpty() || PlayerEngineFactory.matches(engine, spec, playbackProxy)) return;
         PlaybackSnapshot snapshot = PlaybackSnapshot.capture(player);
-        startCurrent(snapshot.positionMs());
+        if (xrayRestore == null) startCurrent(snapshot.positionMs());
         snapshot.restore(player);
     }
 
@@ -300,7 +301,7 @@ public class PlayerManager implements ParseCallback {
         if (sub == null || sub.isEmpty()) return;
         if (spec != null) spec.setSub(sub);
         if (engine.addSubtitle(sub)) play();
-        else startCurrent();
+        else if (xrayRestore == null) startCurrent();
     }
 
     public void selectChapter(MediaChapter chapter) {
@@ -448,6 +449,7 @@ public class PlayerManager implements ParseCallback {
     }
 
     public void clear() {
+        xrayRestore = null;
         spec = null;
     }
 
@@ -483,7 +485,7 @@ public class PlayerManager implements ParseCallback {
     private void retryDecode(int decode) {
         setDecode(decode);
         PlaybackSnapshot snapshot = PlaybackSnapshot.capture(player);
-        startCurrent(snapshot.positionMs());
+        if (xrayRestore == null) startCurrent(snapshot.positionMs());
         snapshot.restore(player);
     }
 
@@ -517,8 +519,16 @@ public class PlayerManager implements ParseCallback {
      */
     public synchronized void setPlaybackProxy(XrayHttpClient next, boolean preservePlayback) {
         if (playbackProxy == next) return;
-        PlaybackSnapshot snapshot = preservePlayback && spec != null && player != null
-                ? PlaybackSnapshot.capture(player) : null;
+
+        PlaybackSnapshot snapshot = null;
+        if (preservePlayback && spec != null && player != null) {
+            XrayRestore saved = xrayRestore;
+            snapshot = next != null && saved != null && saved.spec() == spec
+                    ? saved.snapshot()
+                    : PlaybackSnapshot.capture(player);
+        }
+
+        xrayRestore = null;
         playbackProxy = next;
 
         // The released APK cancels player-adjacent network work after the new
@@ -526,10 +536,37 @@ public class PlayerManager implements ParseCallback {
         if (next != null) callback.onXrayTransitionStarted();
 
         clearPreload();
+
+        // A new playback identity forgets Xray without rebuilding the old
+        // engine. The next start rebuilds exactly once on the requested path.
+        if (next == null && !preservePlayback) return;
+        if (spec == null) return;
+
         if (snapshot != null) {
             startCurrent(snapshot.positionMs());
             snapshot.restore(player);
+        } else if (next != null) {
+            ensureEngine(spec.checkUa());
         }
+    }
+
+    /**
+     * Released ERROR path: detach the Xray engine immediately, remember the
+     * playback snapshot, but do not resume on the direct network. A later
+     * successful Xray start may reuse the saved snapshot.
+     */
+    public synchronized void clearPlaybackProxyPreservingState() {
+        boolean engineHasProxy =
+                engine instanceof ExoPlayerEngine exo && exo.proxy() != null;
+        if (playbackProxy == null && !engineHasProxy) return;
+
+        xrayRestore = spec == null || player == null
+                ? null
+                : new XrayRestore(spec, PlaybackSnapshot.capture(player));
+        playbackProxy = null;
+        clearPreload();
+
+        if (spec != null) ensureEngine(spec.checkUa());
     }
 
     public synchronized boolean hasXraySession() {
@@ -562,6 +599,7 @@ public class PlayerManager implements ParseCallback {
     }
 
     public void start(PlaySpec spec, long timeout, long startPositionMs) {
+        xrayRestore = null;
         this.spec = spec;
         setMediaItem(timeout, startPositionMs);
     }
@@ -572,6 +610,7 @@ public class PlayerManager implements ParseCallback {
 
     public void parse(String key, Result result, boolean useParse, MediaMetadata metadata, long startPositionMs) {
         stopParse();
+        xrayRestore = null;
         pendingStartPositionMs = startPositionMs;
         spec = PlaySpec.fromParse(result, key, metadata);
         parseJob = ParseJob.create(this).start(result, useParse);
@@ -638,7 +677,7 @@ public class PlayerManager implements ParseCallback {
         if (headers != null) headers.remove(HttpHeaders.RANGE);
         if (spec != null) spec.setHeaders(headers);
         if (spec != null) spec.setUrl(url);
-        startCurrent(pendingStartPositionMs);
+        if (xrayRestore == null) startCurrent(pendingStartPositionMs);
         pendingStartPositionMs = C.TIME_UNSET;
     }
 
@@ -676,6 +715,9 @@ public class PlayerManager implements ParseCallback {
     }
 
     private record PendingPreload(PlaySpec spec, long startPositionMs) {
+    }
+
+    private record XrayRestore(PlaySpec spec, PlaybackSnapshot snapshot) {
     }
 
     private record PlaybackSnapshot(long positionMs, boolean playWhenReady, PlaybackParameters playbackParameters, int repeatMode, float volume, long audioOffsetMs, long textOffsetMs) {

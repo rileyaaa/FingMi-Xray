@@ -24,6 +24,9 @@ require(
     "boolean hasXraySession()",
     "withHttpClient(",
     "onXrayTransitionStarted()",
+    "clearPlaybackProxyPreservingState()",
+    "XrayRestore",
+    "xrayRestore == null",
 )
 
 require(
@@ -91,6 +94,8 @@ require(
     'endsWith(".strm")',
     'contains("youtube.com")',
     'contains("youtu.be")',
+    "onProxyError()",
+    "clearResourcesAfterError()",
 )
 
 
@@ -123,6 +128,8 @@ require(
     "clearArtworkTarget()",
     "DanmakuApi.cancel(mDanmakuRequestId)",
     "this::resetXrayForPlaybackChange",
+    "player().clearPlaybackProxyPreservingState()",
+    "mXrayProxyFailed",
 )
 
 require(
@@ -130,6 +137,7 @@ require(
     "clearArtworkTarget()",
     "this::resetXrayForPlaybackChange",
     "mXray.stop(preservePlayback)",
+    "player().clearPlaybackProxyPreservingState()",
 )
 
 require(

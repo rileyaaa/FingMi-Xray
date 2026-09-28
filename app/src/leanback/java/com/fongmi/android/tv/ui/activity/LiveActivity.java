@@ -180,6 +180,21 @@ public class LiveActivity extends PlaybackActivity implements GroupAdapter.OnCli
                     if (mViewModel != null) mViewModel.getEpg(mChannel, mXray.client(OkHttp.client()));
                 }
             }
+
+            @Override public void onProxyError() {
+                cancelXrayMetadataRequests();
+                if (service() != null && isOwner()) {
+                    getPlayerView().setDanmakuSource(null);
+                    player().clearPlaybackProxyPreservingState();
+                    updatePlaybackDanmakuClient();
+                }
+                if (mChannelAdapter != null) mChannelAdapter.setXrayLogoSuppressed(false);
+                if (mChannel != null) {
+                    setArtwork();
+                    if (mViewModel != null) mViewModel.getEpg(mChannel, OkHttp.client());
+                }
+            }
+
             @Override public void onStateChanged(int state, String message) {
                 mBinding.control.action.xray.setSelected(state == XraySessionListener.RUNNING);
                 mBinding.control.action.xray.setText(state == XraySessionListener.RUNNING

@@ -117,6 +117,7 @@ public class VideoActivity extends PlaybackActivity implements VodPlaybackHost, 
     private CustomTarget<Drawable> mArtworkTarget;
     private int mDanmakuRequestId = -1;
     private boolean xrayPlaybackReady;
+    private boolean mXrayProxyFailed;
     private FlagAdapter mFlagAdapter;
     private EpisodeAdapter mEpisodeAdapter;
     private QualityAdapter mQualityAdapter;
@@ -302,13 +303,27 @@ public class VideoActivity extends PlaybackActivity implements VodPlaybackHost, 
                     updatePlaybackDanmakuClient();
                 }
             }
+
+            @Override public void onProxyError() {
+                if (service() == null || !isOwner()) return;
+                mXrayProxyFailed = player().hasXraySession();
+                if (!mXrayProxyFailed) return;
+                getPlayerView().setDanmakuSource(null);
+                player().clearPlaybackProxyPreservingState();
+                updatePlaybackDanmakuClient();
+            }
+
             @Override public void onStateChanged(int state, String message) {
                 mBinding.control.action.xray.setSelected(state == XraySessionListener.RUNNING);
                 mBinding.control.action.xray.setText(state == XraySessionListener.RUNNING
                         ? R.string.xray_on : state == XraySessionListener.STARTING
                         ? R.string.xray_starting : state == XraySessionListener.ERROR
                         ? R.string.xray_error : R.string.xray_off);
-                if (state == XraySessionListener.ERROR && !message.isEmpty()) Notify.show(message);
+                if (state == XraySessionListener.ERROR) {
+                    if (mXrayProxyFailed) showError(message);
+                    mXrayProxyFailed = false;
+                    if (!message.isEmpty()) Notify.show(message);
+                }
             }
         });
         mXray.begin("vod:" + ++mPlaybackEpoch);

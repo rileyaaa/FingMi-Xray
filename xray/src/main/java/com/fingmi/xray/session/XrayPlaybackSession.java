@@ -20,6 +20,11 @@ public final class XrayPlaybackSession implements XraySessionListener, AutoClose
 
     public interface Listener {
         void onProxyChanged(XrayHttpClient resources, boolean preservePlayback);
+
+        default void onProxyError() {
+            onProxyChanged(null, false);
+        }
+
         void onStateChanged(int state, String message);
     }
 
@@ -130,8 +135,10 @@ public final class XrayPlaybackSession implements XraySessionListener, AutoClose
             clearResources(false);
             resources = new XrayHttpClient(socksPort, baseClient);
             listener.onProxyChanged(resources, true);
-        } else if (state == IDLE || state == ERROR) {
-            clearResources(state == ERROR || preserveOnStop);
+        } else if (state == ERROR) {
+            clearResourcesAfterError();
+        } else if (state == IDLE) {
+            clearResources(preserveOnStop);
         }
         listener.onStateChanged(state, message);
     }
@@ -141,6 +148,14 @@ public final class XrayPlaybackSession implements XraySessionListener, AutoClose
         XrayHttpClient old = resources;
         resources = null;
         listener.onProxyChanged(null, preservePlayback);
+        old.close();
+    }
+
+    private void clearResourcesAfterError() {
+        if (resources == null) return;
+        XrayHttpClient old = resources;
+        resources = null;
+        listener.onProxyError();
         old.close();
     }
 
