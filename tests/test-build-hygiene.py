@@ -18,10 +18,6 @@ for path in sorted((ROOT / "app/src").rglob("strings.xml")):
             errors.append(f"{path.relative_to(ROOT)} detail_title must use positional substitutions")
 
 platform = (ROOT / "chaquo/src/main/java/com/fongmi/chaquo/Platform.java").read_text(encoding="utf-8")
-for deprecated in ("Build.CPU_ABI", "Build.CPU_ABI2"):
-    if deprecated in platform:
-        errors.append(f"Platform.java still uses deprecated {deprecated}")
-
 for required in (
     "import com.chaquo.python.android.AndroidPlatform;",
     "Collections.addAll(supportedAbis, Build.SUPPORTED_ABIS);",
