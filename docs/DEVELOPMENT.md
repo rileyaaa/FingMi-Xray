@@ -198,7 +198,7 @@ FongMi/TV 5.6.3 对 Media3 / MPV 的调用面与当前固定的部分播放器�
 - PlayerView controller；
 - subtitle sample timestamp。
 
-固定 candidate 与相关 AAR 的具体 SHA 由 `current-main-build.yml` 和对应 fixture 保存；构建时按 hash 校验，不在本文重复维护另一份容易过期的 pin 表。
+player candidate 的信任根是固定 `FongMi/media` commit；每次构建都会生成包含 16 个 AAR SHA-256 的 manifest，并由 `player_candidate.py` 验证文件集合、manifest 与关键 class。Media3 container、Libass output、发布 APK / native 等其余不可重建输入继续按 workflow / fixture 中的固定 hash 校验。
 
 ### app adapter
 
@@ -288,7 +288,7 @@ Release 只承载发布版本：长期保留 `v5.6.0-xray.5` 黄金参考和一�
 - `tests/test-xray-service-client-lifecycle.py`：直接编译真实 Service client，锁住 bind timeout、cancel/unbind、Binder death 与 stale callback / connection generation；
 - `tests/test-xray-normalizer-parity.py`：把 current share-link normalizer 与 display helper 对发布版 readable reference 做纯 JVM differential parity；
 - `tests/test-upstream-update-disabled.py`：防止 FongMi 上游自更新入口、直接 release endpoint 调用或 APK 安装权限重新进入当前 fork；
-- `tests/test-build-hygiene.py`：防止错误 XLIFF namespace、非 positional 多参数 string、废弃 ABI API 和仍基于 Node 20 的旧 Actions major 再进入构建。
+- `tests/test-build-hygiene.py`：防止错误 XLIFF namespace、非 positional 多参数 string、Chaquopy ABI handoff 丢失、Release-backed build input 回流，以及仍基于 Node 20 的旧 Actions major 再进入构建。
 - `tests/test-tv-network-recovery.py`：锁住正式 `gn3` 的前后台 / SCREEN generation 来源，并用纯 JVM harness 验证 recovery 顺序、连续稳定检查和跨 generation 串行清理。
 
 `tests/` 是 current-main 的统一回归入口，不再另维护目录 README。除上述 workflow guard 外：
