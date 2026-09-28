@@ -13,7 +13,8 @@ jobs:
     timeout-minutes: 75
 
     env:
-      PLAYER_ARTIFACT_ID: "10859533459"
+      PLAYER_RELEASE_TAG: "build-inputs-5.6.3"
+      PLAYER_RELEASE_ASSET: "fongmi-media3-aar-candidate-1.11.0.zip"
       PLAYER_ZIP_SHA256: "0ed42581af11ac7163ebde148b318807c244e2a318f40c41d33f50b70bf967ee"
       OLD_V7_SHA256: "cacc7a90ce082adf955fc80a444b54f8cc86d5b5c3ac7acb13d1392b59928bda"
       OLD_V8_SHA256: "b5ac05193c1e19809fc7ffb3048f7d75aaa2124eace9953d669f4a81a477c21d"
@@ -80,14 +81,8 @@ jobs:
           set -euo pipefail
           mkdir -p build/work/current-main/input build/work/current-main/restored
 
-          info="$(gh api "repos/rileyaaa/FingMi-Xray/actions/artifacts/$PLAYER_ARTIFACT_ID")"
-          jq -e --arg sha "sha256:$PLAYER_ZIP_SHA256" '
-            .name == "fongmi-media3-aar-candidate-1.11.0" and
-            .expired == false and
-            .size_in_bytes == 44336768 and
-            .digest == $sha
-          ' <<< "$info" >/dev/null
-          curl -fL --retry 3 -H "Authorization: Bearer ${GH_TOKEN}"             "https://api.github.com/repos/rileyaaa/FingMi-Xray/actions/artifacts/$PLAYER_ARTIFACT_ID/zip"             -o build/work/current-main/input/player-candidate.zip
+          gh release download "$PLAYER_RELEASE_TAG"             --repo rileyaaa/FingMi-Xray             --pattern "$PLAYER_RELEASE_ASSET"             --dir build/work/current-main/input
+          mv "build/work/current-main/input/$PLAYER_RELEASE_ASSET"             build/work/current-main/input/player-candidate.zip
 
           gh release download v5.6.0-xray.5             --repo rileyaaa/FingMi-Xray             --pattern 'FongMi-Xray-TV-v5.6.0-xray.5-armeabi-v7a.apk'             --pattern 'FongMi-Xray-TV-v5.6.0-xray.5-arm64-v8a.apk'             --dir build/work/current-main/input
           mv build/work/current-main/input/FongMi-Xray-TV-v5.6.0-xray.5-armeabi-v7a.apk             build/work/current-main/input/published-v560-v7.apk
@@ -210,19 +205,6 @@ jobs:
             find app/build/outputs/apk/leanback -type f -name '*.apk' -print0 | sort -z | xargs -0 sha256sum
           } | tee build/work/current-main/BUILD_RESULT.txt
 
-      - name: Upload current-main debug APKs
-        if: success()
-        uses: actions/upload-artifact@v7
-        with:
-          name: fingmi-xray-5.6.3-current-main-debug
-          path: |
-            app/build/outputs/apk/leanback/**/*.apk
-            build/work/current-main/BUILD_RESULT.txt
-            build/reports/problems/problems-report.html
-          if-no-files-found: error
-          retention-days: 7
-          compression-level: 0
-
       - name: Upload build reports on failure
         if: failure()
         uses: actions/upload-artifact@v7
@@ -232,7 +214,7 @@ jobs:
             app/build/reports/
             **/build/reports/
           if-no-files-found: ignore
-          retention-days: 3
+          retention-days: 1
 
       - name: Stage Android TV test APKs
         if: success()

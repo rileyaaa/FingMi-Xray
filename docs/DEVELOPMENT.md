@@ -213,7 +213,7 @@ FongMi/TV 5.6.3 对 Media3 / MPV 的调用面与当前固定的部分播放器�
 
 当前可重复构建依赖以下几类输入：
 
-- 固定 FongMi/media player candidate；
+- 固定 FongMi/media player candidate；长期副本保存在项目 Release `build-inputs-5.6.3`，workflow 下载后继续按固定 SHA 校验，不再依赖会过期的 Actions artifact；
 - 当前构建使用的 FFmpeg JNI；
 - 官方 libXray v26.7.28 AAR 外层容器，以及从固定历史发布 APK 恢复、彼此匹配的 API v2 gomobile Java bindings 与 v7 / arm64 Go JNI；
 - 按固定输入重建的 Libass compatibility AAR。
@@ -257,13 +257,13 @@ AI 与用户共同开发时的固定操作限制独立维护在 [AI_COLLABORATIO
 5. 执行 current Java → 发布版 v7 / arm64 native 动态 Xray chain parity（统一以 v7 发布行为为黄金 oracle，包含 KCP golden cases 与发布版 `testXray` runtime validation）；
 6. 只编译 Android TV / Leanback Java；
 7. 只 assemble Android TV / Leanback 两个 ABI 的 Debug APK；
-8. 上传 TV APK、构建说明和 Gradle problems report artifact；Gradle 命令使用 `--warning-mode all`，让剩余 Gradle 10 弃用项在下一次手动构建中直接显示具体来源。
+8. 上传短期 TV debug artifact（保留 2 天）供临时验证；失败报告只保留 1 天。Gradle 命令使用 `--warning-mode all`，让剩余 Gradle 10 弃用项在下一次手动构建中直接显示具体来源。
 
 测试发布器：
 
 `.github/workflows/publish-current-main-test-release.yml`
 
-它会从触发时的当前 `main` 重新准备固定依赖、执行源码 guard、执行 current Java → 发布版 native 动态 Xray chain parity、只编译/assemble Android TV / Leanback 两个 ABI，然后发布新的测试 Pre-release。新测试 Release 与两个 Leanback APK 都验证成功后，workflow 才删除 YAML 中指定的上一版测试 Release / tag。其他历史 Release 不在这条替换链中，也不参与当前版本的最终验收。
+它会从触发时的当前 `main` 重新准备固定依赖、执行源码 guard、执行 current Java → 发布版 native 动态 Xray chain parity、只编译/assemble Android TV / Leanback 两个 ABI，然后直接发布新的测试 Pre-release；成功包不再额外复制一份到 Actions artifact。新测试 Release 与两个 Leanback APK 都验证成功后，workflow 才删除 YAML 中指定的上一版测试 Release / tag。其他历史 Release 不在这条替换链中，也不参与当前版本的最终验收。
 
 两个 current-main workflow 都必须先执行：
 
