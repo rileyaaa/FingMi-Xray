@@ -93,4 +93,51 @@ require(
     'contains("youtu.be")',
 )
 
+
+require(
+    "app/src/main/java/com/fongmi/android/tv/model/VideoViewModel.java",
+    "cancelXrayTransitionRequests()",
+    "requestTasks.cancel(TaskType.DETAIL)",
+    "requestTasks.cancel(TaskType.PLAYBACK)",
+    "requestTasks.cancel(TaskType.PRELOAD)",
+)
+
+require(
+    "app/src/main/java/com/fongmi/android/tv/playback/vod/VodPlaybackController.java",
+    "host.resetXrayForPlaybackChange()",
+    "clearPreloadForXray()",
+)
+
+require(
+    "app/src/main/java/com/fongmi/android/tv/ui/dialog/PlayerEngineDialog.java",
+    "Runnable onEngineChanged",
+    "onEngineChanged.run()",
+)
+
+require(
+    "app/src/leanback/java/com/fongmi/android/tv/ui/activity/VideoActivity.java",
+    "xrayPlaybackReady",
+    "mViewModel.cancelXrayTransitionRequests()",
+    "Source.get().stop()",
+    "OkHttp.cancelAll()",
+    "clearArtworkTarget()",
+    "DanmakuApi.cancel(mDanmakuRequestId)",
+    "this::resetXrayForPlaybackChange",
+)
+
+require(
+    "app/src/leanback/java/com/fongmi/android/tv/ui/activity/LiveActivity.java",
+    "clearArtworkTarget()",
+    "this::resetXrayForPlaybackChange",
+    "mXray.stop(preservePlayback)",
+)
+
+require(
+    "xray/src/main/java/com/fingmi/xray/session/XraySettingsController.java",
+    "public long validate(",
+    "replaceClient()",
+    "Xray operation timed out",
+    "XrayOperationIds.next()",
+)
+
 print("Xray playback parity guards passed")
