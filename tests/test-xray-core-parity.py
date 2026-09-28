@@ -124,6 +124,8 @@ require(
     "XrayOperation.TEST",
     "XrayOperation.RESET_SECURITY",
     "replaceClient()",
+    "replaceClient();\n        try {\n            preferences.clear();",
+    "if (onLocalCleared != null) onLocalCleared.run();\n\n            serviceClient.execute",
 )
 
 # Keep the recovered behavioral reference in-tree so future refactors can be

@@ -1,5 +1,6 @@
 package com.fingmi.xray.session;
 import android.content.Context;
+import com.fingmi.xray.test.Trace;
 import java.util.*;
 /** Test-only Binder transport. It records commands, never substitutes controller logic. */
 final class XrayServiceClient {
@@ -13,9 +14,23 @@ final class XrayServiceClient {
     static XrayServiceClient last;
     final List<Request> requests = new ArrayList<>();
     int cancellations, disconnects;
-    XrayServiceClient(Context context, Listener listener) { last=this; }
-    void execute(Request request) { requests.add(request); request.onDispatched.run(); }
-    void cancel(int op, long id) { cancellations++; disconnect(); }
-    void disconnect() { disconnects++; }
+    XrayServiceClient(Context context, Listener listener) {
+        last=this;
+        Trace.add("client:create");
+    }
+    void execute(Request request) {
+        requests.add(request);
+        Trace.add("client:execute:" + request.operation);
+        request.onDispatched.run();
+    }
+    void cancel(int op, long id) {
+        cancellations++;
+        Trace.add("client:cancel:" + op);
+        disconnect();
+    }
+    void disconnect() {
+        disconnects++;
+        Trace.add("client:disconnect");
+    }
     Request latest() { return requests.get(requests.size()-1); }
 }
