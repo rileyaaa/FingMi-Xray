@@ -25,6 +25,7 @@ import com.bumptech.glide.request.transition.Transition;
 import com.fongmi.android.tv.App;
 import com.fongmi.android.tv.Constant;
 import com.fongmi.android.tv.R;
+import com.fongmi.android.tv.api.LiveApi;
 import com.fongmi.android.tv.api.config.LiveConfig;
 import com.fongmi.android.tv.bean.Channel;
 import com.fongmi.android.tv.bean.Config;
@@ -80,6 +81,8 @@ import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
+
+import okhttp3.OkHttpClient;
 
 public class LiveActivity extends PlaybackActivity implements GroupAdapter.OnClickListener, ChannelAdapter.OnClickListener, EpgDataAdapter.OnClickListener, CustomKeyDownLive.Listener, CustomLiveListView.Callback, PassListener, ConfigListener, LiveListener, LivePlaybackHost {
 
@@ -165,7 +168,7 @@ public class LiveActivity extends PlaybackActivity implements GroupAdapter.OnCli
         super.initView(savedInstanceState);
         mXray = new XrayPlaybackSession(this, OkHttp.player(), new XrayPlaybackSession.Listener() {
             @Override public void onProxyChanged(XrayHttpClient resources, boolean preserve) {
-                if (mViewModel != null) mViewModel.cancelPlaybackMetadata();
+                cancelXrayMetadataRequests();
                 if (service() != null && isOwner()) {
                     getPlayerView().setDanmakuSource(null);
                     player().setPlaybackProxy(resources, preserve);
@@ -512,6 +515,23 @@ public class LiveActivity extends PlaybackActivity implements GroupAdapter.OnCli
         mWaitingXrayStart = false;
         mHeldResult = null;
         if (mXray != null) mXray.begin("live:" + ++mPlaybackEpoch);
+    }
+
+    private void cancelXrayMetadataRequests() {
+        if (mViewModel != null) mViewModel.cancelPlaybackMetadata();
+
+        OkHttpClient normal = OkHttp.client();
+        OkHttp.cancel(normal, LiveApi.METADATA_TAG);
+
+        if (service() == null || !isOwner()) return;
+        try {
+            OkHttpClient current = player().getPlaybackHttpClient(normal);
+            if (current != null && current != normal) {
+                OkHttp.cancel(current, LiveApi.METADATA_TAG);
+            }
+        } catch (IllegalStateException ignored) {
+            // The previous session client may already be closing during a swap.
+        }
     }
 
     private void onDecode() {
