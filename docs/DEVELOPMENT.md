@@ -634,3 +634,9 @@ current-main 的 `XrayConfigFactory`、`LibXrayBridge.testLatency`、`XrayServic
 同时重写 `SessionRaceTest`，不再把此前与发布版相反的重入保护当成正确结果；`current-main-build.yml` 与测试发布 workflow 都把 `tests/test-xray-session-races.py` 纳入 source guards。本轮仍只构建 Android TV / Leanback；为触发本次验证，current-main workflow 临时加入 main push trigger，成功后必须撤回。
 
 本修改只恢复 session/Binder 调用边界的已确认发布语义，没有改动 KCP config、`pingBatch` URL/timeout、TEST `targetStrategy=AsIs` 或 TV network recovery。
+
+#### 本轮验证结果
+
+- `36416537162`：首次 push 验证因新加 core parity guard 把换行写成字面 `\\n` 而在 source guard 失败；这是测试 guard 误报，不是生产代码编译/运行失败。
+- `ea96bbbd8267cbf98fc022ca4a2ab7213807b594` 修正 guard 后，Actions run `36416710086` 完整成功：source guards、Android SDK/native 输入、Libass 重建、Leanback javac、Android TV APK assemble、artifact upload 全部通过。
+- 成功后已撤回 `current-main-build.yml` 的临时 `main` push trigger，workflow 恢复为纯 `workflow_dispatch`；发布 workflow 始终保持手动触发。
