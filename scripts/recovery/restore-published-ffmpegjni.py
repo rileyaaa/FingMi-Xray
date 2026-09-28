@@ -16,6 +16,7 @@ from copy import copy
 import hashlib
 from io import BytesIO
 from pathlib import Path
+import runpy
 import sys
 from zipfile import ZipFile
 
