@@ -98,10 +98,11 @@ public final class SettingXrayActivity extends BaseActivity
         if (mOperationId != Long.MIN_VALUE) return;
         try {
             Notify.progress(getActivity());
-            mBinding.link.setText("");
-            mBinding.udpSwitch.setChecked(false);
             mOperation = XrayOperation.RESET_SECURITY;
-            mOperationId = mXray.delete();
+            mOperationId = mXray.delete(() -> {
+                mBinding.link.setText("");
+                mBinding.udpSwitch.setChecked(false);
+            });
         } catch (Exception | LinkageError error) {
             clearOperation();
             Notify.dismiss();

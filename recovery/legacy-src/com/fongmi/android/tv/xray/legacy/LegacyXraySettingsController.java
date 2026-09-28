@@ -88,13 +88,31 @@ public final class LegacyXraySettingsController
     public long delete() throws Exception {
         ensureIdle();
 
-        // Final APK clears the visible/saved node first, then asks the
-        // :xray process to clear transport-security state and Keystore pins.
-        store.clear();
-        return begin(
-                LegacyXrayOperation.RESET_SECURITY,
-                "",
-                false);
+        // DEX/JADX-verified SettingXrayActivity order:
+        // own RESET_SECURITY -> replace Binder client -> clear local store ->
+        // clear visible fields -> dispatch RESET_SECURITY.
+        long operationId = LegacyXrayOperationIds.next();
+        activeOperationId = operationId;
+        activeOperation = LegacyXrayOperation.RESET_SECURITY;
+
+        replaceClient();
+        try {
+            store.clear();
+            client.execute(
+                    new LegacyXrayServiceClient.Request(
+                            operationId,
+                            LegacyXrayOperation.RESET_SECURITY,
+                            "",
+                            false,
+                            () -> scheduleTimeout(operationId)));
+            return operationId;
+        } catch (Exception error) {
+            clearTimeout();
+            activeOperationId = NO_OPERATION;
+            activeOperation = -1;
+            replaceClient();
+            throw error;
+        }
     }
 
     /**

@@ -86,13 +86,37 @@ public final class XraySettingsController implements XrayServiceClient.Listener,
     }
 
     public long delete() throws Exception {
+        return delete(null);
+    }
+
+    public long delete(Runnable onLocalCleared) throws Exception {
         assertMainThread();
         ensureIdle();
 
-        // Clear the visible/saved node first, then clear transport-security state
-        // inside the private process.
-        preferences.clear();
-        return begin(XrayOperation.RESET_SECURITY, "", false);
+        // Released SettingXrayActivity claims the RESET_SECURITY generation
+        // before rebuilding its Binder client. It then clears local storage/UI
+        // before dispatching the remote security reset.
+        long operationId = XrayOperationIds.next();
+        activeOperationId = operationId;
+        activeOperation = XrayOperation.RESET_SECURITY;
+
+        replaceClient();
+        try {
+            preferences.clear();
+            if (onLocalCleared != null) onLocalCleared.run();
+
+            serviceClient.execute(new XrayServiceClient.Request(
+                    operationId,
+                    XrayOperation.RESET_SECURITY,
+                    "",
+                    false,
+                    () -> scheduleTimeout(operationId)));
+            return operationId;
+        } catch (Exception | LinkageError error) {
+            clearActive();
+            replaceClient();
+            throw error;
+        }
     }
 
     public void cancel() {
