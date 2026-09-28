@@ -109,5 +109,5 @@ jobs:
           name: fongmi-media3-aar-candidate-1.11.0
           path: player-aars/
           if-no-files-found: warn
-          retention-days: 14
+          retention-days: 3
           compression-level: 0
