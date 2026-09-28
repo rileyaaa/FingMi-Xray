@@ -29,6 +29,18 @@ require(
     "playback.resolved(url);",
     "if (!playback.hasIdentity())",
 )
+require(
+    "xray/src/main/java/com/fingmi/xray/session/XrayPlaybackAddress.java",
+    "URI.create(value.trim())",
+    "\"http\"",
+    "\"https\"",
+    "\"rtsp\"",
+    "\"rtspt\"",
+    "path.endsWith(\".strm\")",
+    "host.contains(\"youtube.com\")",
+    "host.contains(\"youtu.be\")",
+)
+
 forbid(
     "xray/src/main/java/com/fingmi/xray/session/XrayPlaybackSession.java",
     "if (playback.resolved(url)) stop(false);",

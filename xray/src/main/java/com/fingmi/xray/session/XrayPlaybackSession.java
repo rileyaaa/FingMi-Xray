@@ -1,13 +1,11 @@
 package com.fingmi.xray.session;
 
 import android.content.Context;
-import android.net.Uri;
 import android.os.Looper;
 
 import com.fingmi.xray.network.PublicPlaybackDestinationInterceptor;
 import com.fingmi.xray.network.XrayHttpClient;
 
-import java.util.Locale;
 import java.util.Objects;
 
 import okhttp3.OkHttpClient;
@@ -100,35 +98,11 @@ public final class XrayPlaybackSession implements XraySessionListener, AutoClose
     }
 
     public static boolean supports(String url) {
-        if (isBlank(url)) return false;
-        Uri uri = Uri.parse(url);
-        String scheme = uri.getScheme();
-        String host = uri.getHost();
-        if (scheme == null || host == null) return false;
-        if (!scheme.equalsIgnoreCase("http") && !scheme.equalsIgnoreCase("https")
-                && !scheme.equalsIgnoreCase("rtsp") && !scheme.equalsIgnoreCase("rtspt")) return false;
-        return !PublicPlaybackDestinationInterceptor.isPrivateOrReserved(host);
+        return XrayPlaybackAddress.supports(url);
     }
 
     public static boolean supportsDirectLiveSource(String url) {
-        if (!supports(url)) return false;
-        try {
-            Uri uri = Uri.parse(url.trim());
-            String scheme = uri.getScheme();
-            if (scheme == null) return false;
-            if (!"http".equalsIgnoreCase(scheme) && !"https".equalsIgnoreCase(scheme)) {
-                return true;
-            }
-            String path = uri.getPath();
-            String host = uri.getHost();
-            String lowerPath = path == null ? "" : path.toLowerCase(Locale.ROOT);
-            String lowerHost = host == null ? "" : host.toLowerCase(Locale.ROOT);
-            return !lowerPath.endsWith(".strm")
-                    && !lowerHost.contains("youtube.com")
-                    && !lowerHost.contains("youtu.be");
-        } catch (RuntimeException ignored) {
-            return false;
-        }
+        return XrayPlaybackAddress.supportsDirectLiveSource(url);
     }
 
     @Override
