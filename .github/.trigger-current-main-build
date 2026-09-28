@@ -1,1 +1,1 @@
-trigger Xray parity build
+trigger Xray parity build at d430fbbc5cc56e7d651abab9e07ef8d9408afea7
