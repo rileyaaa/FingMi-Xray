@@ -335,18 +335,24 @@ jobs:
             ' <<< "$release_json" >/dev/null
 
           # Only after the new release exists and its two APKs are verified do
-          # we remove only the previous test release. Other historical releases are untouched.
-          if gh release view "$PREVIOUS_RELEASE_TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
-            gh release delete "$PREVIOUS_RELEASE_TAG" \
-              --repo "$GITHUB_REPOSITORY" \
-              --cleanup-tag \
-              --yes
-          elif gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$PREVIOUS_RELEASE_TAG" >/dev/null 2>&1; then
-            gh api \
-              --method DELETE \
-              "repos/$GITHUB_REPOSITORY/git/refs/tags/$PREVIOUS_RELEASE_TAG"
-          fi
+          # we prune stale publication-only entries. Releases are not used as build storage.
+          for stale_tag in "$PREVIOUS_RELEASE_TAG" "build-inputs-5.6.3"; do
+            if gh release view "$stale_tag" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+              gh release delete "$stale_tag" \
+                --repo "$GITHUB_REPOSITORY" \
+                --cleanup-tag \
+                --yes
+            elif gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$stale_tag" >/dev/null 2>&1; then
+              gh api \
+                --method DELETE \
+                "repos/$GITHUB_REPOSITORY/git/refs/tags/$stale_tag"
+            fi
+          done
+
+          remaining="$(gh api "repos/$GITHUB_REPOSITORY/releases?per_page=100" --jq '.[].tag_name' | sort)"
+          expected="$(printf '%s\n%s\n' 'v5.6.0-xray.5' "$RELEASE_TAG" | sort)"
+          test "$remaining" = "$expected"
 
           echo "Published and verified $RELEASE_TAG"
-          echo "Removed previous test release/tag $PREVIOUS_RELEASE_TAG when present"
+          echo "Release set pruned to v5.6.0-xray.5 plus $RELEASE_TAG"
 
