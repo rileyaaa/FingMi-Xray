@@ -104,6 +104,13 @@ require(
     "XrayCertificatePins.resetAll(this)",
     'value.contains("address already in use")',
     'value.contains("failed to listen")',
+    "if (!cleaned || !delivered) cancelInternal(XrayOperation.START, operationId);",
+    "if (!delivered) cancelInternal(XrayOperation.STOP, operationId);",
+    "sessionGate.cancel(operationId)",
+    "operationGate.cancel(operationId)",
+    "sessionGate.invalidateAll();",
+    "operationGate.invalidateAll();",
+    "killPrivateProcess();",
 )
 
 require(

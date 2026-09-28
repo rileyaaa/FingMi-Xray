@@ -108,7 +108,9 @@ Activity 负责：
 
 - 建立当前播放 identity；
 - 响应用户开启 / 关闭 Xray；
-- 在切集、切台、换源等身份变化时结束旧会话；
+- 在切集、切台、换源、换线路、刷新或播放器重建等**逻辑播放身份变化**时结束旧会话；
+- 同一播放身份内的 parser 解析结果、HTTP redirect 或 CDN URL 变化只更新当前媒体 URL，不自动停止 Xray，也不回退到直连；不支持的最终请求继续由 Xray scheme / destination guard fail-closed；
+- Live 尚未建立 playback session 时，先按发布版 direct-source 规则拒绝 HTTP(S) `.strm` / YouTube indirection，成功后才清 preload 并启动 Xray；
 - 把新的 `XrayHttpClient` 交给播放器；
 - 在 Activity 销毁时关闭 session。
 
@@ -349,7 +351,7 @@ FingMi-Xray 当前**不使用 FongMi/Release 的应用内自更新**。原因是
 - 切集与自动下一集；
 - 切频道；
 - 换线路 / 换源；
-- 实际播放地址变化；
+- 同一播放身份内实际 URL / CDN / parser 结果变化时 **不** 重置 Xray；随后切换到新的逻辑播放身份时才重置；
 - 换播放器；
 - Activity 退出 / 销毁。
 
