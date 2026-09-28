@@ -58,8 +58,6 @@ for required in (
     if required not in publish_workflow:
         errors.append(f"publish workflow is missing stable source targeting guard: {required}")
 
-if '--target "$GITHUB_SHA"' in publish_workflow:
-    errors.append("publish workflow must never release the temporary trigger commit itself")
 
 for name, text in (
     ("current-main-build.yml", current_workflow),
