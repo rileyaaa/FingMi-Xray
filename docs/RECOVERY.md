@@ -207,7 +207,8 @@ Live 的会话边界包括切频道、换线路 / 源、直播配置变化和播
 固定 Media3 player candidate 来源：
 
 - FongMi/media commit：`3c2cbe8ac742c2fe15eff52f03eeb3b1b648848d`
-- candidate ZIP SHA-256：`0ed42581af11ac7163ebde148b318807c244e2a318f40c41d33f50b70bf967ee`
+- 历史 recovery artifact 曾得到 candidate ZIP SHA-256 `0ed42581af11ac7163ebde148b318807c244e2a318f40c41d33f50b70bf967ee`；它只作为当时取证记录，不再是 current / recovery workflow 的长期存储依赖。
+- 现行流程统一由 `scripts/build/build-player-aar-candidate.sh` 从上述固定 commit 重建 16 个 AAR，并由 `scripts/build/player_candidate.py` 校验文件集合、每个 AAR 的 manifest SHA 与关键播放器 class。外层 ZIP 本身不再作为长期 pin。
 
 与发布 APK 对照时，相关播放器 native 中唯一明确需要从发布 APK 恢复的是 `libffmpegJNI.so`。
 
@@ -311,7 +312,7 @@ GitHub Actions 对应两段手动流程：
 职责：
 
 - 固定正式 Release APK；
-- 固定 player candidate；
+- 从固定 FongMi/media commit 现场重建并验证 player candidate；
 - 从发布 APK 恢复 FFmpeg JNI；
 - 获取官方 libXray；
 - 从发布 APK恢复 Go JNI；
@@ -329,8 +330,8 @@ GitHub Actions 对应两段手动流程：
 
 职责：
 
-- 再次验证 artifact 来源；
-- 导入固定 player / native 依赖；
+- 再次验证短期 native dependency artifact 的来源；
+- 从固定 FongMi/media commit 重建 player candidate，再导入该 candidate 与已验证 native 依赖；
 - 组装固定 5.6.0 faithful tree；
 - 执行 faithful Gradle 构建。
 
