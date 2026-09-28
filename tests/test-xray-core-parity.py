@@ -107,6 +107,17 @@ require(
 )
 
 require(
+    "xray/src/main/java/com/fingmi/xray/session/XraySessionController.java",
+    "CLEANUP_TIMEOUT_MS = 1_500L",
+    "STARTUP_TIMEOUT_MS = 30_000L",
+    "Previous Xray session cleanup timed out",
+    "if (state != XraySessionListener.RUNNING)",
+    "fail(\"Xray startup timed out\");\\n            serviceClient.cancel(XrayOperation.START, operationId);",
+    "fail(result.message);\\n                serviceClient.disconnect();",
+    "notifyState(XraySessionListener.ERROR, 0, safe);\\n        notifyState(XraySessionListener.IDLE, 0, \"\");",
+)
+
+require(
     "xray/src/main/java/com/fingmi/xray/session/XraySettingsController.java",
     "OPERATION_TIMEOUT_MS = 45_000L",
     "XrayOperation.VALIDATE",

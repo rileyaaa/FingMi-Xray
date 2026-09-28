@@ -616,3 +616,21 @@ current-main 的 `XrayConfigFactory`、`LibXrayBridge.testLatency`、`XrayServic
 - 当前 Android 12 runtime 兼容、LinkageError 隔离、generation/stale-callback 防护等不改变老包外部行为的安全改进可以保留。
 - TV 网络恢复模块与 Xray 独立，不因 Xray 还原而改动。
 - `current-main-build.yml` 与 `publish-current-main-test-release.yml` 已删除 Mobile javac / assemble，只构建 Android TV / Leanback；workflow 仍保持手动 `workflow_dispatch`。
+
+
+### 2026-09-28 — 恢复发布版 Xray session STOP / timeout / callback 顺序
+
+继续逐项审计 `LegacyXraySessionController` 与当前 `XraySessionController` 时，发现此前为了重入安全加入的若干保护改变了 `v5.6.0-xray.5` v7 发布版的实际 session 语义。重新对照保存的 JADX `yz3` 后确认，这不是 legacy reference 的推测。
+
+本次恢复发布版行为：
+
+- STOP 先把状态切到 OFF/IDLE 并通知 listener，再登记/派发 STOP；
+- dispose/close 在设置 disposed 前先执行必要的 STOP；
+- 旧 STOP 的 1.5 秒 cleanup timeout 若撞上新的 STARTING，会先报告 `Previous Xray session cleanup timed out`，再取消旧 STOP；新的 session 已 RUNNING 时则不再取消；
+- cleanup STOP 失败即使已出现更新的 START，也按发布版先处理 cleanup failure 并取消该 STOP；
+- START failure、Binder connection failure 与 startup timeout 恢复为先向 listener 发出发布版 ERROR -> OFF/IDLE 状态，再执行 disconnect/cancel；
+- `fail()` 恢复发布版固定的 ERROR 后紧接 OFF/IDLE 通知，不再用重入 guard 抑制第二个状态回调。
+
+同时重写 `SessionRaceTest`，不再把此前与发布版相反的重入保护当成正确结果；`current-main-build.yml` 与测试发布 workflow 都把 `tests/test-xray-session-races.py` 纳入 source guards。本轮仍只构建 Android TV / Leanback；为触发本次验证，current-main workflow 临时加入 main push trigger，成功后必须撤回。
+
+本修改只恢复 session/Binder 调用边界的已确认发布语义，没有改动 KCP config、`pingBatch` URL/timeout、TEST `targetStrategy=AsIs` 或 TV network recovery。
