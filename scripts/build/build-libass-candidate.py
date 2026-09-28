@@ -2,11 +2,12 @@
 """Build a reconstructed Libass compatibility AAR; never claims exact5.6.3 binary provenance.
 Uses fixed Media3 input, current recovered Java and pinned5.6.5 SOs. No Android SDK required.
 """
-import argparse,hashlib,io,json,os,subprocess,tempfile
+import argparse,hashlib,io,json,os,subprocess,sys,tempfile
 from pathlib import Path
 from zipfile import ZipFile,ZipInfo,ZIP_DEFLATED
 ROOT=Path(__file__).resolve().parents[2]
-CANDIDATE='0ed42581af11ac7163ebde148b318807c244e2a318f40c41d33f50b70bf967ee'
+sys.path.insert(0,str(Path(__file__).resolve().parent))
+from player_candidate import read_verified_candidate
 EXTRACTOR='feb8be30e3d431391ce4b3b165a6cbfb18313969d7ba7da2d6ccfeb96d25ee68'
 CONTAINER='930fca2f018f06f1d08c12599f8c97f31eddbd728edee5de06eb53a882f8fc54'
 ANDROID='6c0670454f6fcee9f1b17aa393e81d71bf26e7e6ae7c5777ed3924b062191d5b'
@@ -27,7 +28,7 @@ def main():
  p=argparse.ArgumentParser(description=__doc__)
  for name in ['candidate','extractor','container','v7-apk','v8-apk','android-jar','output']:p.add_argument('--'+name,type=Path,required=True)
  p.add_argument('--local-repository',type=Path,default=Path.home()/'.m2/repository');a=p.parse_args()
- bundle=checked(a.candidate,CANDIDATE);extractor=checked(a.extractor,EXTRACTOR);container=checked(a.container,CONTAINER);checked(a.android_jar,ANDROID)
+ aar_inputs=read_verified_candidate(a.candidate);extractor=checked(a.extractor,EXTRACTOR);container=checked(a.container,CONTAINER);checked(a.android_jar,ANDROID)
  deps=[a.local_repository/path for path in DEPS]
  for path,digest in DEPS.items():checked(a.local_repository/path,digest)
  native={}
@@ -35,9 +36,8 @@ def main():
   with ZipFile(io.BytesIO(checked(path,APK[abi]))) as apk:native['jni/'+abi+'/libmedia3ass.so']=apk.read('lib/'+abi+'/libmedia3ass.so')
   assert sha(native['jni/'+abi+'/libmedia3ass.so'])==SO[abi]
  with tempfile.TemporaryDirectory(prefix='libass-candidate-') as td:
-  work=Path(td);jars=[];owned={};aar_inputs={}
-  with ZipFile(io.BytesIO(bundle)) as z:
-   aar_inputs={name:z.read(name) for name in z.namelist() if name.endswith('.aar')}
+  work=Path(td);jars=[];owned={}
+  aar_inputs=dict(aar_inputs)
   aar_inputs['lib-extractor-release.aar']=extractor
   aar_inputs['media3-container-1.11.0.aar']=container
   for name,data in sorted(aar_inputs.items()):
@@ -59,7 +59,7 @@ def main():
   assert all('/test/' not in name and 'Test' not in name for name in produced)
   aar={**native,'classes.jar':zipped(produced),'AndroidManifest.xml':b'<manifest xmlns:android="http://schemas.android.com/apk/res/android" package="androidx.media3.exoplayer.libass"/>\n','R.txt':b'','proguard.txt':b'-keep class androidx.media3.exoplayer.libass.LibassNative { *; }\n-keep class androidx.media3.exoplayer.libass.LibassFrame { *; }\n-keep class androidx.media3.exoplayer.libass.LibassImage { *; }\n'}
   a.output.parent.mkdir(parents=True,exist_ok=True);a.output.write_bytes(zipped(aar))
-  report={'kind':'reconstructed compatibility candidate, not exact5.6.3 original','candidate_zip_sha256':CANDIDATE,'extractor_aar_sha256':EXTRACTOR,'container_aar_sha256':CONTAINER,'native_source':'neighboring official5.6.5 APKs','apk_sha256':APK,'so_sha256':SO,'aar_sha256':sha(a.output.read_bytes()),'production_class_count':len(produced),'production_class_sha256':{name:sha(data) for name,data in sorted(produced.items())},'source_sha256':{str(path.relative_to(ROOT)):sha(path.read_bytes()) for path in sources+app_sources},'compile_inputs':{'android_all_sha256':ANDROID,'maven':DEPS},'java_runtime':subprocess.check_output(['java','-version'],stderr=subprocess.STDOUT,text=True).strip(),'target_class_major':61,'class_ownership':'Libass only in candidate; selector/output only in app; extractor compatibility replaces original extractor AAR; no duplicate dependency classes','limits':['no full Android Gradle build','no assemble','no EGL/display or device validation']}
+  report={'kind':'reconstructed compatibility candidate, not exact5.6.3 original','candidate_zip_sha256':sha(a.candidate.read_bytes()),'extractor_aar_sha256':EXTRACTOR,'container_aar_sha256':CONTAINER,'native_source':'neighboring official5.6.5 APKs','apk_sha256':APK,'so_sha256':SO,'aar_sha256':sha(a.output.read_bytes()),'production_class_count':len(produced),'production_class_sha256':{name:sha(data) for name,data in sorted(produced.items())},'source_sha256':{str(path.relative_to(ROOT)):sha(path.read_bytes()) for path in sources+app_sources},'compile_inputs':{'android_all_sha256':ANDROID,'maven':DEPS},'java_runtime':subprocess.check_output(['java','-version'],stderr=subprocess.STDOUT,text=True).strip(),'target_class_major':61,'class_ownership':'Libass only in candidate; selector/output only in app; extractor compatibility replaces original extractor AAR; no duplicate dependency classes','limits':['no full Android Gradle build','no assemble','no EGL/display or device validation']}
   a.output.with_suffix('.json').write_text(json.dumps(report,indent=2)+'\n')
   subprocess.run(['python',str(ROOT/'scripts/build/check-libass-contract.py'),'--aar',str(a.output)],check=True)
   print(json.dumps({key:report[key] for key in ['kind','aar_sha256','production_class_count','native_source','class_ownership']},indent=2))
