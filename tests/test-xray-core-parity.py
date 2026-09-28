@@ -225,6 +225,35 @@ require(
     "if (onLocalCleared != null) onLocalCleared.run();\n\n            serviceClient.execute",
 )
 
+require(
+    "app/src/leanback/java/com/fongmi/android/tv/ui/activity/SettingXrayActivity.java",
+    "PushActivity.start(this, 6);",
+    "@Subscribe(threadMode = ThreadMode.MAIN)",
+    "if (event == null || isBlank(event.link())) return;",
+    "if (mOperationId != Long.MIN_VALUE && mOperation != XrayOperation.RESET_SECURITY)",
+    "mXray.abandon();",
+    "String link = event.link().trim();",
+    "mBinding.link.setText(link);",
+)
+forbid(
+    "app/src/leanback/java/com/fongmi/android/tv/ui/activity/SettingXrayActivity.java",
+    "mXray.save(link",
+)
+
+require(
+    "app/src/main/java/com/fongmi/android/tv/server/process/Action.java",
+    'case "xray" -> onXray(params);',
+    'String link = params.get("link");',
+    "if (TextUtils.isEmpty(link)) return;",
+    "XrayImportEvent.post(link.trim());",
+)
+
+require(
+    "app/src/leanback/java/com/fongmi/android/tv/ui/base/BaseActivity.java",
+    "EventBus.getDefault().register(this);",
+    "EventBus.getDefault().unregister(this);",
+)
+
 # Keep the recovered behavioral reference in-tree so future refactors can be
 # checked against the decompiled v5.6.0-xray.5 reconstruction rather than memory.
 for reference in (
