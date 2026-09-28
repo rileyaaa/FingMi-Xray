@@ -683,3 +683,15 @@ current-main workflow 临时加入 main push trigger 以跑本轮 TV-only 验证
 v7 全链动态 parity 成功后，继续把相同 26 组 current Java 链扩展到 Android TV arm64 发布 native。测试仍以 v7 发布行为为唯一黄金 oracle：arm64 的 `convertShareLinksToXrayJson` 响应必须逐项等于冻结 v7 chain oracle，current `XrayConfigFactory` 生成的 runtime config 也必须逐项得到与 v7 oracle 相同的 arm64 发布版 `testXray` 结果。这样两个 TV ABI 都受同一 Xray 行为语义约束，而不是只证明各自能编译。
 
 `CurrentNativeChain` 只接受两个固定发布 JNI SHA-256；`test-current-native-share-chain.py` 新增显式 `--abi`，QEMU harness 分别使用 ARMv7 / arm64 Android API24 Bionic。为执行本轮验证，current-main 暂时加入 main push trigger；验证完成后必须立即撤回。publish workflow 始终保持手动触发。
+
+
+### 2026-09-28 — 恢复 Settings RESET_SECURITY 的发布版 Binder/UI 顺序
+
+继续对照实际 v7 JADX `SettingXrayActivity` 时确认：删除节点并不是简单的“清存储后发 RESET_SECURITY”。发布版顺序是先占有 RESET_SECURITY operation generation，随后重建 settings Binder client，再清本地节点存储；只有本地清理成功后才清空页面 link/UDP，最后向新 client 派发 RESET_SECURITY。若本地清理或派发同步失败，Activity 会清 operation 状态并再次替换 Binder client，因此失败时不会先把可见节点输入清空。
+
+current 已按该顺序恢复：
+
+- `a5f540bf5b232dfd3601f3ffdf1942e460e72b6f`：`XraySettingsController.delete(Runnable)` 在 RESET_SECURITY 专用 generation 下先 `replaceClient()`，再 `preferences.clear()`，执行 UI clear callback 后派发 remote reset；异常路径 clear active generation 并再次 replace client。Leanback `SettingXrayActivity` 不再在调用 delete 前先清 UI。
+- `a076e2bf4b19dceabc874477dfc093315c3a283d`：新增 deterministic `SettingsLifecycleTest`，锁住 RESET client/store/UI/dispatch 顺序、RESET 期间 Save 被阻止、phone import abandon 不发送 remote TEST cancel、45 秒 timeout 先通知再 cancel、普通 result 先通知 listener 再替换 client。
+- legacy readable reference 同步修正，避免后续再依据不完整的 controller reconstruction 把该顺序改回去。
+- `current-main-build.yml` 的临时 push trigger 已在 `933cdd2c328c36a53653a59780c13865a81da267` 撤回；后续 settings 提交没有制造新的自动 Actions run。
