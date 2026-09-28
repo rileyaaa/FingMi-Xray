@@ -508,7 +508,7 @@ public class LiveActivity extends PlaybackActivity implements GroupAdapter.OnCli
         boolean existing = hasPlaybackSession();
         boolean supported = existing
                 ? XrayPlaybackSession.supports(player().getUrl())
-                : XrayPlaybackSession.supports(mChannel.getCurrent());
+                : XrayPlaybackSession.supportsDirectLiveSource(mChannel.getCurrent());
         if (!supported) { Notify.show(R.string.xray_public_http_required); return; }
         player().clearPreload();
         mXrayPendingChannelResume = !existing;
