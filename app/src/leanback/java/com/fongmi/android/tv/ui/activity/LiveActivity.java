@@ -485,8 +485,14 @@ public class LiveActivity extends PlaybackActivity implements GroupAdapter.OnCli
         if (!supported) { Notify.show(R.string.xray_public_http_required); return; }
         player().clearPreload();
         mWaitingXrayStart = !existing;
-        if (existing) mXray.mediaUrlChanged(player().getUrl());
-        if (!mXray.enableForPending(mChannel.getCurrent())) {
+        boolean enabled;
+        if (existing) {
+            mXray.mediaUrlChanged(player().getUrl());
+            enabled = mXray.enable();
+        } else {
+            enabled = mXray.enableForPending(mChannel.getCurrent());
+        }
+        if (!enabled) {
             mWaitingXrayStart = false;
             Notify.show(R.string.xray_public_http_required);
         }
