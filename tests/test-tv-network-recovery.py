@@ -183,9 +183,9 @@ public final class NetworkRecoveryParityTest {
         recovery.check();
         check(fake.events.size() == 4, "new generation must wait for in-flight spider clear");
         stale.run();
-        check(fake.scheduled is not None, "released flow posts stability check after spider clear");
+        check(fake.scheduled != null, "released flow posts stability check after spider clear");
         check(fake.events.size() == 4, "generation restart must wait for the posted poll");
-        fake.tick()
+        fake.tick();
         same(
                 fake.events,
                 "progress", "cancel", "api-dns", "spider",
