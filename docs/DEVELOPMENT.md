@@ -229,15 +229,9 @@ on:
 
 不保留 `push`、`pull_request`、`schedule`、`workflow_call` 等自动触发。
 
-#### 交接执行规则：禁止原地轮询 CI
+#### AI 协作执行准则
 
-后续接手者必须避免因为等待 GitHub Actions 而占住会话：
-
-- 查询 Actions 状态时，优先先刷新仓库最新 runs 列表，再定位具体 run；不要只复用先前单个 run 的旧状态。
-- 同一个 workflow run 在同一工作阶段最多主动查一次状态；禁止连续重复查询 run / jobs / logs 只为了等待 `in_progress` 变化。
-- 如果该次检查仍为 `queued` / `in_progress`，立即继续做其他有实际产出的审计、测试、代码或文档工作；没有其他工作时就结束当前回复，不占着会话等待。
-- 只有 run 已完成、步骤发生实质变化、或需要定位明确失败时才继续读取 jobs / logs。
-- 不得把旧查询结果当成当前状态；在向用户报告“仍在执行”前必须以最新 runs 列表重新确认一次。
+AI 与用户共同开发时的固定操作限制独立维护在 [AI_COLLABORATION.md](AI_COLLABORATION.md)。其中包括 CI 禁止原地轮询、Actions 状态必须从最新 runs 列表重新确认、以及会话接近平台时限时立即交接返回。
 
 
 当前工程主构建：
