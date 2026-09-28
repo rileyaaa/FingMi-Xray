@@ -124,9 +124,7 @@ require(
 require(
     "xray/src/main/java/com/fingmi/xray/session/XrayPlaybackSession.java",
     "supportsDirectLiveSource",
-    'endsWith(".strm")',
-    'contains("youtube.com")',
-    'contains("youtu.be")',
+    "XrayPlaybackAddress.supportsDirectLiveSource(url)",
     "onProxyError()",
     "clearResourcesAfterError()",
 )
