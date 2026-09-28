@@ -31,8 +31,11 @@ public final class NetworkRecoveryCoordinator implements AutoCloseable {
     public void check() {
         if (closed) return;
         long next = hooks.generation();
-        if (recovering && next == pendingGeneration) return;
-        if (!recovering && next == appliedGeneration) return;
+        // Released HomeActivity serializes recovery. A newer generation is
+        // picked up only after the in-flight spider clear / stability poll
+        // observes it; never run two loader clears concurrently.
+        if (recovering) return;
+        if (next == appliedGeneration) return;
         pendingGeneration = next;
         recovering = true;
         checks = 0;
@@ -43,14 +46,22 @@ public final class NetworkRecoveryCoordinator implements AutoCloseable {
         hooks.resetApiAndDns();
         hooks.clearSpiders(() -> {
             if (closed || !recovering || pendingGeneration != next) return;
-            if (hooks.generation() != next) { check(); return; }
+            if (hooks.generation() != next) {
+                recovering = false;
+                check();
+                return;
+            }
             hooks.schedule(poll, 0);
         });
     }
 
     private void checkStability() {
         if (closed || !recovering) return;
-        if (hooks.generation() != pendingGeneration) { check(); return; }
+        if (hooks.generation() != pendingGeneration) {
+            recovering = false;
+            check();
+            return;
+        }
         stableChecks = hooks.networkReady() ? stableChecks + 1 : 0;
         if (stableChecks < 2 && checks < 12) {
             checks++;

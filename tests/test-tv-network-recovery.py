@@ -56,6 +56,14 @@ for forbidden in ("ConnectivityManager", "NetworkCallback", "registerDefaultNetw
     if forbidden in reference:
         raise SystemExit(f"released gn3 unexpectedly contains network callback evidence: {forbidden}")
 
+coordinator = COORDINATOR.read_text(encoding="utf-8")
+for needle in (
+    "if (recovering) return;",
+    "recovering = false;\n                check();",
+):
+    if needle not in coordinator:
+        raise SystemExit(f"NetworkRecoveryCoordinator missing serialized recovery contract: {needle}")
+
 for needle in (
     "new NetworkRecoveryCoordinator(TvNetworkLifecycle.recoveredGeneration()",
     "OkHttp.resetApiNetworkForResume()",
@@ -154,8 +162,13 @@ public final class NetworkRecoveryParityTest {
 
         fake.generation = 2;
         recovery.check();
+        check(fake.events.size() == 4, "new generation must wait for in-flight spider clear");
         stale.run();
         check(fake.scheduled == null, "stale spider completion must not schedule old recovery");
+        same(
+                fake.events,
+                "progress", "cancel", "api-dns", "spider",
+                "progress", "cancel", "api-dns", "spider");
 
         fake.completeSpider();
         fake.ready = true;

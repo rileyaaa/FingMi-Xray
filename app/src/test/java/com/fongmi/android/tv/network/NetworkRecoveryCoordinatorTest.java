@@ -54,8 +54,10 @@ public class NetworkRecoveryCoordinatorTest {
         Runnable stale = fake.spiderDone;
         fake.generation = 2;
         recovery.check();
+        assertEquals(4, fake.events.size());
         stale.run();
         assertNull(fake.scheduled);
+        assertEquals(8, fake.events.size());
         fake.completeSpider();
         fake.ready = true;
         fake.tick();
