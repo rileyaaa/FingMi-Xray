@@ -45,6 +45,7 @@ jobs:
           python3 tests/test-xray-playback-parity.py
           python3 tests/test-xray-session-races.py
           python3 tests/test-xray-service-client-lifecycle.py
+          python3 tests/test-xray-normalizer-parity.py
           python3 tests/test-upstream-update-disabled.py
           python3 tests/test-build-hygiene.py
 
