@@ -13,6 +13,11 @@ import java.nio.file.Path;
 /** Executes the current Java Xray chain with only JNI/probe/pin persistence as test boundaries. */
 public final class CurrentNativeChain {
 
+    private static final String V7_JNI_SHA256 =
+            "6f01f219fe4087790cd8e647394de9dbefc61e0d750d927924b93f120b06fb7e";
+    private static final String ARM64_JNI_SHA256 =
+            "40b08a399871973ba6ad5898ca7097961337d7aeddb4b3378b153a66679eeece";
+
     private static void check(boolean value, String message) {
         if (!value) throw new AssertionError(message);
     }
@@ -64,9 +69,11 @@ public final class CurrentNativeChain {
         } else {
             JSONObject evidence =
                     new JSONObject(Files.readString(Path.of(args[2])));
+            String nativeSha =
+                    evidence.getJSONObject("evidence").getString("jni_sha256");
             check(
-                    evidence.getJSONObject("evidence").getString("jni_sha256")
-                            .equals("6f01f219fe4087790cd8e647394de9dbefc61e0d750d927924b93f120b06fb7e"),
+                    nativeSha.equals(V7_JNI_SHA256)
+                            || nativeSha.equals(ARM64_JNI_SHA256),
                     "Unpinned native evidence");
 
             JSONArray results = evidence.getJSONArray("cases");

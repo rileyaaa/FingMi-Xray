@@ -676,3 +676,10 @@ current-main workflow 临时加入 main push trigger 以跑本轮 TV-only 验证
 - 同一 run 的 source guards、发布版 Xray native dependency 准备、Libass 重建、Leanback javac、两个 TV ABI assemble、artifact upload 全部成功。
 - KCP 最终 converted outbound / `streamSettings` / current runtime config 已由真实发布版 v7 native 与发布版 `testXray` 动态验证，不再只是 recovered Go/source-level 推断。
 - 本轮成功后已撤掉 `current-main-build.yml` 的临时 `main` push trigger；current-main 与 publish workflow 均恢复为纯 `workflow_dispatch`。
+
+
+### 2026-09-28 — 补齐 arm64 current-chain 动态 parity
+
+v7 全链动态 parity 成功后，继续把相同 26 组 current Java 链扩展到 Android TV arm64 发布 native。测试仍以 v7 发布行为为唯一黄金 oracle：arm64 的 `convertShareLinksToXrayJson` 响应必须逐项等于冻结 v7 chain oracle，current `XrayConfigFactory` 生成的 runtime config 也必须逐项得到与 v7 oracle 相同的 arm64 发布版 `testXray` 结果。这样两个 TV ABI 都受同一 Xray 行为语义约束，而不是只证明各自能编译。
+
+`CurrentNativeChain` 只接受两个固定发布 JNI SHA-256；`test-current-native-share-chain.py` 新增显式 `--abi`，QEMU harness 分别使用 ARMv7 / arm64 Android API24 Bionic。为执行本轮验证，current-main 暂时加入 main push trigger；验证完成后必须立即撤回。publish workflow 始终保持手动触发。

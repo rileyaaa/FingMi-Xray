@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-"""Current Java -> published v7 JNI -> current runtime -> published testXray parity.
+"""Current Java -> published JNI -> current runtime -> published testXray parity.
 
-This executes the exact pinned ARMv7 converter/testXray native binary. Only
-certificate probes and pin persistence are deterministic test boundaries,
-matching the frozen legacy-chain oracle.
+This executes an exact pinned v7 or arm64 converter/testXray native binary.
+Certificate probes and pin persistence are the only deterministic test
+boundaries. Both ABIs are compared to the frozen v7 legacy-chain oracle.
 """
 import argparse
 import hashlib
@@ -39,6 +39,11 @@ def compare(expected, observed):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        '--abi',
+        choices=['armeabi-v7a', 'arm64-v8a'],
+        default='armeabi-v7a',
+    )
     for arg in ('workdir', 'jni', 'bridge', 'qemu', 'android-root'):
         parser.add_argument('--' + arg, type=Path, required=True)
     args = parser.parse_args()
@@ -115,6 +120,7 @@ def main():
             args.bridge,
             args.qemu,
             args.android_root,
+            args.abi,
         )
         compare(
             json.loads((FIXTURES / 'published-v7-chain.json').read_text()),
@@ -136,6 +142,7 @@ def main():
             args.bridge,
             args.qemu,
             args.android_root,
+            args.abi,
         )
         compare(
             json.loads(
@@ -154,8 +161,9 @@ def main():
         ]
         assert len(kcp) == 6, 'KCP golden chain coverage changed'
         print(
-            'PASS: current Java chain matches '
-            f'{len(conversion["cases"])} published v7 conversion/runtime oracles; '
+            'PASS: current Java chain '
+            f'({args.abi}) matches {len(conversion["cases"])} published v7 '
+            'conversion/runtime oracles; '
             f'{len(kcp)} KCP golden cases validated by published testXray'
         )
 

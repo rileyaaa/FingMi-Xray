@@ -120,26 +120,46 @@ jobs:
 
           cp build/work/current-main/restored/libXray.aar libxray/libs/libXray.aar
 
-      - name: Verify current Xray chain against published v7 native
+      - name: Verify current Xray chain against published v7 and arm64 native
         shell: bash
         run: |
           set -euo pipefail
           work="build/work/current-main/xray-native-chain"
           mkdir -p "$work"
+
           unzip -p build/work/current-main/input/published-v560-v7.apk \
             lib/armeabi-v7a/libgojni.so > "$work/published-v7-libgojni.so"
-          echo "6f01f219fe4087790cd8e647394de9dbefc61e0d750d927924b93f120b06fb7e  $work/published-v7-libgojni.so" | sha256sum -c -
+          unzip -p build/work/current-main/input/published-v560-v8.apk \
+            lib/arm64-v8a/libgojni.so > "$work/published-arm64-libgojni.so"
+          printf '%s  %s\n%s  %s\n' \
+            "6f01f219fe4087790cd8e647394de9dbefc61e0d750d927924b93f120b06fb7e" "$work/published-v7-libgojni.so" \
+            "40b08a399871973ba6ad5898ca7097961337d7aeddb4b3378b153a66679eeece" "$work/published-arm64-libgojni.so" \
+            | sha256sum -c -
 
           python3 scripts/recovery/prepare-native-converter-harness.py \
-            --workdir "$work/harness" \
+            --workdir "$work/v7-harness" \
             --jni "$work/published-v7-libgojni.so"
 
           python3 tests/test-current-native-share-chain.py \
+            --abi armeabi-v7a \
             --workdir "$work/test" \
             --jni "$work/published-v7-libgojni.so" \
-            --bridge "$work/harness/invoke-bridge" \
-            --qemu "$work/harness/qemu/usr/bin/qemu-arm-static" \
-            --android-root "$work/harness/android/root"
+            --bridge "$work/v7-harness/invoke-bridge" \
+            --qemu "$work/v7-harness/qemu/usr/bin/qemu-arm-static" \
+            --android-root "$work/v7-harness/android/root"
+
+          python3 scripts/recovery/prepare-native-converter-harness.py \
+            --abi arm64-v8a \
+            --workdir "$work/arm64-harness" \
+            --jni "$work/published-arm64-libgojni.so"
+
+          python3 tests/test-current-native-share-chain.py \
+            --abi arm64-v8a \
+            --workdir "$work/test" \
+            --jni "$work/published-arm64-libgojni.so" \
+            --bridge "$work/arm64-harness/invoke-bridge" \
+            --qemu "$work/arm64-harness/qemu/usr/bin/qemu-aarch64-static" \
+            --android-root "$work/arm64-harness/android/root"
 
       - name: Build and import reconstructed Libass candidate
         shell: bash
