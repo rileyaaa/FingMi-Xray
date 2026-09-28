@@ -41,6 +41,12 @@ for path in sorted((ROOT / ".github/workflows").glob("*.yml")):
 current_workflow = (ROOT / ".github/workflows/current-main-build.yml").read_text(encoding="utf-8")
 publish_workflow = (ROOT / ".github/workflows/publish-current-main-test-release.yml").read_text(encoding="utf-8")
 
+if "permissions:\n  contents: write\n  actions: write" not in publish_workflow:
+    errors.append(
+        "publish workflow must retain the release-capable GITHUB_TOKEN permission pair "
+        "(contents: write + actions: write)"
+    )
+
 for name, text in (
     ("current-main-build.yml", current_workflow),
     ("publish-current-main-test-release.yml", publish_workflow),

@@ -18,6 +18,13 @@ def require(path: str, *needles: str) -> None:
         raise SystemExit(f"{path}: missing released-Xray contract: {missing}")
 
 
+def forbid(path: str, *needles: str) -> None:
+    text = read(path)
+    present = [needle for needle in needles if needle in text]
+    if present:
+        raise SystemExit(f"{path}: released-Xray contract forbids: {present}")
+
+
 def normalized_java_mirror(path: str, package_name: str, class_name: str) -> str:
     text = read(path)
     text = re.sub(r"/\\*.*?\\*/", "", text, flags=re.S)
@@ -40,6 +47,22 @@ released_destination = normalized_java_mirror(
 if current_destination != released_destination:
     raise SystemExit(
         "PublicPlaybackDestinationInterceptor diverged from the released qz3 behavioral mirror"
+    )
+
+
+current_proxy_socket = normalized_java_mirror(
+    "xray/src/main/java/com/fingmi/xray/network/XrayProxySocketFactory.java",
+    "com.fingmi.xray.network",
+    "XrayProxySocketFactory",
+)
+released_proxy_socket = normalized_java_mirror(
+    "recovery/legacy-src/com/fongmi/android/tv/xray/legacy/LegacyXrayProxySocketFactory.java",
+    "com.fongmi.android.tv.xray.legacy",
+    "LegacyXrayProxySocketFactory",
+)
+if current_proxy_socket != released_proxy_socket:
+    raise SystemExit(
+        "XrayProxySocketFactory diverged from the released oz3 behavioral mirror"
     )
 
 
@@ -128,9 +151,15 @@ require(
     ".cache(null)",
     ".proxy(proxy)",
     ".addNetworkInterceptor(new PublicPlaybackDestinationInterceptor())",
+    "public OkHttpClient client() {\n        return client;\n    }",
+    "public XrayProxySocketFactory rtspSocketFactory() {\n        return rtspSocketFactory;\n    }",
     "dispatcher.executorService().shutdown();",
     "dispatcher.cancelAll();",
     "connectionPool.evictAll();",
+)
+forbid(
+    "xray/src/main/java/com/fingmi/xray/network/XrayHttpClient.java",
+    'if (closed.get()) throw new IllegalStateException("Xray HTTP client is closed")',
 )
 
 require(
@@ -146,6 +175,13 @@ require(
     "current.compareAndSet(operationId, Long.MAX_VALUE)",
     "current.set(Long.MAX_VALUE)",
 )
+forbid(
+    "xray/src/main/java/com/fingmi/xray/service/XrayGenerationGate.java",
+    "current.set(operationId)",
+    "getAndSet(",
+)
+
+
 
 require(
     "xray/src/main/java/com/fingmi/xray/service/XrayService.java",

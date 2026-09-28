@@ -50,12 +50,10 @@ public final class XrayHttpClient implements AutoCloseable {
     }
 
     public OkHttpClient client() {
-        if (closed.get()) throw new IllegalStateException("Xray HTTP client is closed");
         return client;
     }
 
     public XrayProxySocketFactory rtspSocketFactory() {
-        if (closed.get()) throw new IllegalStateException("Xray HTTP client is closed");
         return rtspSocketFactory;
     }
 
