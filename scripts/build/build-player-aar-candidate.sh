@@ -121,3 +121,5 @@ with ZipFile(output, "w", compression=ZIP_STORED) as bundle:
 print((stage / "BUILD_MANIFEST.txt").read_text(), end="")
 print(f"candidate_zip_sha256={hashlib.sha256(output.read_bytes()).hexdigest()}")
 PY
+
+python3 "$ROOT/scripts/build/player_candidate.py" "$OUTPUT"
