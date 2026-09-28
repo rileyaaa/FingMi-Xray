@@ -506,3 +506,98 @@ Android TV / Leanback APK：
 - 播放代理 HTTP 资源释放顺序包含 dispatcher executor shutdown，并异步 `cancelAll()` + `connectionPool.evictAll()`
 
 current-main 的 `XrayConfigFactory`、`LibXrayBridge.testLatency`、`XrayService`、`XrayHttpClient` 在上述关键行为上与旧 APK 基本一致。因此当前 KCP “HY2 可测试、KCP 在 generate_204 超时”的现象，暂时没有证据指向这些公共 Java 生命周期逻辑。下一步应继续比较同一 KCP 节点在旧 APK 与 current-main 中真正送入 `pingBatch` 的最终 outbound / stream settings，优先确认 KCP transport 配置差异，再决定是否修改代码。
+
+
+### 2026-09-28 — Xray 发布版行为迁移补录（完整行为，不限 KCP）
+
+#### 维护基线
+
+本轮明确把 `v5.6.0-xray.5` armeabi-v7a 发布 APK 作为 **Xray 全行为黄金参考**。目标不是回退到旧版混合架构，而是保留当前独立 `:xray` 模块、FongMi 5.6.3 宿主和必要的现代安全防护，同时把旧 APK 已验证的 Xray 行为逐项映射回当前模块。覆盖范围包括分享链接兼容、配置生成、传输安全、VALIDATE / TEST / START / STOP、Binder / Service 生命周期、播放代理、HTTP / SOCKS / RTSP、字幕/弹幕/EPG/封面请求归属、切源/切集/换台、失败恢复、资源释放、超时和竞态。
+
+#### 重新反编译与证据来源
+
+- 重新运行 Recovery APK analysis，v7 完整 JADX 成功取得；APK 下载、SHA-256 校验、DEX 比较和完整反编译均成功。
+- 私有仓库 Release 资产下载从匿名 `curl` 修正为 `GH_TOKEN + gh release download`。
+- recovery workflow 临时 push trigger 已撤回，恢复为手动 `workflow_dispatch`。
+- 旧 APK 的 `a04`、`XrayService`、`et1`、`sz3`、`lu2`、`pz3`、`yz3` 等行为继续作为静态对照；不直接复制 R8/JADX 混淆类，而是映射到命名清晰的当前模块。
+
+#### 已迁移/恢复的行为
+
+1. **播放网络切换与所有权**
+   - `PlayerManager.setPlaybackProxy` 重新按发布版语义串行化切换，并在代理生效前取消旧网络工作。
+   - 补回 `hasXraySession` / `withHttpClient`，让播放器相邻请求在同一代理代际下创建，避免在切换窗口拿到即将销毁的 client。
+   - RTSP/RTSPT 使用 Xray SOCKS socket factory，并恢复当前播放请求的 User-Agent 传递。
+   - 通用 DataSource 在 Xray 会话中只允许 HTTP(S) 走代理，同时保留 file/content/asset/data/rawresource/android.resource 等本地资源，不允许其他网络 scheme 静默旁路。
+
+2. **字幕、弹幕、封面与播放器相邻网络请求**
+   - Danmaku / Subtitle API 恢复 request-id ownership，旧请求只取消自己的 `Call` / `Download`。
+   - VOD 自动弹幕、手动字幕/弹幕搜索在 Xray 会话下使用当前播放 client。
+   - Xray 代理切换时取消旧 Danmaku / Subtitle 请求和远端 MediaSession artwork；本地 artwork 仍允许。
+   - Video/Live Activity 的 Glide artwork target 在 Xray 切换和销毁时显式 clear，避免旧请求回调覆盖新会话。
+
+3. **VOD / Live 生命周期**
+   - Activity `onStop` 根据是否后台继续播放决定保留还是释放 Xray playback session。
+   - VOD 切站点、切线路、切集、换源、刷新、切 player engine 时先推进 Xray playback generation，旧回调不能污染新播放。
+   - Live 换台/换线路/catch-up/refresh 的 Xray reset 边界按发布版恢复；新增待启动 Live source 的 pending-start continuation，而不是在 Xray START 前继续走旧网络解析。
+   - 已解析媒体 URL 与尚未解析的 Live direct source 分开处理；`.strm` 与 YouTube HTTP(S) indirection 不在 direct-pending 阶段强制代理，待解析成真实媒体 URL 后再进入 Xray。
+
+4. **Live metadata / logo / EPG**
+   - Live EPG 与 XMLTV 网络请求按播放网络 generation 打 tag。
+   - 代理切换时取消旧 generation 的 metadata 网络工作。
+   - Xray 会话期间抑制绑定频道的远端 logo 直连加载；退出/失败后恢复普通加载。
+   - 避免旧 EPG / logo callback 在代理切换后重新写回 UI。
+
+5. **Xray START 失败后的播放器恢复**
+   - 恢复发布版“拆掉 Xray engine，但不立即恢复 direct network 播放”的失败语义。
+   - 保存当前 `PlaySpec + PlaybackSnapshot`，失败后切回无代理 engine 但不自动 resume；之后 Xray 成功启动可复用保存状态。
+   - 防止代理失败瞬间把当前媒体直接暴露到普通网络。
+   - Video / Live 对 ERROR 分别处理 UI、session 状态和播放快照。
+
+6. **Settings / Binder 操作生命周期**
+   - Settings 侧 VALIDATE / TEST / RESET_SECURITY 只允许单操作拥有当前 Binder generation。
+   - 45 秒 operation timeout、cancel/abandon、client replacement、stale callback 丢弃和错误去敏已恢复。
+   - 保存节点时只在 RESET_SECURITY 占用时阻止；删除先清保存节点，再在 `:xray` 私有进程清传输安全状态。
+
+7. **核心配置与分享链接兼容**
+   - 当前 `XrayShareLinkNormalizer` 与恢复版行为对照后，VLESS / VMess / Trojan / Shadowsocks / HY2 / Hysteria2 的主要 normalize 路径保持一致；Android 12 不安全的 Java API 只做等价替换。
+   - 保留旧 APK 的 Shadowsocks legacy/SIP003 plugin 兼容、Trojan TLS 默认行为、HY2 hopping / `mport` / `ports` / obfs 校验、VMess JSON port 校验等。
+   - `XrayConfigFactory` 保持发布版关键配置：单 proxy outbound、删除 `sendThrough`、`targetStrategy=ForceIP`、sockopt `domainStrategy=AsIs`、本地 SOCKS noauth、UDP 取 UI 设置、DNS/routing/private block。
+   - TEST 继续按发布版深复制 config，把目标 outbound 的 `targetStrategy` 临时改成 `AsIs`，`pingBatch` 10 秒请求 `https://www.gstatic.com/generate_204`。没有为了 KCP 擅自改掉这条已验证行为。
+
+8. **安全存储与证书 TOFU**
+   - 节点仍使用 AndroidKeyStore alias `fongmi_xray_share_link_v1` + AES/GCM，字段 `link_ciphertext` / `link_iv` / `udp` 与发布版一致。
+   - HY2/TLS insecure 链接先 probe 证书，再写入加密 pin；后续证书变化拒绝自动信任。
+   - RESET_SECURITY 同时清 current/legacy pin 位置并删除 pin encryption key。
+
+9. **Service / native 调用与清理**
+   - VALIDATE / TEST / START 对 bind/listen 类错误最多重试 3 次；START 先 stop 旧 core。
+   - START 顺序保留 `getFreePort -> create config -> testXray -> runXray -> getXrayState`。
+   - STOP 最多尝试 2 次；无法可靠清理时通过 generation invalidation / 私有进程重置避免残留。
+   - Service 销毁时先停止 core、关闭 executor，最终保证 `:xray` 私有进程退出。
+   - OkHttp Xray resources 继续显式 shutdown dispatcher executor，并异步 `cancelAll()` + `connectionPool.evictAll()`。
+
+#### 防回归测试
+
+新增/扩展：
+
+- `tests/test-xray-playback-parity.py`
+  - 守住播放代理切换、字幕/弹幕 ownership、artwork、Live/VOD 生命周期、proxy failure recovery、Live metadata 等发布版行为。
+- `tests/test-xray-core-parity.py`
+  - 守住分享链接协议覆盖、加密存储、配置 JSON 关键字段、`pingBatch`、TOFU、Service 重试/清理和 Settings operation lifecycle。
+- `tests/test-xray-android-runtime-compat.py`
+  - 继续阻止 Java 21 可编译但 Android 12 ART 不支持的 API 回归。
+
+#### 本轮 AC 记录与已修问题
+
+- `36379153867`：Leanback 编译通过；Mobile 因 `VodPlaybackHost.resetXrayForPlaybackChange()` 新增为抽象方法失败。修复为 host default no-op，使 Xray reset 仍只由 Leanback 实现。
+- `36379604138`：全量 current-main debug build 成功。
+- `36382398948`：包含 proxy failure recovery 的全量 build 成功。
+- `36386296283`：source guards 和 Leanback 编译通过；Mobile 因 `LivePlaybackHost.resetXrayForPlaybackChange()` 同样缺少 mobile 实现失败。随后改成 default no-op。
+- `36386615848`：新增 core parity guard 后因为测试字面量要求 `pins.put(identity, observed)`，而实际发布版等价实现先 lowercase 成 `normalizedObserved` 再保存而误报。已修 guard，不改生产行为。
+- 后续 full parity build 以修正后的 main 为准，成功后再撤掉临时 current-main push trigger。
+
+#### 当前剩余事项
+
+- 完成修正后的 full current-main build（Leanback + Mobile + assemble）。
+- 成功后删除 `.github/.trigger-current-main-build`，把 `current-main-build.yml` 恢复为纯 `workflow_dispatch`。
+- 对仍未做动态确认的部分继续以设备实测收口，重点是 KCP 节点在最终 converted outbound / streamSettings 层与旧 APK 的等价性；不在缺乏证据时修改已确认一致的公共 TEST/START 流程。
