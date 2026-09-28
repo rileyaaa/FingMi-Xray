@@ -256,7 +256,7 @@ jobs:
           {
             echo "## 5.6.3 current-main 真机测试包"
             echo
-            echo "> 当前重构架构测试发布（Pre-release）；用于 current-main 真机回归，不以旧 5.6.0 faithful 构建作为最终验收。"
+            echo "> current-main 决定架构与构建；Xray 外部行为以 v5.6.0-xray.5 v7 为黄金参考做 parity。faithful APK 重建不是 current 发布前置，本包用于 Android TV 真机回归。"
             echo
             printf -- "- APK 构建源码 commit：\`%s\`\n" "$GITHUB_SHA"
             printf -- "- APK 构建 Actions run：\`%s\`\n" "$GITHUB_RUN_ID"
