@@ -173,6 +173,8 @@ require(
     "mXrayPendingChannelResume",
     "mXrayStartedFromExistingPlayback",
     "mLive.resumeChannelAfterXrayStart()",
+    "boolean startedFromExisting = mXrayStartedFromExistingPlayback;",
+    "if (!startedFromExisting && !message.isEmpty()) showError(message);",
     "XrayPlaybackSession.supportsDirectLiveSource(mChannel.getCurrent())",
     "if (!message.isEmpty()) Notify.show(message);",
 )
