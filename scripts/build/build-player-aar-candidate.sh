@@ -49,7 +49,7 @@ fi
 
 (
   cd "$SOURCE_DIR"
-  ./gradlew --no-daemon \
+  ./gradlew --no-daemon -PexternalBuildDir=buildout \
     :lib-common:assembleRelease \
     :lib-database:assembleRelease \
     :lib-datasource:assembleRelease \
@@ -87,7 +87,13 @@ required = {
     "androidx/media3/exoplayer/source/preload/MediaSourceFactorySupplier.class",
 }
 found = set()
-aars = sorted(source.glob("libraries/*/build/outputs/aar/*-release.aar"))
+aars = sorted(set(
+    source.glob("libraries/*/buildout/outputs/aar/*-release.aar")
+) | set(
+    source.glob("buildout/lib-*/outputs/aar/*-release.aar")
+) | set(
+    source.glob("libraries/*/build/outputs/aar/*-release.aar")
+))
 if len(aars) != 16:
     raise SystemExit(f"expected 16 release AARs, found {len(aars)}")
 
