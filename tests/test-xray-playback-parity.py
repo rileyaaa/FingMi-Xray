@@ -179,6 +179,12 @@ require(
     "if (!message.isEmpty()) Notify.show(message);",
 )
 
+forbid(
+    "app/src/leanback/java/com/fongmi/android/tv/ui/activity/LiveActivity.java",
+    "The previous session client may already be closing during a swap.",
+    "catch (IllegalStateException ignored)",
+)
+
 require(
     "xray/src/main/java/com/fingmi/xray/session/XraySettingsController.java",
     "public long validate(",

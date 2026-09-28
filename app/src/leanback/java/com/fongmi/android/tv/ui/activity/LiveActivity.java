@@ -551,13 +551,9 @@ public class LiveActivity extends PlaybackActivity implements GroupAdapter.OnCli
         OkHttp.cancel(normal, LiveApi.METADATA_TAG);
 
         if (service() == null || !isOwner()) return;
-        try {
-            OkHttpClient current = player().getPlaybackHttpClient(normal);
-            if (current != null && current != normal) {
-                OkHttp.cancel(current, LiveApi.METADATA_TAG);
-            }
-        } catch (IllegalStateException ignored) {
-            // The previous session client may already be closing during a swap.
+        OkHttpClient current = player().getPlaybackHttpClient(normal);
+        if (current != null && current != normal) {
+            OkHttp.cancel(current, LiveApi.METADATA_TAG);
         }
     }
 
