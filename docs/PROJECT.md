@@ -2,7 +2,7 @@
 
 本文定义 FingMi-Xray 的**产品边界、模块职责和长期架构约束**。
 
-它不记录构建结果、恢复进度、Actions run、发布状态或调试过程。当前工程维护与验收规则见 [DEVELOPMENT.md](DEVELOPMENT.md)；[RECOVERY.md](RECOVERY.md) 只保存旧发布版的历史恢复与二进制来源证据，不作为当前版本验收基线。
+它不记录构建结果、恢复进度、Actions run、发布状态或调试过程。当前工程维护与验收规则见 [DEVELOPMENT.md](DEVELOPMENT.md)；AI 协作与文档记录边界见 [AI_COLLABORATION.md](AI_COLLABORATION.md)；[RECOVERY.md](RECOVERY.md) 只保存旧发布版的历史恢复与二进制来源证据，不作为当前版本验收基线。
 
 ## 1. 项目为什么存在
 

@@ -135,6 +135,7 @@ FingMi-Xray 将 Xray 集成到播放器内部。遇到这类内容时，可以�
 
 - [PROJECT.md](docs/PROJECT.md)：项目设计、职责边界与长期架构约束。
 - [DEVELOPMENT.md](docs/DEVELOPMENT.md)：当前源码结构、构建方式、上游同步和开发维护说明。
+- [AI_COLLABORATION.md](docs/AI_COLLABORATION.md)：AI 与用户共同开发时的执行限制、CI 查询、交接和非流水账文档维护准则。
 - [RECOVERY.md](docs/RECOVERY.md)：`v5.6.0-xray.5` 的历史源码恢复、二进制来源与可复核证据归档；不作为当前版本验收基线。
 - [apk-reference](docs/apk-reference/README.md)：正式 APK 反编译文本证据索引。
 - [ORIGINAL_README.md](docs/ORIGINAL_README.md)：冻结保存的原 `v5.6.0-xray.5` 发布说明。

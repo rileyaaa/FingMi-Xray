@@ -4,7 +4,7 @@
 
 > **归档定位**：从 5.6.3 重构线开始，本文件不再定义当前 FingMi-Xray 的开发、功能回归或发布验收基线。当前 `main` 及其最新测试 / 正式构建才是现行基线。这里的 5.6.0 材料只用于历史取证、解释旧发布行为，以及追溯当前仍复用的部分 native 字节来源。
 
-它不是开发日志，也不记录当前 main 的上游升级过程。当前工程见 [DEVELOPMENT.md](DEVELOPMENT.md)，原发布时的用户说明见 [ORIGINAL_README.md](ORIGINAL_README.md)。
+它不是开发日志，也不记录当前 main 的上游升级过程。当前工程见 [DEVELOPMENT.md](DEVELOPMENT.md)，AI 协作与非流水账文档维护规则见 [AI_COLLABORATION.md](AI_COLLABORATION.md)，原发布时的用户说明见 [ORIGINAL_README.md](ORIGINAL_README.md)。
 
 ## 1. 历史恢复对象
 
