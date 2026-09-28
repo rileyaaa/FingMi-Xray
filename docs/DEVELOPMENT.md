@@ -229,6 +229,17 @@ on:
 
 不保留 `push`、`pull_request`、`schedule`、`workflow_call` 等自动触发。
 
+#### 交接执行规则：禁止原地轮询 CI
+
+后续接手者必须避免因为等待 GitHub Actions 而占住会话：
+
+- 查询 Actions 状态时，优先先刷新仓库最新 runs 列表，再定位具体 run；不要只复用先前单个 run 的旧状态。
+- 同一个 workflow run 在同一工作阶段最多主动查一次状态；禁止连续重复查询 run / jobs / logs 只为了等待 `in_progress` 变化。
+- 如果该次检查仍为 `queued` / `in_progress`，立即继续做其他有实际产出的审计、测试、代码或文档工作；没有其他工作时就结束当前回复，不占着会话等待。
+- 只有 run 已完成、步骤发生实质变化、或需要定位明确失败时才继续读取 jobs / logs。
+- 不得把旧查询结果当成当前状态；在向用户报告“仍在执行”前必须以最新 runs 列表重新确认一次。
+
+
 当前工程主构建：
 
 `.github/workflows/current-main-build.yml`
@@ -239,15 +250,16 @@ on:
 2. 下载并校验固定媒体输入；
 3. 准备并校验固定 FFmpeg JNI，并重建 Java bindings 与 Go JNI 配套的 libXray compatibility AAR；
 4. 重建并导入 Libass compatibility AAR；
-5. 编译 Leanback / Mobile Java；
-6. assemble Leanback / Mobile Debug APK；
-7. 上传 APK、构建说明和 Gradle problems report artifact；Gradle 命令使用 `--warning-mode all`，让剩余 Gradle 10 弃用项在下一次手动构建中直接显示具体来源。
+5. 执行 current Java → 发布版 v7 native 动态 Xray chain parity（包含 KCP golden cases 与发布版 `testXray` runtime validation）；
+6. 只编译 Android TV / Leanback Java；
+7. 只 assemble Android TV / Leanback 两个 ABI 的 Debug APK；
+8. 上传 TV APK、构建说明和 Gradle problems report artifact；Gradle 命令使用 `--warning-mode all`，让剩余 Gradle 10 弃用项在下一次手动构建中直接显示具体来源。
 
 测试发布器：
 
 `.github/workflows/publish-current-main-test-release.yml`
 
-它会从触发时的当前 `main` 重新准备固定依赖、执行源码 guard、编译 Leanback / Mobile、assemble Debug APK，然后发布新的测试 Pre-release。新测试 Release 与两个 Leanback APK 都验证成功后，workflow 才删除 YAML 中指定的上一版测试 Release / tag。其他历史 Release 不在这条替换链中，也不参与当前版本的最终验收。
+它会从触发时的当前 `main` 重新准备固定依赖、执行源码 guard、执行 current Java → 发布版 native 动态 Xray chain parity、只编译/assemble Android TV / Leanback 两个 ABI，然后发布新的测试 Pre-release。新测试 Release 与两个 Leanback APK 都验证成功后，workflow 才删除 YAML 中指定的上一版测试 Release / tag。其他历史 Release 不在这条替换链中，也不参与当前版本的最终验收。
 
 两个 current-main workflow 都必须先执行：
 
@@ -277,13 +289,12 @@ FingMi-Xray 当前**不使用 FongMi/Release 的应用内自更新**。原因是
 
 ```bash
 ./gradlew --no-daemon :app:compileLeanbackDebugJavaWithJavac
-./gradlew --no-daemon :app:compileMobileDebugJavaWithJavac
-./gradlew --no-daemon :app:assembleLeanbackDebug :app:assembleMobileDebug
+./gradlew --no-daemon :app:assembleLeanbackDebug
 ```
 
 ## 8. 跟随 FongMi/TV 上游
 
-升级上游时只以当前 `main` 和目标 FongMi/TV 上游为开发输入，不从历史 recovery faithful tree 继续开发，也不要求新实现回退到旧发布行为。
+升级上游时只以当前 `main` 和目标 FongMi/TV 上游为架构开发输入，不从历史 recovery faithful tree 继续开发；但 `:xray` 的外部行为仍必须保持与 `v5.6.0-xray.5` v7 黄金参考一致。
 
 建议流程：
 
@@ -303,7 +314,7 @@ FingMi-Xray 当前**不使用 FongMi/Release 的应用内自更新**。原因是
 
 ## 9. 验证清单
 
-当前验收对象是**当前 `main` 架构**。正常发布验证不再要求 `.github/workflows/recovery-build.yml`、5.6.0 faithful APK 重建或旧 APK parity。历史 recovery 测试只在修改历史证据、来源提取脚本或需要重新核对二进制 provenance 时运行。
+当前验收对象是**当前 `main` 架构 + `v5.6.0-xray.5` v7 的 Xray 外部行为语义**。正常发布不要求重建完整 5.6.0 faithful APK，但凡修改 Xray / 播放代理 / Service 生命周期，必须继续用冻结发布证据、source guards 或动态 native parity 证明没有偏离黄金参考。历史 recovery workflow 只在修改历史证据、来源提取脚本或需要重新核对二进制 provenance 时运行。
 
 影响 Xray / 播放器 / 网络生命周期的修改，至少考虑以下场景：
 
@@ -599,9 +610,9 @@ current-main 的 `XrayConfigFactory`、`LibXrayBridge.testLatency`、`XrayServic
 
 #### 当前剩余事项
 
-- 完成修正后的 full current-main build（Leanback + Mobile + assemble）。
-- 成功后删除 `.github/.trigger-current-main-build`，把 `current-main-build.yml` 恢复为纯 `workflow_dispatch`。
-- 对仍未做动态确认的部分继续以设备实测收口，重点是 KCP 节点在最终 converted outbound / streamSettings 层与旧 APK 的等价性；不在缺乏证据时修改已确认一致的公共 TEST/START 流程。
+- KCP 的 current Java → 发布版 converter → runtime config → 发布版 `testXray` 动态链已闭环，不再列为未确认项。
+- 后续继续补 arm64 整链动态 parity，并以 Android TV 真机回归收口 ART/Binder/Service/播放器真实生命周期。
+- 不在缺乏新证据时修改已确认一致的公共 TEST/START 流程。
 
 
 ### 2026-09-28 — 构建目标收敛为 Android TV / Leanback
@@ -656,3 +667,12 @@ current-main workflow 临时加入 main push trigger 以跑本轮 TV-only 验证
 - Actions run `36418576303` 在进入实际 native parity 前失败：`prepare-native-converter-harness.py` 使用了 Python 3.11 才提供的 `hashlib.file_digest()`，而 current-main/publish workflow 固定 Python 3.10。
 - 发布版 v7 `libgojni.so` 在失败前已再次通过固定 SHA-256 校验；此失败不代表 Xray/KCP 行为差异。
 - harness 的 digest 改为兼容 Python 3.10 的分块 `hashlib.sha256().update()`，保持同一校验语义并避免大文件整块读入内存。
+
+
+#### 动态 chain 验证完成与交接状态
+
+- 修复 Python 3.10 harness 后，Actions run `36418844246` 完整成功。
+- 动态步骤 `Verify current Xray chain against published v7 native` 成功，日志为：`PASS: current Java chain matches 26 published v7 conversion/runtime oracles; 6 KCP golden cases validated by published testXray`。
+- 同一 run 的 source guards、发布版 Xray native dependency 准备、Libass 重建、Leanback javac、两个 TV ABI assemble、artifact upload 全部成功。
+- KCP 最终 converted outbound / `streamSettings` / current runtime config 已由真实发布版 v7 native 与发布版 `testXray` 动态验证，不再只是 recovered Go/source-level 推断。
+- 本轮成功后已撤掉 `current-main-build.yml` 的临时 `main` push trigger；current-main 与 publish workflow 均恢复为纯 `workflow_dispatch`。
