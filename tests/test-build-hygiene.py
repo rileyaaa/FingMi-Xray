@@ -22,6 +22,14 @@ for deprecated in ("Build.CPU_ABI", "Build.CPU_ABI2"):
     if deprecated in platform:
         errors.append(f"Platform.java still uses deprecated {deprecated}")
 
+for required in (
+    "import com.chaquo.python.android.AndroidPlatform;",
+    "Collections.addAll(supportedAbis, Build.SUPPORTED_ABIS);",
+    "AndroidPlatform.ABI = ABI;",
+):
+    if required not in platform:
+        errors.append(f"Platform.java is missing Chaquopy 17 ABI runtime handoff: {required}")
+
 required_action_majors = {
     "actions/checkout": 7,
     "actions/setup-java": 6,
