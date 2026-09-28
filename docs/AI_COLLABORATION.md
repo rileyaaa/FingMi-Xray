@@ -71,12 +71,13 @@
 
 ## 6. CI 产物必须区分长期存留与临时使用
 
-- 在创建、上传或保留较大的 APK、AAR、ZIP、构建报告或测试证据前，先判断它是长期资产还是可重建的临时产物。
-- 长期需要复用的二进制构建输入、正式/测试发布 APK 应进入项目 Release，并保留固定 digest / provenance；不要依赖会自动过期的 Actions artifact 作为长期来源。
-- 适合 Git 长期保存的证据应是最小、可复核的文本材料；不要把大型 APK / AAR / SO 直接塞入普通 Git 历史。
-- Actions artifacts 只用于短期调试、交接或失败排查，应采用短 retention、尽量只保留最新必要副本，用完及时删除；不得让重复构建产物随每次 CI 线性累积。
+- 在创建、上传或保留较大的 APK、AAR、ZIP、构建报告或测试证据前，先判断它是发布产物、可重建输入、不可重建的黄金证据，还是一次性临时产物。
+- GitHub Releases 只承载发布版本；正常状态只保留 `v5.6.0-xray.5` 黄金参考和一个当前可上真机测试的版本。不得把 player AAR、recovery ZIP、构建缓存或其他 build input 另建 Release 长期存放。
+- 可重建的长期输入应保存固定 source commit、构建脚本、最小 fixture / patch 和校验规则；构建时现场重建并验证。不可重建且确属黄金发布来源的二进制只能从保留的黄金 Release 按固定 digest 取证。
+- 适合 Git 长期保存的证据应是最小、可复核的文本、源码、patch、fixture 与 hash；不要把大型 APK / AAR / SO 直接塞入普通 Git 历史。
+- Actions artifacts 只用于短期调试、交接、人工复核或失败排查，应采用短 retention、尽量只保留最新必要副本，用完及时删除；不得让重复构建产物随每次 CI 线性累积。
 - 临时产物如果仍在当前工作阶段会被继续使用可以暂留；一旦用途结束，应在同一阶段或最近一次收尾中清理。
-- 具体 workflow 的 retention、自动 pruning 与当前长期 build-input Release 位置属于工程实现，统一维护在 `DEVELOPMENT.md`，本文件只约束 AI 的存储决策。
+- 具体 workflow 的 retention、自动 pruning、源码重建输入与发布清理规则统一维护在 `DEVELOPMENT.md`，本文件只约束 AI 的存储决策。
 
 ## 执行优先级
 
