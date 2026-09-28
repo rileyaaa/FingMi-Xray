@@ -96,5 +96,5 @@ jobs:
           name: fingmi-faithful-leanback-armeabi-v7a-debug
           path: recovery/work/fingmi-faithful-5.6.0/app/build/outputs/apk/leanback/armeabi_v7a/debug/*.apk
           if-no-files-found: error
-          retention-days: 7
+          retention-days: 3
           compression-level: 0
