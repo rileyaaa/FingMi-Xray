@@ -94,6 +94,34 @@ require(
 )
 
 require(
+    "xray/src/main/java/com/fingmi/xray/network/XrayHttpClient.java",
+    "closed.compareAndSet(false, true)",
+    "new Dispatcher()",
+    "new ConnectionPool(5, 5, TimeUnit.MINUTES)",
+    'InetSocketAddress.createUnresolved("127.0.0.1", socksPort)',
+    ".cache(null)",
+    ".proxy(proxy)",
+    ".addNetworkInterceptor(new PublicPlaybackDestinationInterceptor())",
+    "dispatcher.executorService().shutdown();",
+    "dispatcher.cancelAll();",
+    "connectionPool.evictAll();",
+)
+
+require(
+    "xray/src/main/java/com/fingmi/xray/network/XrayProxySocketFactory.java",
+    "return new Socket(proxy);",
+    "InetSocketAddress.createUnresolved(host, port)",
+    "socket.bind(new InetSocketAddress(localAddress, localPort));",
+)
+
+require(
+    "xray/src/main/java/com/fingmi/xray/service/XrayGenerationGate.java",
+    "current.accumulateAndGet(operationId, Math::max)",
+    "current.compareAndSet(operationId, Long.MAX_VALUE)",
+    "current.set(Long.MAX_VALUE)",
+)
+
+require(
     "xray/src/main/java/com/fingmi/xray/service/XrayService.java",
     "for (int attempt = 0; attempt < 3; attempt++)",
     "bridge.validateConfig(config)",
@@ -142,6 +170,10 @@ for reference in (
     "recovery/legacy-src/com/fongmi/android/tv/xray/legacy/LegacyXrayRuntimeConfigFactory.java",
     "recovery/legacy-src/com/fongmi/android/tv/xray/legacy/LegacyXraySessionController.java",
     "recovery/legacy-src/com/fongmi/android/tv/xray/legacy/LegacyXraySettingsController.java",
+    "recovery/legacy-src/com/fongmi/android/tv/xray/legacy/LegacyXrayProxySocketFactory.java",
+    "recovery/legacy-src/com/fongmi/android/tv/xray/legacy/LegacyXrayGenerationGate.java",
+    "docs/apk-reference/shared/sources/p000/pz3.java",
+    "docs/apk-reference/shared/sources/p000/nz3.java",
 ):
     if not (ROOT / reference).is_file():
         raise SystemExit(f"missing released-Xray behavioral reference: {reference}")
