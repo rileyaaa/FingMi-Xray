@@ -124,14 +124,21 @@ public class ExoMediaSourceFactory implements MediaSource.Factory {
     @NonNull
     @Override
     public MediaSource createMediaSource(@NonNull MediaItem mediaItem) {
-        getHttpDataSourceFactory().setDefaultRequestProperties(ExoUtil.extractHeaders(mediaItem));
+        Map<String, String> headers = ExoUtil.extractHeaders(mediaItem);
+        getHttpDataSourceFactory().setDefaultRequestProperties(headers);
         if (proxy != null && mediaItem.localConfiguration != null) {
             Uri uri = mediaItem.localConfiguration.uri;
             String scheme = uri.getScheme();
             if ("rtsp".equalsIgnoreCase(scheme) || "rtspt".equalsIgnoreCase(scheme)) {
-                return new RtspMediaSource.Factory().setForceUseRtpTcp(true)
-                        .setSocketFactory(proxy.rtspSocketFactory())
-                        .createMediaSource(mediaItem);
+                RtspMediaSource.Factory factory = new RtspMediaSource.Factory()
+                        .setForceUseRtpTcp(true)
+                        .setSocketFactory(proxy.rtspSocketFactory());
+                String userAgent = headers.get("User-Agent");
+                if (userAgent != null && userAgent.codePoints()
+                        .anyMatch(codePoint -> !Character.isWhitespace(codePoint))) {
+                    factory.setUserAgent(userAgent);
+                }
+                return factory.createMediaSource(mediaItem);
             }
         }
         if (!libassPlaybackSession.isAvailable()) return defaultMediaSourceFactory.createMediaSource(mediaItem);
