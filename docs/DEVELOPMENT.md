@@ -467,3 +467,42 @@ Android TV / Leanback APK：
 - MuMu / Android TV 真机运行行为：**仍需继续验证**。
 
 如果 test.4 仍出现 Xray 保存、测试或启动故障，应继续以 ADB 现场证据、`:xray` PID、Binder 状态、`FingMiXray native invoke begin/end`、crash buffer 与 tombstone 为准，不应回退到无证据的全局兼容性修改。
+
+
+### 2026-09-28 — 重新以 v5.6.0-xray.5 v7 APK 作为 Xray 行为黄金参考
+
+#### 结论
+
+用户确认 GitHub Release 中的 `v5.6.0-xray.5` armeabi-v7a APK 在 Xray 行为上是完整且稳定的参考实现，包括节点导入、连接测试、START / STOP、播放代理、会话切换与网络资源释放。后续维护采用“当前模块化架构 + 旧 APK 行为语义”的原则：不回退到 5.6.0 的混合架构，只从发布 APK 恢复 Xray 行为细节并映射到当前 `:xray` 模块。
+
+#### 重新取证
+
+重新执行了 `Recovery APK analysis`，使用固定 SHA-256 的：
+
+- `FongMi-Xray-TV-v5.6.0-xray.5-armeabi-v7a.apk`
+- `FongMi-Xray-TV-v5.6.0-xray.5-arm64-v8a.apk`
+
+完整 v7 JADX 反编译成功并已拉回本地分析。重新生成的关键源码与 2026-09-25 的已存 artifact 哈希一致，例如：
+
+- `p000/a04.java`：相同
+- `com/fongmi/android/tv/xray/XrayService.java`：相同
+
+本轮 Actions run：`36374827563`。该 run 的 APK 下载、SHA 校验、JADX 工具下载、APK/DEX 比较与完整 v7 JADX 均成功；旧的 targeted `dexdump` 提取步骤仍因目标匹配脚本未命中而失败，但不影响完整 JADX artifact 的取得。本轮同时修复了私有仓库 Release 资产在 recovery workflow 中用匿名 `curl` 返回 404 的问题，改为使用 `GH_TOKEN` + `gh release download`。所有 workflow 已恢复为纯 `workflow_dispatch`。
+
+#### 与 current-main 的首轮语义对照
+
+旧 APK 已确认的关键链路：
+
+- `convertShareLinksToXrayJson`
+- `testXray`
+- `pingBatch`
+- target URL：`https://www.gstatic.com/generate_204`
+- timeout：10 秒
+- outbound tag：`fongmi-xray-proxy`
+- ping 前把目标 outbound 的 `targetStrategy` 改为 `AsIs`
+- START 前先 STOP，失败时最多对 bind/listen 类错误重试 3 次
+- STOP 最多尝试 2 次
+- Service 销毁时先异步 STOP、等待 executor，最后杀掉私有进程
+- 播放代理 HTTP 资源释放顺序包含 dispatcher executor shutdown，并异步 `cancelAll()` + `connectionPool.evictAll()`
+
+current-main 的 `XrayConfigFactory`、`LibXrayBridge.testLatency`、`XrayService`、`XrayHttpClient` 在上述关键行为上与旧 APK 基本一致。因此当前 KCP “HY2 可测试、KCP 在 generate_204 超时”的现象，暂时没有证据指向这些公共 Java 生命周期逻辑。下一步应继续比较同一 KCP 节点在旧 APK 与 current-main 中真正送入 `pingBatch` 的最终 outbound / stream settings，优先确认 KCP transport 配置差异，再决定是否修改代码。
