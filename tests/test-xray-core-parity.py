@@ -254,6 +254,42 @@ require(
     "EventBus.getDefault().unregister(this);",
 )
 
+require(
+    "xray/src/main/java/com/fingmi/xray/util/XrayErrorSanitizer.java",
+    '"password"',
+    '"passwd"',
+    '"token"',
+    '"secret"',
+    '"auth"',
+    '"obfs-password"',
+    '"uuid"',
+    '"privatekey"',
+    '"publickey"',
+    '"shortid"',
+    '"seed"',
+    "<redacted-share-link>",
+    "<redacted-uuid>",
+    "<redacted>",
+    "result.length() > 1024 ? result.substring(0, 1024) : result",
+)
+
+require(
+    "xray/src/main/java/com/fingmi/xray/service/XrayService.java",
+    "XrayErrorSanitizer.sanitize(message)",
+    "return XrayErrorSanitizer.fromException(error);",
+)
+
+require(
+    "xray/src/main/java/com/fingmi/xray/session/XraySettingsController.java",
+    "XrayErrorSanitizer.sanitize(result.message)",
+    "XrayErrorSanitizer.sanitize(message)",
+)
+
+require(
+    "app/src/leanback/java/com/fongmi/android/tv/ui/activity/SettingXrayActivity.java",
+    "Notify.show(XrayErrorSanitizer.sanitize(error));",
+)
+
 # Keep the recovered behavioral reference in-tree so future refactors can be
 # checked against the decompiled v5.6.0-xray.5 reconstruction rather than memory.
 for reference in (
@@ -263,6 +299,7 @@ for reference in (
     "recovery/legacy-src/com/fongmi/android/tv/xray/legacy/LegacyXraySettingsController.java",
     "recovery/legacy-src/com/fongmi/android/tv/xray/legacy/LegacyXrayProxySocketFactory.java",
     "recovery/legacy-src/com/fongmi/android/tv/xray/legacy/LegacyXrayGenerationGate.java",
+    "recovery/legacy-src/com/fongmi/android/tv/xray/legacy/LegacyXrayErrorSanitizer.java",
     "recovery/legacy-src/com/fongmi/android/tv/xray/legacy/LegacyPublicPlaybackDestinationInterceptor.java",
     "docs/apk-reference/shared/sources/p000/pz3.java",
     "docs/apk-reference/shared/sources/p000/nz3.java",
