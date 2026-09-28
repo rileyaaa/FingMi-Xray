@@ -67,6 +67,16 @@ public class VideoViewModel extends SiteViewModel implements VodDataSource {
         loadPlayback(request, TaskType.PRELOAD, preload);
     }
 
+    /**
+     * Released Xray behavior: cancel DETAIL, PLAYBACK and PRELOAD work before
+     * rebuilding the player onto a session SOCKS endpoint.
+     */
+    public void cancelXrayTransitionRequests() {
+        requestTasks.cancel(TaskType.DETAIL);
+        requestTasks.cancel(TaskType.PLAYBACK);
+        requestTasks.cancel(TaskType.PRELOAD);
+    }
+
     private void loadPlayback(VodPlayRequest request, TaskType type, MutableLiveData<PlaybackResult<VodPlayRequest>> output) {
         requestTasks.execute(
                 type,
