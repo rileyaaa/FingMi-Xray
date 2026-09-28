@@ -16,6 +16,7 @@
 - 最新 runs 列表确认 run 已完成后，才读取该 run 的 jobs / logs 核对实际成功步骤或失败原因。
 - 临时 `push` trigger 只允许用于必要验证；完整 run 入队后不得继续向 `main` 提交任何内容，也不得提前恢复 `workflow_dispatch`；必须等 Release 创建与校验完成后再恢复 manual-only，避免 default branch 与显式 Release target 的 workflow 树在发布前发生差异。对 publish workflow 必须使用两阶段 marker 触发：先用一个只修改 workflow 的 commit 临时增加 `push`，其自身触发的 run 必须被 marker source guard 立即拒绝；再用第二个只修改 `.github/.trigger-publish-current-main-test` 的 commit 真正触发完整构建。只有第二个 marker commit 可以作为 checkout / build / Release target。不得把直接修改 workflow YAML 的临时 arm commit 作为显式 Release target。验证结束还要确认 current-main 与 publish workflow 都是纯手动。
 - 如果当前自动化环境既没有 `workflow_dispatch` 调用能力，又明确阻止修改 workflow trigger，则不得通过强制移动 `main`、回退默认分支、复用旧自动 trigger commit 或其他方式绕过平台安全限制。保持仓库 pure manual-only，由用户在 GitHub Actions 页面使用 `Run workflow` 触发；AI 继续完成不依赖该触发动作的审计、文档、存储清理和后续结果核验。
+- GitHub Releases 只用于发布产物，不作为长期文件仓库。正常状态只保留 `v5.6.0-xray.5` 黄金参考和一个当前可上真机测试的版本；构建输入、recovery 材料、旧测试版和临时文件应改为项目内源码 / 脚本 / fixture / hash 或短期 Actions artifact。不得为了省事新建 build-input Release。
 
 ## 3. 会话接近平台时限时立即交接
 
