@@ -602,3 +602,17 @@ current-main 的 `XrayConfigFactory`、`LibXrayBridge.testLatency`、`XrayServic
 - 完成修正后的 full current-main build（Leanback + Mobile + assemble）。
 - 成功后删除 `.github/.trigger-current-main-build`，把 `current-main-build.yml` 恢复为纯 `workflow_dispatch`。
 - 对仍未做动态确认的部分继续以设备实测收口，重点是 KCP 节点在最终 converted outbound / streamSettings 层与旧 APK 的等价性；不在缺乏证据时修改已确认一致的公共 TEST/START 流程。
+
+
+### 2026-09-28 — 构建目标收敛为 Android TV / Leanback
+
+用户确认本项目只维护 Android TV 版本。后续本 fork 的 Xray 开发、CI、测试包与验收都以 `leanback` flavor 为目标，不再为了 Xray 维护去编译 `mobile` flavor。保留 TV 的两个 ABI 输出（armeabi-v7a / arm64-v8a）；其中 `v5.6.0-xray.5` 的 **armeabi-v7a 发布 APK** 是用户亲自长期测试并确认成熟的完整 Xray 行为黄金参考。
+
+同时进一步固定迁移原则：
+
+- **Xray 行为目标：100% 还原 `v5.6.0-xray.5` v7 发布 APK 的 Xray 行为**，包括但不限于分享链接兼容、协议配置、连接测试、START / STOP、Binder / Service、播放代理、切换、失败恢复、资源释放、内存/线程/socket/connection pool 清理及所有已发布边界行为。
+- **架构目标：不恢复旧 APK 的混合/混淆架构。** 当前独立 `:xray` 模块、清晰命名和 FongMi 5.6.3 宿主架构继续保留；旧 APK 只作为 Xray 行为与实现细节的黄金来源。
+- 如果当前重构实现与旧 v7 APK 的 Xray 行为不一致，优先恢复旧 APK 行为；只有 Android/FongMi 现接口导致无法逐字实现时，才做等价映射。
+- 当前 Android 12 runtime 兼容、LinkageError 隔离、generation/stale-callback 防护等不改变老包外部行为的安全改进可以保留。
+- TV 网络恢复模块与 Xray 独立，不因 Xray 还原而改动。
+- `current-main-build.yml` 与 `publish-current-main-test-release.yml` 已删除 Mobile javac / assemble，只构建 Android TV / Leanback；workflow 仍保持手动 `workflow_dispatch`。

@@ -147,17 +147,11 @@ jobs:
           chmod +x gradlew
           ./gradlew --no-daemon :app:compileLeanbackDebugJavaWithJavac --stacktrace --warning-mode all
 
-      - name: Compile current 5.6.3 mobile source
+      - name: Assemble Android TV debug APKs
         shell: bash
         run: |
           set -euo pipefail
-          ./gradlew --no-daemon :app:compileMobileDebugJavaWithJavac --stacktrace --warning-mode all
-
-      - name: Assemble debug APKs
-        shell: bash
-        run: |
-          set -euo pipefail
-          ./gradlew --no-daemon :app:assembleLeanbackDebug :app:assembleMobileDebug --stacktrace --warning-mode all
+          ./gradlew --no-daemon :app:assembleLeanbackDebug --stacktrace --warning-mode all
 
       - name: Record build inputs and outputs
         if: success()
@@ -169,7 +163,7 @@ jobs:
             java -version 2>&1 | head -n 1
             ./gradlew --version | sed -n '1,12p'
             echo "libass_candidate_sha256=$LIBASS_CANDIDATE_SHA256"
-            find app/build/outputs/apk -type f -name '*.apk' -print0 | sort -z | xargs -0 sha256sum
+            find app/build/outputs/apk/leanback -type f -name '*.apk' -print0 | sort -z | xargs -0 sha256sum
           } | tee build/work/current-main/BUILD_RESULT.txt
 
       - name: Upload current-main debug APKs
@@ -178,7 +172,7 @@ jobs:
         with:
           name: fingmi-xray-5.6.3-current-main-debug
           path: |
-            app/build/outputs/apk/**/*.apk
+            app/build/outputs/apk/leanback/**/*.apk
             build/work/current-main/BUILD_RESULT.txt
             build/reports/problems/problems-report.html
           if-no-files-found: error
@@ -238,7 +232,7 @@ jobs:
             echo
             printf -- "- APK 构建源码 commit：\`%s\`\n" "$GITHUB_SHA"
             printf -- "- APK 构建 Actions run：\`%s\`\n" "$GITHUB_RUN_ID"
-            echo "- 状态：Leanback / Mobile Debug javac 与 APK assemble 已通过"
+            echo "- 状态：Android TV / Leanback Debug javac 与 APK assemble 已通过"
             echo "- 本 Release 仅上传 Android TV / Leanback 两个 ABI，用于 MuMu / Android TV 回归"
             echo "- 包含 Android 12 / SDK 32 Java runtime compatibility 修复"
             echo "- 内置 FongMi 上游自更新已禁用，避免覆盖 Xray fork"
