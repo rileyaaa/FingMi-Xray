@@ -540,6 +540,7 @@ public class VideoActivity extends PlaybackActivity implements VodPlaybackHost, 
 
     @Override
     public void resetPlaybackForError(String msg) {
+        if (mXray != null) mXray.stop(false);
         PlaybackReset.afterError(player(), () -> mClock.setCallback(null));
         showError(msg);
     }
@@ -1477,6 +1478,12 @@ public class VideoActivity extends PlaybackActivity implements VodPlaybackHost, 
 
     @Override
     protected void onStop() {
+        boolean preservePlayback = !isFinishing()
+                && !PlayerSetting.isBackgroundOff()
+                && service() != null
+                && isOwner()
+                && player().hasPlaySpec();
+        if (mXray != null) mXray.stop(preservePlayback);
         super.onStop();
         saveHistory(false);
         if (PlayerSetting.isBackgroundOff()) mClock.stop();

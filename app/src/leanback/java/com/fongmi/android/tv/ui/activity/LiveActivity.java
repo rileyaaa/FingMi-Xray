@@ -852,6 +852,9 @@ public class LiveActivity extends PlaybackActivity implements GroupAdapter.OnCli
 
     @Override
     public void resetPlaybackForError(String msg) {
+        mWaitingXrayStart = false;
+        mHeldResult = null;
+        if (mXray != null) mXray.stop(false);
         PlaybackReset.afterError(player());
         showError(msg);
     }
@@ -1113,6 +1116,14 @@ public class LiveActivity extends PlaybackActivity implements GroupAdapter.OnCli
 
     @Override
     protected void onStop() {
+        boolean preservePlayback = !isFinishing()
+                && !PlayerSetting.isBackgroundOff()
+                && service() != null
+                && isOwner()
+                && player().hasPlaySpec();
+        mWaitingXrayStart = false;
+        mHeldResult = null;
+        if (mXray != null) mXray.stop(preservePlayback);
         super.onStop();
         if (PlayerSetting.isBackgroundOff()) mClock.stop();
     }
