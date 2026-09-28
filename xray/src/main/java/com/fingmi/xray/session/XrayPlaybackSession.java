@@ -49,12 +49,15 @@ public final class XrayPlaybackSession implements XraySessionListener, AutoClose
         stop(false);
     }
 
-    /** The first resolved URL belongs to this identity. A later different URL does not. */
+    /**
+     * A resolved URL change remains inside the current playback identity.
+     * The released APK only drops Xray at explicit VOD/Live identity boundaries;
+     * redirects, parser results and CDN changes continue through the same session.
+     */
     public void mediaUrlChanged(String url) {
         assertMain();
         if (closed || !playback.hasIdentity()) return;
-        if (playback.resolved(url)) stop(false);
-        if (service.isRunning() && !supports(url)) stop(false);
+        playback.resolved(url);
     }
 
     public boolean enable() {
@@ -133,7 +136,7 @@ public final class XrayPlaybackSession implements XraySessionListener, AutoClose
         assertMain();
         if (closed) return;
         if (state == RUNNING) {
-            if (!playback.hasIdentity() || !supports(playback.mediaUrl())) {
+            if (!playback.hasIdentity()) {
                 service.stop();
                 return;
             }

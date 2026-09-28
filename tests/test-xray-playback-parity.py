@@ -17,6 +17,24 @@ def require(path: str, *needles: str) -> None:
     if missing:
         raise SystemExit(f"{path}: missing Xray parity contract: {missing}")
 
+def forbid(path: str, *needles: str) -> None:
+    text = read(path)
+    present = [needle for needle in needles if needle in text]
+    if present:
+        raise SystemExit(f"{path}: released Xray parity forbids: {present}")
+
+
+require(
+    "xray/src/main/java/com/fingmi/xray/session/XrayPlaybackSession.java",
+    "playback.resolved(url);",
+    "if (!playback.hasIdentity())",
+)
+forbid(
+    "xray/src/main/java/com/fingmi/xray/session/XrayPlaybackSession.java",
+    "if (playback.resolved(url)) stop(false);",
+    "service.isRunning() && !supports(url)",
+    "!playback.hasIdentity() || !supports(playback.mediaUrl())",
+)
 
 require(
     "app/src/main/java/com/fongmi/android/tv/player/PlayerManager.java",

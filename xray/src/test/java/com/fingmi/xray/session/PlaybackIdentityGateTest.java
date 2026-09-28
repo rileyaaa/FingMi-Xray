@@ -30,13 +30,14 @@ public class PlaybackIdentityGateTest {
         assertFalse(gate.hasIdentity());
     }
 
-    @Test public void changedActualUrlInvalidatesSession() {
+    @Test public void changedActualUrlStaysInsidePlaybackIdentity() {
         PlaybackIdentityGate gate = new PlaybackIdentityGate();
         gate.begin("vod:episode-1");
         gate.resolved("https://media.example/a");
         long before = gate.generation();
         assertFalse(gate.resolved("https://media.example/a"));
         assertTrue(gate.resolved("https://media.example/b"));
-        assertTrue(gate.generation() > before);
+        assertEquals(before, gate.generation());
+        assertEquals("https://media.example/b", gate.mediaUrl());
     }
 }

@@ -18,13 +18,12 @@ public final class PlaybackIdentityGate {
         return true;
     }
 
-    /** Returns true when a previously resolved media URL changed. */
+    /** Returns true when the resolved URL changed without changing playback identity. */
     public boolean resolved(String next) {
         if (identity == null) return false;
-        boolean changed = !provisional && mediaUrl != null && !Objects.equals(mediaUrl, next);
+        boolean changed = mediaUrl != null && !Objects.equals(mediaUrl, next);
         mediaUrl = next;
         provisional = false;
-        if (changed) generation++;
         return changed;
     }
 
