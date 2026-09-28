@@ -79,7 +79,7 @@ require(
     "probeTlsCertificate(",
     "requestsInsecure(",
     "pins.get(identity)",
-    "pins.put(identity, observed)",
+    "pins.put(identity, normalizedObserved)",
 )
 
 require(
