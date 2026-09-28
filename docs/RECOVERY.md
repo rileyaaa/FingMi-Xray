@@ -2,7 +2,7 @@
 
 本文记录 `v5.6.0-xray.5` 的**历史证据对象、证据来源、faithful 源码结构、二进制来源和可重复恢复方法**。
 
-> **归档定位**：从 5.6.3 重构线开始，本文件不再定义当前 FingMi-Xray 的开发、功能回归或发布验收基线。当前 `main` 及其最新测试 / 正式构建才是现行基线。这里的 5.6.0 材料只用于历史取证、解释旧发布行为，以及追溯当前仍复用的部分 native 字节来源。
+> **定位**：当前 `main` 决定现行源码、模块架构、上游版本与发布构建；本文件固定 `v5.6.0-xray.5` 的历史事实、native provenance 和 Xray 黄金行为证据。current-main 不回退到旧 faithful 架构，但 Xray 外部行为应在已取证范围内与 v7 黄金参考等价。
 
 它不是开发日志，也不记录当前 main 的上游升级过程。当前工程见 [DEVELOPMENT.md](DEVELOPMENT.md)，AI 协作与非流水账文档维护规则见 [AI_COLLABORATION.md](AI_COLLABORATION.md)，原发布时的用户说明见 [ORIGINAL_README.md](ORIGINAL_README.md)。
 
@@ -33,7 +33,7 @@
 - Android ZIP SHA-256：`28b7dc9d6cc8455fcca5cbd56e387003a7bfb558128651a64899dc3a8ccff666`
 - 官方 `libXray.aar` SHA-256：`4708a361a74f7e955635dbe3661cefb459bdc867423c3b1826a2c5a6ea4ac77d`
 
-本归档中关于旧发布版的 faithful 结论都以这些固定输入为前提；这些固定输入不会自动成为当前 main 的行为或验收标准。
+本归档中的 faithful 结论都以这些固定输入为前提。v7 正式 APK 的 Xray 行为可作为 current parity 的黄金 oracle；旧版 FongMi 架构、混淆结构和 faithful APK 重建流程本身不是 current-main 的发布要求。
 
 ## 2. 证据优先级
 
@@ -50,27 +50,69 @@
 
 JADX 中出现不可能分支、R8 合并控制流或自相矛盾时，必须继续查 DEX、双 ABI 或发布 native 的实际运行结果。
 
-可直接进 Git 的反编译证据索引见 [apk-reference/README.md](apk-reference/README.md)。
+可直接进入 Git 的反编译证据保存在 `docs/apk-reference/`，其目录结构、映射和使用规则统一记录在本文后续“APK 文本证据索引”章节。
 
-## 3. faithful 源码结构
+## 3. recovery 与 faithful 材料结构
 
-发布版可读恢复源码集中在 `recovery/legacy-src/`：
+`recovery/` 是发布旧版本的历史取证区，不是 current-main 的源码树：
 
-- `upstream/`：在固定 FongMi 5.6.0 上游之上的发布版覆盖；
-- `com/fongmi/android/tv/xray/`：发布版 Xray Service；
-- `com/fongmi/android/tv/xray/legacy/`：可读的会话、网络、设置与安全 helper；
-- `aidl/`：发布版 Binder contract；
-- `recovery/legacy-tests/`：faithful 源码与恢复工具测试。
+- `legacy-src/`：`v5.6.0-xray.5` faithful 可读恢复源码；其中 `upstream/` 是固定 FongMi 5.6.0 overlay，`com/fongmi/android/tv/xray/` 与 `legacy/` 保存 Service、会话、网络、设置和安全 helper，`aidl/` 保存发布 Binder contract；
+- `legacy-tests/`：faithful 恢复工具和源码测试；
+- `libxray/`：发布版 libXray / Go JNI 的可读行为重建补丁；
+- `native-tests/`：发布 JNI 的固定 native fixture、QEMU/Bionic harness 输入与 chain oracle；
+- `node-dns-tests/`：固定 Xray-core DNS / IPv6 dial 行为证据；
+- `v2rayn-tests/`：旧发布版分享链接兼容 fixture。
 
-`scripts/recovery/prepare-legacy-faithful.sh` 负责从固定上游组装临时 faithful tree，避免把完整上游副本永久复制进仓库。
+`scripts/recovery/prepare-legacy-faithful.sh` 从固定上游组装临时 faithful tree，避免把完整上游副本永久复制进仓库。`recovery/work/` 与 `recovery/evidence/` 是 workflow / 本地临时目录，由 `.gitignore` 排除，不属于固定证据。
 
-faithful 源码的职责是解释发布版行为；当前 `:xray` 模块则是面向后续维护的重构实现，两者不能混为一套源码。
+当前直接参与构建的 Media3 / Libass compatibility 已迁到 `compat/`；current 源码回归入口在 `tests/`。faithful 源码负责解释发布行为，current `:xray` 负责可维护实现，两者不能混成一套源码。
 
-## 4. 历史发布版行为记录
+## 4. APK 文本证据索引
+
+`docs/apk-reference/` 只保存适合进入 Git、且对长期复核有价值的最小文本证据；原始 APK、完整 DEX、AAR、SO 和完整 JADX 输出不进入普通 Git 历史，需要时由手动 recovery workflow 重新生成。
+
+主要材料：
+
+- `shared/sources/`：从 v7 / arm64 完整 JADX 中筛出的 Xray、播放器接线、设置、安全和 TV 网络恢复相关 Java 文本。selected source 共 64 个，其中 63 个两 ABI 逐字节一致；唯一差异 `p000/ip0.java` 是 R8 生成的 EventBus subscriber index，注册内容相同、生成顺序不同；
+- `shared/AndroidManifest.xml`：两 ABI 一致的 Manifest 文本；
+- `shared/dex-sha256.txt`：APK 内 DEX SHA-256；
+- `shared/apk-diff.txt`：两正式 APK ZIP entry 级差异；
+- `shared/source-parity.txt`：selected source 的双 ABI 对照；
+- `native-share-symbols.json`：发布 libXray Go JNI 中 share conversion / Invoke 相关 symbol、源码行和地址索引。
+
+常用 R8 / JADX 导航：
+
+| R8 / JADX | 责任 | readable reference |
+| --- | --- | --- |
+| `yz3` | playback session / generation / timeout | `LegacyXraySessionController` |
+| `hz3` | Service bind / Binder death | `LegacyXrayServiceClient` |
+| `rz3` | operation result | `LegacyXrayOperationResult` |
+| `lz3` | operation id | `LegacyXrayOperationIds` |
+| `pz3` | SOCKS OkHttp resources | `LegacyXrayHttpResources` |
+| `oz3` | RTSP SOCKS SocketFactory | `LegacyXrayProxySocketFactory` |
+| `qz3` | public destination guard | `LegacyPublicPlaybackDestinationInterceptor` |
+| `lu2` | encrypted share-link store | `LegacyXrayConfigStore` |
+| `a04` | share-link normalize / display helper | `LegacyXrayShareLinkNormalizer` / `LegacyXrayDisplay` |
+| `kz3` | error redaction | `LegacyXrayErrorSanitizer` |
+| `uz3` | IXrayService Binder | recovered `XrayService` |
+| `th2` | PlayerManager / proxy transition | faithful `PlayerManager` |
+| `nq0` | Exo MediaSource factory | faithful `ExoMediaSourceFactory` |
+| `or2` | Xray scheme guard DataSource | `LegacyXraySchemeGuardDataSource` |
+
+使用证据时：
+
+1. 先核正式 APK SHA-256；
+2. 查 Java 结构优先从 selected source 定位；
+3. JADX 控制流明显不可信时，不自行“修合理”，继续查 DEX、双 ABI或发布 native 的实际行为；
+4. R8 短类名只作为发布 APK 导航，不进入 current API 设计；
+5. 不直接复制未经核对的 JADX 作为维护源码；
+6. 只把长期可复核的最小文本材料提交到 Git；调试日志和一次性中间文件留在 artifact / 工作目录。
+
+## 5. 历史发布版行为记录
 
 ### Service 与会话
 
-以下内容只描述 `v5.6.0-xray.5` 当时的发布行为，用于历史复核；当前模块化实现以当前 `main` 为准。
+以下内容描述 `v5.6.0-xray.5` 的已取证发布行为。current-main 保留模块化实现，但涉及同一 Xray 外部语义时以这些证据作为 parity 参考。
 
 发布版使用独立 `:xray` 私有进程。
 
@@ -160,7 +202,7 @@ Live 的会话边界包括切频道、换线路 / 源、直播配置变化和播
 
 这一能力在重构后仍属于 `:app` / `:catvod`，不属于 `:xray`。
 
-## 5. 播放器与 FFmpeg JNI
+## 6. 播放器与 FFmpeg JNI
 
 固定 Media3 player candidate 来源：
 
@@ -188,7 +230,7 @@ Live 的会话边界包括切频道、换线路 / 源、直播配置变化和播
 - `scripts/recovery/check-player-ffmpegjni-against-published.py`
 - `scripts/recovery/check-player-java-api.py`
 
-## 6. libXray / Go JNI
+## 7. libXray / Go JNI
 
 正式 APK 中的 Go JNI：
 
@@ -219,7 +261,7 @@ Live 的会话边界包括切频道、换线路 / 源、直播配置变化和播
 - `scripts/recovery/restore-published-libxrayjni.py`
 - `scripts/recovery/check-libxray-gojni.py`
 
-## 7. native 可读重建
+## 8. native 可读重建
 
 仓库还保存了依据正式发布 native 行为重建的可读补丁：
 
@@ -240,9 +282,9 @@ Live 的会话边界包括切频道、换线路 / 源、直播配置变化和播
 - `tests/test-v2rayn-share-chain.py`
 - `tests/test-v2rayn-reference-chain.py`
 
-发布 JNI 已建立 converter、API v2、lifecycle、TLS / HY2 probe、age、v2rayN-shaped 输入、IPv6 / DNS dial 等定向执行证据。历史 faithful 重建使用发布 JNI 字节，不用这些可读重建产物冒充原始二进制。当前 main 可以继续复用经固定 SHA 校验的 native 字节作为构建输入，但不再以 faithful APK 是否可重建作为发布验收条件。
+发布 JNI 已建立 converter、API v2、lifecycle、TLS / HY2 probe、age、v2rayN-shaped 输入、IPv6 / DNS dial 等定向执行证据。faithful 重建使用发布 JNI 字节，不用可读重建补丁冒充原始 Go 源码。current-main 继续复用固定 SHA 的 native 字节，并用双 ABI current-chain 动态 parity 将 current Java 配置链与 v7 黄金 oracle 对齐；faithful APK 能否重新 assemble 仍不是 current 发布条件。
 
-## 8. 归档 faithful 构建工具（非当前验收链）
+## 9. 归档 faithful 构建工具（非 current 构建链）
 
 这一节保留的是历史重建工具。它们只在需要复核旧发布版、重新提取历史 native 来源或研究旧行为时使用；正常 current-main 开发和发布**不要求执行本节流程**。
 
@@ -294,7 +336,7 @@ GitHub Actions 对应两段手动流程：
 
 这些 workflow 只允许手动 `workflow_dispatch`，并视为历史归档工具。它们的成功或失败不再决定当前 5.6.3+ 架构能否发布；current-main 的构建、源码 guard、当前回归与 Android 运行测试才决定当前版本验收。
 
-## 9. 历史证据复核原则
+## 10. 历史证据与 current parity 原则
 
 需要复核历史恢复材料时，必须区分：
 
@@ -307,4 +349,4 @@ GitHub Actions 对应两段手动流程：
 
 较低级别证据只能证明对应层级，不能替代更高层级验证。
 
-如果未来出现新的历史 APK 证据改变既有结论，应先修改 recovery 代码和对应历史测试，再更新本文。反过来，当前重构实现也不需要为了满足旧 faithful parity 而回退；当前产品行为和发布验收以当前 `main`、当前测试与当前设备回归为准。
+如果未来出现新的 APK / DEX / native 证据改变既有结论，应先修正 recovery reference / fixture，再更新 current parity 测试与本文。current 重构实现不需要回退旧 faithful 架构，但凡已经确认属于 v7 Xray 外部行为的语义，应在当前模块中恢复或做等价映射。最终仍需用 current 测试、构建和 Android TV 设备回归确认真实运行。

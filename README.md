@@ -8,7 +8,7 @@ FingMi-Xray 将 Xray 集成到播放器内部。遇到这类内容时，可以�
 
 ## 项目版本
 
-当前 `main` 基于 FongMi/TV 5.6.3。**从 5.6.3 重构线开始，当前 `main` 以及由它构建出的最新 FingMi-Xray 测试版 / 正式版，是唯一的开发与验收基线。** `v5.6.0-xray.5` 只保留为历史发布证据和当前部分 native 二进制的来源记录，不再要求以 faithful 重建、旧 APK 行为对照或旧版本 cloud build 作为当前版本的最终验收条件。
+当前 `main` 基于 FongMi/TV 5.6.3。**当前 `main` 是架构、源码和发布构建基线；`v5.6.0-xray.5` armeabi-v7a 正式 APK 是 Xray 外部行为的黄金参考。** 后续维护保留当前模块化 `:xray` 架构，但节点解析、VALIDATE / TEST / START / STOP、Binder / Service、播放代理、切换、失败恢复和资源释放等 Xray 行为应与黄金参考保持等价。历史 faithful APK 重建本身不是 current-main 发布前置条件。
 
 主要组件版本如下：
 
@@ -32,7 +32,7 @@ FingMi-Xray 将 Xray 集成到播放器内部。遇到这类内容时，可以�
 | Glide | **5.0.9** |
 | Material Components | **1.14.0** |
 
-当前播放器 AAR 统一来自固定的 FongMi/media 1.11.0 候选。MPV、FFmpeg 等 native 组件没有在当前工程中维护独立、可直接声明的 semver，因此不另外虚构版本号；当前构建规则见 [DEVELOPMENT.md](docs/DEVELOPMENT.md)，历史二进制来源证据见 [RECOVERY.md](docs/RECOVERY.md)。历史来源不等于当前验收基线。
+当前播放器 AAR 统一来自固定的 FongMi/media 1.11.0 候选。MPV、FFmpeg 等 native 组件没有在当前工程中维护独立、可直接声明的 semver，因此不另外虚构版本号；当前构建规则见 [DEVELOPMENT.md](docs/DEVELOPMENT.md)，历史二进制来源和 v7 Xray 黄金行为证据见 [RECOVERY.md](docs/RECOVERY.md)。
 
 ### 构建环境
 
@@ -126,8 +126,9 @@ FingMi-Xray 将 Xray 集成到播放器内部。遇到这类内容时，可以�
 - `:app`：FongMi 的 VOD / Live 播放身份、播放器与 UI 接线；
 - `:catvod`：普通业务网络、DNS / DoH 与 Spider；
 - `compat/`：当前 5.6.3 构建仍需维护的媒体兼容源码与补丁；
-- `recovery/`：历史发布版恢复、反编译验证、native / 节点兼容行为证据归档；这些材料不再作为当前版本验收基线；
-- `tests/`：当前源码回归测试入口与测试 fixture。
+- `recovery/`：历史发布版 faithful 恢复、native 动态 fixture 与节点兼容证据；其中经固定 SHA 验证的 v7 行为证据用于约束 current Xray parity；
+- `docs/apk-reference/`：正式 APK 的最小可复核 JADX / Manifest / DEX 文本证据；
+- `tests/`：current-main 的源码 guard、JVM lifecycle、native chain parity 与测试 fixture。
 
 这样做的目的，是让项目自己的能力尽量集中在稳定边界内，减少后续跟随 FongMi/TV 上游升级时的侵入式修改。
 
@@ -136,9 +137,8 @@ FingMi-Xray 将 Xray 集成到播放器内部。遇到这类内容时，可以�
 - [PROJECT.md](docs/PROJECT.md)：项目设计、职责边界与长期架构约束。
 - [DEVELOPMENT.md](docs/DEVELOPMENT.md)：当前源码结构、构建方式、上游同步和开发维护说明。
 - [AI_COLLABORATION.md](docs/AI_COLLABORATION.md)：AI 与用户共同开发时的执行限制、CI 查询、交接和非流水账文档维护准则。
-- [RECOVERY.md](docs/RECOVERY.md)：`v5.6.0-xray.5` 的历史源码恢复、二进制来源与可复核证据归档；不作为当前版本验收基线。
-- [apk-reference](docs/apk-reference/README.md)：正式 APK 反编译文本证据索引。
-- [ORIGINAL_README.md](docs/ORIGINAL_README.md)：冻结保存的原 `v5.6.0-xray.5` 发布说明。
+- [RECOVERY.md](docs/RECOVERY.md)：`v5.6.0-xray.5` 的 faithful 恢复、APK/JADX/DEX/native 证据、二进制 provenance 与 Xray 黄金行为索引。
+- [ORIGINAL_README.md](docs/ORIGINAL_README.md)：冻结保存的原 `v5.6.0-xray.5` 发布说明，不随 current-main 改写。
 
 ## 说明
 

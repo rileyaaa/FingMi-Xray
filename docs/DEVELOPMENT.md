@@ -2,7 +2,7 @@
 
 本文面向继续维护当前 `main` 的开发者，说明**当前工程基线、模块接线、构建依赖、上游同步方式和验证规则**。
 
-长期架构边界见 [PROJECT.md](PROJECT.md)。`v5.6.0-xray.5` 的恢复材料见 [RECOVERY.md](RECOVERY.md)，但它现在只承担历史证据和部分 native 二进制来源说明，不再是当前工程的验收基线。
+长期架构边界见 [PROJECT.md](PROJECT.md)。`v5.6.0-xray.5` 的恢复、native provenance 与 v7 Xray 黄金行为证据见 [RECOVERY.md](RECOVERY.md)。当前 `main` 负责架构与构建，v7 黄金参考负责约束 Xray 外部行为；两者不能混为旧 faithful 架构重建。
 
 ## 1. 当前工程基线
 
@@ -17,7 +17,7 @@
 - `compileSdk` / `targetSdk`：37
 - `minSdk`：24
 
-当前 `main` 是现行产品与后续开发的基线。**从 5.6.3 重构线起，当前 `main` 及其最新测试 / 正式构建是唯一的功能回归和发布验收基线。** `recovery/legacy-src/` 只保留 5.6.0 faithful 历史恢复；正常开发、测试和发布不再要求运行 faithful build、对齐旧 APK 行为或等待旧版本独立 cloud build 验收。
+当前 `main` 是现行源码、架构、上游同步和发布构建基线。Xray 外部行为则以用户长期验证稳定的 `v5.6.0-xray.5` armeabi-v7a 正式 APK 为黄金参考，并由 readable reference、source guard、JVM lifecycle test 与真实发布 native 动态 parity 映射到当前模块。正常发布不要求重新构建旧 faithful APK。
 
 ### 维护范围
 
@@ -224,6 +224,8 @@ FongMi/TV 5.6.3 对 Media3 / MPV 的调用面与当前固定的部分播放器�
 
 当前 compatibility 构建脚本集中在 `scripts/build/`，历史来源提取工具集中在 `scripts/recovery/`，当前源码回归入口位于 `tests/`。修改任何二进制来源或 hash 时，必须同步修改对应验证脚本 / workflow，不能只把一个新 AAR 丢进 `app/libs`。
 
+`compat/` 是 current-main 的构建输入，不是历史 recovery：`compat/media3-libass/src/` 保存实现，`patches/` 保存固定 Media3 extractor / subtitle 所需补丁，`tests/` 与 `media-tests/` 保存 compatibility 契约、JNI 和 SecondaryText 等媒体 fixture。其行为由 current-main 测试约束，不要求逐字复刻 v5.6.0 的媒体实现。
+
 ## 7. 构建
 
 ### GitHub Actions
@@ -273,6 +275,12 @@ AI 与用户共同开发时的固定操作限制独立维护在 [AI_COLLABORATIO
 - `tests/test-xray-normalizer-parity.py`：把 current share-link normalizer 与 display helper 对发布版 readable reference 做纯 JVM differential parity；
 - `tests/test-upstream-update-disabled.py`：防止 FongMi 上游自更新入口、直接 release endpoint 调用或 APK 安装权限重新进入当前 fork；
 - `tests/test-build-hygiene.py`：防止错误 XLIFF namespace、非 positional 多参数 string、废弃 ABI API 和仍基于 Node 20 的旧 Actions major 再进入构建。
+
+`tests/` 是 current-main 的统一回归入口，不再另维护目录 README。除上述 workflow guard 外：
+
+- `tests/test-current-native-share-chain.py` + `tests/xray-current-chain/`：执行 current Java normalize/security/config 链，并分别调用固定 v7 / arm64 发布 `libgojni.so`，对 26 组 conversion/runtime oracle 与发布版 `testXray` 做动态 parity；其中 6 组覆盖 KCP golden cases。
+- `tests/xray-session/`：Android / Binder / Handler 等 deterministic test doubles，只替代平台边界，真实编译 session / settings controller。
+- recovery 专用 fixture 继续留在 `recovery/*-tests/`；只有 current workflow 显式调用的冻结 oracle 才进入 current 验收链。
 
 ### 应用内更新策略
 
@@ -372,4 +380,24 @@ FingMi-Xray 当前**不使用 FongMi/Release 的应用内自更新**。原因是
 - Spider 重建；
 - DLNA renderer 生命周期。
 
-静态比较、单元测试、Gradle 编译、APK assemble 与真机运行是不同层级的证据，提交说明和文档必须准确写明实际验证到了哪一层。AI 协作时的文档更新与记录边界见 [AI_COLLABORATION.md](AI_COLLABORATION.md)。
+静态比较、单元/JVM 测试、发布 native 动态 parity、Gradle 编译、APK assemble、模拟器与 Android TV 真机运行是不同层级的证据，提交说明和文档必须准确写明实际验证到了哪一层。AI 协作时的文档更新与记录边界见 [AI_COLLABORATION.md](AI_COLLABORATION.md)。
+
+## 10. 维护记录
+
+本节允许按日期、版本或里程碑持续维护，但只记录**会长期影响后续开发判断**的故障结论、迁移决策和验证基线；单次失败尝试、临时 trigger、普通 commit / run 流水不在这里展开。
+
+### 2026-09-27 — libXray Java/native ABI 必须成套恢复
+
+`v5.6.3-xray.test.3` 暴露出官方 v26.7.28 Java bindings 与历史 API v2 `libgojni.so` 混搭会在 JNI 初始化阶段查找缺失模型类并杀死 `:xray` 进程。current-main 因此固定使用 `scripts/build/build-published-libxray-aar.py`：从固定发布 APK 恢复匹配的 `libXray/**` API v2 bindings 与 v7 / arm64 JNI，同时保留官方 AAR 中未经过 App R8 混淆的通用 `go/**` runtime。后续升级 libXray 必须整套替换 Java bindings + JNI，不能只换其中一侧。
+
+### 2026-09-28 — Xray 行为黄金参考与 TV-only 验收确定
+
+后续 Xray 维护采用“**current 模块化架构 + v5.6.0-xray.5 v7 外部行为黄金参考**”。项目只维护 Android TV / Leanback，输出 armeabi-v7a 与 arm64-v8a；Mobile 不再是本 fork 的 Xray 构建目标。已恢复并自动锁定 session STOP/timeout/callback、Settings RESET_SECURITY、Binder client generation、播放代理/旁路/资源释放、normalizer/display 等发布语义。
+
+### 2026-09-28 — 双 ABI current-chain 动态 parity 建立
+
+current Java 的 normalize → transport security → runtime config 链会分别交给固定 SHA 的 v7 / arm64 发布 `libgojni.so`，并以 v7 冻结 oracle 比对 conversion 与 runtime `testXray`。固定链覆盖 26 组分享链接，其中 6 组为 KCP golden cases。该验证证明的是 Java/native 组合在这些冻结输入上的动态等价；它不替代 Android TV 真机上的 ART、Binder、播放器和真实网络生命周期回归。
+
+### 2026-09-28 — 文档体系收敛
+
+长期项目文档收敛为 README、PROJECT、DEVELOPMENT、AI_COLLABORATION、RECOVERY 和冻结 ORIGINAL_README 六份。tests / compat 的维护说明归入本文，recovery / apk-reference 的说明归入 RECOVERY；目录内不再重复维护 README。开发记录允许保留精选的日期/版本里程碑，但不把 Git / Actions 过程复制成流水账。

@@ -2,7 +2,7 @@
 
 本文定义 FingMi-Xray 的**产品边界、模块职责和长期架构约束**。
 
-它不记录构建结果、恢复进度、Actions run、发布状态或调试过程。当前工程维护与验收规则见 [DEVELOPMENT.md](DEVELOPMENT.md)；AI 协作与文档记录边界见 [AI_COLLABORATION.md](AI_COLLABORATION.md)；[RECOVERY.md](RECOVERY.md) 只保存旧发布版的历史恢复与二进制来源证据，不作为当前版本验收基线。
+它不记录构建结果、Actions run、发布状态或调试过程。当前工程维护与验收规则见 [DEVELOPMENT.md](DEVELOPMENT.md)；AI 协作与文档记录边界见 [AI_COLLABORATION.md](AI_COLLABORATION.md)；[RECOVERY.md](RECOVERY.md) 保存旧发布版的恢复、二进制 provenance 与 Xray 黄金行为证据。
 
 ## 1. 项目为什么存在
 
@@ -93,7 +93,7 @@ Xray 是**当前播放会话的可选网络通道**，不是设备级代理。
 
 `:libxray` 只提供 Android AAR 依赖入口，让 `:xray` 不需要把大型二进制直接塞进业务源码。
 
-二进制来源与校验规则属于构建流程，不属于业务模块职责。历史 APK 可以作为当前部分 native 字节的来源证据，但不能反过来充当当前架构的行为或验收基线。
+二进制来源与校验规则属于构建流程，不属于业务模块职责。历史 APK 可以同时承担当前部分 native 字节的 provenance 和 Xray 行为黄金证据，但不能反过来要求 current-main 恢复旧版混合架构。
 
 ### `:app`
 
@@ -176,7 +176,7 @@ FingMi-Xray 不允许应用内从 FongMi/Release 下载并安装上游 APK。上
 - Manifest 不申请 `REQUEST_INSTALL_PACKAGES`；
 - 测试包和正式包只由本仓库明确构建、发布并由用户主动安装。
 
-从 5.6.3 重构线开始，**当前 `main` 和由当前架构生成的最新 FingMi-Xray 包是开发、回归和发布验收的基线**。旧 `v5.6.0-xray.5` 仅是历史证据 / 二进制来源档案，不要求再通过 faithful build、旧 APK 行为 parity 或旧版本 cloud build 才能接受当前版本。
+从 5.6.3 重构线开始，**当前 `main` 是源码、架构、构建和发布基线；`v5.6.0-xray.5` v7 正式 APK 是 Xray 外部行为黄金参考。** current-main 不要求重新通过 faithful APK 重建才能发布，但涉及 Xray 行为的修改必须通过冻结证据、自动 parity 或真机证据证明没有无意偏离。
 
 ## 9. 上游升级原则
 
@@ -191,7 +191,7 @@ FingMi-Xray 应尽可能继续跟随 FongMi/TV，而不是复制整个上游长�
 5. 不主动修改与两大模块无关的播放器效果、设置、页面交互、业务模型或通用工具；
 6. 媒体二进制或 API 不匹配时，只允许使用明确、最小的 compatibility adapter 让当前上游代码可构建，不把 adapter 演变成第三套业务实现；
 7. 低版本兼容补丁只处理项目新增/接线代码中的已证实问题；上游原样代码默认保留上游写法；
-8. 历史发布版证据与当前工程重构分开保存；历史证据可以解释来源，但不能作为当前 main 的行为定义或发布阻断条件；
+8. 历史发布版证据与当前工程重构分开保存；v7 证据用于定义 Xray 外部行为黄金参考，但不定义 current-main 的源码组织、上游版本或混合架构；
 
 ## 10. 仓库中各类材料的定位
 
@@ -203,10 +203,10 @@ FingMi-Xray 应尽可能继续跟随 FongMi/TV，而不是复制整个上游长�
 | `catvod/` | FongMi 普通网络与 Spider 基础 |
 | `compat/media3-libass/` | 当前 5.6.3 构建使用的 Media3 / Libass compatibility 源码与补丁 |
 | `recovery/legacy-src/` | `v5.6.0-xray.5` 历史 faithful 恢复源码，仅用于归档与来源复核 |
-| `recovery/legacy-tests/`、`recovery/native-tests/`、`recovery/node-dns-tests/`、`recovery/v2rayn-tests/` | 历史发布版 faithful / native / 节点行为证据与 fixture，不属于当前发布验收矩阵 |
+| `recovery/legacy-tests/`、`recovery/native-tests/`、`recovery/node-dns-tests/`、`recovery/v2rayn-tests/` | 发布版 faithful / native / 节点行为证据与 fixture；其中冻结 oracle 可被 current parity 测试直接使用 |
 | `tests/` | 当前源码回归测试入口与测试 fixture |
 | `docs/apk-reference/` | 可直接进 Git 的反编译文本证据 |
 | `scripts/build/` | 当前依赖与 compatibility 构建工具 |
 | `scripts/recovery/` | 历史 faithful / native 恢复与来源提取工具 |
 
-当前工程代码与历史 faithful 恢复代码是两种不同用途的材料。当前 `main` 决定现行产品行为与验收标准；历史恢复材料只用于回答“旧发布版当时是什么行为、当前某些二进制从哪里来”，不会再要求当前版本回到旧行为。
+当前工程代码与历史 faithful 恢复代码是两种不同用途的材料。当前 `main` 决定现行架构与实现；历史 v7 证据回答“发布版 Xray 的外部行为是什么、当前复用二进制从哪里来”。目标是把黄金行为映射到当前模块化架构，而不是把 current-main 回退成旧源码结构。
