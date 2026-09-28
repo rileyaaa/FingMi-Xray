@@ -16,8 +16,12 @@ from copy import copy
 import hashlib
 from io import BytesIO
 from pathlib import Path
-import runpy
+import sys
 from zipfile import ZipFile
+
+BUILD_DIR = Path(__file__).resolve().parents[1] / "build"
+sys.path.insert(0, str(BUILD_DIR))
+from player_candidate import read_verified_candidate  # noqa: E402
 
 
 SCRIPT_DIR = Path(__file__).resolve().parent
@@ -27,9 +31,6 @@ V7_APK_SHA256 = runpy.run_path(str(SCRIPT_DIR / "extract-v7-player-native.py"))[
 V8_APK_SHA256 = "b5ac05193c1e19809fc7ffb3048f7d75aaa2124eace9953d669f4a81a477c21d"
 V7_JADX_SHA256 = "7aab8c3419717516167eba7cf6a6f320df894b9ef554761c0cfc98d90c580e8d"
 V8_JADX_SHA256 = "8d6e2a335a442b9bc2e53f12ec7ab646ebef51df69ae8c54674d25f37035056b"
-CANDIDATE_SHA256 = runpy.run_path(str(SCRIPT_DIR.parent / "build" / "import-player-aar-candidate.py"))[
-    "ARTIFACT_SHA256"
-]
 JNI_SHA256 = {
     "armeabi-v7a": "3af1fcaa21f28071994fc51936889e2441edec57d5009e7a4043bf9f06435d42",
     "arm64-v8a": "26594d573765fc86a3d242c81e11369ced639d76cb4465cdf4b31a7c2d9da91c",
@@ -117,12 +118,8 @@ def main() -> None:
                 V8_APK_SHA256,
                 V8_JADX_SHA256),
         }
-        if digest(args.candidate.read_bytes()) != CANDIDATE_SHA256:
-            raise ValueError("candidate artifact SHA-256 differs from verified AC run")
-        with ZipFile(args.candidate) as outer:
-            if outer.namelist().count(NAME) != 1:
-                raise ValueError(f"candidate artifact must contain exactly one {NAME}")
-            aar_bytes = outer.read(NAME)
+        payload = read_verified_candidate(args.candidate)
+        aar_bytes = payload[NAME]
         with ZipFile(BytesIO(aar_bytes)) as source:
             names = source.namelist()
             if len(names) != len(set(names)):
