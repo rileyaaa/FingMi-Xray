@@ -10,6 +10,7 @@ on:
 
 permissions:
   contents: read
+  actions: read
 
 jobs:
   analyze:
@@ -36,11 +37,14 @@ jobs:
 
       - name: Download and verify published APKs
         shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
           mkdir -p recovery/work/apk
-          curl -fL --retry 3 --retry-delay 2 "$V7_APK_URL" -o recovery/work/apk/fingmi-v7.apk
-          curl -fL --retry 3 --retry-delay 2 "$V8_APK_URL" -o recovery/work/apk/fingmi-v8.apk
+          gh release download v5.6.0-xray.5             --repo rileyaaa/FingMi-Xray             --pattern 'FongMi-Xray-TV-v5.6.0-xray.5-armeabi-v7a.apk'             --pattern 'FongMi-Xray-TV-v5.6.0-xray.5-arm64-v8a.apk'             --dir recovery/work/apk
+          mv recovery/work/apk/FongMi-Xray-TV-v5.6.0-xray.5-armeabi-v7a.apk recovery/work/apk/fingmi-v7.apk
+          mv recovery/work/apk/FongMi-Xray-TV-v5.6.0-xray.5-arm64-v8a.apk recovery/work/apk/fingmi-v8.apk
           echo "$V7_APK_SHA256  recovery/work/apk/fingmi-v7.apk" | sha256sum -c -
           echo "$V8_APK_SHA256  recovery/work/apk/fingmi-v8.apk" | sha256sum -c -
 
