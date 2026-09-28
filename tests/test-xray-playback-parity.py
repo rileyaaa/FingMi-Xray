@@ -140,4 +140,34 @@ require(
     "XrayOperationIds.next()",
 )
 
+
+require(
+    "app/src/main/java/com/fongmi/android/tv/api/LiveApi.java",
+    "METADATA_TAG",
+    "Thread.currentThread().isInterrupted()",
+    "EpgParser.start(item, url, client, METADATA_TAG)",
+    "OkHttp.newCall(actual, url, METADATA_TAG)",
+)
+
+require(
+    "app/src/main/java/com/fongmi/android/tv/api/parser/EpgParser.java",
+    "OkHttpClient client, String tag",
+    "Download.create(url, file).tag(",
+)
+
+require(
+    "app/src/leanback/java/com/fongmi/android/tv/ui/adapter/ChannelAdapter.java",
+    "mRecyclerView",
+    "setImageDrawable(null)",
+    "onAttachedToRecyclerView",
+    "onDetachedFromRecyclerView",
+)
+
+require(
+    "app/src/leanback/java/com/fongmi/android/tv/ui/activity/LiveActivity.java",
+    "cancelXrayMetadataRequests()",
+    "OkHttp.cancel(normal, LiveApi.METADATA_TAG)",
+    "player().getPlaybackHttpClient(normal)",
+)
+
 print("Xray playback parity guards passed")
