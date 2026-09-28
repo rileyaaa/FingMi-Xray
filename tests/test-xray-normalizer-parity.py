@@ -7,10 +7,13 @@ import tempfile
 ROOT = Path(__file__).resolve().parents[1]
 CURRENT = ROOT / "xray/src/main/java/com/fingmi/xray/config/XrayShareLinkNormalizer.java"
 LEGACY = ROOT / "recovery/legacy-src/com/fongmi/android/tv/xray/legacy/LegacyXrayShareLinkNormalizer.java"
+CURRENT_DISPLAY = ROOT / "xray/src/main/java/com/fingmi/xray/config/XrayDisplay.java"
+LEGACY_DISPLAY = ROOT / "recovery/legacy-src/com/fongmi/android/tv/xray/legacy/LegacyXrayDisplay.java"
 
 HARNESS = r"""
 package com.fingmi.xray.config;
 
+import com.fongmi.android.tv.xray.legacy.LegacyXrayDisplay;
 import com.fongmi.android.tv.xray.legacy.LegacyXrayShareLinkNormalizer;
 
 import java.nio.charset.StandardCharsets;
@@ -41,6 +44,21 @@ public final class ShareLinkNormalizerParityTest {
     private static void same(String id, String input) {
         Outcome released = capture(LegacyXrayShareLinkNormalizer::normalize, input);
         Outcome current = capture(XrayShareLinkNormalizer::normalize, input);
+        if (!Objects.equals(released, current)) {
+            throw new AssertionError(
+                    id
+                            + "\ninput="
+                            + input
+                            + "\nreleased="
+                            + released
+                            + "\ncurrent="
+                            + current);
+        }
+    }
+
+    private static void sameDisplay(String id, String input) {
+        Outcome released = capture(LegacyXrayDisplay::describe, input);
+        Outcome current = capture(XrayDisplay::describe, input);
         if (!Objects.equals(released, current)) {
             throw new AssertionError(
                     id
@@ -221,10 +239,26 @@ public final class ShareLinkNormalizerParityTest {
             same("differential-" + index++, input);
         }
 
+        List<String> displayInputs = List.of(
+                "",
+                "vless://id@example.com:443",
+                "trojan://pw@ab:443?security=tls",
+                "vless://id@localhost:443",
+                "vmess://opaque-payload",
+                "relative-value",
+                "http://[2001:4860:4860::8888]:8443/path",
+                "%%%invalid-uri%%%");
+        index = 0;
+        for (String input : displayInputs) {
+            sameDisplay("display-" + index++, input);
+        }
+
         System.out.println(
-                "PASS current normalizer: "
+                "PASS current config text parity: "
                         + differential.size()
-                        + " differential boundaries + released exact cases");
+                        + " normalizer boundaries + "
+                        + displayInputs.size()
+                        + " display boundaries + released exact cases");
     }
 }
 """
@@ -246,6 +280,8 @@ with tempfile.TemporaryDirectory(prefix="xray-normalizer-parity-") as directory:
             str(classes),
             str(CURRENT),
             str(LEGACY),
+            str(CURRENT_DISPLAY),
+            str(LEGACY_DISPLAY),
             str(harness),
         ],
         check=True,
