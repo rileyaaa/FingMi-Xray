@@ -70,6 +70,13 @@ require(
 )
 
 require(
+    "app/src/main/java/com/fongmi/android/tv/player/engine/PlayerEngineFactory.java",
+    "return proxy == null ? create(decode, resolve(spec), listener) : new ExoPlayerEngine(decode, listener, proxy);",
+    "if (proxy != null) return engine instanceof ExoPlayerEngine exo && exo.proxy() == proxy && !engine.needsRebuild();",
+    "if (engine instanceof ExoPlayerEngine exo && exo.proxy() != null) return false;",
+)
+
+require(
     "app/src/main/java/com/fongmi/android/tv/player/exo/ExoMediaSourceFactory.java",
     '"file".equalsIgnoreCase(scheme)',
     '"content".equalsIgnoreCase(scheme)',
