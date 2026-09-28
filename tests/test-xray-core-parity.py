@@ -1,0 +1,129 @@
+#!/usr/bin/env python3
+"""Guard core Xray behavior recovered from v5.6.0-xray.5."""
+
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[1]
+
+
+def read(path: str) -> str:
+    return (ROOT / path).read_text(encoding="utf-8")
+
+
+def require(path: str, *needles: str) -> None:
+    text = read(path)
+    missing = [needle for needle in needles if needle not in text]
+    if missing:
+        raise SystemExit(f"{path}: missing released-Xray contract: {missing}")
+
+
+require(
+    "xray/src/main/java/com/fingmi/xray/config/XrayShareLinkNormalizer.java",
+    '"vless".equals(scheme)',
+    '"vmess".equals(scheme)',
+    '"trojan".equals(scheme)',
+    '"ss".equals(scheme)',
+    '"hy2".equals(scheme)',
+    '"hysteria2".equals(scheme)',
+    "normalizeLegacyShadowsocks(",
+    "normalizeShadowsocksPlugin(",
+    "ensureTrojanTls(",
+    "normalizeHysteria2(",
+    "normalizeHysteriaAuthorityPortHopping(",
+    "ensureHysteriaDefaultPort(",
+    "validateHysteriaObfuscation(",
+    "validateVmessJsonPorts(",
+)
+
+require(
+    "xray/src/main/java/com/fingmi/xray/config/XrayPreferences.java",
+    'PREFS = "xray_secure"',
+    'KEY_ALIAS = "fongmi_xray_share_link_v1"',
+    'LINK_CIPHERTEXT = "link_ciphertext"',
+    'LINK_IV = "link_iv"',
+    'UDP = "udp"',
+    "AES/GCM/NoPadding",
+    "XrayShareLinkNormalizer.normalize(plaintext)",
+)
+
+require(
+    "xray/src/main/java/com/fingmi/xray/config/XrayConfigFactory.java",
+    'PROXY_TAG = "fongmi-xray-proxy"',
+    'PRIVATE_BLOCK_TAG = "fongmi-xray-private-block"',
+    'SESSION_INBOUND_TAG = "fongmi-xray-session"',
+    'DNS_TAG = "fongmi-xray-dns"',
+    'proxy.put("targetStrategy", "ForceIP")',
+    'sockopt.put("domainStrategy", "AsIs")',
+    '.put("auth", "noauth")',
+    '.put("udp", udp)',
+    '"https://1.1.1.1/dns-query"',
+    '"https://8.8.8.8/dns-query"',
+    '.put("network", "tcp,udp")',
+)
+
+require(
+    "xray/src/main/java/com/fingmi/xray/core/LibXrayBridge.java",
+    'outbound.put("targetStrategy", "AsIs")',
+    '"pingBatch"',
+    '.put("timeout", 10)',
+    '.put("url", "https://www.gstatic.com/generate_204")',
+    '"testXray"',
+    '"runXray"',
+    '"stopXray"',
+)
+
+require(
+    "xray/src/main/java/com/fingmi/xray/security/XrayShareLinkSecurity.java",
+    "PROBE_TIMEOUT_MS = 10_000",
+    "probeHysteria2Certificate(",
+    "probeTlsCertificate(",
+    "requestsInsecure(",
+    "pins.get(identity)",
+    "pins.put(identity, observed)",
+)
+
+require(
+    "xray/src/main/java/com/fingmi/xray/security/XrayCertificatePins.java",
+    'PREFS = "xray_hy2_pins"',
+    'LEGACY_PREFS = "xray_secure"',
+    'KEY_ALIAS = "fongmi_xray_hy2_pins_v1"',
+    'PIN_PREFIX = "hy2_pin_"',
+    "AES/GCM/NoPadding",
+    "migrateLegacyPins(",
+    "deleteEncryptionKey()",
+)
+
+require(
+    "xray/src/main/java/com/fingmi/xray/service/XrayService.java",
+    "for (int attempt = 0; attempt < 3; attempt++)",
+    "bridge.validateConfig(config)",
+    "bridge.testLatency(config, XrayConfigFactory.PROXY_TAG)",
+    "bridge.run(config)",
+    "if (!bridge.isRunning())",
+    "for (int attempt = 0; attempt < 2; attempt++)",
+    "XrayCertificatePins.resetAll(this)",
+    'value.contains("address already in use")',
+    'value.contains("failed to listen")',
+)
+
+require(
+    "xray/src/main/java/com/fingmi/xray/session/XraySettingsController.java",
+    "OPERATION_TIMEOUT_MS = 45_000L",
+    "XrayOperation.VALIDATE",
+    "XrayOperation.TEST",
+    "XrayOperation.RESET_SECURITY",
+    "replaceClient()",
+)
+
+# Keep the recovered behavioral reference in-tree so future refactors can be
+# checked against the decompiled v5.6.0-xray.5 reconstruction rather than memory.
+for reference in (
+    "recovery/legacy-src/com/fongmi/android/tv/xray/legacy/LegacyXrayShareLinkNormalizer.java",
+    "recovery/legacy-src/com/fongmi/android/tv/xray/legacy/LegacyXrayRuntimeConfigFactory.java",
+    "recovery/legacy-src/com/fongmi/android/tv/xray/legacy/LegacyXraySessionController.java",
+    "recovery/legacy-src/com/fongmi/android/tv/xray/legacy/LegacyXraySettingsController.java",
+):
+    if not (ROOT / reference).is_file():
+        raise SystemExit(f"missing released-Xray behavioral reference: {reference}")
+
+print("Xray core released-behavior parity guards passed")

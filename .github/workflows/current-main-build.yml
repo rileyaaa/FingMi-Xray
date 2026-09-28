@@ -46,6 +46,7 @@ jobs:
         run: |
           set -euo pipefail
           python3 tests/test-xray-android-runtime-compat.py
+          python3 tests/test-xray-core-parity.py
           python3 tests/test-xray-playback-parity.py
           python3 tests/test-upstream-update-disabled.py
           python3 tests/test-build-hygiene.py
