@@ -17,6 +17,25 @@ for path in sorted((ROOT / "app/src").rglob("strings.xml")):
         if "%1$s" not in line or "%2$s" not in line:
             errors.append(f"{path.relative_to(ROOT)} detail_title must use positional substitutions")
 
+player_builder = (ROOT / "scripts/build/build-player-aar-candidate.sh").read_text(encoding="utf-8")
+player_verifier = (ROOT / "scripts/build/player_candidate.py").read_text(encoding="utf-8")
+for required in (
+    'SOURCE_COMMIT="3c2cbe8ac742c2fe15eff52f03eeb3b1b648848d"',
+    "https://github.com/FongMi/media.git",
+    ":lib-decoder-ffmpeg:assembleRelease",
+    ":lib-mpvplayer:assembleRelease",
+):
+    if required not in player_builder:
+        errors.append(f"player candidate builder lost pinned-source contract: {required}")
+for required in (
+    'SOURCE_COMMIT = "3c2cbe8ac742c2fe15eff52f03eeb3b1b648848d"',
+    '"lib-decoder-ffmpeg-release.aar"',
+    '"lib-mpvplayer-release.aar"',
+    "candidate manifest points at an unexpected FongMi/media commit",
+):
+    if required not in player_verifier:
+        errors.append(f"player candidate verifier lost pinned-source contract: {required}")
+
 platform = (ROOT / "chaquo/src/main/java/com/fongmi/chaquo/Platform.java").read_text(encoding="utf-8")
 for required in (
     "import com.chaquo.python.android.AndroidPlatform;",
@@ -102,13 +121,16 @@ for name, text in (
         ":app:assembleMobile",
         "MobileDebug",
         "PLAYER_ARTIFACT_ID",
+        "PLAYER_RELEASE_TAG",
+        "PLAYER_RELEASE_ASSET",
+        "PLAYER_ZIP_SHA256",
     ):
         if forbidden in text:
-            errors.append(f"{name} must stay TV-only / Release-input based; found {forbidden}")
+            errors.append(f"{name} must stay TV-only and rebuild player inputs from source; found {forbidden}")
 
     for required in (
-        'PLAYER_RELEASE_TAG: "build-inputs-5.6.3"',
-        'PLAYER_RELEASE_ASSET: "fongmi-media3-aar-candidate-1.11.0.zip"',
+        "bash scripts/build/build-player-aar-candidate.sh",
+        "'platforms;android-36'",
         ":app:compileLeanbackDebugJavaWithJavac",
         ":app:assembleLeanbackDebug",
     ):
@@ -134,6 +156,13 @@ if 'PREVIOUS_RELEASE_TAG: "v5.6.3-xray.test.4"' not in publish_workflow:
     errors.append("publish workflow must retire the current test.4 release only after replacement verification")
 if 'RELEASE_TAG: "v5.6.3-xray.test.5"' not in publish_workflow:
     errors.append("publish workflow must target the next v5.6.3-xray.test.5 pre-release")
+for required in (
+    'for stale_tag in "$PREVIOUS_RELEASE_TAG" "build-inputs-5.6.3"; do',
+    "'v5.6.0-xray.5'",
+    'test "$remaining" = "$expected"',
+):
+    if required not in publish_workflow:
+        errors.append(f"publish workflow must leave only golden + current test releases: {required}")
 
 for name, text in (
     ("current-main-build.yml", current_workflow),
