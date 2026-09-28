@@ -594,7 +594,8 @@ current-main 的 `XrayConfigFactory`、`LibXrayBridge.testLatency`、`XrayServic
 - `36382398948`：包含 proxy failure recovery 的全量 build 成功。
 - `36386296283`：source guards 和 Leanback 编译通过；Mobile 因 `LivePlaybackHost.resetXrayForPlaybackChange()` 同样缺少 mobile 实现失败。随后改成 default no-op。
 - `36386615848`：新增 core parity guard 后因为测试字面量要求 `pins.put(identity, observed)`，而实际发布版等价实现先 lowercase 成 `normalizedObserved` 再保存而误报。已修 guard，不改生产行为。
-- 后续 full parity build 以修正后的 main 为准，成功后再撤掉临时 current-main push trigger。
+- `36412909651`：修正 Live host 兼容后，source guards、Leanback、Mobile、assemble 与 artifact upload 全部成功。
+- 成功验证后已撤掉临时 current-main push trigger，并删除 `.github/.trigger-current-main-build`；`current-main-build.yml` 恢复为纯 `workflow_dispatch`。
 
 #### 当前剩余事项
 
