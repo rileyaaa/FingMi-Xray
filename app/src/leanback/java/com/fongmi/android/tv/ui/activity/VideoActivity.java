@@ -59,6 +59,7 @@ import com.fongmi.android.tv.playback.vod.VodPlayRequest;
 import com.fongmi.android.tv.playback.vod.VodPlaybackController;
 import com.fongmi.android.tv.playback.vod.VodPlaybackHost;
 import com.fongmi.android.tv.playback.vod.VodPlaybackMedia;
+import com.fongmi.android.tv.player.extractor.Source;
 import com.fongmi.android.tv.player.media.PlaySpec;
 import com.fongmi.android.tv.service.PlaybackService;
 import com.fongmi.android.tv.setting.DanmakuSetting;
@@ -113,6 +114,9 @@ public class VideoActivity extends PlaybackActivity implements VodPlaybackHost, 
     private VodPlaybackController mVod;
     private XrayPlaybackSession mXray;
     private long mPlaybackEpoch;
+    private CustomTarget<Drawable> mArtworkTarget;
+    private int mDanmakuRequestId = -1;
+    private boolean xrayPlaybackReady;
     private FlagAdapter mFlagAdapter;
     private EpisodeAdapter mEpisodeAdapter;
     private QualityAdapter mQualityAdapter;
@@ -285,6 +289,13 @@ public class VideoActivity extends PlaybackActivity implements VodPlaybackHost, 
         super.initView(savedInstanceState);
         mXray = new XrayPlaybackSession(this, OkHttp.player(), new XrayPlaybackSession.Listener() {
             @Override public void onProxyChanged(XrayHttpClient resources, boolean preserve) {
+                if (resources != null) {
+                    if (mViewModel != null) mViewModel.cancelXrayTransitionRequests();
+                    Source.get().stop();
+                    OkHttp.cancelAll();
+                    if (mVod != null) mVod.clearPreloadForXray();
+                    clearArtworkTarget();
+                }
                 if (service() != null && isOwner()) {
                     getPlayerView().setDanmakuSource(null);
                     player().setPlaybackProxy(resources, preserve);
@@ -519,7 +530,6 @@ public class VideoActivity extends PlaybackActivity implements VodPlaybackHost, 
 
     @Override
     public void prepareSource(Vod item) {
-        mXray.begin("vod:" + ++mPlaybackEpoch);
         getIntent().putExtra("key", item.getSiteKey());
         getIntent().putExtra("id", item.getId());
         putPic(getIntent(), item.getPic());
@@ -532,14 +542,20 @@ public class VideoActivity extends PlaybackActivity implements VodPlaybackHost, 
 
     @Override
     public void stopPlaybackForRefresh() {
-        mXray.begin("vod:" + ++mPlaybackEpoch);
         player().stop();
         player().clear();
         mClock.setCallback(null);
     }
 
     @Override
+    public void resetXrayForPlaybackChange() {
+        xrayPlaybackReady = false;
+        if (mXray != null) mXray.begin("vod:" + ++mPlaybackEpoch);
+    }
+
+    @Override
     public void resetPlaybackForError(String msg) {
+        xrayPlaybackReady = false;
         if (mXray != null) mXray.stop(false);
         PlaybackReset.afterError(player(), () -> mClock.setCallback(null));
         showError(msg);
@@ -568,7 +584,7 @@ public class VideoActivity extends PlaybackActivity implements VodPlaybackHost, 
 
     @Override
     public void loadDanmaku(Result result, History history, Episode episode) {
-        player().withHttpClient(
+        mDanmakuRequestId = player().withHttpClient(
                 OkHttp.player(),
                 client -> VodPlaybackMedia.searchDanmaku(
                         client,
@@ -1041,14 +1057,21 @@ public class VideoActivity extends PlaybackActivity implements VodPlaybackHost, 
             mXray.stop(true);
             return;
         }
-        if (!player().hasPlaySpec()) { Notify.show(R.string.xray_vod_required); return; }
+        if (!xrayPlaybackReady || !hasPlaybackSession() || !player().hasPlaySpec()) {
+            Notify.show(R.string.xray_vod_required);
+            return;
+        }
         mXray.mediaUrlChanged(player().getUrl());
         if (!mXray.enable()) { Notify.show(R.string.xray_vod_public_http_required); return; }
         player().clearPreload();
     }
 
     private void onPlayer() {
-        PlayerEngineDialog.show(this, mBinding.control.action.player, player());
+        PlayerEngineDialog.show(
+                this,
+                mBinding.control.action.player,
+                player(),
+                this::resetXrayForPlaybackChange);
         hideControl();
     }
 
@@ -1161,7 +1184,10 @@ public class VideoActivity extends PlaybackActivity implements VodPlaybackHost, 
     }
 
     private void setArtwork() {
-        ImgUtil.load(this, mHistory.getVodPic(), new CustomTarget<>() {
+        clearArtworkTarget();
+        if (service() != null && isOwner() && player().hasXraySession()) return;
+
+        mArtworkTarget = new CustomTarget<>() {
             @Override
             public void onResourceReady(@NonNull Drawable resource, @Nullable Transition<? super Drawable> transition) {
                 mBinding.player.setDefaultArtwork(resource);
@@ -1171,7 +1197,14 @@ public class VideoActivity extends PlaybackActivity implements VodPlaybackHost, 
             public void onLoadFailed(@Nullable Drawable errorDrawable) {
                 mBinding.player.setDefaultArtwork(errorDrawable);
             }
-        });
+        };
+        ImgUtil.load(this, mHistory.getVodPic(), mArtworkTarget);
+    }
+
+    private void clearArtworkTarget() {
+        if (mArtworkTarget == null) return;
+        com.bumptech.glide.Glide.with(this).clear(mArtworkTarget);
+        mArtworkTarget = null;
     }
 
     private void setPartAdapter() {
@@ -1277,11 +1310,14 @@ public class VideoActivity extends PlaybackActivity implements VodPlaybackHost, 
                 mClock.setCallback(null);
                 break;
             case Player.STATE_READY:
+                xrayPlaybackReady = true;
                 hideProgress();
                 player().reset();
                 mClock.setCallback(this);
                 break;
             case Player.STATE_ENDED:
+                xrayPlaybackReady = false;
+                if (mXray != null) mXray.stop(false);
                 hideProgress();
                 mVod.playbackEnded();
                 mClock.setCallback(null);
@@ -1506,10 +1542,12 @@ public class VideoActivity extends PlaybackActivity implements VodPlaybackHost, 
 
     @Override
     protected void onDestroy() {
+        clearArtworkTarget();
         if (mXray != null) mXray.close();
         mClock.release();
         saveHistory(true);
-        DanmakuApi.cancel();
+        DanmakuApi.cancel(mDanmakuRequestId);
+        mDanmakuRequestId = -1;
         RefreshEvent.keep();
         App.removeCallbacks(mR1, mR2, mR3, mR4);
         super.onDestroy();

@@ -88,6 +88,7 @@ public class LiveActivity extends PlaybackActivity implements GroupAdapter.OnCli
     private LivePlaybackController mLive;
     private XrayPlaybackSession mXray;
     private PlaybackResult<LivePlayRequest> mHeldResult;
+    private CustomTarget<Drawable> mArtworkTarget;
     private boolean mWaitingXrayStart;
     private long mPlaybackEpoch;
     private GroupAdapter mGroupAdapter;
@@ -499,8 +500,18 @@ public class LiveActivity extends PlaybackActivity implements GroupAdapter.OnCli
     }
 
     private void onPlayer() {
-        PlayerEngineDialog.show(this, mBinding.control.action.player, player());
+        PlayerEngineDialog.show(
+                this,
+                mBinding.control.action.player,
+                player(),
+                this::resetXrayForPlaybackChange);
         hideControl();
+    }
+
+    private void resetXrayForPlaybackChange() {
+        mWaitingXrayStart = false;
+        mHeldResult = null;
+        if (mXray != null) mXray.begin("live:" + ++mPlaybackEpoch);
     }
 
     private void onDecode() {
@@ -694,8 +705,12 @@ public class LiveActivity extends PlaybackActivity implements GroupAdapter.OnCli
     }
 
     private void setArtwork() {
-        if (mXray != null && mXray.isActive()) { mBinding.player.setDefaultArtwork(null); return; }
-        ImgUtil.load(this, mChannel.getLogo(), new CustomTarget<>() {
+        clearArtworkTarget();
+        if (mXray != null && mXray.isActive()) {
+            mBinding.player.setDefaultArtwork(null);
+            return;
+        }
+        mArtworkTarget = new CustomTarget<>() {
             @Override
             public void onResourceReady(@NonNull Drawable resource, @Nullable Transition<? super Drawable> transition) {
                 mBinding.player.setDefaultArtwork(resource);
@@ -705,7 +720,14 @@ public class LiveActivity extends PlaybackActivity implements GroupAdapter.OnCli
             public void onLoadFailed(@Nullable Drawable errorDrawable) {
                 mBinding.player.setDefaultArtwork(errorDrawable);
             }
-        });
+        };
+        ImgUtil.load(this, mChannel.getLogo(), mArtworkTarget);
+    }
+
+    private void clearArtworkTarget() {
+        if (mArtworkTarget == null) return;
+        com.bumptech.glide.Glide.with(this).clear(mArtworkTarget);
+        mArtworkTarget = null;
     }
 
     @Override
@@ -1150,6 +1172,7 @@ public class LiveActivity extends PlaybackActivity implements GroupAdapter.OnCli
 
     @Override
     protected void onDestroy() {
+        clearArtworkTarget();
         if (mXray != null) mXray.close();
         mClock.release();
         Source.get().exit();
