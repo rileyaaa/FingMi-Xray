@@ -120,5 +120,5 @@ jobs:
           name: fingmi-faithful-native-dependencies
           path: |
             recovery/work/restored/
-          retention-days: 7
+          retention-days: 3
           if-no-files-found: error
