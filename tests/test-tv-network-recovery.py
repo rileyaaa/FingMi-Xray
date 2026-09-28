@@ -77,7 +77,8 @@ for forbidden in ("ConnectivityManager", "NetworkCallback", "registerDefaultNetw
 coordinator = COORDINATOR.read_text(encoding="utf-8")
 for needle in (
     "if (recovering) return;",
-    "recovering = false;\n                check();",
+    "hooks.schedule(poll, 0);",
+    "recovering = false;\n            check();",
 ):
     if needle not in coordinator:
         raise SystemExit(f"NetworkRecoveryCoordinator missing serialized recovery contract: {needle}")
@@ -182,7 +183,9 @@ public final class NetworkRecoveryParityTest {
         recovery.check();
         check(fake.events.size() == 4, "new generation must wait for in-flight spider clear");
         stale.run();
-        check(fake.scheduled == null, "stale spider completion must not schedule old recovery");
+        check(fake.scheduled is not None, "released flow posts stability check after spider clear");
+        check(fake.events.size() == 4, "generation restart must wait for the posted poll");
+        fake.tick()
         same(
                 fake.events,
                 "progress", "cancel", "api-dns", "spider",

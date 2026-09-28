@@ -56,7 +56,9 @@ public class NetworkRecoveryCoordinatorTest {
         recovery.check();
         assertEquals(4, fake.events.size());
         stale.run();
-        assertNull(fake.scheduled);
+        assertNotNull(fake.scheduled);
+        assertEquals(4, fake.events.size());
+        fake.tick();
         assertEquals(8, fake.events.size());
         fake.completeSpider();
         fake.ready = true;

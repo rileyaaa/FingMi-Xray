@@ -46,11 +46,9 @@ public final class NetworkRecoveryCoordinator implements AutoCloseable {
         hooks.resetApiAndDns();
         hooks.clearSpiders(() -> {
             if (closed || !recovering || pendingGeneration != next) return;
-            if (hooks.generation() != next) {
-                recovering = false;
-                check();
-                return;
-            }
+            // Released HomeActivity always posts the stability check after
+            // spider cleanup. A changed generation is handled by that poll,
+            // not inline inside the clear completion callback.
             hooks.schedule(poll, 0);
         });
     }
