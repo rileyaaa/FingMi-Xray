@@ -148,12 +148,18 @@ TV 网络恢复没有放进 `:xray`。
 - `app/src/main/java/com/fongmi/android/tv/network/TvNetworkLifecycle.java`
 - `app/src/main/java/com/fongmi/android/tv/network/NetworkRecoveryCoordinator.java`
 
-`TvNetworkLifecycle` 负责生成前后台 / screen 网络代际；`NetworkRecoveryCoordinator` 每个需要恢复的 generation 执行一次普通网络重建：
+`TvNetworkLifecycle` 负责生成前后台 / screen 网络代际；`NetworkRecoveryCoordinator` 每个需要恢复的 generation 执行一次普通网络重建。
+
+发布版 generation **只**由真实后台 / SCREEN_OFF 后重新进入前台 / SCREEN_ON 推进；前台 Wi-Fi、VPN 或默认网络切换本身不额外创建 generation。current 的 listener / `recoveredGeneration` 只负责把这个 generation 可靠交给重构后的 Home coordinator，不增加新的触发来源。
+
+恢复过程按 generation **串行**：如果当前 Spider clear / 网络稳定轮询尚未结束，新 generation 先等待；旧流程发现 generation 已变化后才结束本轮并启动下一轮，禁止两个 Jar / JS / Python loader clear 并发。
+
+每一轮顺序：
 
 1. 取消旧业务请求；
-2. 重建 API / DNS；
-3. 清理 Spider；
-4. 等待网络稳定；
+2. 重建普通 API / DNS / DoH transport，但不销毁播放器专用 client；
+3. 串行清理 Spider；
+4. 以约 500 ms 周期等待网络稳定，连续两次具备 Internet capability 后继续，最多约 12 次检查；
 5. 刷新 Home。
 
 DLNA 生命周期使用 flavor-specific `TvDlnaLifecycle`：
@@ -277,6 +283,7 @@ AI 与用户共同开发时的固定操作限制独立维护在 [AI_COLLABORATIO
 - `tests/test-xray-normalizer-parity.py`：把 current share-link normalizer 与 display helper 对发布版 readable reference 做纯 JVM differential parity；
 - `tests/test-upstream-update-disabled.py`：防止 FongMi 上游自更新入口、直接 release endpoint 调用或 APK 安装权限重新进入当前 fork；
 - `tests/test-build-hygiene.py`：防止错误 XLIFF namespace、非 positional 多参数 string、废弃 ABI API 和仍基于 Node 20 的旧 Actions major 再进入构建。
+- `tests/test-tv-network-recovery.py`：锁住正式 `gn3` 的前后台 / SCREEN generation 来源，并用纯 JVM harness 验证 recovery 顺序、连续稳定检查和跨 generation 串行清理。
 
 `tests/` 是 current-main 的统一回归入口，不再另维护目录 README。除上述 workflow guard 外：
 
