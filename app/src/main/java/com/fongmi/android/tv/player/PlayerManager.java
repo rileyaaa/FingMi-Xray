@@ -32,6 +32,7 @@ import com.fongmi.android.tv.player.effect.PlayerEffectManager;
 import com.fongmi.android.tv.player.effect.audio.AudioEffectBands;
 import com.fongmi.android.tv.player.engine.PlayerEngine;
 import com.fongmi.android.tv.player.engine.PlayerEngine.SecondarySubtitleState;
+import com.fongmi.android.tv.player.exo.ExoPlayerEngine;
 import com.fongmi.android.tv.player.engine.PlayerEngineFactory;
 import com.fongmi.android.tv.player.media.PlaySpec;
 import com.fongmi.android.tv.player.parse.ParseJob;
@@ -50,6 +51,7 @@ import com.google.common.net.HttpHeaders;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Function;
 
 public class PlayerManager implements ParseCallback {
 
@@ -513,11 +515,16 @@ public class PlayerManager implements ParseCallback {
      * One playback session owns this resource. Changing it forces an Exo engine
      * boundary; an identity change installs null without restarting old media.
      */
-    public void setPlaybackProxy(XrayHttpClient next, boolean preservePlayback) {
+    public synchronized void setPlaybackProxy(XrayHttpClient next, boolean preservePlayback) {
         if (playbackProxy == next) return;
         PlaybackSnapshot snapshot = preservePlayback && spec != null && player != null
                 ? PlaybackSnapshot.capture(player) : null;
         playbackProxy = next;
+
+        // The released APK cancels player-adjacent network work after the new
+        // Xray endpoint becomes active but before the Exo engine is rebuilt.
+        if (next != null) callback.onXrayTransitionStarted();
+
         clearPreload();
         if (snapshot != null) {
             startCurrent(snapshot.positionMs());
@@ -525,8 +532,22 @@ public class PlayerManager implements ParseCallback {
         }
     }
 
-    public OkHttpClient getPlaybackHttpClient(OkHttpClient fallback) {
+    public synchronized boolean hasXraySession() {
+        if (playbackProxy != null) return true;
+        return engine instanceof ExoPlayerEngine exo && exo.proxy() != null;
+    }
+
+    public synchronized OkHttpClient getPlaybackHttpClient(OkHttpClient fallback) {
+        if (engine instanceof ExoPlayerEngine exo && exo.proxy() != null) {
+            return exo.proxy().client();
+        }
         return playbackProxy == null ? fallback : playbackProxy.client();
+    }
+
+    public synchronized <T> T withHttpClient(
+            OkHttpClient fallback,
+            Function<OkHttpClient, T> action) {
+        return action.apply(getPlaybackHttpClient(fallback));
     }
 
     public void browse(PlaySpec spec, long startPositionMs) {
@@ -642,6 +663,8 @@ public class PlayerManager implements ParseCallback {
         void onPlayerRebuild(Player newPlayer);
 
         default void onPlaybackUrlChanged(String url) { }
+
+        default void onXrayTransitionStarted() { }
 
         void onDanmakuSourceChanged(@Nullable Uri uri);
 

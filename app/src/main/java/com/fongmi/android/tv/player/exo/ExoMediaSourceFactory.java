@@ -172,20 +172,66 @@ public class ExoMediaSourceFactory implements MediaSource.Factory {
         return httpDataSourceFactory;
     }
 
-    /** Prevent local/fallback schemes from silently bypassing an active session. */
+    /**
+     * HTTP(S) uses the session proxy; Android/local resource schemes stay
+     * local. Other generic schemes are rejected. RTSP/RTSPT are handled by
+     * the dedicated Xray RTSP factory above.
+     */
     private static final class GuardedPlaybackDataSource implements DataSource {
         private final DataSource delegate;
-        GuardedPlaybackDataSource(DataSource delegate) { this.delegate = delegate; }
-        @Override public void addTransferListener(TransferListener listener) { delegate.addTransferListener(listener); }
-        @Override public long open(DataSpec dataSpec) throws IOException {
+        private boolean opened;
+
+        GuardedPlaybackDataSource(DataSource delegate) {
+            this.delegate = delegate;
+        }
+
+        @Override
+        public void addTransferListener(TransferListener listener) {
+            delegate.addTransferListener(listener);
+        }
+
+        @Override
+        public long open(DataSpec dataSpec) throws IOException {
             String scheme = dataSpec.uri.getScheme();
-            if (!"http".equalsIgnoreCase(scheme) && !"https".equalsIgnoreCase(scheme))
-                throw new IOException("Xray playback requires an HTTP/HTTPS media request");
+            if (!isAllowed(scheme)) {
+                throw new IOException("Unsupported data source scheme while Xray is enabled");
+            }
+            opened = true;
             return delegate.open(dataSpec);
         }
-        @Override public int read(byte[] buffer, int offset, int length) throws IOException { return delegate.read(buffer, offset, length); }
-        @Override public Uri getUri() { return delegate.getUri(); }
-        @Override public Map<String, List<String>> getResponseHeaders() { return delegate.getResponseHeaders(); }
-        @Override public void close() throws IOException { delegate.close(); }
+
+        @Override
+        public int read(byte[] buffer, int offset, int length) throws IOException {
+            return delegate.read(buffer, offset, length);
+        }
+
+        @Override
+        public Uri getUri() {
+            return delegate.getUri();
+        }
+
+        @Override
+        public Map<String, List<String>> getResponseHeaders() {
+            return delegate.getResponseHeaders();
+        }
+
+        @Override
+        public void close() throws IOException {
+            if (!opened) return;
+            opened = false;
+            delegate.close();
+        }
+
+        private static boolean isAllowed(String scheme) {
+            if (scheme == null || scheme.trim().isEmpty()) return true;
+            return "http".equalsIgnoreCase(scheme)
+                    || "https".equalsIgnoreCase(scheme)
+                    || "file".equalsIgnoreCase(scheme)
+                    || "asset".equalsIgnoreCase(scheme)
+                    || "content".equalsIgnoreCase(scheme)
+                    || "data".equalsIgnoreCase(scheme)
+                    || "rawresource".equalsIgnoreCase(scheme)
+                    || "android.resource".equalsIgnoreCase(scheme);
+        }
     }
 }
