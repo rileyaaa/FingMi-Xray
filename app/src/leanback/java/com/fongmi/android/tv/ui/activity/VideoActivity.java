@@ -323,6 +323,8 @@ public class VideoActivity extends PlaybackActivity implements VodPlaybackHost, 
                     if (mXrayProxyFailed) showError(message);
                     mXrayProxyFailed = false;
                     if (!message.isEmpty()) Notify.show(message);
+                } else if (state == XraySessionListener.IDLE && !message.isEmpty()) {
+                    Notify.show(message);
                 }
             }
         });

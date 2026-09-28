@@ -216,6 +216,7 @@ public class LiveActivity extends PlaybackActivity implements GroupAdapter.OnCli
                 } else if (state == XraySessionListener.IDLE) {
                     mXrayPendingChannelResume = false;
                     mXrayStartedFromExistingPlayback = false;
+                    if (!message.isEmpty()) Notify.show(message);
                 }
             }
         });

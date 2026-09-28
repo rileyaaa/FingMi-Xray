@@ -130,6 +130,7 @@ require(
     "this::resetXrayForPlaybackChange",
     "player().clearPlaybackProxyPreservingState()",
     "mXrayProxyFailed",
+    "state == XraySessionListener.IDLE && !message.isEmpty()",
 )
 
 require(
@@ -141,6 +142,7 @@ require(
     "mXrayPendingChannelResume",
     "mXrayStartedFromExistingPlayback",
     "mLive.resumeChannelAfterXrayStart()",
+    "if (!message.isEmpty()) Notify.show(message);",
 )
 
 require(
