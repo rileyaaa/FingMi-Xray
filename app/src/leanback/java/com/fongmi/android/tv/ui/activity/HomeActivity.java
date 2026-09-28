@@ -95,7 +95,6 @@ public class HomeActivity extends BaseActivity implements CustomTitleView.Listen
     private Clock mClock;
 
     private NetworkRecoveryCoordinator mNetworkRecovery;
-    private final Runnable mNetworkListener = this::checkNetworkGeneration;
 
     private Site getHome() {
         return VodConfig.get().getHome();
@@ -124,7 +123,7 @@ public class HomeActivity extends BaseActivity implements CustomTitleView.Listen
 
     @Override
     protected void initView(Bundle savedInstanceState) {
-        TvNetworkLifecycle.get(getApplication()).addListener(mNetworkListener);
+        TvNetworkLifecycle.get(getApplication());
         mNetworkRecovery = new NetworkRecoveryCoordinator(TvNetworkLifecycle.recoveredGeneration(), new NetworkRecoveryCoordinator.Hooks() {
             @Override public long generation() { return TvNetworkLifecycle.generation(); }
             @Override public void cancelRequests() { if (mViewModel != null) mViewModel.cancelResultRequest(); }
@@ -535,7 +534,6 @@ public class HomeActivity extends BaseActivity implements CustomTitleView.Listen
     @Override
     protected void onDestroy() {
         if (mNetworkRecovery != null) mNetworkRecovery.close();
-        TvNetworkLifecycle.get(getApplication()).removeListener(mNetworkListener);
         LiveConfig.get().clear();
         VodConfig.get().clear();
         BackupManager.backup();

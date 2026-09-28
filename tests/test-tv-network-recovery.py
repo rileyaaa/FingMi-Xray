@@ -18,6 +18,21 @@ lifecycle = LIFECYCLE.read_text(encoding="utf-8")
 reference = REFERENCE.read_text(encoding="utf-8")
 home = HOME.read_text(encoding="utf-8")
 
+for forbidden in (
+    "mNetworkListener",
+    "addListener(mNetworkListener)",
+    "removeListener(mNetworkListener)",
+):
+    if forbidden in home:
+        raise SystemExit(f"HomeActivity must recover only when Home itself resumes/focuses: {forbidden}")
+
+for needle in (
+    "protected void onResume()",
+    "if (hasFocus) checkNetworkGeneration();",
+):
+    if needle not in home:
+        raise SystemExit(f"HomeActivity missing released foreground recovery check: {needle}")
+
 for needle in (
     "Intent.ACTION_SCREEN_OFF",
     "Intent.ACTION_SCREEN_ON",
@@ -37,6 +52,9 @@ for forbidden in (
     "networkWasLost",
     "onAvailable(Network",
     "onLost(Network",
+    "CopyOnWriteArraySet",
+    "addListener(",
+    "notifyListeners(",
 ):
     if forbidden in lifecycle:
         raise SystemExit(

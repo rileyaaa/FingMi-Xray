@@ -7,10 +7,6 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.os.Bundle;
-import android.os.Handler;
-import android.os.Looper;
-import java.util.Set;
-import java.util.concurrent.CopyOnWriteArraySet;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -30,8 +26,6 @@ public final class TvNetworkLifecycle
 
     private final Application application;
     private final BroadcastReceiver screenReceiver;
-    private final Handler main = new Handler(Looper.getMainLooper());
-    private final Set<Runnable> listeners = new CopyOnWriteArraySet<>();
     private int startedActivities;
     private long generation;
     private long recoveredGeneration;
@@ -100,13 +94,6 @@ public final class TvNetworkLifecycle
         }
     }
 
-    public void addListener(Runnable listener) { listeners.add(listener); }
-    public void removeListener(Runnable listener) { listeners.remove(listener); }
-
-    private void notifyListeners() {
-        for (Runnable listener : listeners) main.post(listener);
-    }
-
     private void markBackground() {
         boolean stopDlna = false;
         synchronized (this) {
@@ -126,15 +113,11 @@ public final class TvNetworkLifecycle
     }
 
     private void enterForegroundGeneration() {
-        boolean advanced;
         synchronized (this) {
-            advanced = backgroundPending;
-            if (advanced) {
-                backgroundPending = false;
-                generation++;
-            }
+            if (!backgroundPending) return;
+            backgroundPending = false;
+            generation++;
         }
-        if (advanced) notifyListeners();
     }
 
     @Override
