@@ -48,10 +48,10 @@ if "permissions:\n  contents: write\n  actions: read" not in publish_workflow:
     )
 
 for required in (
-    "BUILD_SOURCE_SHA: ${{ github.event_name == 'push' && github.event.before || github.sha }}",
+    "BUILD_SOURCE_SHA: ${{ github.sha }}",
     "Verify temporary push trigger source",
     "ref: ${{ env.BUILD_SOURCE_SHA }}",
-    'test "$changed" = ".github/workflows/publish-current-main-test-release.yml"',
+    'test "$changed" = ".github/.trigger-publish-current-main-test"',
     '--target "$BUILD_SOURCE_SHA"',
     ".object.sha == $sha",
 ):
