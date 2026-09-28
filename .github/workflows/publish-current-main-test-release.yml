@@ -10,12 +10,9 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-latest
-    timeout-minutes: 75
+    timeout-minutes: 110
 
     env:
-      PLAYER_RELEASE_TAG: "build-inputs-5.6.3"
-      PLAYER_RELEASE_ASSET: "fongmi-media3-aar-candidate-1.11.0.zip"
-      PLAYER_ZIP_SHA256: "0ed42581af11ac7163ebde148b318807c244e2a318f40c41d33f50b70bf967ee"
       OLD_V7_SHA256: "cacc7a90ce082adf955fc80a444b54f8cc86d5b5c3ac7acb13d1392b59928bda"
       OLD_V8_SHA256: "b5ac05193c1e19809fc7ffb3048f7d75aaa2124eace9953d669f4a81a477c21d"
       LIBASS_V7_APK_SHA256: "43efc084598782820079347f00e0d26bb2b594ce7087579b8859856c0c6b2132"
@@ -70,7 +67,7 @@ jobs:
           python3 tests/test-build-hygiene.py
           python3 tests/test-tv-network-recovery.py
 
-      - name: Prepare Android SDK 37
+      - name: Prepare Android SDK 36 and 37
         shell: bash
         run: |
           set -euo pipefail
@@ -78,7 +75,7 @@ jobs:
           sdkmanager="$sdk_root/cmdline-tools/latest/bin/sdkmanager"
           test -x "$sdkmanager"
           yes | "$sdkmanager" --licenses >/dev/null 2>&1 || true
-          "$sdkmanager" --channel=3 --install 'platforms;android-37.0' 'build-tools;37.0.0'
+          "$sdkmanager" --channel=3 --install 'platforms;android-36' 'build-tools;36.0.0' 'platforms;android-37.0' 'build-tools;37.0.0'
 
       - name: Prepare debug-only local signing configuration
         shell: bash
@@ -91,7 +88,7 @@ jobs:
           storePassword=android
           EOF
 
-      - name: Download and verify pinned player/native inputs
+      - name: Rebuild and verify pinned player/native inputs
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
@@ -99,8 +96,9 @@ jobs:
           set -euo pipefail
           mkdir -p build/work/current-main/input build/work/current-main/restored
 
-          gh release download "$PLAYER_RELEASE_TAG"             --repo rileyaaa/FingMi-Xray             --pattern "$PLAYER_RELEASE_ASSET"             --dir build/work/current-main/input
-          mv "build/work/current-main/input/$PLAYER_RELEASE_ASSET"             build/work/current-main/input/player-candidate.zip
+          bash scripts/build/build-player-aar-candidate.sh \
+            --workdir build/work/current-main/player-source \
+            --output build/work/current-main/input/player-candidate.zip
 
           gh release download v5.6.0-xray.5             --repo rileyaaa/FingMi-Xray             --pattern 'FongMi-Xray-TV-v5.6.0-xray.5-armeabi-v7a.apk'             --pattern 'FongMi-Xray-TV-v5.6.0-xray.5-arm64-v8a.apk'             --dir build/work/current-main/input
           mv build/work/current-main/input/FongMi-Xray-TV-v5.6.0-xray.5-armeabi-v7a.apk             build/work/current-main/input/published-v560-v7.apk
@@ -113,7 +111,7 @@ jobs:
 
           curl -fL --retry 3 --retry-delay 2             "https://github.com/skylot/jadx/releases/download/v${JADX_VERSION}/jadx-${JADX_VERSION}.zip"             -o build/work/current-main/input/jadx.zip
 
-          printf '%s  %s\n'             "$PLAYER_ZIP_SHA256" build/work/current-main/input/player-candidate.zip             "$OLD_V7_SHA256" build/work/current-main/input/published-v560-v7.apk             "$OLD_V8_SHA256" build/work/current-main/input/published-v560-v8.apk             "$LIBASS_V7_APK_SHA256" build/work/current-main/input/published-v565-v7.apk             "$LIBASS_V8_APK_SHA256" build/work/current-main/input/published-v565-v8.apk             "$MEDIA3_CONTAINER_SHA256" build/work/current-main/input/media3-container-1.11.0.aar             "$JADX_SHA256" build/work/current-main/input/jadx.zip             | sha256sum -c -
+          printf '%s  %s\n'             "$OLD_V7_SHA256" build/work/current-main/input/published-v560-v7.apk             "$OLD_V8_SHA256" build/work/current-main/input/published-v560-v8.apk             "$LIBASS_V7_APK_SHA256" build/work/current-main/input/published-v565-v7.apk             "$LIBASS_V8_APK_SHA256" build/work/current-main/input/published-v565-v8.apk             "$MEDIA3_CONTAINER_SHA256" build/work/current-main/input/media3-container-1.11.0.aar             "$JADX_SHA256" build/work/current-main/input/jadx.zip             | sha256sum -c -
 
           mkdir -p build/work/current-main/tools/jadx
           unzip -q build/work/current-main/input/jadx.zip -d build/work/current-main/tools/jadx
