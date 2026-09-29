@@ -218,7 +218,7 @@ jobs:
             unzip -Z1 "$apk" | grep -Fx "$entry"
             size="$(unzip -p "$apk" "$entry" | wc -c)"
             test "$size" -gt 100000
-            unzip -p "$apk" 'classes*.dex' | strings | grep -Fq 'Landroidx/media3/decoder/mpegh/MpeghAudioRenderer;'
+            unzip -p "$apk" 'classes*.dex' | strings | grep -F 'Landroidx/media3/decoder/mpegh/MpeghAudioRenderer;' >/dev/null
             echo "PASS MPEG-H ${abi}: ${size} bytes in $apk"
           done
 
