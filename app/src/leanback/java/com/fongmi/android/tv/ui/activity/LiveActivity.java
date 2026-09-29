@@ -175,6 +175,7 @@ public class LiveActivity extends PlaybackActivity implements GroupAdapter.OnCli
                     updatePlaybackDanmakuClient();
                 }
                 if (mChannelAdapter != null) mChannelAdapter.setXrayLogoSuppressed(resources != null);
+                setWidgetLogoSuppressed(resources != null);
                 if (mChannel != null) {
                     setArtwork();
                     if (mViewModel != null) mViewModel.getEpg(mChannel, mXray.client(OkHttp.client()));
@@ -189,6 +190,7 @@ public class LiveActivity extends PlaybackActivity implements GroupAdapter.OnCli
                     updatePlaybackDanmakuClient();
                 }
                 if (mChannelAdapter != null) mChannelAdapter.setXrayLogoSuppressed(false);
+                setWidgetLogoSuppressed(false);
                 if (mChannel != null) {
                     setArtwork();
                     if (mViewModel != null) mViewModel.getEpg(mChannel, OkHttp.client());
@@ -773,6 +775,15 @@ public class LiveActivity extends PlaybackActivity implements GroupAdapter.OnCli
         mArtworkTarget = null;
     }
 
+    private void setWidgetLogoSuppressed(boolean suppressed) {
+        com.bumptech.glide.Glide.with(mBinding.widget.logo).clear(mBinding.widget.logo);
+        if (suppressed || mChannel == null) {
+            mBinding.widget.logo.setImageDrawable(null);
+            return;
+        }
+        mChannel.loadLogo(mBinding.widget.logo);
+    }
+
     @Override
     public void onItemClick(Group item) {
         mLive.selectGroup(item);
@@ -827,7 +838,7 @@ public class LiveActivity extends PlaybackActivity implements GroupAdapter.OnCli
         mViewModel.getEpg(mChannel, mXray.client(OkHttp.client()));
         mBinding.widget.play.setText("");
         mBinding.widget.name.setMaxEms(48);
-        mChannel.loadLogo(mBinding.widget.logo);
+        setWidgetLogoSuppressed(mXray != null && mXray.isActive());
         mBinding.widget.line.setText(mChannel.getLine());
         mBinding.widget.name.setText(mChannel.getShow());
         mBinding.widget.number.setText(mChannel.getNumber());
