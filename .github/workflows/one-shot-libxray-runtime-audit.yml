@@ -1,0 +1,189 @@
+name: One-shot libXray runtime ABI audit
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - name: Fetch pinned inputs
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p audit
+          gh release download v5.6.0-xray.5 \
+            --repo "${GITHUB_REPOSITORY}" \
+            --pattern 'FongMi-Xray-TV-v5.6.0-xray.5-armeabi-v7a.apk' \
+            --dir audit
+          curl -fL --retry 3 --retry-delay 2 \
+            'https://github.com/XTLS/libXray/releases/download/v26.7.28/libxray-android.zip' \
+            -o audit/libxray-android.zip
+          echo '28b7dc9d6cc8455fcca5cbd56e387003a7bfb558128651a64899dc3a8ccff666  audit/libxray-android.zip' | sha256sum -c -
+          echo 'cacc7a90ce082adf955fc80a444b54f8cc86d5b5c3ac7acb13d1392b59928bda  audit/FongMi-Xray-TV-v5.6.0-xray.5-armeabi-v7a.apk' | sha256sum -c -
+          aar="$(unzip -Z1 audit/libxray-android.zip | grep -E '(^|/)libXray\.aar$' | head -n 1)"
+          test -n "$aar"
+          unzip -p audit/libxray-android.zip "$aar" > audit/libXray.aar
+          unzip -p audit/libXray.aar classes.jar > audit/official-classes.jar
+          unzip -q audit/FongMi-Xray-TV-v5.6.0-xray.5-armeabi-v7a.apk 'classes*.dex' -d audit/golden-dex
+
+      - name: Compare golden go runtime signatures with official AAR
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat > audit/compare_go_runtime.py <<'PY'
+          import re
+          import struct
+          import subprocess
+          from pathlib import Path
+
+          TARGET_PREFIX = "Lgo/"
+          TARGET_CLASSES = {"Lgo/Seq;", "Lgo/Universe;", "Lgo/error;"}
+
+          def uleb(data, off):
+              result = 0
+              shift = 0
+              while True:
+                  b = data[off]
+                  off += 1
+                  result |= (b & 0x7f) << shift
+                  if b < 0x80:
+                      return result, off
+                  shift += 7
+
+          def parse_dex(path):
+              data = path.read_bytes()
+              string_count, string_off, type_count, type_off = struct.unpack_from("<4I", data, 56)
+              proto_count, proto_off = struct.unpack_from("<2I", data, 72)
+              field_count, field_off = struct.unpack_from("<2I", data, 80)
+              method_count, method_off = struct.unpack_from("<2I", data, 88)
+              class_count, class_off = struct.unpack_from("<2I", data, 96)
+
+              strings = []
+              for i in range(string_count):
+                  off = struct.unpack_from("<I", data, string_off + 4 * i)[0]
+                  _, pos = uleb(data, off)
+                  end = data.index(0, pos)
+                  strings.append(data[pos:end].decode("utf-8", "replace"))
+
+              types = [
+                  strings[struct.unpack_from("<I", data, type_off + 4 * i)[0]]
+                  for i in range(type_count)
+              ]
+
+              protos = []
+              for i in range(proto_count):
+                  _, ret_idx, params_off = struct.unpack_from("<III", data, proto_off + 12 * i)
+                  params = []
+                  if params_off:
+                      size = struct.unpack_from("<I", data, params_off)[0]
+                      params = [
+                          types[struct.unpack_from("<H", data, params_off + 4 + 2 * j)[0]]
+                          for j in range(size)
+                      ]
+                  protos.append("(" + "".join(params) + ")" + types[ret_idx])
+
+              classes = {
+                  types[struct.unpack_from("<I", data, class_off + 32 * i)[0]]
+                  for i in range(class_count)
+              }
+              fields = set()
+              for i in range(field_count):
+                  class_idx, type_idx, name_idx = struct.unpack_from("<HHI", data, field_off + 8 * i)
+                  owner = types[class_idx]
+                  if owner.startswith(TARGET_PREFIX):
+                      fields.add((owner, strings[name_idx], types[type_idx]))
+              methods = set()
+              for i in range(method_count):
+                  class_idx, proto_idx, name_idx = struct.unpack_from("<HHI", data, method_off + 8 * i)
+                  owner = types[class_idx]
+                  if owner.startswith(TARGET_PREFIX):
+                      methods.add((owner, strings[name_idx], protos[proto_idx]))
+              return {c for c in classes if c.startswith(TARGET_PREFIX)}, fields, methods
+
+          golden_classes = set()
+          golden_fields = set()
+          golden_methods = set()
+          for dex in sorted(Path("audit/golden-dex").glob("classes*.dex")):
+              classes, fields, methods = parse_dex(dex)
+              golden_classes |= classes
+              golden_fields |= fields
+              golden_methods |= methods
+
+          jar = Path("audit/official-classes.jar")
+          entries = subprocess.check_output(["jar", "tf", str(jar)], text=True).splitlines()
+          official_names = sorted(
+              entry[:-6].replace("/", ".")
+              for entry in entries
+              if entry.startswith("go/") and entry.endswith(".class")
+          )
+          official_classes = {"L" + name.replace(".", "/") + ";" for name in official_names}
+
+          official_fields = set()
+          official_methods = set()
+          for name in official_names:
+              text = subprocess.check_output(
+                  ["javap", "-classpath", str(jar), "-p", "-s", name],
+                  text=True,
+                  stderr=subprocess.STDOUT,
+              )
+              owner = "L" + name.replace(".", "/") + ";"
+              pending = None
+              for raw in text.splitlines():
+                  line = raw.strip()
+                  if line.startswith("descriptor:") and pending is not None:
+                      desc = line.split(":", 1)[1].strip()
+                      kind, member = pending
+                      if kind == "method":
+                          official_methods.add((owner, member, desc))
+                      else:
+                          official_fields.add((owner, member, desc))
+                      pending = None
+                      continue
+                  if not line.endswith(";"):
+                      continue
+                  declaration = line[:-1]
+                  if "(" in declaration:
+                      head = declaration.split("(", 1)[0].split()
+                      if not head:
+                          continue
+                      member = head[-1].split(".")[-1]
+                      if member == name.split(".")[-1].split("$")[-1]:
+                          member = "<init>"
+                      pending = ("method", member)
+                  else:
+                      head = declaration.split()
+                      if head:
+                          pending = ("field", head[-1])
+
+          missing_classes = sorted(golden_classes - official_classes)
+          missing_fields = sorted(golden_fields - official_fields)
+          missing_methods = sorted(golden_methods - official_methods)
+
+          print("golden_go_classes", len(golden_classes))
+          print("official_go_classes", len(official_classes))
+          print("golden_go_fields", len(golden_fields))
+          print("official_go_fields", len(official_fields))
+          print("golden_go_methods", len(golden_methods))
+          print("official_go_methods", len(official_methods))
+          print("missing_classes", missing_classes)
+          print("missing_fields", missing_fields)
+          print("missing_methods", missing_methods)
+
+          for required in TARGET_CLASSES:
+              if required not in golden_classes:
+                  raise SystemExit(f"golden APK missing expected runtime class: {required}")
+          if missing_classes or missing_fields or missing_methods:
+              raise SystemExit("official go runtime does not cover golden APK go runtime signatures")
+          print("PASS golden go/** runtime signatures are covered by pinned official v26.7.28 AAR")
+          PY
+          python3 audit/compare_go_runtime.py
