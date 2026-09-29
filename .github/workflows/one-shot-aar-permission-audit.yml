@@ -1,0 +1,29 @@
+name: One-shot AAR permission audit
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+      - name: Inspect checked-in AAR manifests
+        shell: bash
+        run: |
+          set -euo pipefail
+          for aar in app/libs/*.aar; do
+            echo "===== $aar ====="
+            unzip -p "$aar" AndroidManifest.xml > "$RUNNER_TEMP/manifest.xml"
+            if file "$RUNNER_TEMP/manifest.xml" | grep -qi 'xml'; then
+              grep -o 'android.permission.[A-Z0-9_]*' "$RUNNER_TEMP/manifest.xml" | sort -u || true
+            else
+              strings "$RUNNER_TEMP/manifest.xml" | grep -E 'android.permission|READ_PHONE_STATE' || true
+            fi
+          done
