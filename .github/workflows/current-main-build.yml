@@ -205,6 +205,22 @@ jobs:
           set -euo pipefail
           ./gradlew --no-daemon :app:assembleLeanbackDebug --stacktrace --warning-mode all
 
+      - name: Verify MPEG-H survives final TV APK packaging
+        shell: bash
+        run: |
+          set -euo pipefail
+          for abi in armeabi-v7a arm64-v8a; do
+            apk="$(find app/build/outputs/apk/leanback -type f -name "app-leanback-${abi}-debug.apk" -print -quit)"
+            test -n "$apk"
+            test -s "$apk"
+            entry="lib/${abi}/libmpeghJNI.so"
+            unzip -Z1 "$apk" | grep -Fx "$entry"
+            size="$(unzip -p "$apk" "$entry" | wc -c)"
+            test "$size" -gt 100000
+            unzip -p "$apk" 'classes*.dex' | strings | grep -Fq 'Landroidx/media3/decoder/mpegh/MpeghAudioRenderer;'
+            echo "PASS MPEG-H ${abi}: ${size} bytes in $apk"
+          done
+
       - name: Record build inputs and outputs
         if: success()
         shell: bash
