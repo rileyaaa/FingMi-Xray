@@ -2,6 +2,8 @@
 """Guard released-APK Xray playback behaviors that current-main intentionally preserves."""
 
 from pathlib import Path
+import subprocess
+import tempfile
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -261,5 +263,91 @@ require(
     "OkHttp.cancel(normal, LiveApi.METADATA_TAG)",
     "player().getPlaybackHttpClient(normal)",
 )
+
+
+IDENTITY_GATE = ROOT / "xray/src/main/java/com/fingmi/xray/session/PlaybackIdentityGate.java"
+IDENTITY_HARNESS = r"""
+package com.fingmi.xray.session;
+
+public final class PlaybackIdentityGateTest {
+    private static void check(boolean value, String message) {
+        if (!value) throw new AssertionError(message);
+    }
+
+    private static void same(Object expected, Object actual, String message) {
+        if (!java.util.Objects.equals(expected, actual)) {
+            throw new AssertionError(message + ": expected=" + expected + " actual=" + actual);
+        }
+    }
+
+    public static void main(String[] args) {
+        PlaybackIdentityGate gate = new PlaybackIdentityGate();
+
+        check(!gate.hasIdentity(), "initial identity");
+        same(null, gate.mediaUrl(), "initial media");
+        check(gate.generation() == 0L, "initial generation");
+
+        check(gate.begin("vod:a"), "first identity must start");
+        check(gate.hasIdentity(), "identity must be active");
+        check(gate.generation() == 1L, "first generation");
+        same(null, gate.mediaUrl(), "new identity clears media");
+
+        check(!gate.begin("vod:a"), "same identity must not reset");
+        check(gate.generation() == 1L, "same identity keeps generation");
+
+        gate.provisional("https://media.example/one");
+        same("https://media.example/one", gate.mediaUrl(), "provisional media");
+        gate.provisional("https://media.example/two");
+        same("https://media.example/one", gate.mediaUrl(), "provisional cannot replace media");
+
+        check(!gate.resolved("https://media.example/one"), "same resolved URL is not a change");
+        check(gate.resolved("https://cdn.example/two"), "resolved URL may change inside one identity");
+        same("https://cdn.example/two", gate.mediaUrl(), "resolved media updates in place");
+        check(gate.generation() == 1L, "resolved URL does not change identity generation");
+
+        check(gate.begin("vod:b"), "new logical identity must reset");
+        check(gate.generation() == 2L, "second identity generation");
+        same(null, gate.mediaUrl(), "new logical identity clears prior media");
+
+        gate.end();
+        check(!gate.hasIdentity(), "end clears identity");
+        same(null, gate.mediaUrl(), "end clears media");
+        check(gate.generation() == 3L, "end advances identity generation");
+
+        gate.end();
+        check(gate.generation() == 3L, "repeated end is idempotent");
+        System.out.println("PASS playback identity gate");
+    }
+}
+"""
+
+with tempfile.TemporaryDirectory(prefix="xray-playback-identity-") as directory:
+    work = Path(directory)
+    harness = work / "com/fingmi/xray/session/PlaybackIdentityGateTest.java"
+    harness.parent.mkdir(parents=True, exist_ok=True)
+    harness.write_text(IDENTITY_HARNESS.strip() + "\n", encoding="utf-8")
+    classes = work / "classes"
+    subprocess.run(
+        [
+            "java",
+            "com.sun.tools.javac.Main",
+            "--release",
+            "17",
+            "-d",
+            str(classes),
+            str(IDENTITY_GATE),
+            str(harness),
+        ],
+        check=True,
+    )
+    subprocess.run(
+        [
+            "java",
+            "-cp",
+            str(classes),
+            "com.fingmi.xray.session.PlaybackIdentityGateTest",
+        ],
+        check=True,
+    )
 
 print("Xray playback parity guards passed")

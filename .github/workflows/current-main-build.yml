@@ -177,6 +177,21 @@ jobs:
 
           python3 scripts/build/import-libass-candidate.py             --aar "$work/lib-exoplayer-libass-reconstructed.aar"             --extractor "$work/extractor/lib-extractor-libass-release.aar"             --container "$work/input/media3-container-1.11.0.aar"
 
+          # All verified reconstruction inputs have now been imported into app/libs
+          # and libxray/libs. Reclaim transient provenance/native harness space before
+          # the main Gradle build so hosted-runner disk is reserved for compile/assemble.
+          rm -rf \
+            "$work/input" \
+            "$work/tools" \
+            "$work/restored" \
+            "$work/libxray-bindings" \
+            "$work/xray-native-chain" \
+            "$work/extractor"
+          rm -f \
+            "$work/lib-exoplayer-libass-reconstructed.aar" \
+            "$work/lib-exoplayer-libass-reconstructed.json"
+          mkdir -p "$work"
+
       - name: Compile current 5.6.3 Leanback source
         shell: bash
         run: |

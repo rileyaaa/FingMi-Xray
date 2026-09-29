@@ -161,6 +161,18 @@ for name, text in (
         if required not in text:
             errors.append(f"{name} is missing pinned FongMi 5.6.6 Libass provenance: {required}")
 
+    for required in (
+        "Reclaim transient provenance/native harness space before",
+        '"$work/input"',
+        '"$work/tools"',
+        '"$work/restored"',
+        '"$work/libxray-bindings"',
+        '"$work/xray-native-chain"',
+        '"$work/extractor"',
+    ):
+        if required not in text:
+            errors.append(f"{name} must reclaim verified build scratch before Gradle compile/assemble: {required}")
+
 for name, text in (
     ("recovery-player-aars.yml", recovery_player_workflow),
     ("recovery-restore-ffmpegjni.yml", recovery_native_workflow),
