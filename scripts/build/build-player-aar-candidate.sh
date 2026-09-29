@@ -61,6 +61,7 @@ fi
     :lib-exoplayer-dash:assembleRelease \
     :lib-exoplayer-smoothstreaming:assembleRelease \
     :lib-decoder-ffmpeg:assembleRelease \
+    :lib-decoder-mpegh:assembleRelease \
     :lib-effect:assembleRelease \
     :lib-mpvplayer:assembleRelease \
     :lib-session:assembleRelease \
@@ -85,6 +86,7 @@ required = {
     "androidx/media3/mpvplayer/MpvPlayer.class",
     "androidx/media3/exoplayer/trackselection/DecodeTrackSelector.class",
     "androidx/media3/exoplayer/source/preload/MediaSourceFactorySupplier.class",
+    "androidx/media3/decoder/mpegh/MpeghAudioRenderer.class",
 }
 found = set()
 aars = sorted(set(
@@ -94,8 +96,8 @@ aars = sorted(set(
 ) | set(
     source.glob("libraries/*/build/outputs/aar/*-release.aar")
 ))
-if len(aars) != 16:
-    raise SystemExit(f"expected 16 release AARs, found {len(aars)}")
+if len(aars) != 17:
+    raise SystemExit(f"expected 17 release AARs, found {len(aars)}")
 
 lines = [f"FongMi/media @ {source_commit}"]
 for path in aars:
