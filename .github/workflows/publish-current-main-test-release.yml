@@ -65,6 +65,7 @@ jobs:
           python3 tests/test-xray-normalizer-parity.py
           python3 tests/test-upstream-update-disabled.py
           python3 tests/test-build-hygiene.py
+          python3 tests/test-upgrade-compat.py
           python3 tests/test-tv-network-recovery.py
 
       - name: Prepare Android SDK 36 and 37
