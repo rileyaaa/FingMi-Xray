@@ -137,6 +137,10 @@ public class ImgUtil {
         return CACHE.getIfPresent(key);
     }
 
+    public static void resetNetworkFailures() {
+        failed.clear();
+    }
+
     public record Image(String mime, byte[] data) {
     }
 
