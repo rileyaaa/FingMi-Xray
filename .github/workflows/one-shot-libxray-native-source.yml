@@ -1,0 +1,42 @@
+name: One-shot libXray native source audit
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - name: Identify every libgojni provider
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          bash scripts/recovery/fetch-libxray.sh
+
+          echo "official libXray AAR:"
+          sha256sum libxray/libs/libXray.aar
+          for abi in armeabi-v7a arm64-v8a; do
+            echo "official $abi libgojni:"
+            unzip -p libxray/libs/libXray.aar "jni/$abi/libgojni.so" | sha256sum
+            unzip -p libxray/libs/libXray.aar "jni/$abi/libgojni.so" | wc -c
+          done
+
+          echo "all checked-in AAR providers:"
+          while IFS= read -r aar; do
+            if unzip -Z1 "$aar" | grep -qE '(^|/)libgojni\.so$'; then
+              echo "AAR=$aar"
+              unzip -Z1 "$aar" | grep -E '(^|/)libgojni\.so$'
+              while IFS= read -r entry; do
+                printf '  %s ' "$entry"
+                unzip -p "$aar" "$entry" | sha256sum | awk '{print $1}'
+              done < <(unzip -Z1 "$aar" | grep -E '(^|/)libgojni\.so$')
+            fi
+          done < <(find app/libs libxray/libs -type f -name '*.aar' -print | sort)
