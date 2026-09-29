@@ -10,17 +10,19 @@ from pathlib import Path
 from zipfile import BadZipFile, ZipFile
 
 SOURCE_COMMIT = "3c2cbe8ac742c2fe15eff52f03eeb3b1b648848d"
-EXPECTED_AAR_COUNT = 16
+EXPECTED_AAR_COUNT = 17
 REQUIRED_AARS = {
     "lib-common-release.aar",
     "lib-extractor-release.aar",
     "lib-decoder-ffmpeg-release.aar",
+    "lib-decoder-mpegh-release.aar",
     "lib-mpvplayer-release.aar",
 }
 REQUIRED_CLASSES = {
     "androidx/media3/mpvplayer/MpvPlayer.class",
     "androidx/media3/exoplayer/trackselection/DecodeTrackSelector.class",
     "androidx/media3/exoplayer/source/preload/MediaSourceFactorySupplier.class",
+    "androidx/media3/decoder/mpegh/MpeghAudioRenderer.class",
 }
 
 
@@ -73,7 +75,9 @@ def read_verified_candidate(path: Path) -> dict[str, bytes]:
                 expected[filename] = digest
 
             if set(expected) != aar_names:
-                raise ValueError("candidate manifest does not pin all 16 rebuilt AARs")
+                raise ValueError(
+                    f"candidate manifest does not pin all {EXPECTED_AAR_COUNT} rebuilt AARs"
+                )
 
             payload: dict[str, bytes] = {}
             found: set[str] = set()
