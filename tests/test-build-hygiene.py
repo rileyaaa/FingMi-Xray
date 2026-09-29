@@ -151,6 +151,9 @@ for name, text in (
         "'platforms;android-36'",
         ":app:compileLeanbackDebugJavaWithJavac",
         ":app:assembleLeanbackDebug",
+        "Verify MPEG-H survives final TV APK packaging",
+        'entry="lib/${abi}/libmpeghJNI.so"',
+        "Landroidx/media3/decoder/mpegh/MpeghAudioRenderer;",
     ):
         if required not in text:
             errors.append(f"{name} is missing pinned TV build contract: {required}")
