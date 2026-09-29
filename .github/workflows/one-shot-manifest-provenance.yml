@@ -1,0 +1,46 @@
+name: One-shot manifest provenance
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: "21"
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.10"
+      - name: Rebuild player inputs
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p build/work/manifest-audit/input
+          bash scripts/build/build-player-aar-candidate.sh \
+            --workdir build/work/manifest-audit/player-source \
+            --output build/work/manifest-audit/input/player-candidate.zip
+          python3 scripts/build/import-player-aar-candidate.py \
+            build/work/manifest-audit/input/player-candidate.zip
+          bash scripts/recovery/fetch-libxray.sh
+      - name: Merge Leanback manifest and print permission provenance
+        shell: bash
+        run: |
+          set -euo pipefail
+          chmod +x gradlew
+          ./gradlew --no-daemon :app:processLeanbackDebugMainManifest --stacktrace
+          blame="$(find app/build/intermediates/manifest_merge_blame_file/leanbackDebug -type f -name '*report.txt' | head -1)"
+          report="$(find app/build/outputs/logs -type f -name 'manifest-merger-leanback-debug-report.txt' | head -1)"
+          echo "BLAME=$blame"
+          echo "REPORT=$report"
+          grep -n -C 12 'READ_PHONE_STATE' "$blame" "$report" || true
+          grep -n -C 12 'RECEIVE_BOOT_COMPLETED' "$blame" "$report" || true
