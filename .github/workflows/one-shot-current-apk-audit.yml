@@ -1,0 +1,82 @@
+name: One-shot current APK audit
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      OLD_SHA256: cacc7a90ce082adf955fc80a444b54f8cc86d5b5c3ac7acb13d1392b59928bda
+      CUR_SHA256: 56368330c81e2088b057d4f419e5bc6d187b7ac559d4180416c5ffeb28e1d831
+      JADX_VERSION: 1.5.6
+      JADX_SHA256: 545ea2be9c242511bc145755cf4bda2485ade42966e096f8b4d3da2a230e8974
+    steps:
+      - uses: actions/checkout@v7
+      - name: Download APKs and JADX
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p audit/apk audit/tools audit/report
+          gh release download v5.6.0-xray.5 --repo ${GITHUB_REPOSITORY} --pattern 'FongMi-Xray-TV-v5.6.0-xray.5-armeabi-v7a.apk' --dir audit/apk
+          gh release download v5.6.3-xray.test.5 --repo ${GITHUB_REPOSITORY} --pattern 'FongMi-Xray-TV-v5.6.3-xray.test.5-armeabi-v7a.apk' --dir audit/apk
+          mv audit/apk/FongMi-Xray-TV-v5.6.0-xray.5-armeabi-v7a.apk audit/apk/old.apk
+          mv audit/apk/FongMi-Xray-TV-v5.6.3-xray.test.5-armeabi-v7a.apk audit/apk/current.apk
+          echo "$OLD_SHA256  audit/apk/old.apk" | sha256sum -c -
+          echo "$CUR_SHA256  audit/apk/current.apk" | sha256sum -c -
+          curl -fL --retry 3 --retry-delay 2 "https://github.com/skylot/jadx/releases/download/v${JADX_VERSION}/jadx-${JADX_VERSION}.zip" -o audit/tools/jadx.zip
+          echo "$JADX_SHA256  audit/tools/jadx.zip" | sha256sum -c -
+          unzip -q audit/tools/jadx.zip -d audit/tools/jadx
+          chmod +x audit/tools/jadx/bin/jadx
+      - name: Inventory APKs
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import hashlib, json, zipfile
+          from pathlib import Path
+          def inv(path):
+              out={}
+              with zipfile.ZipFile(path) as z:
+                  for i in z.infolist():
+                      if i.is_dir(): continue
+                      h=hashlib.sha256(z.read(i.filename)).hexdigest()
+                      out[i.filename]={"size":i.file_size,"sha256":h}
+              return out
+          old=inv(Path("audit/apk/old.apk")); cur=inv(Path("audit/apk/current.apk"))
+          names=sorted(set(old)|set(cur))
+          rows=[]
+          for n in names:
+              if old.get(n)!=cur.get(n):
+                  rows.append({"path":n,"old":old.get(n),"current":cur.get(n)})
+          Path("audit/report/apk-inventory-diff.json").write_text(json.dumps({
+              "old_entries":len(old),"current_entries":len(cur),"different_entries":len(rows),"rows":rows
+          },indent=2),encoding="utf-8")
+          PY
+      - name: Decompile current APK
+        shell: bash
+        run: |
+          set -euo pipefail
+          set +e
+          audit/tools/jadx/bin/jadx --deobf --comments-level warn -d audit/current-jadx audit/apk/current.apk
+          status=$?
+          set -e
+          echo "$status" > audit/report/current-jadx-status.txt
+          test -d audit/current-jadx/sources
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: current-apk-full-audit
+          path: |
+            audit/current-jadx
+            audit/report
+          retention-days: 1
+          compression-level: 6
