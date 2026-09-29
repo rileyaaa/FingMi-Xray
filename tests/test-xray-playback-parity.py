@@ -262,6 +262,11 @@ require(
     "cancelXrayMetadataRequests()",
     "OkHttp.cancel(normal, LiveApi.METADATA_TAG)",
     "player().getPlaybackHttpClient(normal)",
+    "setWidgetLogoSuppressed(resources != null)",
+    "setWidgetLogoSuppressed(false)",
+    "setWidgetLogoSuppressed(mXray != null && mXray.isActive())",
+    "Glide.with(mBinding.widget.logo).clear(mBinding.widget.logo)",
+    "mBinding.widget.logo.setImageDrawable(null)",
 )
 
 
