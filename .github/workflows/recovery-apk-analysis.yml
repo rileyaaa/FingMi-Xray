@@ -157,19 +157,23 @@ jobs:
           import sys
           from pathlib import Path
 
+          # Raw DEX descriptors use the original root-package R8 names.
+          # JADX renders these classes under the synthetic display package p000,
+          # so never use the JADX display path (Lp000/...) for DEX matching.
           targets = {
-              "Lp000/a04;",
-              "Lp000/th2;",
-              "Lp000/nq0;",
-              "Lp000/pz3;",
-              "Lp000/or2;",
-              "Lp000/yz3;",
-              "Lp000/hz3;",
-              "Lp000/lu2;",
-              "Lp000/kz3;",
-              "Lp000/j81;",
-              "Lp000/x82;",
-              "Lcom/fongmi/android/tv/xray/XrayService;",
+              "La04;": "p000__a04",
+              "Lth2;": "p000__th2",
+              "Lnq0;": "p000__nq0",
+              "Lpz3;": "p000__pz3",
+              "Lor2;": "p000__or2",
+              "Lyz3;": "p000__yz3",
+              "Lhz3;": "p000__hz3",
+              "Llu2;": "p000__lu2",
+              "Lkz3;": "p000__kz3",
+              "Lj81;": "p000__j81",
+              "Lx82;": "p000__x82",
+              "Lcom/fongmi/android/tv/xray/XrayService;":
+                  "com__fongmi__android__tv__xray__XrayService",
           }
 
           abi, dex_name, out_dir, location_path = sys.argv[1:5]
@@ -187,7 +191,7 @@ jobs:
                   if not m or m.group(1) not in targets:
                       continue
                   desc = m.group(1)
-                  safe = desc.strip("L;").replace("/", "__")
+                  safe = targets[desc]
                   (out / f"{safe}.dexdump.txt").write_text(section, encoding="utf-8")
                   loc.write(f"{desc} -> {dex_name}\\n")
                   found += 1
