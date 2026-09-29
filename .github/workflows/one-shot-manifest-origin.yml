@@ -1,0 +1,40 @@
+name: One-shot manifest origin audit
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: "21"
+      - name: Prepare manifest-only inputs
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat > local.properties <<EOF
+          storeFile=$RUNNER_TEMP/dummy.jks
+          keyAlias=dummy
+          storePassword=dummy
+          EOF
+          bash scripts/recovery/fetch-libxray.sh
+      - name: Resolve Leanback debug manifest and show permission provenance
+        shell: bash
+        run: |
+          set -euo pipefail
+          chmod +x gradlew
+          ./gradlew --no-daemon :app:processLeanbackDebugMainManifest --stacktrace
+          echo "===== READ_PHONE_STATE hits ====="
+          grep -RIn -C 6 'android.permission.READ_PHONE_STATE' app/build/intermediates || true
+          echo "===== manifest merge reports ====="
+          find app/build -type f | grep -Ei 'manifest.*(report|blame)|merger' | sort || true
