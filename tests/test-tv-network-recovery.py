@@ -8,9 +8,10 @@ ROOT = Path(__file__).resolve().parents[1]
 LIFECYCLE = ROOT / "app/src/main/java/com/fongmi/android/tv/network/TvNetworkLifecycle.java"
 COORDINATOR = ROOT / "app/src/main/java/com/fongmi/android/tv/network/NetworkRecoveryCoordinator.java"
 HOME = ROOT / "app/src/leanback/java/com/fongmi/android/tv/ui/activity/HomeActivity.java"
+GLIDE = ROOT / "app/src/main/java/com/fongmi/android/tv/utils/OkGlideModule.java"
 REFERENCE = ROOT / "docs/apk-reference/shared/sources/p000/gn3.java"
 
-for path in (LIFECYCLE, COORDINATOR, HOME, REFERENCE):
+for path in (LIFECYCLE, COORDINATOR, HOME, GLIDE, REFERENCE):
     if not path.is_file():
         raise SystemExit(f"missing TV network recovery source: {path.relative_to(ROOT)}")
 
@@ -73,6 +74,15 @@ for needle in (
 for forbidden in ("ConnectivityManager", "NetworkCallback", "registerDefaultNetworkCallback"):
     if forbidden in reference:
         raise SystemExit(f"released gn3 unexpectedly contains network callback evidence: {forbidden}")
+
+glide = GLIDE.read_text(encoding="utf-8")
+if "new OkHttpUrlLoader.Factory(OkHttp.client())" in glide:
+    raise SystemExit("Glide must not pin the API client across TV network generations")
+for needle in (
+    "new OkHttpUrlLoader.Factory(request -> OkHttp.client().newCall(request))",
+):
+    if needle not in glide:
+        raise SystemExit(f"OkGlideModule missing recovered-client handoff: {needle}")
 
 coordinator = COORDINATOR.read_text(encoding="utf-8")
 for needle in (
