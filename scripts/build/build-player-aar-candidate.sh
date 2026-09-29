@@ -129,3 +129,7 @@ print(f"candidate_zip_sha256={hashlib.sha256(output.read_bytes()).hexdigest()}")
 PY
 
 python3 "$ROOT/scripts/build/player_candidate.py" "$OUTPUT"
+
+# The FongMi/media checkout and Gradle buildout are only reconstruction scratch.
+# Keeping them until the app Gradle build can exhaust GitHub-hosted runner disk.
+rm -rf "$SOURCE_DIR" "$STAGE"
