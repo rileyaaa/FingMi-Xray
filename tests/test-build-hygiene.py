@@ -54,11 +54,16 @@ for required in (
 platform = (ROOT / "chaquo/src/main/java/com/fongmi/chaquo/Platform.java").read_text(encoding="utf-8")
 for required in (
     "import com.chaquo.python.android.AndroidPlatform;",
-    "Collections.addAll(supportedAbis, Build.SUPPORTED_ABIS);",
+    "android.os.Process.is64Bit()",
+    "Build.SUPPORTED_64_BIT_ABIS",
+    "Build.SUPPORTED_32_BIT_ABIS",
+    "Collections.addAll(supportedAbis, processAbis);",
     "AndroidPlatform.ABI = ABI;",
 ):
     if required not in platform:
-        errors.append(f"Platform.java is missing Chaquopy 17 ABI runtime handoff: {required}")
+        errors.append(f"Platform.java is missing Chaquopy 17 process-ABI runtime handoff: {required}")
+if "Collections.addAll(supportedAbis, Build.SUPPORTED_ABIS);" in platform:
+    errors.append("Platform.java must not choose Chaquopy assets from cross-bitness device ABI order")
 
 required_action_majors = {
     "actions/checkout": 7,
