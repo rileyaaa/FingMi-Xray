@@ -10,15 +10,26 @@ COORDINATOR = ROOT / "app/src/main/java/com/fongmi/android/tv/network/NetworkRec
 HOME = ROOT / "app/src/leanback/java/com/fongmi/android/tv/ui/activity/HomeActivity.java"
 GLIDE = ROOT / "app/src/main/java/com/fongmi/android/tv/utils/OkGlideModule.java"
 IMG = ROOT / "app/src/main/java/com/fongmi/android/tv/utils/ImgUtil.java"
+LEANBACK_MANIFEST = ROOT / "app/src/leanback/AndroidManifest.xml"
 REFERENCE = ROOT / "docs/apk-reference/shared/sources/p000/gn3.java"
 
-for path in (LIFECYCLE, COORDINATOR, HOME, GLIDE, IMG, REFERENCE):
+for path in (LIFECYCLE, COORDINATOR, HOME, GLIDE, IMG, LEANBACK_MANIFEST, REFERENCE):
     if not path.is_file():
         raise SystemExit(f"missing TV network recovery source: {path.relative_to(ROOT)}")
 
 lifecycle = LIFECYCLE.read_text(encoding="utf-8")
 reference = REFERENCE.read_text(encoding="utf-8")
 home = HOME.read_text(encoding="utf-8")
+manifest = LEANBACK_MANIFEST.read_text(encoding="utf-8")
+
+for forbidden in (
+    "android.permission.RECEIVE_BOOT_COMPLETED",
+    ".receiver.BootReceiver",
+    "android.intent.action.BOOT_COMPLETED",
+    "android.intent.action.QUICKBOOT_POWERON",
+):
+    if forbidden in manifest:
+        raise SystemExit(f"Leanback manifest must not bypass network recovery with boot callback: {forbidden}")
 
 for forbidden in (
     "mNetworkListener",
