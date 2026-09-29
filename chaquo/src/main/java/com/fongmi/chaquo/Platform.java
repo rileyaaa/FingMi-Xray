@@ -54,8 +54,10 @@ public class Platform extends Python.Platform {
             throw new RuntimeException(e);
         }
         List<String> supportedAbis = new ArrayList<>();
-        Collections.addAll(supportedAbis, Build.SUPPORTED_ABIS);
-        Collections.addAll(supportedAbis, Build.CPU_ABI, Build.CPU_ABI2);
+        String[] processAbis = android.os.Process.is64Bit()
+                ? Build.SUPPORTED_64_BIT_ABIS
+                : Build.SUPPORTED_32_BIT_ABIS;
+        Collections.addAll(supportedAbis, processAbis);
         for (String abi : supportedAbis) {
             try (InputStream ignored = am.open(Common.ASSET_DIR + "/" + Common.assetZip(Common.ASSET_STDLIB, abi))) {
                 ABI = abi;
