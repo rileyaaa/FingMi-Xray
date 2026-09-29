@@ -1,0 +1,35 @@
+name: One-shot source audit bundle
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  bundle:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+      - name: Bundle TV runtime source
+        shell: bash
+        run: |
+          set -euo pipefail
+          tar -czf current-tv-source-audit.tar.gz \
+            app/src/main \
+            app/src/leanback \
+            catvod/src/main \
+            xray/src/main \
+            app/build.gradle \
+            xray/build.gradle \
+            settings.gradle \
+            gradle/libs.versions.toml
+      - uses: actions/upload-artifact@v7
+        with:
+          name: current-tv-source-audit
+          path: current-tv-source-audit.tar.gz
+          retention-days: 1
+          compression-level: 0
