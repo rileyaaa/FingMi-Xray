@@ -151,6 +151,7 @@ for name, text in (
         "'platforms;android-36'",
         ":app:compileLeanbackDebugJavaWithJavac",
         ":app:assembleLeanbackDebug",
+        "python3 tests/test-upgrade-compat.py",
         "Verify MPEG-H survives final TV APK packaging",
         'entry="lib/${abi}/libmpeghJNI.so"',
         "Landroidx/media3/decoder/mpegh/MpeghAudioRenderer;",
