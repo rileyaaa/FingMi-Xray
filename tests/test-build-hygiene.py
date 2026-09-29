@@ -25,6 +25,7 @@ for required in (
     "https://github.com/FongMi/media.git",
     ":lib-decoder-ffmpeg:assembleRelease",
     ":lib-mpvplayer:assembleRelease",
+    'rm -rf "$SOURCE_DIR" "$STAGE"',
 ):
     if required not in player_builder:
         errors.append(f"player candidate builder lost pinned-source contract: {required}")
