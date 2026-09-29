@@ -127,7 +127,10 @@ public class HomeActivity extends BaseActivity implements CustomTitleView.Listen
         mNetworkRecovery = new NetworkRecoveryCoordinator(TvNetworkLifecycle.recoveredGeneration(), new NetworkRecoveryCoordinator.Hooks() {
             @Override public long generation() { return TvNetworkLifecycle.generation(); }
             @Override public void cancelRequests() { if (mViewModel != null) mViewModel.cancelResultRequest(); }
-            @Override public void resetApiAndDns() { OkHttp.resetApiNetworkForResume(); }
+            @Override public void resetApiAndDns() {
+                OkHttp.resetApiNetworkForResume();
+                ImgUtil.resetNetworkFailures();
+            }
             @Override public void clearSpiders(Runnable after) { BaseLoader.get().clear(after); }
             @Override public boolean networkReady() { return hasInternetCapability(); }
             @Override public void schedule(Runnable action, long delay) { App.post(action, delay); }
