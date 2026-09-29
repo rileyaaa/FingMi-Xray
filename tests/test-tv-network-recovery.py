@@ -9,9 +9,10 @@ LIFECYCLE = ROOT / "app/src/main/java/com/fongmi/android/tv/network/TvNetworkLif
 COORDINATOR = ROOT / "app/src/main/java/com/fongmi/android/tv/network/NetworkRecoveryCoordinator.java"
 HOME = ROOT / "app/src/leanback/java/com/fongmi/android/tv/ui/activity/HomeActivity.java"
 GLIDE = ROOT / "app/src/main/java/com/fongmi/android/tv/utils/OkGlideModule.java"
+IMG = ROOT / "app/src/main/java/com/fongmi/android/tv/utils/ImgUtil.java"
 REFERENCE = ROOT / "docs/apk-reference/shared/sources/p000/gn3.java"
 
-for path in (LIFECYCLE, COORDINATOR, HOME, GLIDE, REFERENCE):
+for path in (LIFECYCLE, COORDINATOR, HOME, GLIDE, IMG, REFERENCE):
     if not path.is_file():
         raise SystemExit(f"missing TV network recovery source: {path.relative_to(ROOT)}")
 
@@ -74,6 +75,12 @@ for needle in (
 for forbidden in ("ConnectivityManager", "NetworkCallback", "registerDefaultNetworkCallback"):
     if forbidden in reference:
         raise SystemExit(f"released gn3 unexpectedly contains network callback evidence: {forbidden}")
+
+img = IMG.read_text(encoding="utf-8")
+if "public static void resetNetworkFailures()" not in img or "failed.clear();" not in img:
+    raise SystemExit("ImgUtil must forget transient image failures on network generation recovery")
+if "ImgUtil.resetNetworkFailures();" not in home:
+    raise SystemExit("HomeActivity network recovery must reset transient image failures")
 
 glide = GLIDE.read_text(encoding="utf-8")
 if "new OkHttpUrlLoader.Factory(OkHttp.client())" in glide:
