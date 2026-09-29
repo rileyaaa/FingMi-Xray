@@ -24,6 +24,7 @@ for required in (
     'SOURCE_COMMIT="3c2cbe8ac742c2fe15eff52f03eeb3b1b648848d"',
     "https://github.com/FongMi/media.git",
     ":lib-decoder-ffmpeg:assembleRelease",
+    ":lib-decoder-mpegh:assembleRelease",
     ":lib-mpvplayer:assembleRelease",
     'rm -rf "$SOURCE_DIR" "$STAGE"',
 ):
@@ -32,7 +33,10 @@ for required in (
 for required in (
     'SOURCE_COMMIT = "3c2cbe8ac742c2fe15eff52f03eeb3b1b648848d"',
     '"lib-decoder-ffmpeg-release.aar"',
+    '"lib-decoder-mpegh-release.aar"',
     '"lib-mpvplayer-release.aar"',
+    'EXPECTED_AAR_COUNT = 17',
+    '"androidx/media3/decoder/mpegh/MpeghAudioRenderer.class"',
     "candidate manifest points at an unexpected FongMi/media commit",
 ):
     if required not in player_verifier:
