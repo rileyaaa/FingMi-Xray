@@ -19,10 +19,24 @@ jobs:
       V8_APK_SHA256: b5ac05193c1e19809fc7ffb3048f7d75aaa2124eace9953d669f4a81a477c21d
       JADX_VERSION: 1.5.6
       JADX_SHA256: 545ea2be9c242511bc145755cf4bda2485ade42966e096f8b4d3da2a230e8974
+      BUILD_SOURCE_SHA: ${{ github.sha }}
 
     steps:
       - name: Checkout
         uses: actions/checkout@v7
+        with:
+          ref: ${{ env.BUILD_SOURCE_SHA }}
+
+      - name: Verify temporary push trigger source
+        if: github.event_name == 'push'
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$BUILD_SOURCE_SHA" = "$GITHUB_SHA"
+          git fetch --no-tags --depth=2 origin "$GITHUB_SHA"
+          parent="$(git rev-parse "$GITHUB_SHA^")"
+          changed="$(git diff --name-only "$parent" "$GITHUB_SHA")"
+          test "$changed" = ".github/.trigger-recovery-apk-analysis"
 
       - name: Set up Java
         uses: actions/setup-java@v6
