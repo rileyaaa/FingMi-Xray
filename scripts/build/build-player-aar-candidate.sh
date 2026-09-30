@@ -55,7 +55,7 @@ python3 "$ROOT/scripts/build/apply-media3-mpv568-overlay.py" --source "$SOURCE_D
 (
   cd "$SOURCE_DIR"
   ./gradlew --no-daemon -PexternalBuildDir=buildout \
-    :lib-mpvplayer:testReleaseUnitTest \
+    :lib-mpvplayer:testDebugUnitTest \
     :lib-common:assembleRelease \
     :lib-database:assembleRelease \
     :lib-datasource:assembleRelease \

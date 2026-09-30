@@ -38,7 +38,7 @@ for required in (
     "scripts/build/apply-media3-mpv568-overlay.py",
     'DOLBY_OVERLAY_ID="fongmi-tv-5.6.8-dolby-release-overlay-v1"',
     'MPV_OVERLAY_ID="fongmi-tv-5.6.8-mpv-bridge-v1"',
-    ":lib-mpvplayer:testReleaseUnitTest",
+    ":lib-mpvplayer:testDebugUnitTest",
     '"androidx/media3/decoder/ffmpeg/FfmpegDolbyVisionP5Renderer.class"',
     '"androidx/media3/decoder/ffmpeg/FfmpegDolbyVisionP7Converter.class"',
     'rm -rf "$SOURCE_DIR" "$STAGE"',

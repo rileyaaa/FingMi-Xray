@@ -389,6 +389,31 @@ def patch_mpv_event_adapter(path: Path) -> None:
     path.write_text(text, encoding="utf-8")
 
 
+def patch_mpv_event_adapter_test(path: Path) -> None:
+    text = path.read_text(encoding="utf-8")
+    text = replace_once(
+        text,
+        "    adapter.eventCommandReply(7, -12);\n\n"
+        "    verify(listener, never()).onReply(7, -12);\n"
+        "    assertThat(posted.get()).isNotNull();\n\n"
+        "    posted.get().run();\n\n"
+        "    verify(listener).onReply(7, -12);\n",
+        "    adapter.eventCommandReply(7, -12, 42L);\n\n"
+        "    verify(listener, never()).onReply(7, -12, 42L);\n"
+        "    assertThat(posted.get()).isNotNull();\n\n"
+        "    posted.get().run();\n\n"
+        "    verify(listener).onReply(7, -12, 42L);\n",
+        "MpvEventAdapterTest long reply",
+    )
+    text = replace_once(
+        text,
+        "        (requestId, error) -> {},\n",
+        "        (requestId, error, result) -> {},\n",
+        "MpvEventAdapterTest reply lambda",
+    )
+    path.write_text(text, encoding="utf-8")
+
+
 def patch_mpv_command_dispatcher(path: Path) -> None:
     text = path.read_text(encoding="utf-8")
     text = replace_once(
@@ -408,6 +433,55 @@ def patch_mpv_command_dispatcher(path: Path) -> None:
         "  }\n",
         "MpvCommandDispatcher script lifecycle",
     )
+    path.write_text(text, encoding="utf-8")
+
+
+def patch_mpv_command_dispatcher_test(path: Path) -> None:
+    text = path.read_text(encoding="utf-8")
+    text = replace_once(
+        text,
+        "import static org.mockito.AdditionalMatchers.aryEq;\n"
+        "import static org.mockito.Mockito.mock;\n",
+        "import static org.mockito.AdditionalMatchers.aryEq;\n"
+        "import static org.mockito.Mockito.eq;\n"
+        "import static org.mockito.Mockito.mock;\n"
+        "import static org.mockito.Mockito.same;\n",
+        "MpvCommandDispatcherTest matcher imports",
+    )
+    anchor = """  @Test
+  public void loadFile_queuesCommand() {
+"""
+    tests = """  @Test
+  public void loadScript_queuesLongResultCommand() {
+    MpvClient client = mock(MpvClient.class);
+    MpvCommandDispatcher dispatcher = new MpvCommandDispatcher(client);
+    MpvClient.LongResultCallback callback = mock(MpvClient.LongResultCallback.class);
+    String[] command = {"load-script", "/tmp/test.lua"};
+    when(client.commandLongResult(aryEq(command), eq("client_id"), same(callback))).thenReturn(true);
+
+    boolean queued = dispatcher.loadScript("/tmp/test.lua", callback);
+
+    assertThat(queued).isTrue();
+    verify(client).commandLongResult(aryEq(command), eq("client_id"), same(callback));
+    verifyNoMoreInteractions(client);
+  }
+
+  @Test
+  public void unloadScript_queuesCommand() {
+    MpvClient client = mock(MpvClient.class);
+    MpvCommandDispatcher dispatcher = new MpvCommandDispatcher(client);
+    String[] command = {"unload-script", "42"};
+    when(client.command(aryEq(command))).thenReturn(true);
+
+    boolean queued = dispatcher.unloadScript(42L);
+
+    assertThat(queued).isTrue();
+    verify(client).command(aryEq(command));
+    verifyNoMoreInteractions(client);
+  }
+
+"""
+    text = replace_once(text, anchor, tests + anchor, "MpvCommandDispatcher script tests")
     path.write_text(text, encoding="utf-8")
 
 
@@ -485,6 +559,10 @@ def main() -> None:
             root
             / "libraries/mpvplayer/src/main/java/androidx/media3/mpvplayer/nativebridge/MpvEventAdapter.java"
         )
+        patch_mpv_event_adapter_test(
+            root
+            / "libraries/mpvplayer/src/test/java/androidx/media3/mpvplayer/nativebridge/MpvEventAdapterTest.java"
+        )
         patch_mpv_client_test(
             root
             / "libraries/mpvplayer/src/test/java/androidx/media3/mpvplayer/nativebridge/MpvClientTest.java"
@@ -492,6 +570,10 @@ def main() -> None:
         patch_mpv_command_dispatcher(
             root
             / "libraries/mpvplayer/src/main/java/androidx/media3/mpvplayer/nativebridge/MpvCommandDispatcher.java"
+        )
+        patch_mpv_command_dispatcher_test(
+            root
+            / "libraries/mpvplayer/src/test/java/androidx/media3/mpvplayer/nativebridge/MpvCommandDispatcherTest.java"
         )
         patch_subtitle_defaults(
             root
