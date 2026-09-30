@@ -2,11 +2,6 @@ name: Temporary Libass 5.6.8 validation
 
 on:
   workflow_dispatch:
-  push:
-    branches:
-      - sync-upstream-c616c0aa
-    paths:
-      - '.github/.trigger-libass-568-validation'
 
 permissions:
   contents: read
