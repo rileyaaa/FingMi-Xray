@@ -21,9 +21,25 @@ jobs:
       LIBASS_CANDIDATE_SHA256: "2318eb904a016d0160aed2a4b7de8501578cd0f223c65e5c61086f7a9a80f573"
       JADX_VERSION: "1.5.6"
       JADX_SHA256: "545ea2be9c242511bc145755cf4bda2485ade42966e096f8b4d3da2a230e8974"
+      BUILD_SOURCE_SHA: ${{ github.sha }}
 
     steps:
       - uses: actions/checkout@v7
+        with:
+          ref: ${{ env.BUILD_SOURCE_SHA }}
+
+      - name: Verify temporary push trigger source
+        if: github.event_name == 'push'
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$BUILD_SOURCE_SHA"
+          test "$BUILD_SOURCE_SHA" = "$GITHUB_SHA"
+          git fetch --no-tags --depth=2 origin "$GITHUB_SHA"
+          parent="$(git rev-parse "$GITHUB_SHA^")"
+          test -n "$parent"
+          changed="$(git diff --name-only "$parent" "$GITHUB_SHA")"
+          test "$changed" = ".github/.trigger-current-main-build"
 
       - uses: actions/setup-java@v6
         with:
