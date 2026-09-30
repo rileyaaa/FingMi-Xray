@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Execute5.6.5 published v7 JNI_OnLoad and native library/track lifecycle with fake JNI table.
+"""Execute pinned 5.6.8 v7 JNI_OnLoad and native library/track lifecycle with fake JNI table.
 Reuses prepared Android API24/QEMU/cross compiler; no ART/rendering claim.
 """
 import argparse,hashlib,json,os,subprocess,tempfile
@@ -7,7 +7,7 @@ from pathlib import Path
 ROOT=Path(__file__).resolve().parents[1]
 def main():
  p=argparse.ArgumentParser(description=__doc__);p.add_argument('--workdir',type=Path,required=True);p.add_argument('--jni',type=Path,required=True);a=p.parse_args()
- e=json.loads((ROOT/'compat/media3-libass/tests/published-565-contract.json').read_text())
+ e=json.loads((ROOT/'compat/media3-libass/tests/published-568-native-contract.json').read_text())
  assert hashlib.sha256(a.jni.read_bytes()).hexdigest()==e['abis']['armeabi-v7a']['sha256']
  work=a.workdir.resolve();cc=work/'cross/usr/bin';android=work/'android/root'
  with tempfile.TemporaryDirectory(prefix='libass-jni-') as td:
@@ -24,5 +24,5 @@ def main():
   assert any(x[0]=='PASS' for x in rows) and not any(x[0]=='THROW' for x in rows)
   assert sum(x[0]=='EXPECTED_THROW' for x in rows)==1
   assert sum(x[0]=='EXPECTED_FAILURE' for x in rows)==1
-  print('PASS: published v7 JNI_OnLoad17 methods/2 constructors + library/track lifecycle + null-handle/UTF-acquisition failure recovery')
+  print('PASS: 5.6.8 v7 JNI_OnLoad17 methods/2 constructors + library/track lifecycle + null-handle/UTF-acquisition failure recovery')
 if __name__=='__main__':main()
