@@ -90,9 +90,11 @@ for required in (
     "public interface Stream",
     "openStream",
     "commandLongResult",
-    '"load-script"',
-    '"unload-script"',
-    '"secondary-sub-scale"',
+    "loadScript(String path, MpvClient.LongResultCallback callback)",
+    "load-script",
+    "unloadScript(long clientId)",
+    "unload-script",
+    "secondary-sub-scale",
     "MPVLib$Stream",
 ):
     if required not in mpv_overlay:
