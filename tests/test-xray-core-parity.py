@@ -246,6 +246,10 @@ require(
     "mXray.abandon();",
     "String link = event.link().trim();",
     "mBinding.link.setText(link);",
+    "if (finishedOperation == XrayOperation.TEST && !testInputUnchanged())",
+    "Notify.show(R.string.xray_changed_retry);",
+    "XrayShareLinkNormalizer.normalize(readLink()).equals(mTestLink)",
+    "mBinding.udpSwitch.isChecked() == mTestUdp",
 )
 forbid(
     "app/src/leanback/java/com/fongmi/android/tv/ui/activity/SettingXrayActivity.java",
