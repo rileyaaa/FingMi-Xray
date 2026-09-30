@@ -255,6 +255,36 @@ require(
 )
 
 require(
+    "app/src/leanback/res/layout/activity_setting_xray.xml",
+    'android:id="@+id/udpSwitch"',
+    'android:id="@+id/save"',
+    'android:id="@+id/test"',
+    'android:id="@+id/phone"',
+    'android:id="@+id/delete"',
+)
+
+require(
+    "app/src/leanback/res/layout/view_control_vod_action.xml",
+    'android:id="@+id/xray"',
+    'android:text="@string/xray_off"',
+)
+
+require(
+    "app/src/leanback/res/layout/view_control_live_action.xml",
+    'android:id="@+id/xray"',
+    'android:text="@string/xray_off"',
+)
+
+require(
+    "app/src/leanback/res/values/strings.xml",
+    'name="xray_changed_retry"',
+    'name="xray_phone_scan_info"',
+    'name="xray_public_http_required"',
+    'name="xray_vod_public_http_required"',
+    'name="xray_test_success"',
+)
+
+require(
     "app/src/leanback/java/com/fongmi/android/tv/ui/activity/SettingXrayActivity.java",
     "PushActivity.start(this, 6);",
     "@Subscribe(threadMode = ThreadMode.MAIN)",
