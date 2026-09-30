@@ -226,6 +226,8 @@ player candidate 的信任根是固定 `FongMi/media` commit；每次构建都�
 - 官方 libXray v26.7.28 AAR 外层容器，以及从固定历史发布 APK 恢复、彼此匹配的 API v2 gomobile Java bindings 与 v7 / arm64 Go JNI；
 - 按固定输入重建的 Libass compatibility AAR。
 
+Libass compatibility AAR 的 Java/compat 源码仍由仓库重建；其中不可由当前固定 FongMi/media commit 直接重建的 `libmedia3ass.so` 只从一个固定的官方 APK 容器提取。原先固定的 FongMi 5.6.6 Release 已被上游删除，导致 current-main 在下载输入阶段直接 404。当前容器改为 GitHub 标记 immutable 的 FongMi 5.6.8 Leanback APK，并同时固定 APK SHA-256（v7 `2859ebef12bf0fa0dfec023d410df478ac5e5a82a72ef2be48f6e4fa09a24761`；arm64 `948df594843e304c332476a380163dc1cc74f964be5ea1539ff0465a9dd936eb`）与历史已验证的双 ABI `libmedia3ass.so` SHA。APK 只充当 native 容器；如果内层 SO 任一字节变化，`build-libass-candidate.py` 会在生成 compatibility AAR 前失败，不能把 5.6.8 的其他业务内容带入 current-main。
+
 两条 current workflow 在 player / libXray / 双 ABI native parity / Libass 输入全部验证并导入 `app/libs`、`libxray/libs` 后，会在主 Gradle compile / assemble 前删除已消费的 APK、JADX、QEMU/native harness、Libass extractor 与 reconstruction workdir，只保留实际构建依赖和最终输出路径，避免 GitHub-hosted runner 因验证工作区与 Gradle 中间产物叠加而耗尽磁盘。
 
 目前 FFmpeg JNI 与 libXray API v2 的 Java/native 绑定来源仍可追溯到历史 `v5.6.0-xray.5` APK，因此 current-main workflow 会下载该历史 Release 并按固定 SHA 作为 provenance / reproducibility 输入。libXray 的 gomobile Java bindings 与 `libgojni.so` 必须视为同一个 JNI ABI 单元：不能把官方 v26.7.28 的 `classes.jar` 与历史发布版 API v2 `libgojni.so` 单独拼接，否则 native 初始化可能查找官方旧 bindings 不包含的模型类（例如 `libXray.AgeDecryptConfig`）并导致进程崩溃。当前构建由 `scripts/build/build-published-libxray-aar.py` 从经过 SHA 校验的发布 APK 恢复发布版 `libXray/**` Java bindings，保留官方 v26.7.28 AAR 中干净、未经过 App R8 混淆的通用 `go/**` gomobile runtime classes，再与同一发布版的 v7 / arm64 Go JNI 配套放回官方 AAR 外层容器。**在这一构建链中，旧 APK 负责提供固定二进制 provenance；同一 v7 APK 另作为 Xray 外部行为黄金参考，但 current-main 不要求恢复或通过 5.6.0 faithful 架构 / 完整 APK 重建。** 当未来为当前架构建立新的独立 libXray 发布源后，应整套切换 Java bindings 与 native，并同步更新 pin。
@@ -453,6 +455,12 @@ Leanback Manifest 已不再注册 BootReceiver，但冷启动 LiveConfig 仍有�
 此前 current build 对 MPEG-H 已有最终 APK packaging gate，但 Xray、FFmpeg、Libass 与最终 merged Manifest 仍主要依赖构建输入 / 源码层证据。现在 current build 与 publish 都会在 assemble 后直接验证最终产物：双 ABI APK 中的 Xray `libgojni.so`、FFmpeg、MPEG-H、Libass 必须与已验证 AAR 的 ELF runtime `PT_LOAD` image 一致；Manifest 必须保留 Xray 私有进程与非 exported 约束，并拒绝 boot、电话、安装包和 VPN 相关敏感权限/组件回流。
 
 native 比较刻意不使用最终 APK 内 SO 的 whole-file SHA。Android Gradle strip 会改 ELF section metadata，因此整文件 SHA 不同并不代表运行时代码被替换；验证器只归一化 strip-only section-table header 字段，真正的 runtime load segment、flags、地址和内容仍必须一致。这个 gate 证明的是最终 APK packaging provenance，不替代 Android TV 真机上的 ART/JNI/网络行为验证。
+
+### 2026-09-30 — Libass native 容器从已删除的 5.6.6 切到可校验的 5.6.8
+
+current-main full build 在 player 17 AAR 全部重建并验证通过后，首次进入固定外部输入下载即因 FongMi 5.6.6 Release 已不存在而返回 HTTP 404；这属于构建 provenance 断链，不是 app / Xray / Gradle 编译失败。FongMi/media 固定源码树本身不包含 Libass 模块或 `libmedia3ass.so`，因此当前仍需要官方 APK 作为这一个 native 的容器来源。
+
+新基线固定 FongMi 5.6.8 Leanback 双 ABI APK 的 whole-file SHA，同时保留原已验证 `libmedia3ass.so` 双 ABI SHA 作为内层硬门槛。只有容器 SHA 和内层 SO SHA 同时匹配，compatibility AAR 才会生成；因此该迁移只是恢复可重复取得同一 native 的来源，不代表 current-main 跟随 FongMi 5.6.8 业务代码。最终 APK 还会再次通过 PT_LOAD provenance gate 验证 Libass runtime image。
 
 ### 2026-09-30 — recovery dexdump 与 current-main 临时触发都改为显式 source guard
 
