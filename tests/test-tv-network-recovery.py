@@ -12,8 +12,13 @@ GLIDE = ROOT / "app/src/main/java/com/fongmi/android/tv/utils/OkGlideModule.java
 IMG = ROOT / "app/src/main/java/com/fongmi/android/tv/utils/ImgUtil.java"
 LEANBACK_MANIFEST = ROOT / "app/src/leanback/AndroidManifest.xml"
 REFERENCE = ROOT / "docs/apk-reference/shared/sources/p000/gn3.java"
+OKHTTP = ROOT / "catvod/src/main/java/com/github/catvod/net/OkHttp.java"
+PROXY_SELECTOR = ROOT / "catvod/src/main/java/com/github/catvod/net/OkProxySelector.java"
+PROXY_AUTH = ROOT / "catvod/src/main/java/com/github/catvod/net/OkAuthenticator.java"
+PROXY_REDIRECT = ROOT / "catvod/src/main/java/com/github/catvod/net/ProxyRedirectInterceptor.java"
+PROXY_TEST = ROOT / "catvod/src/test/java/com/github/catvod/net/OkProxySelectorTest.java"
 
-for path in (LIFECYCLE, COORDINATOR, HOME, GLIDE, IMG, LEANBACK_MANIFEST, REFERENCE):
+for path in (LIFECYCLE, COORDINATOR, HOME, GLIDE, IMG, LEANBACK_MANIFEST, REFERENCE, OKHTTP, PROXY_SELECTOR, PROXY_AUTH, PROXY_REDIRECT, PROXY_TEST):
     if not path.is_file():
         raise SystemExit(f"missing TV network recovery source: {path.relative_to(ROOT)}")
 
@@ -101,6 +106,66 @@ for needle in (
 ):
     if needle not in glide:
         raise SystemExit(f"OkGlideModule missing recovered-client handoff: {needle}")
+
+okhttp = OKHTTP.read_text(encoding="utf-8")
+selector = PROXY_SELECTOR.read_text(encoding="utf-8")
+proxy_auth = PROXY_AUTH.read_text(encoding="utf-8")
+proxy_redirect = PROXY_REDIRECT.read_text(encoding="utf-8")
+proxy_test = PROXY_TEST.read_text(encoding="utf-8")
+
+for needle in (
+    "new ProxyRedirectInterceptor(selector)",
+    ".followRedirects(false)",
+    "builder.interceptors().removeIf(item -> item instanceof ProxyRedirectInterceptor)",
+    "public static void resetApiNetworkForResume()",
+    "get().client = null;",
+    "cleanupClientAsync(oldClient);",
+):
+    if needle not in okhttp:
+        raise SystemExit(f"OkHttp missing upstream redirect/current recovery coexistence contract: {needle}")
+
+reset_body = okhttp.split("public static void resetApiNetworkForResume()", 1)[1].split("public static void cleanupClientAsync", 1)[0]
+if "get().player = null" in reset_body:
+    raise SystemExit("TV network recovery must not destroy the dedicated playback client")
+
+for needle in (
+    "generation++;",
+    "Policy policy(URI uri, Policy previous)",
+    "previous.generation == generation",
+    "sharesProxyCredentials(Policy other)",
+):
+    if needle not in selector:
+        raise SystemExit(f"OkProxySelector missing redirect-policy generation contract: {needle}")
+
+for needle in (
+    "response.request().tag(OkProxySelector.Policy.class)",
+    "Credentials.basic(username, password, StandardCharsets.UTF_8)",
+):
+    if needle not in proxy_auth:
+        raise SystemExit(f"OkAuthenticator missing redirect-scoped credential contract: {needle}")
+
+for needle in (
+    "chain.getProxy() == null && chain.getProxySelector() == selector",
+    "policy.sharesProxyCredentials(previousPolicy)",
+    'removeHeader("Proxy-Authorization")',
+    'removeHeader("Authorization")',
+    "followUpCount > 20",
+    "chain.getFollowSslRedirects()",
+):
+    if needle not in proxy_redirect:
+        raise SystemExit(f"ProxyRedirectInterceptor missing upstream redirect safety contract: {needle}")
+
+for needle in (
+    "redirectChainCarriesProxyAcrossIpTargets",
+    "redirectUsesTargetHostRule",
+    "redirectToDifferentProxyDoesNotForwardOldCredentials",
+    "warmDirectConnectionDoesNotBypassRedirectProxy",
+    "noRedirectClientReturnsRedirectResponse",
+    "redirect302ChangesPostToGetAndDropsCrossHostAuthorization",
+    "redirect307PreservesPostMethod",
+):
+    if needle not in proxy_test:
+        raise SystemExit(f"upstream proxy redirect regression suite missing case: {needle}")
 
 coordinator = COORDINATOR.read_text(encoding="utf-8")
 for needle in (
