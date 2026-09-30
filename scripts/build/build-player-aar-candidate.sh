@@ -3,6 +3,7 @@ set -euo pipefail
 
 SOURCE_COMMIT="3c2cbe8ac742c2fe15eff52f03eeb3b1b648848d"
 DOLBY_OVERLAY_ID="fongmi-tv-5.6.8-dolby-release-overlay-v1"
+MPV_OVERLAY_ID="fongmi-tv-5.6.8-mpv-bridge-v1"
 WORKDIR=""
 OUTPUT=""
 
@@ -49,10 +50,12 @@ if [ "$actual" != "$SOURCE_COMMIT" ]; then
 fi
 
 python3 "$ROOT/scripts/build/apply-media3-dolby568-overlay.py" --source "$SOURCE_DIR"
+python3 "$ROOT/scripts/build/apply-media3-mpv568-overlay.py" --source "$SOURCE_DIR"
 
 (
   cd "$SOURCE_DIR"
   ./gradlew --no-daemon -PexternalBuildDir=buildout \
+    :lib-mpvplayer:testReleaseUnitTest \
     :lib-common:assembleRelease \
     :lib-database:assembleRelease \
     :lib-datasource:assembleRelease \
@@ -72,7 +75,7 @@ python3 "$ROOT/scripts/build/apply-media3-dolby568-overlay.py" --source "$SOURCE
     :lib-ui-danmaku:assembleRelease
 )
 
-python3 - "$SOURCE_DIR" "$STAGE" "$OUTPUT" "$SOURCE_COMMIT" "$DOLBY_OVERLAY_ID" <<'PY'
+python3 - "$SOURCE_DIR" "$STAGE" "$OUTPUT" "$SOURCE_COMMIT" "$DOLBY_OVERLAY_ID" "$MPV_OVERLAY_ID" <<'PY'
 from io import BytesIO
 from pathlib import Path
 from zipfile import ZIP_STORED, ZipFile, ZipInfo
@@ -85,9 +88,13 @@ stage = Path(sys.argv[2])
 output = Path(sys.argv[3])
 source_commit = sys.argv[4]
 overlay_id = sys.argv[5]
+mpv_overlay_id = sys.argv[6]
 
 required = {
     "androidx/media3/mpvplayer/MpvPlayer.class",
+    "androidx/media3/mpvplayer/nativebridge/MpvClient$LongResultCallback.class",
+    "is/xyz/mpv/MPVLib$Stream.class",
+    "is/xyz/mpv/MPVLib$StreamProvider.class",
     "androidx/media3/exoplayer/trackselection/DecodeTrackSelector.class",
     "androidx/media3/exoplayer/source/preload/MediaSourceFactorySupplier.class",
     "androidx/media3/decoder/mpegh/MpeghAudioRenderer.class",
@@ -111,7 +118,11 @@ aars = sorted(set(
 if len(aars) != 17:
     raise SystemExit(f"expected 17 release AARs, found {len(aars)}")
 
-lines = [f"FongMi/media @ {source_commit}", f"Dolby overlay: {overlay_id}"]
+lines = [
+    f"FongMi/media @ {source_commit}",
+    f"Dolby overlay: {overlay_id}",
+    f"MPV overlay: {mpv_overlay_id}",
+]
 for path in aars:
     target = stage / path.name
     shutil.copy2(path, target)
