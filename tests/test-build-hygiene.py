@@ -21,6 +21,7 @@ player_builder = (ROOT / "scripts/build/build-player-aar-candidate.sh").read_tex
 player_verifier = (ROOT / "scripts/build/player_candidate.py").read_text(encoding="utf-8")
 dolby_overlay = (ROOT / "scripts/build/apply-media3-dolby568-overlay.py").read_text(encoding="utf-8")
 player_importer = (ROOT / "scripts/build/import-player-aar-candidate.py").read_text(encoding="utf-8")
+libass_importer = (ROOT / "scripts/build/import-libass-candidate.py").read_text(encoding="utf-8")
 libass_builder = (ROOT / "scripts/build/build-libass-candidate.py").read_text(encoding="utf-8")
 libass_contract = (ROOT / "scripts/build/check-libass-contract.py").read_text(encoding="utf-8")
 libass_native_contract = (ROOT / "compat/media3-libass/tests/published-568-native-contract.json").read_text(encoding="utf-8")
@@ -65,6 +66,14 @@ for required in (
 ):
     if required not in dolby_overlay:
         errors.append(f"Dolby 5.6.8 overlay lost release contract: {required}")
+for required in (
+    "AAR_SHA256 = 'f047f8ad84be08aeddb0672500e9b263cafd6f2a009812392554dc55b2019861'",
+):
+    if required not in libass_importer:
+        errors.append(f"Libass importer lost current pinned candidate contract: {required}")
+if "2318eb904a016d0160aed2a4b7de8501578cd0f223c65e5c61086f7a9a80f573" in libass_importer:
+    errors.append("Libass importer still contains superseded candidate SHA")
+
 for required in (
     "published_568_ffmpeg_contract",
     "NATIVE_SHA256",
