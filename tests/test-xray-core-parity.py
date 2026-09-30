@@ -139,6 +139,13 @@ require(
     '.put("network", "tcp,udp")',
 )
 
+forbid(
+    "xray/src/main/java/com/fingmi/xray/core/LibXrayBridge.java",
+    "System.err.println",
+    "FingMiXray native invoke begin",
+    "FingMiXray native invoke end",
+)
+
 require(
     "xray/src/main/java/com/fingmi/xray/core/LibXrayBridge.java",
     'outbound.put("targetStrategy", "AsIs")',
@@ -232,6 +239,7 @@ require(
     "sessionGate.invalidateAll();",
     "operationGate.invalidateAll();",
     "killPrivateProcess();",
+    'new Thread(runnable, "fongmi-xray-core")',
 )
 
 require(
