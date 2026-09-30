@@ -286,6 +286,9 @@ for name, text in (
         "Verify final Leanback manifest security contract",
         "python3 scripts/build/check-final-apk-manifest.py",
         'apkanalyzer="$sdk_root/cmdline-tools/latest/bin/apkanalyzer"',
+        "find app/build/outputs/apk/leanback -type f -name 'app-leanback-*-debug.apk'",
+        'test "${#apks[@]}" -eq 2',
+        'for apk in "${apks[@]}"; do',
     ):
         if required not in text:
             errors.append(f"{name} is missing pinned TV build contract: {required}")
