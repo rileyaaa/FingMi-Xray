@@ -2,6 +2,11 @@ name: Current main Android build
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/current-main-build.yml'
 
 permissions:
   contents: read
