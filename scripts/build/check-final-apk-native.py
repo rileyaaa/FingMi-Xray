@@ -4,6 +4,7 @@
 import argparse
 import importlib.util
 from pathlib import Path
+import tempfile
 from zipfile import ZipFile
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -50,7 +51,7 @@ def unique_read(path: Path, entry: str) -> bytes:
 
 
 def find_apk(apk_dir: Path, abi: str) -> Path:
-    matches = sorted(apk_dir.glob(f"app-leanback-{abi}-debug.apk"))
+    matches = sorted(apk_dir.rglob(f"app-leanback-{abi}-debug.apk"))
     if len(matches) != 1:
         raise ValueError(f"expected one Leanback {abi} APK in {apk_dir}, found {len(matches)}")
     return matches[0]
@@ -83,6 +84,15 @@ def self_test():
         raise AssertionError("Dolby Vision JNI is missing from the 5.6.8 FFmpeg closure")
     if ABIS != ("armeabi-v7a", "arm64-v8a"):
         raise AssertionError("TV ABI inventory changed unexpectedly")
+    with tempfile.TemporaryDirectory(prefix="final-apk-native-") as directory:
+        apk_dir = Path(directory)
+        nested = apk_dir / "debug"
+        nested.mkdir()
+        for abi in ABIS:
+            expected = nested / f"app-leanback-{abi}-debug.apk"
+            expected.touch()
+            if find_apk(apk_dir, abi) != expected:
+                raise AssertionError(f"recursive APK discovery failed for {abi}")
     print("PASS final native packaging inventory self-test")
 
 
