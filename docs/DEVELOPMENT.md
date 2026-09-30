@@ -228,7 +228,7 @@ player candidate 的信任根是固定 `FongMi/media` commit；每次构建都�
 - 官方 libXray v26.7.28 AAR 外层容器，以及从固定历史发布 APK 恢复、彼此匹配的 API v2 gomobile Java bindings 与 v7 / arm64 Go JNI；
 - 按固定输入重建的 Libass compatibility AAR。
 
-Libass compatibility AAR 的 Java/compat 源码仍由仓库重建；其中不可由当前固定 FongMi/media commit 直接重建的 `libmedia3ass.so` 只从一个固定的官方 APK 容器提取。原先固定的 FongMi 5.6.6 Release 已被上游删除，导致 current-main 在下载输入阶段直接 404。当前容器改为 GitHub 标记 immutable 的 FongMi 5.6.8 Leanback APK，并同时固定 APK SHA-256（v7 `2859ebef12bf0fa0dfec023d410df478ac5e5a82a72ef2be48f6e4fa09a24761`；arm64 `948df594843e304c332476a380163dc1cc74f964be5ea1539ff0465a9dd936eb`）与历史已验证的双 ABI `libmedia3ass.so` SHA。APK 只充当 native 容器；如果内层 SO 任一字节变化，`build-libass-candidate.py` 会在生成 compatibility AAR 前失败，不能把 5.6.8 的其他业务内容带入 current-main。
+Libass compatibility AAR 的 Java/compat 源码仍由仓库重建；其中不可由当前固定 FongMi/media commit 直接重建的 `libmedia3ass.so` 从固定官方 APK 提取。原先固定的 FongMi 5.6.6 Release 已被上游删除。后续取证确认 FongMi 5.6.7 与 5.6.8 的双 ABI `libmedia3ass.so` 完全同字节，但它们已经不是历史 5.6.5/5.6.6 native：v7 为 `58bc83730285c9a4ba40bf71d4deeea8be7e69dfb7d1a053f6a77aea006ad6ee`，arm64 为 `7e160faba4f64abb7551b48d07ae886af73464d3079978dcd55352e7b22bd6b3`。当前同步分支因此新增 `published-568-native-contract.json`，固定 5.6.8 immutable APK whole-file SHA、双 ABI SO SHA、ELF machine、17 个 JNI RegisterNatives descriptor 与 `LibassFrame` / `LibassImage` constructor ABI；旧 5.6.5 fixture 继续只作为已恢复 Java/render 行为参考。任何新 native 迁移都必须同时通过 JNI/load/render/ownership 与最终 APK PT_LOAD gate，不能只改 hash 放行。
 
 两条 current workflow 在 player / libXray / 双 ABI native parity / Libass 输入全部验证并导入 `app/libs`、`libxray/libs` 后，会在主 Gradle compile / assemble 前删除已消费的 APK、JADX、QEMU/native harness、Libass extractor 与 reconstruction workdir，只保留实际构建依赖和最终输出路径，避免 GitHub-hosted runner 因验证工作区与 Gradle 中间产物叠加而耗尽磁盘。
 
@@ -474,11 +474,13 @@ native 比较刻意不使用最终 APK 内 SO 的 whole-file SHA。Android Gradl
 
 FingMi-Xray 合并时没有用上游 `OkHttp.java` 整文件覆盖 current：继续保留 TV 网络恢复的独立 API / player client、`resetApiNetworkForResume()`、DNS generation reset 与异步旧 client 清理，只把上游 redirect policy 接入共同 builder。额外的 `tests/test-tv-network-recovery.py` coexistence guard 同时锁定“上游 proxy redirect 修复存在”和“Home 网络 generation 只重建 API client、不破坏后台 playback client”，防止未来同步任一侧时覆盖另一侧。
 
-### 2026-09-30 — Libass native 容器从已删除的 5.6.6 切到可校验的 5.6.8
+### 2026-09-30 — 5.6.8 Release 二进制取证纠正 Libass / 媒体同步边界
 
-current-main full build 在 player 17 AAR 全部重建并验证通过后，首次进入固定外部输入下载即因 FongMi 5.6.6 Release 已不存在而返回 HTTP 404；这属于构建 provenance 断链，不是 app / Xray / Gradle 编译失败。FongMi/media 固定源码树本身不包含 Libass 模块或 `libmedia3ass.so`，因此当前仍需要官方 APK 作为这一个 native 的容器来源。
+5.6.6 Release 被删除后，current-main 首次切换到 5.6.8 immutable APK 容器时，原有 SO hard pin 正确拦截了变化：5.6.8 v7 `libmedia3ass.so` 实际为 `58bc8373…`，并非旧 `052c81b5…`。随后对 5.6.7 / 5.6.8 双 ABI APK 做独立 inventory，确认两版 Libass SO whole-file SHA 与 PT_LOAD runtime image完全一致，说明这是最迟自 5.6.7 起的上游新 native 基线，而不是 5.6.8 的偶然重打包。双 ABI ELF 中 17 个 RegisterNatives descriptor 与 current reconstructed `LibassNative.java` 逐项一致，`LibassFrame(int, LibassImage[])` 与七参数 `LibassImage(..., textureId)` constructor ABI 也保持不变；但 API 相同不能替代 render/ownership 行为验证，因此迁移仍需跑完整 native contract。
 
-新基线固定 FongMi 5.6.8 Leanback 双 ABI APK 的 whole-file SHA，同时保留原已验证 `libmedia3ass.so` 双 ABI SHA 作为内层硬门槛。只有容器 SHA 和内层 SO SHA 同时匹配，compatibility AAR 才会生成；因此该迁移只是恢复可重复取得同一 native 的来源，不代表 current-main 跟随 FongMi 5.6.8 业务代码。最终 APK 还会再次通过 PT_LOAD provenance gate 验证 Libass runtime image。
+同一次 Release diff 还确认 5.6.7 → 5.6.8 的 DEX 确实变化，native 变化集中在 `libavcodec.so`、`libmpv.so`、`libnodebridge.so`；Libass 在两版之间不变。5.6.8 full-JADX 明确包含 `FfmpegDolbyVisionP7Converter`，而固定 `FongMi/media@3c2cbe8` 源码树没有该类；因此公开 FongMi/TV/media HEAD 不能被当作 5.6.8 Release 的完整源码快照。上游同步必须区分“公开源码可直接合并”和“Release-only 媒体二进制/行为需单独 provenance”的两层证据。
+
+同轮 DEX 还确认 TV 音量增强滑杆真实上限为 `2000`（20 dB，步长 100），而公开源码仍为 1200；该差异不依赖未公开 native，已在同步分支直接更新 `AudioSetting.MAX_BOOST` 并加入 source guard。Dolby Vision Profile 7、Libass、FFmpeg/MPV 等媒体变化不采用反编译代码直接回填，必须优先寻找真实公开源码；找不到时只能作为发布二进制 provenance 输入，并明确记录证据层级。
 
 ### 2026-09-30 — recovery dexdump 与 current-main 临时触发都改为显式 source guard
 
