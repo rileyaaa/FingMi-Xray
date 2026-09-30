@@ -97,6 +97,23 @@ require(
 )
 
 require(
+    "xray/src/main/java/com/fingmi/xray/config/XrayDisplay.java",
+    'return "Not configured";',
+    'uri.getScheme().toUpperCase(Locale.ROOT)',
+    'if (host.length() <= 2)',
+    'host.charAt(0)',
+    '"+ "***"',
+    'host.substring(lastDot)',
+    '(port > 0 ? ":" + port : "")',
+)
+
+require(
+    "app/src/leanback/java/com/fongmi/android/tv/ui/activity/SettingActivity.java",
+    "XrayDisplay.describe(preferences.getShareLink())",
+    "mBinding.xrayText.setText(R.string.xray_not_configured);",
+)
+
+require(
     "xray/src/main/java/com/fingmi/xray/config/XrayPreferences.java",
     'PREFS = "xray_secure"',
     'KEY_ALIAS = "fongmi_xray_share_link_v1"',
