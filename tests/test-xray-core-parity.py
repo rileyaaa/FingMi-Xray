@@ -102,7 +102,7 @@ require(
     'uri.getScheme().toUpperCase(Locale.ROOT)',
     'if (host.length() <= 2)',
     'host.charAt(0)',
-    '"+ "***"',
+    '+ "***"',
     'host.substring(lastDot)',
     '(port > 0 ? ":" + port : "")',
 )
