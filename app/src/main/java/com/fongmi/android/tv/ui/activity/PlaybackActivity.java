@@ -416,6 +416,7 @@ public abstract class PlaybackActivity extends BaseActivity implements MediaCont
         player().bindPlayerView(getPlayerView());
         danmakuController.bind(getPlayerView());
         getPlayerView().setPlayer(player);
+        updatePlaybackDanmakuClient();
         syncDanmakuSource();
         restoreDebugView();
     }
