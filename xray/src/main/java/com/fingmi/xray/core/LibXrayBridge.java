@@ -18,9 +18,7 @@ public final class LibXrayBridge {
 
         String rawResponse;
         try {
-            System.err.println("FingMiXray native invoke begin: " + method);
             rawResponse = LibXray.invoke(request.toString());
-            System.err.println("FingMiXray native invoke end: " + method);
         } catch (LinkageError error) {
             throw new IllegalStateException(
                     "Xray native bridge unavailable (" + error.getClass().getSimpleName() + ")",
