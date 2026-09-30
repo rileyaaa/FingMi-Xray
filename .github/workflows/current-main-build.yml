@@ -62,6 +62,8 @@ jobs:
           python3 tests/test-xray-service-client-lifecycle.py
           python3 tests/test-xray-normalizer-parity.py
           python3 tests/test-upstream-update-disabled.py
+          python3 scripts/build/check-elf-runtime.py --self-test
+          python3 scripts/build/check-final-apk-manifest.py --self-test
           python3 tests/test-build-hygiene.py
           python3 tests/test-upgrade-compat.py
           python3 tests/test-tv-network-recovery.py
@@ -238,6 +240,49 @@ jobs:
             echo "PASS MPEG-H ${abi}: ${size} bytes in $apk"
           done
 
+      - name: Verify pinned native runtime survives final TV APK packaging
+        shell: bash
+        run: |
+          set -euo pipefail
+          work="build/work/current-main/final-native"
+          rm -rf "$work"
+          mkdir -p "$work"
+          for abi in armeabi-v7a arm64-v8a; do
+            apk="$(find app/build/outputs/apk/leanback -type f -name "app-leanback-${abi}-debug.apk" -print -quit)"
+            test -n "$apk"
+            test -s "$apk"
+            for spec in \
+              "libxray/libs/libXray.aar|jni/${abi}/libgojni.so|lib/${abi}/libgojni.so|Xray-${abi}" \
+              "app/libs/lib-decoder-ffmpeg-release.aar|jni/${abi}/libffmpegJNI.so|lib/${abi}/libffmpegJNI.so|FFmpeg-${abi}" \
+              "app/libs/lib-decoder-mpegh-release.aar|jni/${abi}/libmpeghJNI.so|lib/${abi}/libmpeghJNI.so|MPEG-H-${abi}" \
+              "app/libs/lib-exoplayer-libass-reconstructed.aar|jni/${abi}/libmedia3ass.so|lib/${abi}/libmedia3ass.so|Libass-${abi}"
+            do
+              IFS='|' read -r aar reference_entry apk_entry label <<< "$spec"
+              unzip -p "$aar" "$reference_entry" > "$work/reference.so"
+              unzip -p "$apk" "$apk_entry" > "$work/candidate.so"
+              test -s "$work/reference.so"
+              test -s "$work/candidate.so"
+              python3 scripts/build/check-elf-runtime.py \
+                --reference "$work/reference.so" \
+                --candidate "$work/candidate.so" \
+                --label "$label"
+            done
+          done
+
+      - name: Verify final Leanback manifest security contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          sdk_root="${ANDROID_HOME:-/usr/local/lib/android/sdk}"
+          apkanalyzer="$sdk_root/cmdline-tools/latest/bin/apkanalyzer"
+          test -x "$apkanalyzer"
+          for abi in armeabi-v7a arm64-v8a; do
+            apk="$(find app/build/outputs/apk/leanback -type f -name "app-leanback-${abi}-debug.apk" -print -quit)"
+            test -n "$apk"
+            python3 scripts/build/check-final-apk-manifest.py \
+              --apkanalyzer "$apkanalyzer" \
+              --apk "$apk"
+          done
       - name: Record build inputs and outputs
         if: success()
         shell: bash
