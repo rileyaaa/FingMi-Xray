@@ -282,6 +282,21 @@ require(
 )
 
 require(
+    "app/src/main/assets/index.html",
+    '<textarea id="xray_link"',
+    'onclick="sendXray()"',
+    '<span class="md-nav-label">Xray</span>',
+)
+
+require(
+    "app/src/main/assets/js/script.js",
+    "function sendXray()",
+    "const link = $('#xray_link').val().trim();",
+    "doAction('xray', { link });",
+    "$('#xray_link').val('');",
+)
+
+require(
     "app/src/main/java/com/fongmi/android/tv/server/process/Action.java",
     'case "xray" -> onXray(params);',
     'String link = params.get("link");',
