@@ -51,6 +51,13 @@ forbid(
 )
 
 require(
+    "app/src/main/java/com/fongmi/android/tv/ui/activity/PlaybackActivity.java",
+    "private void syncPlayerView(Player player)",
+    "getPlayerView().setPlayer(player);\n        updatePlaybackDanmakuClient();",
+    "danmakuController.setOkHttpClient(player().getPlaybackHttpClient(OkHttp.player()));",
+)
+
+require(
     "app/src/main/java/com/fongmi/android/tv/player/PlayerManager.java",
     "synchronized void setPlaybackProxy",
     "boolean hasXraySession()",
