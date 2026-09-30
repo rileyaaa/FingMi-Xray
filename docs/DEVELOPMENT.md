@@ -458,6 +458,14 @@ Leanback Manifest 已不再注册 BootReceiver，但冷启动 LiveConfig 仍有�
 
 native 比较刻意不使用最终 APK 内 SO 的 whole-file SHA。Android Gradle strip 会改 ELF section metadata，因此整文件 SHA 不同并不代表运行时代码被替换；验证器只归一化 strip-only section-table header 字段，真正的 runtime load segment、flags、地址和内容仍必须一致。这个 gate 证明的是最终 APK packaging provenance，不替代 Android TV 真机上的 ART/JNI/网络行为验证。
 
+### 2026-09-30 — full-JADX 第二轮外围调用图审计补回 Player rebuild 弹幕 client
+
+本轮不再只搜索文件名或直接 `Xray` 文本，而是从黄金 APK full JADX 的 `th2`（旧 PlayerManager）反向枚举 Xray-aware 方法 caller：`m9321h` / `m9315H` 的 HTTP client handoff、`m9332s` 的 active-session guard、`m9324k` / `m9325l` 的当前播放 URL / session 状态，再逐个映射到 current。已重新核对自动/手动弹幕搜索、字幕 search/detail/download、Live EPG/XML、MediaSession remote artwork、VOD/Live artwork、RTSP/DRM、外部播放器 chooser、/media 状态 JSON 与手机导入入口。
+
+这轮找到一个此前测试没有锁住的真实外围遗漏：黄金 `ye2/af2` 在每次 Player/engine rebuild 后都会重新注入 Xray-aware 弹幕 OkHttp client；current 的通用 `PlaybackActivity.syncPlayerView()` 只重新绑定 Player、danmaku controller/source 和 debug view。虽然 START/STOP/ERROR 的 Live/Video Xray callback 另有显式刷新，decode/未来 engine rebuild 仍不应依赖这些特定回调。current 已在 `syncPlayerView()` 的 `setPlayer` 后统一执行 `updatePlaybackDanmakuClient()`，并把这一行为加入 playback parity guard。
+
+同时把 full-JADX 反查出的但原 guard 未显式锁住的外围 surface 加入测试：Xray 手机导入 Push 页面、server `/media` 的当前 URL/状态字段、外部播放器 chooser 使用当前 URL/headers/position/title、VOD active-Xray artwork 阻断。这样以后不再靠人工记住这些“类名不带 Xray、但通过旧 PlayerManager 间接取得 Xray 状态/client”的路径。
+
 ### 2026-09-30 — 同步 FongMi/TV 最新 redirect-aware proxy 基线
 
 核对 FongMi/TV 当前 HEAD 后确认，最新源码 `c616c0aa3613e87529791587a9f71b78c278c991` 只是上一固定 5.6.3 基线 `4afc4473e22a7ed3d98ee12233e0c2a490061000` 的直接子 commit，提交主题为 `Fix proxy selection across redirects`；上游 `app/build.gradle` 的 `versionName` 仍为 5.6.3。FongMi/Release 的 5.6.7 / 5.6.8 版本号因此不能机械理解成五轮 TV 源码架构升级。
