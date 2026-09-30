@@ -93,7 +93,7 @@ Manifest 中的 `XrayService`：
 
 `LibXrayBridge` 是 Java 与 Go JNI 的故障边界。它会把 Java linkage failure 转成可返回的 Xray 错误；`XrayService` 的 validate / test / start / stop / reset 路径以及 `XrayServiceClient` 也会收口对应 `LinkageError`。这样类似 `NoSuchMethodError`、`NoClassDefFoundError` 或 `UnsatisfiedLinkError` 时，优先向 UI 返回具体错误，而不是只显示 `Xray service process died`。
 
-native 调用前后会输出不含节点、凭据或配置正文的阶段日志，例如 `native invoke begin/end: getFreePorts`。如果只有 begin 没有 end，ADB / logcat 就可以把问题继续缩小到 libgojni、ARM 转译或 native runtime。
+current 已按黄金发布行为移除额外的逐次 native invoke `System.err` begin/end 日志，不再为了调试向发布路径加入旧 APK 没有的噪声。native 故障继续通过 Service/client 的明确错误收口、Binder 进程状态、Android logcat 与定向 native parity / QEMU harness 定位。
 
 release 混淆规则必须保留：
 
@@ -217,6 +217,21 @@ player candidate 的信任根是固定 `FongMi/media` commit；每次构建都�
 
 `MpvPlayerEngine` / `MpvUtil` 通过固定二进制已有能力做映射，包括 secondary subtitle 与 MPV config option。它是一层兼容桥，不应描述成“已经恢复了一个不存在的新版 MPV 二进制”。
 
+### 5.6.8 Release-only 媒体同步状态
+
+FongMi/TV 公开 HEAD `c616c0aa...` 与 Release 5.6.8 不是完整一一对应的源码快照。5.6.8 full-JADX / ELF 取证已经确认发布 APK 额外包含 Dolby Vision P5/P7 媒体链和新的 FFmpeg native；因此不能只同步公开 TV commit 就宣称“5.6.8 已完整同步”。
+
+当前 `main` 已完成的媒体准备：
+
+- TV 公开源码的 redirect-aware proxy 修复已合并，并保留 TV network recovery 的独立 API/player client 边界；
+- Release-only 音量增强上限已从 12 dB 同步到真实 20 dB（`AudioSetting.MAX_BOOST = 2000`），并有 source guard；
+- 5.6.8 Libass 双 ABI native 已建立独立 contract，并完成 JNI/render/ownership/Media3/GL 验证；
+- 已建立 `scripts/recovery/published_568_ffmpeg_contract.py`、`restore-published-568-ffmpeg.py` 和 `check-published-568-ffmpeg.py`，固定 5.6.8 FFmpeg native closure：双 ABI 的 `libavcodec.so`、`libavdevice.so`、`libavfilter.so`、`libavformat.so`、`libavutil.so`、`libffmpegDoviJNI.so`、`libffmpegJNI.so`、`libswresample.so`、`libswscale.so`；
+- native ABI audit 已确认 5.6.8 `libffmpegJNI.so` 改为以 `JNI_OnLoad` / RegisterNatives 为主要 JNI 入口，不能把旧 5.6.0 `libffmpegJNI.so` 单独塞进新 closure；
+- `compat/media3-dolby568/.../DolbyVisionP7Converter.java` 目前只建立了 P7 converter 的 interface overlay，用来锁住 5.6.8 Java 接口形状。
+
+**尚未完成：** current build / publish workflow 仍调用历史 `restore-published-ffmpegjni.py`，只恢复 5.6.0 的单个 `libffmpegJNI.so`；新的 5.6.8 FFmpeg closure restorer尚未接入 player candidate/current build。P7 interface 也尚未完成 `DefaultRenderersFactory`、`MediaCodecVideoRenderer` 生命周期 hook、FFmpeg converter implementation/JNI 的完整 overlay；5.6.8 APK 中的 P5 renderer / VideoSink / native policy 同样尚未恢复。5.6.8 `libmpv.so` 与 `libnodebridge.so` 已确认和旧基线变化，但尚未完成 current provenance / compatibility 迁移。因此当前状态只能描述为“5.6.8 媒体升级取证与基础 closure 已建立”，不能描述成“5.6.8 播放器已完整同步”。
+
 ## 6. 二进制依赖
 
 大型 AAR / APK / SO 不作为普通源码直接提交。
@@ -228,7 +243,7 @@ player candidate 的信任根是固定 `FongMi/media` commit；每次构建都�
 - 官方 libXray v26.7.28 AAR 外层容器，以及从固定历史发布 APK 恢复、彼此匹配的 API v2 gomobile Java bindings 与 v7 / arm64 Go JNI；
 - 按固定输入重建的 Libass compatibility AAR。
 
-Libass compatibility AAR 的 Java/compat 源码仍由仓库重建；其中不可由当前固定 FongMi/media commit 直接重建的 `libmedia3ass.so` 从固定官方 APK 提取。原先固定的 FongMi 5.6.6 Release 已被上游删除。后续取证确认 FongMi 5.6.7 与 5.6.8 的双 ABI `libmedia3ass.so` 完全同字节，但它们已经不是历史 5.6.5/5.6.6 native：v7 为 `58bc83730285c9a4ba40bf71d4deeea8be7e69dfb7d1a053f6a77aea006ad6ee`，arm64 为 `7e160faba4f64abb7551b48d07ae886af73464d3079978dcd55352e7b22bd6b3`。当前同步分支因此新增 `published-568-native-contract.json`，固定 5.6.8 immutable APK whole-file SHA、双 ABI SO SHA、ELF machine、17 个 JNI RegisterNatives descriptor 与 `LibassFrame` / `LibassImage` constructor ABI；旧 5.6.5 fixture 继续只作为已恢复 Java/render 行为参考。任何新 native 迁移都必须同时通过 JNI/load/render/ownership 与最终 APK PT_LOAD gate，不能只改 hash 放行。
+Libass compatibility AAR 的 Java/compat 源码仍由仓库重建；其中不可由当前固定 FongMi/media commit 直接重建的 `libmedia3ass.so` 从固定官方 APK 提取。原先固定的 FongMi 5.6.6 Release 已被上游删除。后续取证确认 FongMi 5.6.7 与 5.6.8 的双 ABI `libmedia3ass.so` 完全同字节，但它们已经不是历史 5.6.5/5.6.6 native：v7 为 `58bc83730285c9a4ba40bf71d4deeea8be7e69dfb7d1a053f6a77aea006ad6ee`，arm64 为 `7e160faba4f64abb7551b48d07ae886af73464d3079978dcd55352e7b22bd6b3`。current `main` 已新增 `published-568-native-contract.json`，固定 5.6.8 immutable APK whole-file SHA、双 ABI SO SHA、ELF machine、17 个 JNI RegisterNatives descriptor 与 `LibassFrame` / `LibassImage` constructor ABI；旧 5.6.5 fixture 继续只作为已恢复 Java/render 行为参考。5.6.8 Libass candidate 已通过双 ABI JNI lifecycle、synthetic ASS render parity、ownership、Media3 72-test suite 与 GL contract；重建 candidate SHA 仍固定为 `f047f8ad84be08aeddb0672500e9b263cafd6f2a009812392554dc55b2019861`。任何后续 native 迁移仍必须同时通过这些 contract 与最终 APK PT_LOAD gate，不能只改 hash 放行。
 
 两条 current workflow 在 player / libXray / 双 ABI native parity / Libass 输入全部验证并导入 `app/libs`、`libxray/libs` 后，会在主 Gradle compile / assemble 前删除已消费的 APK、JADX、QEMU/native harness、Libass extractor 与 reconstruction workdir，只保留实际构建依赖和最终输出路径，避免 GitHub-hosted runner 因验证工作区与 Gradle 中间产物叠加而耗尽磁盘。
 
@@ -481,6 +496,20 @@ FingMi-Xray 合并时没有用上游 `OkHttp.java` 整文件覆盖 current：继
 同一次 Release diff 还确认 5.6.7 → 5.6.8 的 DEX 确实变化，native 变化集中在 `libavcodec.so`、`libmpv.so`、`libnodebridge.so`；Libass 在两版之间不变。5.6.8 full-JADX 明确包含 `FfmpegDolbyVisionP7Converter`，而固定 `FongMi/media@3c2cbe8` 源码树没有该类；因此公开 FongMi/TV/media HEAD 不能被当作 5.6.8 Release 的完整源码快照。上游同步必须区分“公开源码可直接合并”和“Release-only 媒体二进制/行为需单独 provenance”的两层证据。
 
 同轮 DEX 还确认 TV 音量增强滑杆真实上限为 `2000`（20 dB，步长 100），而公开源码仍为 1200；该差异不依赖未公开 native，已在同步分支直接更新 `AudioSetting.MAX_BOOST` 并加入 source guard。Dolby Vision Profile 7、Libass、FFmpeg/MPV 等媒体变化不采用反编译代码直接回填，必须优先寻找真实公开源码；找不到时只能作为发布二进制 provenance 输入，并明确记录证据层级。
+
+### 2026-09-30 — 黄金 Xray 第三轮反向调用审计补齐 UI / rebuild / security 边界
+
+在 full-JADX 第二轮之后继续从黄金 `th2` / Service / security helper 反向枚举所有 caller，而不是仅检查直接包含 Xray 文本的文件。本轮确认 Player snapshot 的 7 项状态（position、playWhenReady、playbackParameters、repeatMode、volume、audioOffset、textOffset）、ERROR/STOP/换源的 snapshot 保留与恢复顺序、RTSP/DRM/DataSource scheme/public-destination guard、Service cleanup/RESET_SECURITY 与 TLS/HY2 TOFU identity 都与黄金语义一致。
+
+本轮同时补回三个可观察差异：通用 Player/engine rebuild 后重新执行 `updatePlaybackDanmakuClient()`；VOD 控制条恢复黄金顺序“下一集 → Xray → 上一集 → 解析 → 播放器”；Xray core executor 线程名恢复 `fongmi-xray-core`，并删除黄金 APK 没有的逐次 native invoke stderr 日志。对应 playback/core parity guard 已锁住这些行为。
+
+另外新增 `tests/test-xray-transport-security-parity.py`，用纯 JVM differential harness 对 current 与 readable legacy transport-security 实现做一一比较，覆盖 HY2/TLS identity、first trust、重复 trust、证书变化拒绝、port hopping、websocket host fallback 的大小写边界、已有 pcs/vcn 不重复 probe、migrated uppercase pin 不被静默规范化等行为；current-main 与 publish 都执行该 guard。
+
+### 2026-09-30 — 5.6.8 FFmpeg native closure 与 Dolby Vision overlay 开始恢复，但尚未接入 current build
+
+5.6.8 immutable Leanback APK 的双 ABI native audit 已完成。结果表明 Release-only 媒体变化不是单个 `libffmpegJNI.so` 可以独立恢复：5.6.8 引入 `libffmpegDoviJNI.so`，并与一组新的 FFmpeg shared objects 形成闭包；5.6.8 `libffmpegJNI.so` 的导出面也从旧版大量显式 JNI symbol 转为 `JNI_OnLoad` / RegisterNatives 型入口。因此“保持旧 public source + 只替换新 `libffmpegJNI.so`”不是合法迁移方式。
+
+`main` 已加入固定 5.6.8 APK/native hash 的 FFmpeg closure contract、完整 closure AAR restorer 与 verifier，并增加 P7 converter interface overlay。该工作只建立 provenance 与接口边界，当前 workflow 尚未改用新 closure，P5/P7 Java lifecycle/JNI overlay 也未闭合。下一阶段必须先补完整 media overlay、将 restorer 接入 17-AAR candidate / build workflow，并做双 ABI compile/assemble/final APK provenance；不能先改 hash 或发布版本。
 
 ### 2026-09-30 — recovery dexdump 与 current-main 临时触发都改为显式 source guard
 
