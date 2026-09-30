@@ -26,6 +26,18 @@ def forbid(path: str, *needles: str) -> None:
         raise SystemExit(f"{path}: released Xray parity forbids: {present}")
 
 
+def require_order(path: str, *needles: str) -> None:
+    text = read(path)
+    positions = []
+    for needle in needles:
+        position = text.find(needle)
+        if position < 0:
+            raise SystemExit(f"{path}: missing ordered Xray parity contract: {needle}")
+        positions.append(position)
+    if positions != sorted(positions):
+        raise SystemExit(f"{path}: released Xray control order changed: {needles}")
+
+
 require(
     "xray/src/main/java/com/fingmi/xray/session/XrayPlaybackSession.java",
     "playback.resolved(url);",
@@ -72,6 +84,22 @@ require(
     "if (next != null) callback.onXrayTransitionStarted();\n\n        clearPreload();",
     "if (playbackProxy != null || !canPreloadNext()",
     "PlaybackSnapshot.capture(player)",
+    "private record PlaybackSnapshot(long positionMs, boolean playWhenReady, PlaybackParameters playbackParameters, int repeatMode, float volume, long audioOffsetMs, long textOffsetMs)",
+    "player.setPlaybackParameters(playbackParameters)",
+    "player.setRepeatMode(repeatMode)",
+    "player.setVolume(volume)",
+    "player.setAudioOffsetMs(audioOffsetMs)",
+    "player.setTextOffsetMs(textOffsetMs)",
+    "player.setPlayWhenReady(playWhenReady)",
+)
+
+require_order(
+    "app/src/leanback/res/layout/view_control_vod_action.xml",
+    'android:id="@+id/next"',
+    'android:id="@+id/xray"',
+    'android:id="@+id/prev"',
+    'android:id="@+id/parse"',
+    'android:id="@+id/player"',
 )
 
 require(
