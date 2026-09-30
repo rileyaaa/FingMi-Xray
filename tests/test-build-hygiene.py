@@ -79,6 +79,14 @@ for required in (
     if required not in final_manifest_guard:
         errors.append(f"final APK manifest guard lost security contract: {required}")
 
+audio_setting = (ROOT / "app/src/main/java/com/fongmi/android/tv/setting/AudioSetting.java").read_text(encoding="utf-8")
+for required in (
+    "public static final int MAX_BOOST = 2000;",
+    'Math.clamp(Prefers.getInt("audio_boost"), MIN_BOOST, MAX_BOOST)',
+):
+    if required not in audio_setting:
+        errors.append(f"AudioSetting lost FongMi 5.6.8 20 dB boost contract: {required}")
+
 platform = (ROOT / "chaquo/src/main/java/com/fongmi/chaquo/Platform.java").read_text(encoding="utf-8")
 for required in (
     "import com.chaquo.python.android.AndroidPlatform;",
