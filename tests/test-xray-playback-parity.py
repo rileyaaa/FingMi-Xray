@@ -102,6 +102,26 @@ require(
 )
 
 require(
+    "app/src/main/java/com/fongmi/android/tv/server/process/Media.java",
+    'result.addProperty("state", getState(player));',
+    'result.addProperty("speed", player.getSpeed());',
+    'result.addProperty("duration", player.getDuration());',
+    'result.addProperty("position", player.getPosition());',
+    'result.addProperty("url", getString(player.getUrl()));',
+    'result.addProperty("artwork", getString(meta.artworkUri));',
+)
+
+require(
+    "app/src/main/java/com/fongmi/android/tv/ui/activity/PlaybackActivity.java",
+    "PlaybackIntent.choose(this, player.getUrl(), player.getHeaders(), player.isVod(), player.getPosition(), player.getMediaTitle());",
+)
+
+require(
+    "app/src/leanback/java/com/fongmi/android/tv/ui/activity/VideoActivity.java",
+    "clearArtworkTarget();\n        if (service() != null && isOwner() && player().hasXraySession()) return;",
+)
+
+require(
     "app/src/main/java/com/fongmi/android/tv/player/media/XrayArtworkBitmapLoader.java",
     "Remote artwork blocked while Xray is enabled",
     "cancelRemoteLoads()",
