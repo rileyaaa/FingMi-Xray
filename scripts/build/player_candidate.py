@@ -11,6 +11,7 @@ from zipfile import BadZipFile, ZipFile
 
 SOURCE_COMMIT = "3c2cbe8ac742c2fe15eff52f03eeb3b1b648848d"
 DOLBY_OVERLAY_ID = "fongmi-tv-5.6.8-dolby-release-overlay-v1"
+MPV_OVERLAY_ID = "fongmi-tv-5.6.8-mpv-bridge-v1"
 EXPECTED_AAR_COUNT = 17
 REQUIRED_AARS = {
     "lib-common-release.aar",
@@ -21,6 +22,9 @@ REQUIRED_AARS = {
 }
 REQUIRED_CLASSES = {
     "androidx/media3/mpvplayer/MpvPlayer.class",
+    "androidx/media3/mpvplayer/nativebridge/MpvClient$LongResultCallback.class",
+    "is/xyz/mpv/MPVLib$Stream.class",
+    "is/xyz/mpv/MPVLib$StreamProvider.class",
     "androidx/media3/exoplayer/trackselection/DecodeTrackSelector.class",
     "androidx/media3/exoplayer/source/preload/MediaSourceFactorySupplier.class",
     "androidx/media3/decoder/mpegh/MpeghAudioRenderer.class",
@@ -75,6 +79,9 @@ def read_verified_candidate(path: Path) -> dict[str, bytes]:
             second = manifest_lines[1] if len(manifest_lines) > 1 else ""
             if second != f"Dolby overlay: {DOLBY_OVERLAY_ID}":
                 raise ValueError("candidate manifest is missing the pinned Dolby release overlay")
+            third = manifest_lines[2] if len(manifest_lines) > 2 else ""
+            if third != f"MPV overlay: {MPV_OVERLAY_ID}":
+                raise ValueError("candidate manifest is missing the pinned MPV release overlay")
 
             expected: dict[str, str] = {}
             for line in manifest.splitlines():
