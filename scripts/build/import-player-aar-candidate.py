@@ -18,9 +18,11 @@ from player_candidate import SOURCE_COMMIT, read_verified_candidate  # noqa: E40
 RECOVERY_DIR = ROOT / "scripts" / "recovery"
 sys.path.insert(0, str(RECOVERY_DIR))
 from published_568_ffmpeg_contract import NATIVE_SHA256  # noqa: E402
+from published_568_mpv_contract import NATIVE_SHA256 as MPV_NATIVE_SHA256  # noqa: E402
 
 
 DECODER_NAME = "lib-decoder-ffmpeg-release.aar"
+MPV_NAME = "lib-mpvplayer-release.aar"
 PUBLISHED_CLOSURE = {
     f"jni/{abi}/{soname}": digest
     for abi, libraries in NATIVE_SHA256.items()
@@ -29,6 +31,11 @@ PUBLISHED_CLOSURE = {
 DOVI_JNI = {
     "jni/armeabi-v7a/libffmpegDoviJNI.so",
     "jni/arm64-v8a/libffmpegDoviJNI.so",
+}
+PUBLISHED_MPV = {
+    f"jni/{abi}/{soname}": digest
+    for abi, libraries in MPV_NATIVE_SHA256.items()
+    for soname, digest in libraries.items()
 }
 
 
@@ -80,6 +87,30 @@ def verified_decoder_replacement(candidate: bytes, replacement: bytes) -> bytes:
     return replacement
 
 
+def verified_mpv_replacement(candidate: bytes, replacement: bytes) -> bytes:
+    """Accept only the immutable FongMi 5.6.8 libplayer/libmpv mutation."""
+    with ZipFile(BytesIO(candidate)) as original, ZipFile(BytesIO(replacement)) as restored:
+        before = original.namelist()
+        after = restored.namelist()
+        if len(before) != len(set(before)) or before != after:
+            raise ValueError("restored MPV AAR entry names/order differ or are duplicated")
+        missing = sorted(set(PUBLISHED_MPV) - set(before))
+        if missing:
+            raise ValueError(
+                "candidate MPV AAR lacks pinned native bridge entries: " + ", ".join(missing)
+            )
+        for name in before:
+            data = restored.read(name)
+            if name in PUBLISHED_MPV:
+                if hashlib.sha256(data).hexdigest() != PUBLISHED_MPV[name]:
+                    raise ValueError(
+                        f"restored MPV AAR has unverified 5.6.8 native entry: {name}"
+                    )
+            elif data != original.read(name):
+                raise ValueError(f"restored MPV AAR changed another entry: {name}")
+    return replacement
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
@@ -92,6 +123,11 @@ def main() -> None:
         type=Path,
         help="decoder AAR restored from both SHA-verified published APKs",
     )
+    parser.add_argument(
+        "--restored-mpv",
+        type=Path,
+        help="MPV AAR restored from both SHA-verified published APKs",
+    )
     args = parser.parse_args()
 
     try:
@@ -100,6 +136,11 @@ def main() -> None:
             payload[DECODER_NAME] = verified_decoder_replacement(
                 payload[DECODER_NAME],
                 args.restored_decoder.read_bytes(),
+            )
+        if args.restored_mpv:
+            payload[MPV_NAME] = verified_mpv_replacement(
+                payload[MPV_NAME],
+                args.restored_mpv.read_bytes(),
             )
     except (BadZipFile, KeyError, ValueError, OSError) as error:
         parser.error(str(error))
