@@ -127,6 +127,8 @@ for needle in (
 reset_body = okhttp.split("public static void resetApiNetworkForResume()", 1)[1].split("public static void cleanupClientAsync", 1)[0]
 if "get().player = null" in reset_body:
     raise SystemExit("TV network recovery must not destroy the dedicated playback client")
+if "selector().clear()" in reset_body:
+    raise SystemExit("TV network recovery must not erase configured proxy rules; stale redirect policies die with the retired API client")
 
 for needle in (
     "generation++;",
