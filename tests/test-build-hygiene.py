@@ -100,6 +100,7 @@ recovery_player_workflow = (ROOT / ".github/workflows/recovery-player-aars.yml")
 recovery_native_workflow = (ROOT / ".github/workflows/recovery-restore-ffmpegjni.yml").read_text(encoding="utf-8")
 recovery_faithful_workflow = (ROOT / ".github/workflows/recovery-build.yml").read_text(encoding="utf-8")
 
+current_marker_exists = (ROOT / ".github/.trigger-current-main-build").exists()
 publish_marker_exists = (ROOT / ".github/.trigger-publish-current-main-test").exists()
 for name, text in (
     ("current-main-build.yml", current_workflow),
@@ -111,11 +112,26 @@ for name, text in (
         if f"\n  {trigger}" in text:
             errors.append(f"{name} must not enable automatic trigger {trigger}")
     has_push = "\n  push:" in text
-    marker_push_allowed = name == "publish-current-main-test-release.yml" and publish_marker_exists
+    marker_push_allowed = (
+        (name == "current-main-build.yml" and current_marker_exists)
+        or (name == "publish-current-main-test-release.yml" and publish_marker_exists)
+    )
     if has_push and not marker_push_allowed:
         errors.append(f"{name} must remain manual-only outside the marker trigger commit")
-    if marker_push_allowed and not has_push:
+    if name == "current-main-build.yml" and current_marker_exists and not has_push:
+        errors.append("current-main marker exists but current-main workflow is not armed with temporary push")
+    if name == "publish-current-main-test-release.yml" and publish_marker_exists and not has_push:
         errors.append("publish marker exists but publish workflow is not armed with temporary push")
+
+for required in (
+    "BUILD_SOURCE_SHA: ${{ github.sha }}",
+    "Verify temporary push trigger source",
+    "ref: ${{ env.BUILD_SOURCE_SHA }}",
+    'test "$changed" = ".github/.trigger-current-main-build"',
+):
+    if required not in current_workflow:
+        errors.append(f"current-main workflow is missing stable source targeting guard: {required}")
+
 
 if "permissions:\n  contents: write\n  actions: read" not in publish_workflow:
     errors.append(
