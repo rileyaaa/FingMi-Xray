@@ -253,6 +253,14 @@ forbid(
 )
 
 require(
+    "app/src/leanback/java/com/fongmi/android/tv/ui/activity/PushActivity.java",
+    "intent.putExtra(\"tab\", tab);",
+    "if (getTab() == 6)",
+    "R.string.xray_phone_scan_info",
+    "mBinding.clip.setVisibility(View.GONE);",
+)
+
+require(
     "app/src/main/java/com/fongmi/android/tv/server/process/Action.java",
     'case "xray" -> onXray(params);',
     'String link = params.get("link");',
