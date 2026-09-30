@@ -7,7 +7,7 @@ from pathlib import Path
 from zipfile import ZipFile
 ROOT=Path(__file__).resolve().parents[2]
 s=importlib.util.spec_from_file_location('elf_contract',ROOT/'compat/media3-libass/tests/contract.py');m=importlib.util.module_from_spec(s);s.loader.exec_module(m)
-E=json.loads((ROOT/'compat/media3-libass/tests/published-565-contract.json').read_text())
+E=json.loads((ROOT/'compat/media3-libass/tests/published-568-native-contract.json').read_text())
 def java_methods(cp,name):
  out=subprocess.check_output(['java','com.sun.tools.javap.Main','-p','-s','-classpath',str(cp),'androidx.media3.exoplayer.libass.'+name],text=True)
  return {name:desc for name,desc in re.findall(r'(\w+)\([^;]*?\);\s*descriptor:\s*(\S+)',out)}
@@ -64,5 +64,5 @@ def main():
   got=java_methods(cp,'LibassNative');got.pop('LibassNative',None)
   assert got==expected,'Java native declarations differ from published RegisterNatives'
   for name,descriptor in E['constructors'].items():assert java_methods(cp,name).get(name)==descriptor,'JNI constructor mismatch: '+name
- print('PASS:17 native signatures +2 JNI constructors and pinned hashes match both ABIs; built AAR also checks app-facing production APIs (not app/EGL certification)')
+ print('PASS:17 native signatures +2 JNI constructors and pinned 5.6.8 hashes match both ABIs; built AAR also checks app-facing production APIs (not app/EGL certification)')
 if __name__=='__main__':main()
