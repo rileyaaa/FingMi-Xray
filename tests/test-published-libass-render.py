@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
-"""Synthetic ASS/font -> actual published v7 renderer, headless JNI bitmap capture."""
+"""Synthetic ASS/font -> pinned 5.6.8 v7 renderer; compare against the frozen 5.6.5 render oracle."""
 import argparse,hashlib,json,os,subprocess,tempfile
 from pathlib import Path
 ROOT=Path(__file__).resolve().parents[1]
 FONT_SHA='ae7b7855e115a5966d8b1b3f80f254ccc117ec86f9965e202ee2940453837280'
 def main():
  p=argparse.ArgumentParser(description=__doc__);p.add_argument('--workdir',type=Path,required=True);p.add_argument('--jni',type=Path,required=True);p.add_argument('--font',type=Path,required=True);p.add_argument('--capture',action='store_true');a=p.parse_args()
- e=json.loads((ROOT/'compat/media3-libass/tests/published-565-contract.json').read_text())
+ e=json.loads((ROOT/'compat/media3-libass/tests/published-568-native-contract.json').read_text())
  assert hashlib.sha256(a.jni.read_bytes()).hexdigest()==e['abis']['armeabi-v7a']['sha256']
  assert hashlib.sha256(a.font.read_bytes()).hexdigest()==FONT_SHA
  work=a.workdir.resolve();cc=work/'cross/usr/bin';android=work/'android/root'
@@ -25,5 +25,5 @@ def main():
   if a.capture:
    with oracle.open('x') as f:json.dump(result,f,indent=2);f.write('\n')
   else:assert result==json.loads(oracle.read_text()),'Published rendering regression'
-  print('PASS:8 actual published synthetic ASS rendering observations; pinned glyph masks/positions; no EGL/ART claim')
+  print('PASS: 5.6.8 v7 synthetic ASS rendering matches frozen 5.6.5 glyph masks/positions; no EGL/ART claim')
 if __name__=='__main__':main()
