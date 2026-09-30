@@ -20,6 +20,8 @@ for path in sorted((ROOT / "app/src").rglob("strings.xml")):
 player_builder = (ROOT / "scripts/build/build-player-aar-candidate.sh").read_text(encoding="utf-8")
 player_verifier = (ROOT / "scripts/build/player_candidate.py").read_text(encoding="utf-8")
 libass_builder = (ROOT / "scripts/build/build-libass-candidate.py").read_text(encoding="utf-8")
+libass_contract = (ROOT / "scripts/build/check-libass-contract.py").read_text(encoding="utf-8")
+libass_native_contract = (ROOT / "compat/media3-libass/tests/published-568-native-contract.json").read_text(encoding="utf-8")
 for required in (
     'SOURCE_COMMIT="3c2cbe8ac742c2fe15eff52f03eeb3b1b648848d"',
     "https://github.com/FongMi/media.git",
@@ -43,10 +45,25 @@ for required in (
         errors.append(f"player candidate verifier lost pinned-source contract: {required}")
 
 for required in (
+    "published-568-native-contract.json",
+):
+    if required not in libass_contract:
+        errors.append(f"Libass contract checker lost current native contract: {required}")
+for required in (
+    '"version": "5.6.8"',
+    "58bc83730285c9a4ba40bf71d4deeea8be7e69dfb7d1a053f6a77aea006ad6ee",
+    "7e160faba4f64abb7551b48d07ae886af73464d3079978dcd55352e7b22bd6b3",
+    '"LibassFrame": "(I[Landroidx/media3/exoplayer/libass/LibassImage;)V"',
+    '"LibassImage": "(IIIII[BI)V"',
+):
+    if required not in libass_native_contract:
+        errors.append(f"Libass 5.6.8 native contract lost pinned ABI evidence: {required}")
+
+for required in (
     "2859ebef12bf0fa0dfec023d410df478ac5e5a82a72ef2be48f6e4fa09a24761",
     "948df594843e304c332476a380163dc1cc74f964be5ea1539ff0465a9dd936eb",
-    "052c81b548649a0a3d697f034640f8c4b00530b6572662b16cc6ca3f6efb1f26",
-    "c625360ef9224a516a1092ea757130f4c6f11c63544c50a1b279b654cf4710f7",
+    "58bc83730285c9a4ba40bf71d4deeea8be7e69dfb7d1a053f6a77aea006ad6ee",
+    "7e160faba4f64abb7551b48d07ae886af73464d3079978dcd55352e7b22bd6b3",
 ):
     if required not in libass_builder:
         errors.append(f"Libass builder lost pinned APK/SO provenance: {required}")
