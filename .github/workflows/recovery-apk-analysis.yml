@@ -192,19 +192,7 @@ jobs:
 
           abi, dex_name, out_dir, location_path = sys.argv[1:5]
           text = sys.stdin.read()
-          # -h guarantees an indexed "Class #N header:" block even when the
-          # plain body layout changes across build-tools revisions.  Use those
-          # section headers as the primary class boundary instead of depending
-          # on the legacy padded "Class #N            -" body marker.
-          starts = [
-              m.start()
-              for m in re.finditer(r"(?m)^\s*Class #\d+\s+header:\s*$", text)
-          ]
-          if not starts:
-              starts = [
-                  m.start()
-                  for m in re.finditer(r"(?m)^\s*Class #\d+\s+-\s*$", text)
-              ]
+          starts = [m.start() for m in re.finditer(r"(?m)^\s*Class #\d+\s+-\s*$", text)]
           starts.append(len(text))
           out = Path(out_dir)
           out.mkdir(parents=True, exist_ok=True)
@@ -230,16 +218,7 @@ jobs:
             mkdir -p "$out"
             : > "$loc"
             for dex in recovery/evidence/${abi}-dex/classes*.dex; do
-              dex_name="$(basename "$dex")"
-              raw="recovery/work/dexdump-${abi}-${dex_name}.txt"
-              "$DEXDUMP" -d -f -h "$dex" > "$raw"
-              grep -m 40 -E 'Class #[0-9]+|Class descriptor' "$raw" \
-                > "recovery/evidence/reports/${abi}-${dex_name}-dexdump-markers.txt" || true
-              sed -n '1,80p' "$raw" \
-                > "recovery/evidence/reports/${abi}-${dex_name}-dexdump-head.txt"
-              python3 recovery/work/extract_dexdump.py \
-                "$abi" "$dex_name" "$out" "$loc" < "$raw"
-              rm -f "$raw"
+              "$DEXDUMP" -d -f -h -l plain "$dex" | python3 recovery/work/extract_dexdump.py                 "$abi" "$(basename "$dex")" "$out" "$loc"
             done
           done
 
