@@ -225,11 +225,34 @@ require(
     'value.contains("failed to listen")',
     "if (!cleaned || !delivered) cancelInternal(XrayOperation.START, operationId);",
     "if (!delivered) cancelInternal(XrayOperation.STOP, operationId);",
+    "if (!sessionGate.isCurrent(operationId)) {\n            send(callback, operationId, XrayOperation.STOP, true",
+    "if (!sessionGate.isCurrent(operationId)) {\n                send(callback, operationId, XrayOperation.STOP, true",
     "sessionGate.cancel(operationId)",
     "operationGate.cancel(operationId)",
     "sessionGate.invalidateAll();",
     "operationGate.invalidateAll();",
     "killPrivateProcess();",
+)
+
+require(
+    "xray/src/main/java/com/fingmi/xray/core/LibXrayBridge.java",
+    'outbound.put("targetStrategy", "AsIs");',
+    '"pingBatch"',
+    '.put("timeout", 10)',
+    '.put("url", "https://www.gstatic.com/generate_204")',
+    '"Xray connectivity test returned no result"',
+)
+
+require(
+    "xray/src/main/java/com/fingmi/xray/security/XrayCertificatePins.java",
+    'PREFS = "xray_hy2_pins"',
+    'LEGACY_PREFS = "xray_secure"',
+    'KEY_ALIAS = "fongmi_xray_hy2_pins_v1"',
+    "XrayCertificatePins current = new XrayCertificatePins(context);",
+    "clearPins(\n                context.getSharedPreferences(\n                        LEGACY_PREFS",
+    "current.clearPins();",
+    "deleteEncryptionKey();",
+    'KeyStore.getInstance("AndroidKeyStore")',
 )
 
 require(
