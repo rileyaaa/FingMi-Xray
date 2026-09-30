@@ -415,6 +415,28 @@ FingMi-Xray 当前**不使用 FongMi/Release 的应用内自更新**。原因是
 
 current Java 的 normalize → transport security → runtime config 链会分别交给固定 SHA 的 v7 / arm64 发布 `libgojni.so`，并以 v7 冻结 oracle 比对 conversion 与 runtime `testXray`。固定链覆盖 26 组分享链接，其中 6 组为 KCP golden cases。该验证证明的是 Java/native 组合在这些冻结输入上的动态等价；它不替代 Android TV 真机上的 ART、Binder、播放器和真实网络生命周期回归。
 
+### 2026-09-28 — 文档体系收敛
+
+长期项目文档收敛为 README、PROJECT、DEVELOPMENT、AI_COLLABORATION、RECOVERY 和冻结 ORIGINAL_README 六份。tests / compat 的维护说明归入本文，recovery / apk-reference 的说明归入 RECOVERY；目录内不再重复维护 README。开发记录允许保留精选的日期/版本里程碑，但不把 Git / Actions 过程复制成流水账。
+
+### 2026-09-29 — full-JADX 重新定义了 Xray 审计证据边界
+
+此前长期保存在 Git 中的 `docs/apk-reference/shared/sources/` 是筛选后的 readable evidence，不是完整 APK 源码宇宙；因此不能再用 selected JADX 宣布“源代码级 100% 还原”。重新对黄金 APK 做 full JADX 后，发现多组名称本身不含 Xray 的混淆类会经旧 `PlayerManager` 间接取得 Xray-aware playback client / proxy 状态，字幕、弹幕、PlayerView 重建和 preload 等路径必须按最终调用关系反查，而不能只搜索 Xray 文件名。
+
+这轮反查确认 current 已承接字幕、弹幕、DRM、RTSP、preload、VOD artwork 与 MediaSession artwork 的发布语义，同时找到一个真实外围缺口：Live 当前频道 widget 的远程 logo 在 Xray active 时仍可能经普通 Glide 请求。current 已补成与频道列表相同的 suppression：Xray running 时取消并清空远程 logo，stop / error 后恢复加载。VOD artwork 原本已有 Xray guard；MediaSession remote artwork 在 Xray active 时按黄金行为直接 block，而不是改走 Xray 下载。
+
+### 2026-09-29 — TV 网络恢复补齐旧 client、图片失败缓存与 single-entry 边界
+
+Glide 原先在初始化时固定保存 `OkHttp.client()`，普通 API client 在待机 / 换网恢复后被重建时，Glide 仍可能继续持有旧 transport。现在 `OkGlideModule` 每个请求动态取得当前 API client；网络 generation 恢复时也会清理 `ImgUtil` 的 transient failed URL 集合，使网络恢复后的图片重新具备重试机会。
+
+网络恢复仍保留 generation、`recoveredGeneration`、stale callback / task-id 拒绝、Spider 串行 clear、API 与 playback/Xray client 隔离等 current 改进。Leanback Manifest 已取消 BootReceiver 与 `RECEIVE_BOOT_COMPLETED`，避免在 Home / `TvNetworkLifecycle` 之外形成第二个独立网络入口。约 6 秒稳定检查之后网络才恢复的慢唤醒场景仍属于真机验证项；没有证据前不增加永久轮询或默认网络 callback。
+
+### 2026-09-29 — 升级兼容补上字幕偏好与 Chaquopy process ABI
+
+字幕设置迁移会按 legacy caption 状态 → `subtitle_style_source` → `subtitle_style` 的顺序读取，避免升级用户丢失已有样式偏好。
+
+Chaquopy 资产选择不再直接按设备 `Build.SUPPORTED_ABIS` 的跨位数顺序挑选；先用 `Process.is64Bit()` 确定实际 App process bitness，再从对应的 32/64-bit ABI 列表中选择 Python native requirements。这个边界特别针对支持 64-bit 的电视上安装 32-bit Leanback APK 的场景。
+
 ### 2026-09-30 — MPEG-H、gomobile runtime 与冷启动 LiveConfig 重新收口
 
 current player candidate 已从 16 个 AAR 修正为 17 个，补回固定 FongMi/media 源码本来就存在的 `lib-decoder-mpegh`；current build / publish 还会在最终 Leanback APK 检查 `MpeghAudioRenderer` 与 `libmpeghJNI.so`，避免再次出现源码支持但最终 APK 丢扩展的情况。
@@ -423,6 +445,9 @@ current player candidate 已从 16 个 AAR 修正为 17 个，补回固定 FongM
 
 Leanback Manifest 已不再注册 BootReceiver，但冷启动 LiveConfig 仍有两层静态入口：Home 初始化无条件执行 `LiveConfig.get().init().load()`；如果 Live 被以 empty 状态启动，`LiveActivity.checkLive()` 也会再次执行 `init().load(callback)`。因此去掉 boot-time network callback 不会在代码结构上删除首次 LiveConfig 初始化路径；冷启动真机仍应保留回归测试。
 
-### 2026-09-28 — 文档体系收敛
+### 2026-09-30 — recovery dexdump 与 current-main 临时触发都改为显式 source guard
 
-长期项目文档收敛为 README、PROJECT、DEVELOPMENT、AI_COLLABORATION、RECOVERY 和冻结 ORIGINAL_README 六份。tests / compat 的维护说明归入本文，recovery / apk-reference 的说明归入 RECOVERY；目录内不再重复维护 README。开发记录允许保留精选的日期/版本里程碑，但不把 Git / Actions 过程复制成流水账。
+Android build-tools 37 的 plain `dexdump` 会把 class 边界打印成带填充空格的 `Class #N            -`。recovery 提取器必须按可变空白匹配这个边界，同时继续用 raw DEX descriptor（例如 `La04;`），不能把 JADX 的 synthetic `p000/` display package 当作 DEX 名字。full JADX、APK/DEX inventory 与 targeted dexdump 属于不同证据层，workflow 只有三者都成功才算 recovery analysis 完整通过。
+
+`current-main-build.yml` 现在和 publish 一样固定 `BUILD_SOURCE_SHA` 并验证临时 push 的 source commit。连接器无法直接调用 `workflow_dispatch` 时，只允许两阶段 marker 触发：先临时给 workflow 增加只监听 `.github/.trigger-current-main-build` 的 push path，再提交只改变该 marker 的 source commit；真正 build 只接受 marker-only commit。正常仓库状态仍必须是 pure `workflow_dispatch`，marker 也必须在验证结束后删除。
+
