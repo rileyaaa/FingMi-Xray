@@ -43,8 +43,8 @@ for required in (
         errors.append(f"player candidate verifier lost pinned-source contract: {required}")
 
 for required in (
-    "74f578537e063e01423667b2acad4b152eb8e1fdae0f75c98ed9a1c9b05c5789",
-    "0799e9942972a642149105ada63b483f5de0f4dddf546ce698b7a6ef2299a679",
+    "2859ebef12bf0fa0dfec023d410df478ac5e5a82a72ef2be48f6e4fa09a24761",
+    "948df594843e304c332476a380163dc1cc74f964be5ea1539ff0465a9dd936eb",
     "052c81b548649a0a3d697f034640f8c4b00530b6572662b16cc6ca3f6efb1f26",
     "c625360ef9224a516a1092ea757130f4c6f11c63544c50a1b279b654cf4710f7",
 ):
@@ -217,15 +217,16 @@ for name, text in (
         if required not in text:
             errors.append(f"{name} is missing pinned TV build contract: {required}")
 
-    if "releases/download/5.6.5/" in text:
-        errors.append(f"{name} still references the deleted FongMi 5.6.5 Release assets")
+    for retired in ("5.6.5", "5.6.6"):
+        if f"releases/download/{retired}/" in text:
+            errors.append(f"{name} still references deleted FongMi {retired} Release assets")
     for required in (
-        "releases/download/5.6.6/",
-        "74f578537e063e01423667b2acad4b152eb8e1fdae0f75c98ed9a1c9b05c5789",
-        "0799e9942972a642149105ada63b483f5de0f4dddf546ce698b7a6ef2299a679",
+        "releases/download/5.6.8/",
+        "2859ebef12bf0fa0dfec023d410df478ac5e5a82a72ef2be48f6e4fa09a24761",
+        "948df594843e304c332476a380163dc1cc74f964be5ea1539ff0465a9dd936eb",
     ):
         if required not in text:
-            errors.append(f"{name} is missing pinned FongMi 5.6.6 Libass provenance: {required}")
+            errors.append(f"{name} is missing pinned FongMi 5.6.8 Libass container provenance: {required}")
 
     for required in (
         "Reclaim transient provenance/native harness space before",
