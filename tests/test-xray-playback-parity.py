@@ -122,6 +122,29 @@ require(
 )
 
 require(
+    "app/src/main/java/com/fongmi/android/tv/service/PlaybackService.java",
+    "public void onXrayTransitionStarted()",
+    "DanmakuApi.cancelForXrayTransition();",
+    "SubtitleApi.cancelForXrayTransition();",
+    "if (xrayBitmapLoader != null) xrayBitmapLoader.cancelRemoteLoads();",
+)
+
+require(
+    "app/src/main/java/com/fongmi/android/tv/api/DanmakuApi.java",
+    "public static void cancelForXrayTransition()",
+    "completion = runCompletion ? xrayCancelCompletion : null;",
+    "if (completion != null) App.post(completion);",
+)
+
+require(
+    "app/src/main/java/com/fongmi/android/tv/api/SubtitleApi.java",
+    "public static void cancelForXrayTransition()",
+    "if (call != null) call.cancel();",
+    "if (download != null) download.cancel();",
+    "if (completion != null) App.post(completion);",
+)
+
+require(
     "app/src/main/java/com/fongmi/android/tv/player/media/XrayArtworkBitmapLoader.java",
     "Remote artwork blocked while Xray is enabled",
     "cancelRemoteLoads()",
