@@ -19,7 +19,7 @@ spec = importlib.util.spec_from_file_location('libass_build', ROOT/'scripts/buil
 build = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(build)
 NAME = 'lib-exoplayer-libass-reconstructed.aar'
-AAR_SHA256 = '2318eb904a016d0160aed2a4b7de8501578cd0f223c65e5c61086f7a9a80f573'
+AAR_SHA256 = 'f047f8ad84be08aeddb0672500e9b263cafd6f2a009812392554dc55b2019861'
 ORIGINAL_EXTRACTOR = '9f5d306cabf3118ae26417c02870200dd245da853f980cdc8d51b27db34accd9'
 
 def inventory(payload):
