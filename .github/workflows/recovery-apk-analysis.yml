@@ -223,7 +223,7 @@ jobs:
             mkdir -p "$out"
             : > "$loc"
             for dex in recovery/evidence/${abi}-dex/classes*.dex; do
-              "$DEXDUMP" -d -f -h "$dex" | python3 recovery/work/extract_dexdump.py                 "$abi" "$(basename "$dex")" "$out" "$loc"
+              "$DEXDUMP" -d -f -h -l plain "$dex" | python3 recovery/work/extract_dexdump.py                 "$abi" "$(basename "$dex")" "$out" "$loc"
             done
           done
 
