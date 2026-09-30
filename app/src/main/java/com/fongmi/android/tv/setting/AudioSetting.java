@@ -13,7 +13,7 @@ public class AudioSetting {
     public static final int MIN_DIALOGUE = 0;
     public static final int MAX_DIALOGUE = 100;
     public static final int MIN_BOOST = 0;
-    public static final int MAX_BOOST = 1200;
+    public static final int MAX_BOOST = 2000;
     public static final int MIN_PREAMP = -1200;
     public static final int MAX_PREAMP = 0;
     public static final int MIN_CENTER_GAIN = 0;
