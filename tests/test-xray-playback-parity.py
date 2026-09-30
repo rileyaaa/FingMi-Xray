@@ -69,6 +69,9 @@ require(
     "return !hasXraySession()",
     "if (next == null && !preservePlayback)",
     "if (spec != null) ensureEngine(spec.checkUa());",
+    "if (next != null) callback.onXrayTransitionStarted();\n\n        clearPreload();",
+    "if (playbackProxy != null || !canPreloadNext()",
+    "PlaybackSnapshot.capture(player)",
 )
 
 require(
