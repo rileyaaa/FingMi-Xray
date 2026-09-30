@@ -121,6 +121,8 @@ for required in (
     "published_568_ffmpeg_contract.py",
     "FFMPEG_SONAMES",
     "libffmpegDoviJNI.so",
+    'rglob(f"app-leanback-{abi}-debug.apk")',
+    "recursive APK discovery failed",
     "armeabi-v7a",
     "arm64-v8a",
 ):
