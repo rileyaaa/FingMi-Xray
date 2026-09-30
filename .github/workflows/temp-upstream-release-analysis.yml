@@ -2,11 +2,6 @@ name: Temporary upstream release analysis
 
 on:
   workflow_dispatch:
-  push:
-    branches:
-      - sync-upstream-c616c0aa
-    paths:
-      - '.github/.trigger-upstream-release-analysis'
 
 permissions:
   contents: read
