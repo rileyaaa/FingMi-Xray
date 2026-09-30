@@ -2,6 +2,7 @@
 set -euo pipefail
 
 SOURCE_COMMIT="3c2cbe8ac742c2fe15eff52f03eeb3b1b648848d"
+DOLBY_OVERLAY_ID="fongmi-tv-5.6.8-dolby-release-overlay-v1"
 WORKDIR=""
 OUTPUT=""
 
@@ -47,6 +48,8 @@ if [ "$actual" != "$SOURCE_COMMIT" ]; then
   exit 1
 fi
 
+python3 "$ROOT/scripts/build/apply-media3-dolby568-overlay.py" --source "$SOURCE_DIR"
+
 (
   cd "$SOURCE_DIR"
   ./gradlew --no-daemon -PexternalBuildDir=buildout \
@@ -69,7 +72,7 @@ fi
     :lib-ui-danmaku:assembleRelease
 )
 
-python3 - "$SOURCE_DIR" "$STAGE" "$OUTPUT" "$SOURCE_COMMIT" <<'PY'
+python3 - "$SOURCE_DIR" "$STAGE" "$OUTPUT" "$SOURCE_COMMIT" "$DOLBY_OVERLAY_ID" <<'PY'
 from io import BytesIO
 from pathlib import Path
 from zipfile import ZIP_STORED, ZipFile, ZipInfo
@@ -81,12 +84,21 @@ source = Path(sys.argv[1])
 stage = Path(sys.argv[2])
 output = Path(sys.argv[3])
 source_commit = sys.argv[4]
+overlay_id = sys.argv[5]
 
 required = {
     "androidx/media3/mpvplayer/MpvPlayer.class",
     "androidx/media3/exoplayer/trackselection/DecodeTrackSelector.class",
     "androidx/media3/exoplayer/source/preload/MediaSourceFactorySupplier.class",
     "androidx/media3/decoder/mpegh/MpeghAudioRenderer.class",
+    "androidx/media3/decoder/ffmpeg/FfmpegDolbyVisionP5MappingPolicy.class",
+    "androidx/media3/decoder/ffmpeg/FfmpegDolbyVisionP5Native.class",
+    "androidx/media3/decoder/ffmpeg/FfmpegDolbyVisionP5Renderer.class",
+    "androidx/media3/decoder/ffmpeg/FfmpegDolbyVisionP5VideoSink.class",
+    "androidx/media3/decoder/ffmpeg/FfmpegDolbyVisionP7Converter.class",
+    "androidx/media3/decoder/ffmpeg/FfmpegDolbyVisionP7Converter$Factory.class",
+    "androidx/media3/exoplayer/video/DolbyVisionP7Converter.class",
+    "androidx/media3/exoplayer/video/DolbyVisionP7Converter$Factory.class",
 }
 found = set()
 aars = sorted(set(
@@ -99,7 +111,7 @@ aars = sorted(set(
 if len(aars) != 17:
     raise SystemExit(f"expected 17 release AARs, found {len(aars)}")
 
-lines = [f"FongMi/media @ {source_commit}"]
+lines = [f"FongMi/media @ {source_commit}", f"Dolby overlay: {overlay_id}"]
 for path in aars:
     target = stage / path.name
     shutil.copy2(path, target)

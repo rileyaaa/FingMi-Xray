@@ -549,6 +549,29 @@ def patch_media_codec_video_renderer(path: Path) -> None:
     path.write_text(text, encoding="utf-8")
 
 
+def patch_decode_track_selector(path: Path) -> None:
+    text = path.read_text(encoding="utf-8")
+    text = replace_once(
+        text,
+        '  private static final String MEDIA_CODEC_VIDEO_RENDERER_NAME = "MediaCodecVideoRenderer";\n',
+        '  private static final String MEDIA_CODEC_VIDEO_RENDERER_NAME = "MediaCodecVideoRenderer";\n'
+        '  private static final String DOLBY_VISION_P5_RENDERER_NAME = "FfmpegDolbyVisionP5Renderer";\n',
+        "selector P5 renderer name",
+    )
+    text = replace_once(
+        text,
+        "    } else if (trackType == C.TRACK_TYPE_VIDEO) {\n"
+        "      return MEDIA_CODEC_VIDEO_RENDERER_NAME.equals(name);\n"
+        "    }\n",
+        "    } else if (trackType == C.TRACK_TYPE_VIDEO) {\n"
+        "      return MEDIA_CODEC_VIDEO_RENDERER_NAME.equals(name)\n"
+        "          || DOLBY_VISION_P5_RENDERER_NAME.equals(name);\n"
+        "    }\n",
+        "selector P5 hardware classification",
+    )
+    path.write_text(text, encoding="utf-8")
+
+
 def patch_default_renderers_factory(path: Path) -> None:
     text = path.read_text(encoding="utf-8")
     text = replace_once(
@@ -586,6 +609,65 @@ def patch_default_renderers_factory(path: Path) -> None:
 
 """
     text = replace_once(text, anchor, helper + anchor, "factory P7 loader")
+
+    core_renderer = (
+        "    out.add(\n"
+        "        createMediaCodecVideoRenderer(\n"
+        "            context,\n"
+        "            mediaCodecSelector,\n"
+        "            enableDecoderFallback,\n"
+        "            eventHandler,\n"
+        "            eventListener,\n"
+        "            allowedVideoJoiningTimeMs));\n\n"
+        "    if (extensionRendererMode == EXTENSION_RENDERER_MODE_OFF) {\n"
+    )
+    p5_and_core = (
+        "    if (extensionRendererMode != EXTENSION_RENDERER_MODE_OFF) {\n"
+        "      try {\n"
+        "        Class<?> clazz =\n"
+        '            Class.forName("androidx.media3.decoder.ffmpeg.FfmpegDolbyVisionP5Renderer");\n'
+        '        @SuppressWarnings("UnnecessarilyFullyQualified")\n'
+        "        Constructor<?> constructor =\n"
+        "            clazz.getConstructor(\n"
+        "                Context.class,\n"
+        "                androidx.media3.exoplayer.mediacodec.MediaCodecAdapter.Factory.class,\n"
+        "                androidx.media3.exoplayer.mediacodec.MediaCodecSelector.class,\n"
+        "                long.class,\n"
+        "                boolean.class,\n"
+        "                Handler.class,\n"
+        "                androidx.media3.exoplayer.video.VideoRendererEventListener.class,\n"
+        "                int.class);\n"
+        "        Renderer renderer =\n"
+        "            (Renderer)\n"
+        "                constructor.newInstance(\n"
+        "                    context,\n"
+        "                    getCodecAdapterFactory(),\n"
+        "                    mediaCodecSelector,\n"
+        "                    allowedVideoJoiningTimeMs,\n"
+        "                    enableDecoderFallback,\n"
+        "                    eventHandler,\n"
+        "                    eventListener,\n"
+        "                    dolbyVisionOutputPolicy);\n"
+        "        out.add(renderer);\n"
+        '        Log.i(TAG, "Loaded FfmpegDolbyVisionP5Renderer.");\n'
+        "      } catch (ClassNotFoundException e) {\n"
+        "        // Expected when the FFmpeg extension is not packaged.\n"
+        "      } catch (Exception e) {\n"
+        "        throw new IllegalStateException(\n"
+        '            "Error instantiating Dolby Vision profile 5 renderer", e);\n'
+        "      }\n"
+        "    }\n\n"
+        "    out.add(\n"
+        "        createMediaCodecVideoRenderer(\n"
+        "            context,\n"
+        "            mediaCodecSelector,\n"
+        "            enableDecoderFallback,\n"
+        "            eventHandler,\n"
+        "            eventListener,\n"
+        "            allowedVideoJoiningTimeMs));\n\n"
+        "    if (extensionRendererMode == EXTENSION_RENDERER_MODE_OFF) {\n"
+    )
+    text = replace_once(text, core_renderer, p5_and_core, "factory P5 renderer")
     path.write_text(text, encoding="utf-8")
 
 
@@ -597,6 +679,10 @@ def patch_proguard(path: Path) -> None:
 }
 """
     addition = anchor + """
+-dontnote androidx.media3.decoder.ffmpeg.FfmpegDolbyVisionP5Renderer
+-keepclassmembers class androidx.media3.decoder.ffmpeg.FfmpegDolbyVisionP5Renderer {
+  <init>(android.content.Context, androidx.media3.exoplayer.mediacodec.MediaCodecAdapter$Factory, androidx.media3.exoplayer.mediacodec.MediaCodecSelector, long, boolean, android.os.Handler, androidx.media3.exoplayer.video.VideoRendererEventListener, int);
+}
 -dontnote androidx.media3.decoder.ffmpeg.FfmpegDolbyVisionP7Converter$Factory
 -keep class androidx.media3.decoder.ffmpeg.FfmpegDolbyVisionP7Converter$Factory {
   public <init>();
@@ -639,6 +725,10 @@ def main() -> None:
         )
         patch_default_renderers_factory(
             root / "libraries/exoplayer/src/main/java/androidx/media3/exoplayer/DefaultRenderersFactory.java"
+        )
+        patch_decode_track_selector(
+            root
+            / "libraries/exoplayer/src/main/java/androidx/media3/exoplayer/trackselection/DecodeTrackSelector.java"
         )
         patch_proguard(root / "libraries/exoplayer/proguard-rules.txt")
     except (OSError, ValueError) as error:

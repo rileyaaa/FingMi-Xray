@@ -15,29 +15,68 @@ sys.path.insert(0, str(SCRIPT_DIR))
 
 from player_candidate import SOURCE_COMMIT, read_verified_candidate  # noqa: E402
 
+RECOVERY_DIR = ROOT / "scripts" / "recovery"
+sys.path.insert(0, str(RECOVERY_DIR))
+from published_568_ffmpeg_contract import NATIVE_SHA256  # noqa: E402
+
 
 DECODER_NAME = "lib-decoder-ffmpeg-release.aar"
-PUBLISHED_JNI = {
-    "jni/armeabi-v7a/libffmpegJNI.so": "3af1fcaa21f28071994fc51936889e2441edec57d5009e7a4043bf9f06435d42",
-    "jni/arm64-v8a/libffmpegJNI.so": "26594d573765fc86a3d242c81e11369ced639d76cb4465cdf4b31a7c2d9da91c",
+PUBLISHED_CLOSURE = {
+    f"jni/{abi}/{soname}": digest
+    for abi, libraries in NATIVE_SHA256.items()
+    for soname, digest in libraries.items()
+}
+DOVI_JNI = {
+    "jni/armeabi-v7a/libffmpegDoviJNI.so",
+    "jni/arm64-v8a/libffmpegDoviJNI.so",
 }
 
 
 def verified_decoder_replacement(candidate: bytes, replacement: bytes) -> bytes:
-    """Accept only the two published JNI changes to the pinned decoder AAR."""
+    """Accept only the immutable FongMi 5.6.8 FFmpeg native closure mutation."""
     with ZipFile(BytesIO(candidate)) as original, ZipFile(BytesIO(replacement)) as restored:
-        before, after = original.namelist(), restored.namelist()
-        if len(before) != len(set(before)) or before != after:
-            raise ValueError("restored decoder AAR entry names/order differ or are duplicated")
-        if not set(PUBLISHED_JNI).issubset(before):
-            raise ValueError("decoder AAR lacks the two expected JNI entries")
+        before = original.namelist()
+        after = restored.namelist()
+        if len(before) != len(set(before)) or len(after) != len(set(after)):
+            raise ValueError("decoder AAR contains duplicate ZIP entries")
+
+        before_set = set(before)
+        after_set = set(after)
+        required_existing = set(PUBLISHED_CLOSURE) - DOVI_JNI
+        missing_existing = sorted(required_existing - before_set)
+        if missing_existing:
+            raise ValueError(
+                "candidate decoder AAR lacks FFmpeg closure entries: "
+                + ", ".join(missing_existing)
+            )
+
+        expected_added = set(PUBLISHED_CLOSURE) - before_set
+        if not expected_added.issubset(DOVI_JNI):
+            raise ValueError("candidate decoder is missing non-Dolby FFmpeg closure entries")
+        if after_set != before_set | expected_added:
+            raise ValueError("restored decoder changed the archive entry inventory unexpectedly")
+
         for name in before:
             data = restored.read(name)
-            if name in PUBLISHED_JNI:
-                if hashlib.sha256(data).hexdigest() != PUBLISHED_JNI[name]:
-                    raise ValueError(f"restored decoder has unverified published JNI: {name}")
+            if name in PUBLISHED_CLOSURE:
+                if hashlib.sha256(data).hexdigest() != PUBLISHED_CLOSURE[name]:
+                    raise ValueError(
+                        f"restored decoder has unverified 5.6.8 native entry: {name}"
+                    )
             elif data != original.read(name):
-                raise ValueError(f"restored decoder changed another entry: {name}")
+                raise ValueError(f"restored decoder changed non-native entry: {name}")
+
+        for name in expected_added:
+            data = restored.read(name)
+            if hashlib.sha256(data).hexdigest() != PUBLISHED_CLOSURE[name]:
+                raise ValueError(f"restored decoder added unverified native entry: {name}")
+
+        missing_after = sorted(set(PUBLISHED_CLOSURE) - after_set)
+        if missing_after:
+            raise ValueError(
+                "restored decoder lacks pinned 5.6.8 FFmpeg closure entries: "
+                + ", ".join(missing_after)
+            )
     return replacement
 
 
@@ -75,8 +114,8 @@ def main() -> None:
         f"candidate AARs to {dest}"
     )
     print(
-        "Run scripts/recovery/check-faithful-player-aars.py and the FFmpeg JNI gate next; "
-        "full ABI is not yet verified."
+        "Run scripts/recovery/check-faithful-player-aars.py and the 5.6.8 FFmpeg closure gate next; "
+        "full APK packaging is not yet verified."
     )
 
 

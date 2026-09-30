@@ -10,6 +10,7 @@ from pathlib import Path
 from zipfile import BadZipFile, ZipFile
 
 SOURCE_COMMIT = "3c2cbe8ac742c2fe15eff52f03eeb3b1b648848d"
+DOLBY_OVERLAY_ID = "fongmi-tv-5.6.8-dolby-release-overlay-v1"
 EXPECTED_AAR_COUNT = 17
 REQUIRED_AARS = {
     "lib-common-release.aar",
@@ -23,6 +24,14 @@ REQUIRED_CLASSES = {
     "androidx/media3/exoplayer/trackselection/DecodeTrackSelector.class",
     "androidx/media3/exoplayer/source/preload/MediaSourceFactorySupplier.class",
     "androidx/media3/decoder/mpegh/MpeghAudioRenderer.class",
+    "androidx/media3/decoder/ffmpeg/FfmpegDolbyVisionP5MappingPolicy.class",
+    "androidx/media3/decoder/ffmpeg/FfmpegDolbyVisionP5Native.class",
+    "androidx/media3/decoder/ffmpeg/FfmpegDolbyVisionP5Renderer.class",
+    "androidx/media3/decoder/ffmpeg/FfmpegDolbyVisionP5VideoSink.class",
+    "androidx/media3/decoder/ffmpeg/FfmpegDolbyVisionP7Converter.class",
+    "androidx/media3/decoder/ffmpeg/FfmpegDolbyVisionP7Converter$Factory.class",
+    "androidx/media3/exoplayer/video/DolbyVisionP7Converter.class",
+    "androidx/media3/exoplayer/video/DolbyVisionP7Converter$Factory.class",
 }
 
 
@@ -59,9 +68,13 @@ def read_verified_candidate(path: Path) -> dict[str, bytes]:
                 )
 
             manifest = bundle.read("BUILD_MANIFEST.txt").decode("utf-8")
-            first = manifest.splitlines()[0] if manifest else ""
+            manifest_lines = manifest.splitlines()
+            first = manifest_lines[0] if manifest_lines else ""
             if first != f"FongMi/media @ {SOURCE_COMMIT}":
                 raise ValueError("candidate manifest points at an unexpected FongMi/media commit")
+            second = manifest_lines[1] if len(manifest_lines) > 1 else ""
+            if second != f"Dolby overlay: {DOLBY_OVERLAY_ID}":
+                raise ValueError("candidate manifest is missing the pinned Dolby release overlay")
 
             expected: dict[str, str] = {}
             for line in manifest.splitlines():
