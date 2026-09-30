@@ -221,7 +221,7 @@ player candidate 的信任根是固定 `FongMi/media` commit；每次构建都�
 
 当前可重复构建依赖以下几类输入：
 
-- 固定 FongMi/media player candidate 由 `scripts/build/build-player-aar-candidate.sh` 从 `FongMi/media@3c2cbe8ac742c2fe15eff52f03eeb3b1b648848d` 现场重建；`scripts/build/player_candidate.py` 校验固定 commit、16 个 AAR、manifest digest 与关键播放器 class。candidate 验证完成后立即删除 FongMi/media 临时 checkout、`buildout` 与 staging，只保留重建后的 candidate ZIP，避免前置媒体重建占满 GitHub-hosted runner 磁盘。构建输入不再放进项目 Release；
+- 固定 FongMi/media player candidate 由 `scripts/build/build-player-aar-candidate.sh` 从 `FongMi/media@3c2cbe8ac742c2fe15eff52f03eeb3b1b648848d` 现场重建；`scripts/build/player_candidate.py` 校验固定 commit、17 个 AAR（包含 `lib-decoder-mpegh`）、manifest digest 与关键播放器 class。candidate 验证完成后立即删除 FongMi/media 临时 checkout、`buildout` 与 staging，只保留重建后的 candidate ZIP，避免前置媒体重建占满 GitHub-hosted runner 磁盘。构建输入不再放进项目 Release；
 - 当前构建使用的 FFmpeg JNI；
 - 官方 libXray v26.7.28 AAR 外层容器，以及从固定历史发布 APK 恢复、彼此匹配的 API v2 gomobile Java bindings 与 v7 / arm64 Go JNI；
 - 按固定输入重建的 Libass compatibility AAR。
@@ -267,7 +267,7 @@ AI 与用户共同开发时的固定操作限制独立维护在 [AI_COLLABORATIO
 5. 执行 current Java → 发布版 v7 / arm64 native 动态 Xray chain parity（统一以 v7 发布行为为黄金 oracle，包含 KCP golden cases 与发布版 `testXray` runtime validation）；
 6. 只编译 Android TV / Leanback Java；
 7. 只 assemble Android TV / Leanback 两个 ABI 的 Debug APK；
-8. 上传短期 TV debug artifact（保留 2 天）供临时验证；上传成功后自动删除同名旧 debug，只保留最新一份。失败报告只保留 1 天。历史 recovery workflow 的 JADX/DEX、faithful APK、native dependency、player AAR 和 upstream snapshot artifacts 也只作临时复核，统一最多保留 3 天；长期可重建输入只保留源码 commit、脚本、fixture 与 hash，不再占用 Release。Gradle 命令继续使用 `--warning-mode all`；当前剩余会在 Gradle 10 失败的 deprecation 已确认全部来自固定上游同样使用的 Chaquopy Gradle plugin 17.0.0（multi-string dependency notation 与 execution-time `Task.project`），不是本仓库 Gradle 脚本。当前保持 FongMi/TV 5.6.3 的 17.0.0 pin，待上游或 Chaquopy 升级时再单独验证 Python runtime 与双 ABI assets，不在本 fork 中为消 warning 私自升级。自定义 `com.fongmi.chaquo.Platform` 保持 FongMi/TV 5.6.3 上游 ABI 选择逻辑；其中选中的 ABI 必须同步到 Chaquopy 17 的 `AndroidPlatform.ABI`，因为其 `java.android.importer` 会读取这个内部字段来装载 ABI-specific requirements ZIP。
+8. 上传短期 TV debug artifact（保留 2 天）供临时验证；上传成功后自动删除同名旧 debug，只保留最新一份。失败报告只保留 1 天。历史 recovery workflow 的 JADX/DEX、faithful APK、native dependency、player AAR 和 upstream snapshot artifacts 也只作临时复核，统一最多保留 3 天；长期可重建输入只保留源码 commit、脚本、fixture 与 hash，不再占用 Release。Gradle 命令继续使用 `--warning-mode all`；当前剩余会在 Gradle 10 失败的 deprecation 已确认全部来自固定上游同样使用的 Chaquopy Gradle plugin 17.0.0（multi-string dependency notation 与 execution-time `Task.project`），不是本仓库 Gradle 脚本。当前保持 FongMi/TV 5.6.3 的 17.0.0 pin，待上游或 Chaquopy 升级时再单独验证 Python runtime 与双 ABI assets，不在本 fork 中为消 warning 私自升级。自定义 `com.fongmi.chaquo.Platform` 在 FongMi/TV 5.6.3 基础上补了 process-bitness 修复：先用 `Process.is64Bit()` 选择 `SUPPORTED_64_BIT_ABIS` 或 `SUPPORTED_32_BIT_ABIS`，再在同位数列表中挑选 Python ABI；选中的 ABI 仍必须同步到 Chaquopy 17 的 `AndroidPlatform.ABI`，因为其 `java.android.importer` 会读取这个内部字段来装载 ABI-specific requirements ZIP。
 
 测试发布器：
 
@@ -277,7 +277,7 @@ Release 只承载发布版本：长期保留 `v5.6.0-xray.5` 黄金参考和一�
 
 它以 `BUILD_SOURCE_SHA` 作为唯一构建与发布源码，重新准备固定依赖、执行源码 guard、执行 current Java → 发布版 native 动态 Xray chain parity、只编译/assemble Android TV / Leanback 两个 ABI，然后直接发布新的测试 Pre-release；成功包不再额外复制一份到 Actions artifact。正常手动触发时 `BUILD_SOURCE_SHA = github.sha`。
 
-如果因为当前 GitHub connector 缺少 workflow dispatch 能力而临时触发 publish，必须采用**两阶段 marker 触发**：先单独提交一次只给 publish workflow 临时增加 `push`；这个“arm” commit 自身会触发一条 run，但 workflow 的首个 source guard 会因为它不是 marker-only commit 而立即失败，不进入 SDK、native parity 或 Gradle 构建。随后用第二个只修改 `.github/.trigger-publish-current-main-test` 的 commit 真正触发完整 run；workflow 会验证该触发 commit 的唯一变更就是 marker，并以该 commit 自身作为 checkout / build / Release target。完整 run 执行期间必须保持 publish workflow 的临时 `push` 不变，并禁止再向 `main` 提交其他内容；只有 Release 创建、tag / digest 验证和上一版测试 Release 替换全部成功后，才恢复为纯 `workflow_dispatch` 并删除 marker。成功的 `test.4` 就是在 Release 完成后才撤回临时 trigger；提前撤回会让 default branch 与显式 Release target 的 workflow 树发生差异，并触发 GitHub Release API 的 `HTTP 403: Resource not accessible by integration`。
+如果因为当前 GitHub connector 缺少 workflow dispatch 能力而临时触发 publish，必须采用**两阶段 marker 触发**：先用只修改 workflow 的 arm commit 增加临时 `push`，并用 `paths` 把它限制为 `.github/.trigger-publish-current-main-test`；因此 arm commit 自身不应触发完整 run。随后用第二个只修改该 marker 的 commit 真正触发完整 run；workflow 会验证 trigger commit 的唯一变更就是 marker，并以该 commit 自身作为 checkout / build / Release target。完整 run 执行期间必须保持 publish workflow 的临时 `push` 不变，并禁止再向 `main` 提交其他内容；只有 Release 创建、tag / digest 验证和上一版测试 Release 替换全部成功后，才恢复为纯 `workflow_dispatch` 并删除 marker。若 arm commit 因 trigger 配置错误而产生 run，source guard 必须在进入 SDK、native parity 或 Gradle 构建前拒绝它。历史 `test.4` 的发布记录仍说明：Release 完成前不能提前撤回临时 trigger，否则 default branch 与显式 Release target 的 workflow 树可能产生差异并触发 GitHub Release API 权限失败。
 
 这个约束来自已复核的发布记录：成功的 `test.4` 显式 Release target 自身只修改 marker；两次失败的 `test.5` 显式 target 自身都直接修改 workflow YAML，并在 `gh release create` 得到 `HTTP 403: Resource not accessible by integration`；同日 `build-inputs-5.6.3` 未显式指定 SHA target 时又能由同类 `contents: write` Actions token 正常创建。因此临时启用 `push` 的 workflow 修改 commit 不得直接作为显式 Release target。发布 job 保持最小权限 `contents: write + actions: read`。新测试 Release、tag 指向的 `BUILD_SOURCE_SHA` 与两个 Leanback APK digest 全部验证成功后，workflow 才删除 YAML 中指定的上一版测试 Release / tag。其他历史 Release 不在这条替换链中，也不参与当前版本的最终验收。
 
@@ -447,7 +447,7 @@ Leanback Manifest 已不再注册 BootReceiver，但冷启动 LiveConfig 仍有�
 
 ### 2026-09-30 — recovery dexdump 与 current-main 临时触发都改为显式 source guard
 
-Android build-tools 37 的 plain `dexdump` 会把 class 边界打印成带填充空格的 `Class #N            -`。recovery 提取器必须按可变空白匹配这个边界，同时继续用 raw DEX descriptor（例如 `La04;`），不能把 JADX 的 synthetic `p000/` display package 当作 DEX 名字。full JADX、APK/DEX inventory 与 targeted dexdump 属于不同证据层，workflow 只有三者都成功才算 recovery analysis 完整通过。
+Android build-tools 37 的 plain `dexdump` 会把 class 边界打印成带填充空格的 `Class #N            -`。本轮真正导致 targeted extraction 恒为 0 的根因，是 workflow heredoc 里的 Python raw regex 被双重转义成了字面 `\\s` / `\\d`，location 输出的换行也被写成了字面 `\\n`。现已改为真实 `\s` / `\d` / `\n`，并显式固定 `-l plain`；同时继续用 raw DEX descriptor（例如 `La04;`），不把 JADX synthetic `p000/` display package 当作 DEX 名字。修复后 recovery workflow 已完整通过 full JADX、双 ABI APK/DEX inventory 与 targeted dexdump。
 
 `current-main-build.yml` 现在和 publish 一样固定 `BUILD_SOURCE_SHA` 并验证临时 push 的 source commit。连接器无法直接调用 `workflow_dispatch` 时，只允许两阶段 marker 触发：先临时给 workflow 增加只监听 `.github/.trigger-current-main-build` 的 push path，再提交只改变该 marker 的 source commit；真正 build 只接受 marker-only commit。正常仓库状态仍必须是 pure `workflow_dispatch`，marker 也必须在验证结束后删除。
 
