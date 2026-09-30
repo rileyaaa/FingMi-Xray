@@ -21,16 +21,30 @@ FFMPEG_SPEC = importlib.util.spec_from_file_location(
 ffmpeg_contract = importlib.util.module_from_spec(FFMPEG_SPEC)
 FFMPEG_SPEC.loader.exec_module(ffmpeg_contract)
 
+MPV_SPEC = importlib.util.spec_from_file_location(
+    "published_568_mpv_contract",
+    ROOT / "scripts/recovery/published_568_mpv_contract.py",
+)
+mpv_contract = importlib.util.module_from_spec(MPV_SPEC)
+MPV_SPEC.loader.exec_module(mpv_contract)
+
 ABIS = ("armeabi-v7a", "arm64-v8a")
 FFMPEG_SONAMES = tuple(sorted(ffmpeg_contract.NATIVE_SHA256[ABIS[0]]))
 if set(FFMPEG_SONAMES) != set(ffmpeg_contract.NATIVE_SHA256[ABIS[1]]):
     raise RuntimeError("5.6.8 FFmpeg native closure differs across supported TV ABIs")
+MPV_SONAMES = tuple(sorted(mpv_contract.NATIVE_SHA256[ABIS[0]]))
+if set(MPV_SONAMES) != set(mpv_contract.NATIVE_SHA256[ABIS[1]]):
+    raise RuntimeError("5.6.8 MPV native bridge differs across supported TV ABIs")
 
 NATIVES = (
     ("Xray", "libxray/libs/libXray.aar", "libgojni.so"),
     *tuple(
         (f"FFmpeg/{soname}", "app/libs/lib-decoder-ffmpeg-release.aar", soname)
         for soname in FFMPEG_SONAMES
+    ),
+    *tuple(
+        (f"MPV/{soname}", "app/libs/lib-mpvplayer-release.aar", soname)
+        for soname in MPV_SONAMES
     ),
     ("MPEG-H", "app/libs/lib-decoder-mpegh-release.aar", "libmpeghJNI.so"),
     ("Libass", "app/libs/lib-exoplayer-libass-reconstructed.aar", "libmedia3ass.so"),
@@ -78,10 +92,12 @@ def verify(root: Path, apk_dir: Path):
 def self_test():
     elf_runtime.self_test()
     expected_groups = {name.split("/", 1)[0] for name, _aar, _so in NATIVES}
-    if expected_groups != {"Xray", "FFmpeg", "MPEG-H", "Libass"}:
+    if expected_groups != {"Xray", "FFmpeg", "MPV", "MPEG-H", "Libass"}:
         raise AssertionError("native final-packaging inventory changed unexpectedly")
     if "libffmpegDoviJNI.so" not in FFMPEG_SONAMES:
         raise AssertionError("Dolby Vision JNI is missing from the 5.6.8 FFmpeg closure")
+    if set(MPV_SONAMES) != {"libmpv.so", "libplayer.so"}:
+        raise AssertionError("MPV 5.6.8 native bridge inventory changed unexpectedly")
     if ABIS != ("armeabi-v7a", "arm64-v8a"):
         raise AssertionError("TV ABI inventory changed unexpectedly")
     with tempfile.TemporaryDirectory(prefix="final-apk-native-") as directory:
