@@ -230,6 +230,8 @@ player candidate 的信任根是固定 `FongMi/media` commit；每次构建都�
 
 目前 FFmpeg JNI 与 libXray API v2 的 Java/native 绑定来源仍可追溯到历史 `v5.6.0-xray.5` APK，因此 current-main workflow 会下载该历史 Release 并按固定 SHA 作为 provenance / reproducibility 输入。libXray 的 gomobile Java bindings 与 `libgojni.so` 必须视为同一个 JNI ABI 单元：不能把官方 v26.7.28 的 `classes.jar` 与历史发布版 API v2 `libgojni.so` 单独拼接，否则 native 初始化可能查找官方旧 bindings 不包含的模型类（例如 `libXray.AgeDecryptConfig`）并导致进程崩溃。当前构建由 `scripts/build/build-published-libxray-aar.py` 从经过 SHA 校验的发布 APK 恢复发布版 `libXray/**` Java bindings，保留官方 v26.7.28 AAR 中干净、未经过 App R8 混淆的通用 `go/**` gomobile runtime classes，再与同一发布版的 v7 / arm64 Go JNI 配套放回官方 AAR 外层容器。**在这一构建链中，旧 APK 负责提供固定二进制 provenance；同一 v7 APK 另作为 Xray 外部行为黄金参考，但 current-main 不要求恢复或通过 5.6.0 faithful 架构 / 完整 APK 重建。** 当未来为当前架构建立新的独立 libXray 发布源后，应整套切换 Java bindings 与 native，并同步更新 pin。
 
+最终 APK 的 native provenance 不再用 whole-file SHA 直接比较。Android Gradle packaging 会对 native strip，整文件 digest 可以变化而运行时负载段保持相同；`scripts/build/check-elf-runtime.py` 因此比较 ELF `PT_LOAD` runtime image，并只归一化 strip 会改写的 section-table metadata。`scripts/build/check-final-apk-native.py` 在两个 Leanback ABI 的最终 APK 中分别核对 Xray `libgojni.so`、FFmpeg、MPEG-H 与 Libass native 都仍与已验证 AAR 的 runtime image 一致。最终 Manifest 另由 `scripts/build/check-final-apk-manifest.py` 从 APK 直接解析，锁住 XrayService `exported=false` / `process=:xray`，并拒绝 BootReceiver、`RECEIVE_BOOT_COMPLETED`、`READ_PHONE_STATE`、`REQUEST_INSTALL_PACKAGES` 与 VPN service permission 回流。
+
 `current-main-build.yml` 会下载、校验并准备这些固定依赖，再进行 Java 编译和 APK assemble。
 
 当前 compatibility 构建脚本集中在 `scripts/build/`，历史来源提取工具集中在 `scripts/recovery/`，当前源码回归入口位于 `tests/`。修改任何二进制来源或 hash 时，必须同步修改对应验证脚本 / workflow，不能只把一个新 AAR 丢进 `app/libs`。
@@ -267,7 +269,8 @@ AI 与用户共同开发时的固定操作限制独立维护在 [AI_COLLABORATIO
 5. 执行 current Java → 发布版 v7 / arm64 native 动态 Xray chain parity（统一以 v7 发布行为为黄金 oracle，包含 KCP golden cases 与发布版 `testXray` runtime validation）；
 6. 只编译 Android TV / Leanback Java；
 7. 只 assemble Android TV / Leanback 两个 ABI 的 Debug APK；
-8. 上传短期 TV debug artifact（保留 2 天）供临时验证；上传成功后自动删除同名旧 debug，只保留最新一份。失败报告只保留 1 天。历史 recovery workflow 的 JADX/DEX、faithful APK、native dependency、player AAR 和 upstream snapshot artifacts 也只作临时复核，统一最多保留 3 天；长期可重建输入只保留源码 commit、脚本、fixture 与 hash，不再占用 Release。Gradle 命令继续使用 `--warning-mode all`；当前剩余会在 Gradle 10 失败的 deprecation 已确认全部来自固定上游同样使用的 Chaquopy Gradle plugin 17.0.0（multi-string dependency notation 与 execution-time `Task.project`），不是本仓库 Gradle 脚本。当前保持 FongMi/TV 5.6.3 的 17.0.0 pin，待上游或 Chaquopy 升级时再单独验证 Python runtime 与双 ABI assets，不在本 fork 中为消 warning 私自升级。自定义 `com.fongmi.chaquo.Platform` 在 FongMi/TV 5.6.3 基础上补了 process-bitness 修复：先用 `Process.is64Bit()` 选择 `SUPPORTED_64_BIT_ABIS` 或 `SUPPORTED_32_BIT_ABIS`，再在同位数列表中挑选 Python ABI；选中的 ABI 仍必须同步到 Chaquopy 17 的 `AndroidPlatform.ABI`，因为其 `java.android.importer` 会读取这个内部字段来装载 ABI-specific requirements ZIP。
+8. 对最终 APK 执行 MPEG-H class/native、Xray/FFmpeg/MPEG-H/Libass runtime PT_LOAD provenance 与 merged Manifest security contract；
+9. 上传短期 TV debug artifact（保留 2 天）供临时验证；上传成功后自动删除同名旧 debug，只保留最新一份。失败报告只保留 1 天。历史 recovery workflow 的 JADX/DEX、faithful APK、native dependency、player AAR 和 upstream snapshot artifacts 也只作临时复核，统一最多保留 3 天；长期可重建输入只保留源码 commit、脚本、fixture 与 hash，不再占用 Release。Gradle 命令继续使用 `--warning-mode all`；当前剩余会在 Gradle 10 失败的 deprecation 已确认全部来自固定上游同样使用的 Chaquopy Gradle plugin 17.0.0（multi-string dependency notation 与 execution-time `Task.project`），不是本仓库 Gradle 脚本。当前保持 FongMi/TV 5.6.3 的 17.0.0 pin，待上游或 Chaquopy 升级时再单独验证 Python runtime 与双 ABI assets，不在本 fork 中为消 warning 私自升级。自定义 `com.fongmi.chaquo.Platform` 在 FongMi/TV 5.6.3 基础上补了 process-bitness 修复：先用 `Process.is64Bit()` 选择 `SUPPORTED_64_BIT_ABIS` 或 `SUPPORTED_32_BIT_ABIS`，再在同位数列表中挑选 Python ABI；选中的 ABI 仍必须同步到 Chaquopy 17 的 `AndroidPlatform.ABI`，因为其 `java.android.importer` 会读取这个内部字段来装载 ABI-specific requirements ZIP。
 
 测试发布器：
 
@@ -275,7 +278,7 @@ AI 与用户共同开发时的固定操作限制独立维护在 [AI_COLLABORATIO
 
 Release 只承载发布版本：长期保留 `v5.6.0-xray.5` 黄金参考和一个当前可上真机测试的 pre-release。构建输入、恢复材料、临时归档和旧测试版不得长期堆在 Releases；新测试版验证成功后发布器会清理上一测试版和历史 `build-inputs-5.6.3`，并校验 Release 集合只剩黄金版 + 当前测试版。
 
-它以 `BUILD_SOURCE_SHA` 作为唯一构建与发布源码，重新准备固定依赖、执行源码 guard、执行 current Java → 发布版 native 动态 Xray chain parity、只编译/assemble Android TV / Leanback 两个 ABI，然后直接发布新的测试 Pre-release；成功包不再额外复制一份到 Actions artifact。正常手动触发时 `BUILD_SOURCE_SHA = github.sha`。
+它以 `BUILD_SOURCE_SHA` 作为唯一构建与发布源码，重新准备固定依赖、执行源码 guard、执行 current Java → 发布版 native 动态 Xray chain parity、只编译/assemble Android TV / Leanback 两个 ABI，并在发布前重复执行最终 APK MPEG-H、四类 native runtime provenance 与 merged Manifest security contract，然后才发布新的测试 Pre-release；成功包不再额外复制一份到 Actions artifact。正常手动触发时 `BUILD_SOURCE_SHA = github.sha`。
 
 如果因为当前 GitHub connector 缺少 workflow dispatch 能力而临时触发 publish，必须采用**两阶段 marker 触发**：先用只修改 workflow 的 arm commit 增加临时 `push`，并用 `paths` 把它限制为 `.github/.trigger-publish-current-main-test`；因此 arm commit 自身不应触发完整 run。随后用第二个只修改该 marker 的 commit 真正触发完整 run；workflow 会验证 trigger commit 的唯一变更就是 marker，并以该 commit 自身作为 checkout / build / Release target。完整 run 执行期间必须保持 publish workflow 的临时 `push` 不变，并禁止再向 `main` 提交其他内容；只有 Release 创建、tag / digest 验证和上一版测试 Release 替换全部成功后，才恢复为纯 `workflow_dispatch` 并删除 marker。若 arm commit 因 trigger 配置错误而产生 run，source guard 必须在进入 SDK、native parity 或 Gradle 构建前拒绝它。历史 `test.4` 的发布记录仍说明：Release 完成前不能提前撤回临时 trigger，否则 default branch 与显式 Release target 的 workflow 树可能产生差异并触发 GitHub Release API 权限失败。
 
@@ -444,6 +447,12 @@ current player candidate 已从 16 个 AAR 修正为 17 个，补回固定 FongM
 `scripts/build/build-published-libxray-aar.py` 继续保留官方 v26.7.28 AAR 中未混淆的通用 `go/**` runtime。进一步核对确认：官方 v26.7.28 `go.mod` 固定 `golang.org/x/mobile v0.0.0-20260709172247-6129f5bee9d5`，与发布 JNI BuildID 指向的 x/mobile commit 一致；因此目前没有证据支持“官方 go runtime 与黄金 JNI 来自不同 gomobile ABI 世代”的担忧。这个结论是 source/provenance 级证据，不替代 Android 真机 native 运行验证。
 
 Leanback Manifest 已不再注册 BootReceiver，但冷启动 LiveConfig 仍有两层静态入口：Home 初始化无条件执行 `LiveConfig.get().init().load()`；如果 Live 被以 empty 状态启动，`LiveActivity.checkLive()` 也会再次执行 `init().load(callback)`。因此去掉 boot-time network callback 不会在代码结构上删除首次 LiveConfig 初始化路径；冷启动真机仍应保留回归测试。
+
+### 2026-09-30 — 最终 APK provenance / Manifest 验收提升为发布硬门槛
+
+此前 current build 对 MPEG-H 已有最终 APK packaging gate，但 Xray、FFmpeg、Libass 与最终 merged Manifest 仍主要依赖构建输入 / 源码层证据。现在 current build 与 publish 都会在 assemble 后直接验证最终产物：双 ABI APK 中的 Xray `libgojni.so`、FFmpeg、MPEG-H、Libass 必须与已验证 AAR 的 ELF runtime `PT_LOAD` image 一致；Manifest 必须保留 Xray 私有进程与非 exported 约束，并拒绝 boot、电话、安装包和 VPN 相关敏感权限/组件回流。
+
+native 比较刻意不使用最终 APK 内 SO 的 whole-file SHA。Android Gradle strip 会改 ELF section metadata，因此整文件 SHA 不同并不代表运行时代码被替换；验证器只归一化 strip-only section-table header 字段，真正的 runtime load segment、flags、地址和内容仍必须一致。这个 gate 证明的是最终 APK packaging provenance，不替代 Android TV 真机上的 ART/JNI/网络行为验证。
 
 ### 2026-09-30 — recovery dexdump 与 current-main 临时触发都改为显式 source guard
 
