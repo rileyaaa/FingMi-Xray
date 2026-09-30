@@ -14,7 +14,7 @@
 - 向用户报告 Actions 状态前，先刷新仓库最新 runs 列表，再定位目标 run。
 - 之前读取的单个 run、jobs 或日志结果只能代表当时状态，不能直接当成当前状态。
 - 最新 runs 列表确认 run 已完成后，才读取该 run 的 jobs / logs 核对实际成功步骤或失败原因。
-- 临时 `push` trigger 只允许用于必要验证；完整 run 入队后不得继续向 `main` 提交任何内容，也不得提前恢复 `workflow_dispatch`；必须等 Release 创建与校验完成后再恢复 manual-only，避免 default branch 与显式 Release target 的 workflow 树在发布前发生差异。对 publish workflow 必须使用两阶段 marker 触发：先用一个只修改 workflow 的 commit 临时增加 `push`，其自身触发的 run 必须被 marker source guard 立即拒绝；再用第二个只修改 `.github/.trigger-publish-current-main-test` 的 commit 真正触发完整构建。只有第二个 marker commit 可以作为 checkout / build / Release target。不得把直接修改 workflow YAML 的临时 arm commit 作为显式 Release target。验证结束还要确认 current-main 与 publish workflow 都是纯手动。
+- 临时 `push` trigger 只允许用于必要验证；完整 run 入队后不得继续向 `main` 提交任何内容，也不得提前恢复 `workflow_dispatch`；必须等该 run 完整结束后再恢复 manual-only。`current-main-build.yml` 与 publish workflow 都使用两阶段 marker：先用只修改 workflow 的 arm commit 增加仅监听对应 marker path 的 `push`，该 arm commit 本身不得触发完整构建；再用只修改 `.github/.trigger-current-main-build` 或 `.github/.trigger-publish-current-main-test` 的 marker commit 作为真正 checkout / build source，并由 workflow source guard 验证 marker-only diff。publish 还必须等 Release 创建、tag / digest 校验与上一测试版替换全部完成后才能撤回 trigger。不得把直接修改 workflow YAML 的 arm commit 当成 current build 或 Release target。验证结束还要确认 current-main 与 publish workflow 都是纯手动且 marker 已删除。
 - 如果当前自动化环境既没有 `workflow_dispatch` 调用能力，又明确阻止修改 workflow trigger，则不得通过强制移动 `main`、回退默认分支、复用旧自动 trigger commit 或其他方式绕过平台安全限制。保持仓库 pure manual-only，由用户在 GitHub Actions 页面使用 `Run workflow` 触发；AI 继续完成不依赖该触发动作的审计、文档、存储清理和后续结果核验。
 - GitHub Releases 只用于发布产物，不作为长期文件仓库。正常状态只保留 `v5.6.0-xray.5` 黄金参考和一个当前可上真机测试的版本；构建输入、recovery 材料、旧测试版和临时文件应改为项目内源码 / 脚本 / fixture / hash 或短期 Actions artifact。不得为了省事新建 build-input Release。
 
