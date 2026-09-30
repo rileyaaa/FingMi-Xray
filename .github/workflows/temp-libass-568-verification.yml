@@ -49,6 +49,8 @@ jobs:
 
       - name: Rebuild player candidate and download pinned inputs
         shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
           work="build/work/libass-568"
@@ -56,8 +58,9 @@ jobs:
 
           bash scripts/build/build-player-aar-candidate.sh             --workdir "$work/player-source"             --output "$work/input/player-candidate.zip"
 
-          curl -fL --retry 3             'https://github.com/rileyaaa/FingMi-Xray/releases/download/v5.6.0-xray.5/FongMi-Xray-TV-v5.6.0-xray.5-armeabi-v7a.apk'             -o "$work/input/golden-v7.apk"
-          curl -fL --retry 3             'https://github.com/rileyaaa/FingMi-Xray/releases/download/v5.6.0-xray.5/FongMi-Xray-TV-v5.6.0-xray.5-arm64-v8a.apk'             -o "$work/input/golden-v8.apk"
+          gh release download v5.6.0-xray.5             --repo "$GITHUB_REPOSITORY"             --pattern 'FongMi-Xray-TV-v5.6.0-xray.5-armeabi-v7a.apk'             --pattern 'FongMi-Xray-TV-v5.6.0-xray.5-arm64-v8a.apk'             --dir "$work/input"
+          mv "$work/input/FongMi-Xray-TV-v5.6.0-xray.5-armeabi-v7a.apk" "$work/input/golden-v7.apk"
+          mv "$work/input/FongMi-Xray-TV-v5.6.0-xray.5-arm64-v8a.apk" "$work/input/golden-v8.apk"
 
           curl -fL --retry 3             'https://github.com/FongMi/Release/releases/download/5.6.8/leanback-armeabi_v7a.apk'             -o "$work/input/568-v7.apk"
           curl -fL --retry 3             'https://github.com/FongMi/Release/releases/download/5.6.8/leanback-arm64_v8a.apk'             -o "$work/input/568-v8.apk"
