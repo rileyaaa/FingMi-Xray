@@ -178,7 +178,7 @@ jobs:
 
           abi, dex_name, out_dir, location_path = sys.argv[1:5]
           text = sys.stdin.read()
-          starts = [m.start() for m in re.finditer(r"(?m)^\\s*Class #\\d+ -\\s*$", text)]
+          starts = [m.start() for m in re.finditer(r"(?m)^\\s*Class #\\d+\\s+-\\s*$", text)]
           starts.append(len(text))
           out = Path(out_dir)
           out.mkdir(parents=True, exist_ok=True)
