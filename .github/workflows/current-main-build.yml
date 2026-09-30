@@ -61,6 +61,7 @@ jobs:
           python3 tests/test-xray-session-races.py
           python3 tests/test-xray-service-client-lifecycle.py
           python3 tests/test-xray-normalizer-parity.py
+          python3 tests/test-xray-transport-security-parity.py
           python3 tests/test-upstream-update-disabled.py
           python3 scripts/build/check-elf-runtime.py --self-test
           python3 scripts/build/check-final-apk-native.py --self-test
