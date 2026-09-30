@@ -1,0 +1,133 @@
+name: Temporary Libass 5.6.8 verification
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - sync-upstream-c616c0aa
+    paths:
+      - '.github/.trigger-libass-568-verification'
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 70
+
+    env:
+      OLD_V7_SHA256: "cacc7a90ce082adf955fc80a444b54f8cc86d5b5c3ac7acb13d1392b59928bda"
+      OLD_V8_SHA256: "b5ac05193c1e19809fc7ffb3048f7d75aaa2124eace9953d669f4a81a477c21d"
+      V568_V7_SHA256: "2859ebef12bf0fa0dfec023d410df478ac5e5a82a72ef2be48f6e4fa09a24761"
+      V568_V8_SHA256: "948df594843e304c332476a380163dc1cc74f964be5ea1539ff0465a9dd936eb"
+      MEDIA3_CONTAINER_SHA256: "930fca2f018f06f1d08c12599f8c97f31eddbd728edee5de06eb53a882f8fc54"
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Verify marker-only verification source
+        if: github.event_name == 'push'
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch --no-tags --depth=2 origin "$GITHUB_SHA"
+          parent="$(git rev-parse "$GITHUB_SHA^")"
+          changed="$(git diff --name-only "$parent" "$GITHUB_SHA")"
+          test "$changed" = ".github/.trigger-libass-568-verification"
+
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.10"
+
+      - name: Run source-side Libass guards
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 tests/test-build-hygiene.py
+          python3 tests/test-libass-native-ownership.py
+
+      - name: Rebuild player candidate and download pinned inputs
+        shell: bash
+        run: |
+          set -euo pipefail
+          work="build/work/libass-568"
+          mkdir -p "$work/input" "$work/native" "$work/golden"
+
+          bash scripts/build/build-player-aar-candidate.sh             --workdir "$work/player-source"             --output "$work/input/player-candidate.zip"
+
+          curl -fL --retry 3             'https://github.com/rileyaaa/FingMi-Xray/releases/download/v5.6.0-xray.5/FongMi-Xray-TV-v5.6.0-xray.5-armeabi-v7a.apk'             -o "$work/input/golden-v7.apk"
+          curl -fL --retry 3             'https://github.com/rileyaaa/FingMi-Xray/releases/download/v5.6.0-xray.5/FongMi-Xray-TV-v5.6.0-xray.5-arm64-v8a.apk'             -o "$work/input/golden-v8.apk"
+
+          curl -fL --retry 3             'https://github.com/FongMi/Release/releases/download/5.6.8/leanback-armeabi_v7a.apk'             -o "$work/input/568-v7.apk"
+          curl -fL --retry 3             'https://github.com/FongMi/Release/releases/download/5.6.8/leanback-arm64_v8a.apk'             -o "$work/input/568-v8.apk"
+          curl -fL --retry 3             'https://dl.google.com/dl/android/maven2/androidx/media3/media3-container/1.11.0/media3-container-1.11.0.aar'             -o "$work/input/media3-container-1.11.0.aar"
+
+          printf '%s  %s\n'             "$OLD_V7_SHA256" "$work/input/golden-v7.apk"             "$OLD_V8_SHA256" "$work/input/golden-v8.apk"             "$V568_V7_SHA256" "$work/input/568-v7.apk"             "$V568_V8_SHA256" "$work/input/568-v8.apk"             "$MEDIA3_CONTAINER_SHA256" "$work/input/media3-container-1.11.0.aar"             | sha256sum -c -
+
+          unzip -p "$work/input/568-v7.apk" 'lib/armeabi-v7a/libmedia3ass.so' > "$work/native/v7-libmedia3ass.so"
+          unzip -p "$work/input/568-v8.apk" 'lib/arm64-v8a/libmedia3ass.so' > "$work/native/v8-libmedia3ass.so"
+          unzip -p "$work/input/golden-v7.apk" 'lib/armeabi-v7a/libgojni.so' > "$work/golden/v7-libgojni.so"
+          unzip -p "$work/input/golden-v8.apk" 'lib/arm64-v8a/libgojni.so' > "$work/golden/v8-libgojni.so"
+
+      - name: Build 5.6.8 Libass candidate and run Media3 tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          work="build/work/libass-568"
+          mvn -B dependency:get -Dartifact=org.robolectric:android-all:15-robolectric-12650502
+          mvn -B dependency:get -Dartifact=com.google.guava:guava:33.3.1-android
+          mvn -B dependency:get -Dartifact=androidx.annotation:annotation-jvm:1.9.1 -DremoteRepositories=google::default::https://dl.google.com/dl/android/maven2
+
+          python3 scripts/build/build-libass-extractor.py             --candidate "$work/input/player-candidate.zip"             --workdir "$work/extractor"             --container "$work/input/media3-container-1.11.0.aar"             --maven "$(command -v mvn)"
+
+          android_all="$HOME/.m2/repository/org/robolectric/android-all/15-robolectric-12650502/android-all-15-robolectric-12650502.jar"
+          test -s "$android_all"
+
+          python3 scripts/build/build-libass-candidate.py             --candidate "$work/input/player-candidate.zip"             --extractor "$work/extractor/lib-extractor-libass-release.aar"             --container "$work/input/media3-container-1.11.0.aar"             --v7-apk "$work/input/568-v7.apk"             --v8-apk "$work/input/568-v8.apk"             --android-jar "$android_all"             --output "$work/lib-exoplayer-libass-reconstructed.aar"
+
+          sha256sum "$work/lib-exoplayer-libass-reconstructed.aar" | tee "$work/LIBASS_CANDIDATE_SHA256.txt"
+          python3 scripts/build/check-libass-contract.py --aar "$work/lib-exoplayer-libass-reconstructed.aar"
+
+          python3 tests/test-libass-media.py             --extractor "$work/extractor/lib-extractor-libass-release.aar"             --container "$work/input/media3-container-1.11.0.aar"             --candidate "$work/input/player-candidate.zip"             --workdir "$work/media-tests"             --maven "$(command -v mvn)"
+
+      - name: Run dual-ABI published JNI and render parity
+        shell: bash
+        run: |
+          set -euo pipefail
+          work="build/work/libass-568"
+          font="$(find /usr/share/fonts -type f -name 'DejaVuSans.ttf' -print -quit)"
+          test -n "$font"
+          echo "ae7b7855e115a5966d8b1b3f80f254ccc117ec86f9965e202ee2940453837280  $font" | sha256sum -c -
+
+          python3 scripts/recovery/prepare-native-converter-harness.py             --abi armeabi-v7a             --workdir "$work/harness-v7"             --jni "$work/golden/v7-libgojni.so"
+          python3 tests/test-published-libass-jni.py             --abi armeabi-v7a             --workdir "$work/harness-v7"             --jni "$work/native/v7-libmedia3ass.so"
+          python3 tests/test-published-libass-render.py             --abi armeabi-v7a             --workdir "$work/harness-v7"             --jni "$work/native/v7-libmedia3ass.so"             --font "$font"
+
+          python3 scripts/recovery/prepare-native-converter-harness.py             --abi arm64-v8a             --workdir "$work/harness-v8"             --jni "$work/golden/v8-libgojni.so"
+          python3 tests/test-published-libass-jni.py             --abi arm64-v8a             --workdir "$work/harness-v8"             --jni "$work/native/v8-libmedia3ass.so"
+          python3 tests/test-published-libass-render.py             --abi arm64-v8a             --workdir "$work/harness-v8"             --jni "$work/native/v8-libmedia3ass.so"             --font "$font"
+
+          {
+            echo "source=$GITHUB_SHA"
+            cat "$work/LIBASS_CANDIDATE_SHA256.txt"
+            echo "v7_so=$(sha256sum "$work/native/v7-libmedia3ass.so" | awk '{print $1}')"
+            echo "v8_so=$(sha256sum "$work/native/v8-libmedia3ass.so" | awk '{print $1}')"
+          } > "$work/VERIFICATION.txt"
+
+      - name: Upload short-lived verification evidence
+        uses: actions/upload-artifact@v7
+        with:
+          name: libass-5.6.8-verification
+          path: |
+            build/work/libass-568/LIBASS_CANDIDATE_SHA256.txt
+            build/work/libass-568/VERIFICATION.txt
+            build/work/libass-568/lib-exoplayer-libass-reconstructed.json
+          if-no-files-found: error
+          retention-days: 2
+          compression-level: 6
