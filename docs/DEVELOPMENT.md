@@ -517,3 +517,39 @@ Android build-tools 37 的 plain `dexdump` 会把 class 边界打印成带填充
 
 `current-main-build.yml` 现在和 publish 一样固定 `BUILD_SOURCE_SHA` 并验证临时 push 的 source commit。连接器无法直接调用 `workflow_dispatch` 时，只允许两阶段 marker 触发：先临时给 workflow 增加只监听 `.github/.trigger-current-main-build` 的 push path，再提交只改变该 marker 的 source commit；真正 build 只接受 marker-only commit。正常仓库状态仍必须是 pure `workflow_dispatch`，marker 也必须在验证结束后删除。
 
+
+
+## 2026-09-30 — FongMi 5.6.8 Dolby P5/P7 + FFmpeg closure 接入 current build
+
+本轮针对 5.6.8 Release-only media 做了新的定向 APK/JADX/native 取证，避免继续按公开源码猜测。临时取证 workflow 已在成功后删除，marker 也已清理，不作为长期 CI 保留。
+
+新增确认的 5.6.8 行为证据：
+
+- `FfmpegDolbyVisionP5Renderer` 的 release 构造器等价参数为：
+  - `Context`
+  - `MediaCodecAdapter.Factory`
+  - `MediaCodecSelector`
+  - `long allowedJoiningTimeMs`
+  - `boolean enableDecoderFallback`
+  - `Handler`
+  - `VideoRendererEventListener`
+  - `int DolbyVisionOutputPolicy`
+- Release `DefaultRenderersFactory` 在 extension renderer 启用时会先尝试创建 P5 renderer，再创建核心 `MediaCodecVideoRenderer`；P5 缺类时跳过，其他实例化异常视为错误。
+- Release `DecodeTrackSelector` 把 `FfmpegDolbyVisionP5Renderer` 与 `MediaCodecVideoRenderer` 一起视为视频硬解 renderer；这是 P5 使用 MediaCodec HEVC base layer + FFmpeg RPU/GPU mapping 的必要选择语义。
+- P5 native probe：API < 26 禁用；先要求 `FfmpegLibrary` 可用；加载 `ffmpegDoviJNI`；`nativeProbeCapabilities()` 必须满足 `0x7F` 全能力位。
+- P5 native Java bridge 的 11 项 stats、input/output Surface、clear/queue frame/queue RPU/redraw/release 生命周期与 5.6.8 反编译结果重新核对一致。
+- P7 converter 的 release native 注册方法名确认为：`ffmpegConvertDolbyVisionP7`、`ffmpegCreateDolbyVisionP7Converter`、`ffmpegFlushDolbyVisionP7Converter`、`ffmpegIsDolbyVisionP7ConversionAvailable`、`ffmpegReleaseDolbyVisionP7Converter`。
+
+current 已完成以下源码/构建链接入：
+
+- `scripts/build/apply-media3-dolby568-overlay.py`：P7 converter lifecycle 继续注入 `MediaCodecVideoRenderer`；P5 renderer 按 release 顺序反射接入 `DefaultRenderersFactory`；`DecodeTrackSelector` 增加 P5 hardware renderer 识别；Proguard/R8 保留 P5 反射构造器与 P7 Factory。
+- `scripts/build/build-player-aar-candidate.sh`：在固定 `FongMi/media@3c2cbe8...` 上实际应用 `fongmi-tv-5.6.8-dolby-release-overlay-v1`；17-AAR candidate manifest 固定 overlay identity；candidate 必须包含 P5 mapping/native/renderer/video sink、P7 converter/interface/Factory 等 release-only classes。
+- `scripts/build/player_candidate.py`：同步验证 overlay identity 与上述 classes，防止回退成只编译公开源码。
+- `scripts/build/import-player-aar-candidate.py`：不再只允许替换两份旧 `libffmpegJNI.so`；改为只接受 `published_568_ffmpeg_contract.py` 固定的完整 5.6.8 FFmpeg native closure；`libffmpegDoviJNI.so` 作为允许新增的 release-only JNI，其他非 native AAR 内容必须保持 candidate 原字节。
+- current/publish workflow：FFmpeg restore 改用 `restore-published-568-ffmpeg.py`；输入改用已 SHA 固定的 5.6.8 双 ABI APK；restore 后用 `check-published-568-ffmpeg.py` 校验完整 closure。
+- `check-final-apk-native.py`：FFmpeg final packaging gate 从单个 `libffmpegJNI.so` 扩展为完整 5.6.8 FFmpeg closure，仍按 runtime PT_LOAD 比较；明确要求 `libffmpegDoviJNI.so` 存在。
+- `tests/test-build-hygiene.py`：新增长期 source guards，锁定 Dolby overlay、P5 selector/factory、完整 5.6.8 FFmpeg restore/check/final gate，禁止 current/publish 回退到旧单-SO restore。
+
+证据边界：
+
+> 上述内容目前是 **release 取证 + source/build-chain integration** 已完成；最新 HEAD 尚未完成一次 full current-main TV build，因此暂时不能把 P5/P7 Java compile、17-AAR 实际产物、最终双 ABI APK native closure 称为已通过。下一步必须以最新 main 重新跑完整 current-main build，并以最终 APK gate 结果收口。
