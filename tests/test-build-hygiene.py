@@ -110,6 +110,7 @@ for required in (
 elf_runtime_guard = (ROOT / "scripts/build/check-elf-runtime.py").read_text(encoding="utf-8")
 final_native_guard = (ROOT / "scripts/build/check-final-apk-native.py").read_text(encoding="utf-8")
 final_manifest_guard = (ROOT / "scripts/build/check-final-apk-manifest.py").read_text(encoding="utf-8")
+app_manifest = (ROOT / "app/src/main/AndroidManifest.xml").read_text(encoding="utf-8")
 for required in ("PT_LOAD", "section_metadata", "--self-test"):
     if required not in elf_runtime_guard:
         errors.append(f"ELF runtime guard lost strip-aware contract: {required}")
@@ -139,6 +140,9 @@ for required in (
 ):
     if required not in final_manifest_guard:
         errors.append(f"final APK manifest guard lost security contract: {required}")
+
+if '<uses-permission android:name="android.permission.READ_PHONE_STATE" tools:node="remove" />' not in app_manifest:
+    errors.append("app manifest must explicitly remove transitive READ_PHONE_STATE from final APK")
 
 audio_setting = (ROOT / "app/src/main/java/com/fongmi/android/tv/setting/AudioSetting.java").read_text(encoding="utf-8")
 for required in (
