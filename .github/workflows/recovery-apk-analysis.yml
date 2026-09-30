@@ -197,7 +197,7 @@ jobs:
 
           abi, dex_name, out_dir, location_path = sys.argv[1:5]
           text = sys.stdin.read()
-          starts = [m.start() for m in re.finditer(r"(?m)^\\s*Class #\\d+\\s+-\\s*$", text)]
+          starts = [m.start() for m in re.finditer(r"(?m)^\s*Class #\d+\s+-\s*$", text)]
           starts.append(len(text))
           out = Path(out_dir)
           out.mkdir(parents=True, exist_ok=True)
@@ -206,13 +206,13 @@ jobs:
           with Path(location_path).open("a", encoding="utf-8") as loc:
               for i in range(len(starts) - 1):
                   section = text[starts[i]:starts[i + 1]]
-                  m = re.search(r"Class descriptor\\s*:\\s*'([^']+)'", section)
+                  m = re.search(r"Class descriptor\s*:\s*'([^']+)'", section)
                   if not m or m.group(1) not in targets:
                       continue
                   desc = m.group(1)
                   safe = targets[desc]
                   (out / f"{safe}.dexdump.txt").write_text(section, encoding="utf-8")
-                  loc.write(f"{desc} -> {dex_name}\\n")
+                  loc.write(f"{desc} -> {dex_name}\n")
                   found += 1
           print(f"{abi} {dex_name}: extracted {found} target classes", file=sys.stderr)
           PY
