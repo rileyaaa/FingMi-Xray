@@ -120,15 +120,18 @@ jobs:
           unzip -q build/work/current-main/input/jadx.zip -d build/work/current-main/tools/jadx
           chmod +x build/work/current-main/tools/jadx/bin/jadx
 
-      - name: Prepare pinned decoder and Xray native dependencies
+      - name: Prepare pinned decoder, MPV, and Xray native dependencies
         shell: bash
         run: |
           set -euo pipefail
           python3 scripts/recovery/restore-published-568-ffmpeg.py             --candidate build/work/current-main/input/player-candidate.zip             --v7-apk build/work/current-main/input/published-v568-v7.apk             --v8-apk build/work/current-main/input/published-v568-v8.apk             --to build/work/current-main/restored/lib-decoder-ffmpeg-release.aar
 
-          python3 scripts/build/import-player-aar-candidate.py             build/work/current-main/input/player-candidate.zip             --restored-decoder build/work/current-main/restored/lib-decoder-ffmpeg-release.aar
+          python3 scripts/recovery/restore-published-568-mpv.py             --candidate build/work/current-main/input/player-candidate.zip             --v7-apk build/work/current-main/input/published-v568-v7.apk             --v8-apk build/work/current-main/input/published-v568-v8.apk             --to build/work/current-main/restored/lib-mpvplayer-release.aar
+
+          python3 scripts/build/import-player-aar-candidate.py             build/work/current-main/input/player-candidate.zip             --restored-decoder build/work/current-main/restored/lib-decoder-ffmpeg-release.aar             --restored-mpv build/work/current-main/restored/lib-mpvplayer-release.aar
 
           python3 scripts/recovery/check-published-568-ffmpeg.py --aar app/libs/lib-decoder-ffmpeg-release.aar
+          python3 scripts/recovery/check-published-568-mpv.py --aar app/libs/lib-mpvplayer-release.aar
 
           bash scripts/recovery/fetch-libxray.sh
           sdk_root="${ANDROID_HOME:-/usr/local/lib/android/sdk}"
