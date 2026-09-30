@@ -208,7 +208,7 @@ Live 的会话边界包括切频道、换线路 / 源、直播配置变化和播
 
 - FongMi/media commit：`3c2cbe8ac742c2fe15eff52f03eeb3b1b648848d`
 - 历史 recovery artifact 曾得到 candidate ZIP SHA-256 `0ed42581af11ac7163ebde148b318807c244e2a318f40c41d33f50b70bf967ee`；它只作为当时取证记录，不再是 current / recovery workflow 的长期存储依赖。
-- 现行流程统一由 `scripts/build/build-player-aar-candidate.sh` 从上述固定 commit 重建 16 个 AAR，并由 `scripts/build/player_candidate.py` 校验文件集合、每个 AAR 的 manifest SHA 与关键播放器 class。外层 ZIP 本身不再作为长期 pin。
+- 现行流程统一由 `scripts/build/build-player-aar-candidate.sh` 从上述固定 commit 重建 17 个 AAR（包含 `lib-decoder-mpegh`），并由 `scripts/build/player_candidate.py` 校验文件集合、每个 AAR 的 manifest SHA 与关键播放器 class。外层 ZIP 本身不再作为长期 pin。
 
 与发布 APK 对照时，相关播放器 native 中唯一明确需要从发布 APK 恢复的是 `libffmpegJNI.so`。
 
@@ -254,7 +254,7 @@ Live 的会话边界包括切频道、换线路 / 源、直播配置变化和播
 
 `f531a138e82fa08848e47cf22537c69df29227b07eba7d19c2ad3740af657365`
 
-它以官方 AAR 为容器，只替换正式 APK 中的 v7 / arm64 `libgojni.so`；Java API、x86 / x86_64 JNI 和其他 entry 保留官方内容。
+它以官方 AAR 为容器，只替换正式 APK 中的 v7 / arm64 `libgojni.so`；Java API、x86 / x86_64 JNI 和其他 entry 保留官方内容。current-main 的重建路径进一步把发布 APK 中匹配 JNI 的 `libXray/**` generated bindings 一并恢复，同时保留官方 AAR 的通用 `go/**` runtime。官方 v26.7.28 `go.mod` 固定 `golang.org/x/mobile v0.0.0-20260709172247-6129f5bee9d5`，与发布 JNI BuildID 指向的 x/mobile commit 相同，因此当前没有发现通用 gomobile runtime 跨 ABI 世代混用的证据。
 
 相关工具：
 
