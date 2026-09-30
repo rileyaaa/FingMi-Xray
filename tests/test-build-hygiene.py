@@ -20,7 +20,10 @@ for path in sorted((ROOT / "app/src").rglob("strings.xml")):
 player_builder = (ROOT / "scripts/build/build-player-aar-candidate.sh").read_text(encoding="utf-8")
 player_verifier = (ROOT / "scripts/build/player_candidate.py").read_text(encoding="utf-8")
 dolby_overlay = (ROOT / "scripts/build/apply-media3-dolby568-overlay.py").read_text(encoding="utf-8")
+mpv_overlay = (ROOT / "scripts/build/apply-media3-mpv568-overlay.py").read_text(encoding="utf-8")
 player_importer = (ROOT / "scripts/build/import-player-aar-candidate.py").read_text(encoding="utf-8")
+mpv_contract = (ROOT / "scripts/recovery/published_568_mpv_contract.py").read_text(encoding="utf-8")
+mpv_restorer = (ROOT / "scripts/recovery/restore-published-568-mpv.py").read_text(encoding="utf-8")
 libass_importer = (ROOT / "scripts/build/import-libass-candidate.py").read_text(encoding="utf-8")
 libass_builder = (ROOT / "scripts/build/build-libass-candidate.py").read_text(encoding="utf-8")
 libass_contract = (ROOT / "scripts/build/check-libass-contract.py").read_text(encoding="utf-8")
@@ -32,7 +35,10 @@ for required in (
     ":lib-decoder-mpegh:assembleRelease",
     ":lib-mpvplayer:assembleRelease",
     "scripts/build/apply-media3-dolby568-overlay.py",
+    "scripts/build/apply-media3-mpv568-overlay.py",
     'DOLBY_OVERLAY_ID="fongmi-tv-5.6.8-dolby-release-overlay-v1"',
+    'MPV_OVERLAY_ID="fongmi-tv-5.6.8-mpv-bridge-v1"',
+    ":lib-mpvplayer:testReleaseUnitTest",
     '"androidx/media3/decoder/ffmpeg/FfmpegDolbyVisionP5Renderer.class"',
     '"androidx/media3/decoder/ffmpeg/FfmpegDolbyVisionP7Converter.class"',
     'rm -rf "$SOURCE_DIR" "$STAGE"',
@@ -47,6 +53,10 @@ for required in (
     'EXPECTED_AAR_COUNT = 17',
     '"androidx/media3/decoder/mpegh/MpeghAudioRenderer.class"',
     'DOLBY_OVERLAY_ID = "fongmi-tv-5.6.8-dolby-release-overlay-v1"',
+    'MPV_OVERLAY_ID = "fongmi-tv-5.6.8-mpv-bridge-v1"',
+    '"is/xyz/mpv/MPVLib$Stream.class"',
+    '"androidx/media3/mpvplayer/nativebridge/MpvClient$LongResultCallback.class"',
+    "candidate manifest is missing the pinned MPV release overlay",
     '"androidx/media3/decoder/ffmpeg/FfmpegDolbyVisionP5Renderer.class"',
     '"androidx/media3/decoder/ffmpeg/FfmpegDolbyVisionP7Converter$Factory.class"',
     "candidate manifest points at an unexpected FongMi/media commit",
@@ -73,6 +83,35 @@ for required in (
         errors.append(f"Libass importer lost current pinned candidate contract: {required}")
 if "2318eb904a016d0160aed2a4b7de8501578cd0f223c65e5c61086f7a9a80f573" in libass_importer:
     errors.append("Libass importer still contains superseded candidate SHA")
+
+for required in (
+    "enqueueCommandLongResult",
+    "eventCommandReply(long requestId, int error, long result)",
+    "public interface Stream",
+    "openStream",
+    "commandLongResult",
+    '"load-script"',
+    '"unload-script"',
+    '"secondary-sub-scale"',
+    "MPVLib$Stream",
+):
+    if required not in mpv_overlay:
+        errors.append(f"MPV 5.6.8 overlay lost release bridge contract: {required}")
+for required in (
+    "f62a39a5e1069d99e6072bb74961ab57b55100b4a1fa66cab08a79d2e2b3c89f",
+    "3f22f95799b8f7865c0a7545165bde6788d0b7a21331ba081fb346b4f1a0c250",
+    "a139aca2bf031d1147ef0ef953ecf8b3ed1d5f007b6280ab817f91c944282229",
+    "3d1ca344d913b8758643df52f2763dead2ece06460e365e859d84cd54c4adc88",
+):
+    if required not in mpv_contract:
+        errors.append(f"MPV 5.6.8 native contract lost pinned provenance: {required}")
+for required in (
+    "lib-mpvplayer-release.aar",
+    "read_published_native",
+    "candidate MPV AAR lacks native bridge entries",
+):
+    if required not in mpv_restorer:
+        errors.append(f"MPV 5.6.8 restorer lost immutable mutation contract: {required}")
 
 for required in (
     "published_568_ffmpeg_contract",
@@ -117,10 +156,15 @@ for required in ("PT_LOAD", "section_metadata", "--self-test"):
 for required in (
     "libXray.aar",
     "lib-decoder-ffmpeg-release.aar",
+    "lib-mpvplayer-release.aar",
     "lib-decoder-mpegh-release.aar",
     "lib-exoplayer-libass-reconstructed.aar",
     "published_568_ffmpeg_contract.py",
+    "published_568_mpv_contract.py",
     "FFMPEG_SONAMES",
+    "MPV_SONAMES",
+    "libplayer.so",
+    "libmpv.so",
     "libffmpegDoviJNI.so",
     'rglob(f"app-leanback-{abi}-debug.apk")',
     "recursive APK discovery failed",
@@ -143,6 +187,10 @@ for required in (
 
 if '<uses-permission android:name="android.permission.READ_PHONE_STATE" tools:node="remove" />' not in app_manifest:
     errors.append("app manifest must explicitly remove transitive READ_PHONE_STATE from final APK")
+
+mpv_util = (ROOT / "app/src/main/java/com/fongmi/android/tv/player/mpv/MpvUtil.java").read_text(encoding="utf-8")
+if 'List.of("sub-scale", "sub-scale-signs", "secondary-sub-scale")' not in mpv_util:
+    errors.append("MpvUtil lost 5.6.8 secondary subtitle scale ownership")
 
 audio_setting = (ROOT / "app/src/main/java/com/fongmi/android/tv/setting/AudioSetting.java").read_text(encoding="utf-8")
 for required in (
@@ -271,9 +319,12 @@ for name, text in (
     for required in (
         "bash scripts/build/build-player-aar-candidate.sh",
         "scripts/recovery/restore-published-568-ffmpeg.py",
+        "scripts/recovery/restore-published-568-mpv.py",
         "--v7-apk build/work/current-main/input/published-v568-v7.apk",
         "--v8-apk build/work/current-main/input/published-v568-v8.apk",
+        "--restored-mpv build/work/current-main/restored/lib-mpvplayer-release.aar",
         "scripts/recovery/check-published-568-ffmpeg.py --aar app/libs/lib-decoder-ffmpeg-release.aar",
+        "scripts/recovery/check-published-568-mpv.py --aar app/libs/lib-mpvplayer-release.aar",
         "'platforms;android-36'",
         ":app:compileLeanbackDebugJavaWithJavac",
         ":app:assembleLeanbackDebug",
