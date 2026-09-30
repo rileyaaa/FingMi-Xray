@@ -64,6 +64,9 @@ jobs:
           python3 tests/test-xray-service-client-lifecycle.py
           python3 tests/test-xray-normalizer-parity.py
           python3 tests/test-upstream-update-disabled.py
+          python3 scripts/build/check-elf-runtime.py --self-test
+          python3 scripts/build/check-final-apk-native.py --self-test
+          python3 scripts/build/check-final-apk-manifest.py --self-test
           python3 tests/test-build-hygiene.py
           python3 tests/test-upgrade-compat.py
           python3 tests/test-tv-network-recovery.py
@@ -240,6 +243,26 @@ jobs:
             echo "PASS MPEG-H ${abi}: ${size} bytes in $apk"
           done
 
+      - name: Verify pinned native runtime survives final TV APK packaging
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 scripts/build/check-final-apk-native.py \
+            --apk-dir app/build/outputs/apk/leanback
+
+      - name: Verify final Leanback manifest security contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          sdk_root="${ANDROID_HOME:-/usr/local/lib/android/sdk}"
+          apkanalyzer="$sdk_root/cmdline-tools/latest/bin/apkanalyzer"
+          test -x "$apkanalyzer"
+          for apk in app/build/outputs/apk/leanback/app-leanback-*-debug.apk; do
+            test -s "$apk"
+            python3 scripts/build/check-final-apk-manifest.py \
+              --apkanalyzer "$apkanalyzer" \
+              --apk "$apk"
+          done
       - name: Record build inputs and outputs
         if: success()
         shell: bash
