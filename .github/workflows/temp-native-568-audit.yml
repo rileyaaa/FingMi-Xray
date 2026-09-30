@@ -2,11 +2,6 @@ name: Temporary native 5.6.8 ABI audit
 
 on:
   workflow_dispatch:
-  push:
-    branches:
-      - main
-    paths:
-      - '.github/.trigger-native-568-audit'
 
 permissions:
   contents: read
