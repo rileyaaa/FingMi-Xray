@@ -468,7 +468,7 @@ public final class XrayService extends Service {
     private static final class XrayThreadFactory implements ThreadFactory {
         @Override
         public Thread newThread(Runnable runnable) {
-            Thread thread = new Thread(runnable, "fingmi-xray");
+            Thread thread = new Thread(runnable, "fongmi-xray-core");
             thread.setDaemon(true);
             return thread;
         }
