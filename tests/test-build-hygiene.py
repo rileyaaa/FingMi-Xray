@@ -51,6 +51,34 @@ for required in (
     if required not in libass_builder:
         errors.append(f"Libass builder lost pinned APK/SO provenance: {required}")
 
+elf_runtime_guard = (ROOT / "scripts/build/check-elf-runtime.py").read_text(encoding="utf-8")
+final_native_guard = (ROOT / "scripts/build/check-final-apk-native.py").read_text(encoding="utf-8")
+final_manifest_guard = (ROOT / "scripts/build/check-final-apk-manifest.py").read_text(encoding="utf-8")
+for required in ("PT_LOAD", "section_metadata", "--self-test"):
+    if required not in elf_runtime_guard:
+        errors.append(f"ELF runtime guard lost strip-aware contract: {required}")
+for required in (
+    "libXray.aar",
+    "lib-decoder-ffmpeg-release.aar",
+    "lib-decoder-mpegh-release.aar",
+    "lib-exoplayer-libass-reconstructed.aar",
+    "armeabi-v7a",
+    "arm64-v8a",
+):
+    if required not in final_native_guard:
+        errors.append(f"final native APK guard lost required provenance input: {required}")
+for required in (
+    "android.permission.READ_PHONE_STATE",
+    "android.permission.RECEIVE_BOOT_COMPLETED",
+    "android.permission.REQUEST_INSTALL_PACKAGES",
+    "android.permission.BIND_VPN_SERVICE",
+    "com.fingmi.xray.service.XrayService",
+    'xray.get(A + "exported") != "false"',
+    'xray.get(A + "process") != ":xray"',
+):
+    if required not in final_manifest_guard:
+        errors.append(f"final APK manifest guard lost security contract: {required}")
+
 platform = (ROOT / "chaquo/src/main/java/com/fongmi/chaquo/Platform.java").read_text(encoding="utf-8")
 for required in (
     "import com.chaquo.python.android.AndroidPlatform;",
@@ -173,9 +201,18 @@ for name, text in (
         ":app:compileLeanbackDebugJavaWithJavac",
         ":app:assembleLeanbackDebug",
         "python3 tests/test-upgrade-compat.py",
+        "python3 scripts/build/check-elf-runtime.py --self-test",
+        "python3 scripts/build/check-final-apk-native.py --self-test",
+        "python3 scripts/build/check-final-apk-manifest.py --self-test",
         "Verify MPEG-H survives final TV APK packaging",
         'entry="lib/${abi}/libmpeghJNI.so"',
         "Landroidx/media3/decoder/mpegh/MpeghAudioRenderer;",
+        "Verify pinned native runtime survives final TV APK packaging",
+        "python3 scripts/build/check-final-apk-native.py",
+        "--apk-dir app/build/outputs/apk/leanback",
+        "Verify final Leanback manifest security contract",
+        "python3 scripts/build/check-final-apk-manifest.py",
+        'apkanalyzer="$sdk_root/cmdline-tools/latest/bin/apkanalyzer"',
     ):
         if required not in text:
             errors.append(f"{name} is missing pinned TV build contract: {required}")
