@@ -198,7 +198,7 @@ FongMi/TV 5.6.3 对 Media3 / MPV 的调用面与当前固定的部分播放器�
 - PlayerView controller；
 - subtitle sample timestamp。
 
-player candidate 的信任根是固定 `FongMi/media` commit；每次构建都会生成包含 16 个 AAR SHA-256 的 manifest，并由 `player_candidate.py` 验证文件集合、manifest 与关键 class。Media3 container、Libass output、发布 APK / native 等其余不可重建输入继续按 workflow / fixture 中的固定 hash 校验。
+player candidate 的信任根是固定 `FongMi/media` commit；每次构建都会生成包含 17 个 AAR SHA-256 的 manifest，并由 `player_candidate.py` 验证文件集合、manifest 与关键 class。17 个模块包含 `lib-decoder-mpegh`，并要求最终 Leanback APK 同时包含 `androidx.media3.decoder.mpegh.MpeghAudioRenderer` 与对应 ABI 的 `libmpeghJNI.so`。Media3 container、Libass output、发布 APK / native 等其余不可重建输入继续按 workflow / fixture 中的固定 hash 校验。
 
 ### app adapter
 
@@ -414,6 +414,14 @@ FingMi-Xray 当前**不使用 FongMi/Release 的应用内自更新**。原因是
 ### 2026-09-28 — 双 ABI current-chain 动态 parity 建立
 
 current Java 的 normalize → transport security → runtime config 链会分别交给固定 SHA 的 v7 / arm64 发布 `libgojni.so`，并以 v7 冻结 oracle 比对 conversion 与 runtime `testXray`。固定链覆盖 26 组分享链接，其中 6 组为 KCP golden cases。该验证证明的是 Java/native 组合在这些冻结输入上的动态等价；它不替代 Android TV 真机上的 ART、Binder、播放器和真实网络生命周期回归。
+
+### 2026-09-30 — MPEG-H、gomobile runtime 与冷启动 LiveConfig 重新收口
+
+current player candidate 已从 16 个 AAR 修正为 17 个，补回固定 FongMi/media 源码本来就存在的 `lib-decoder-mpegh`；current build / publish 还会在最终 Leanback APK 检查 `MpeghAudioRenderer` 与 `libmpeghJNI.so`，避免再次出现源码支持但最终 APK 丢扩展的情况。
+
+`scripts/build/build-published-libxray-aar.py` 继续保留官方 v26.7.28 AAR 中未混淆的通用 `go/**` runtime。进一步核对确认：官方 v26.7.28 `go.mod` 固定 `golang.org/x/mobile v0.0.0-20260709172247-6129f5bee9d5`，与发布 JNI BuildID 指向的 x/mobile commit 一致；因此目前没有证据支持“官方 go runtime 与黄金 JNI 来自不同 gomobile ABI 世代”的担忧。这个结论是 source/provenance 级证据，不替代 Android 真机 native 运行验证。
+
+Leanback Manifest 已不再注册 BootReceiver，但冷启动 LiveConfig 仍有两层静态入口：Home 初始化无条件执行 `LiveConfig.get().init().load()`；如果 Live 被以 empty 状态启动，`LiveActivity.checkLive()` 也会再次执行 `init().load(callback)`。因此去掉 boot-time network callback 不会在代码结构上删除首次 LiveConfig 初始化路径；冷启动真机仍应保留回归测试。
 
 ### 2026-09-28 — 文档体系收敛
 
