@@ -6,9 +6,11 @@
 
 ## 1. 当前工程基线
 
-当前应用基于 FongMi/TV 5.6.3：
+当前应用源代码跟随 FongMi/TV 当前 HEAD；上游自身的 `app/build.gradle` 版本名仍为 5.6.3：
 
-- 上游目标 commit：`4afc4473e22a7ed3d98ee12233e0c2a490061000`
+- 上游目标 commit：`c616c0aa3613e87529791587a9f71b78c278c991`
+- 上一固定基线：`4afc4473e22a7ed3d98ee12233e0c2a490061000`（5.6.3）
+- 两者是直接父子 commit；新增 runtime 变化集中在 `catvod` 的 redirect-aware proxy selection/authentication，不代表从 5.6.3 到 Release 5.6.8 之间存在五轮 App 架构重写。
 - app `versionCode`：`563`
 - app `versionName`：`5.6.3`
 - Java：21
@@ -455,6 +457,14 @@ Leanback Manifest 已不再注册 BootReceiver，但冷启动 LiveConfig 仍有�
 此前 current build 对 MPEG-H 已有最终 APK packaging gate，但 Xray、FFmpeg、Libass 与最终 merged Manifest 仍主要依赖构建输入 / 源码层证据。现在 current build 与 publish 都会在 assemble 后直接验证最终产物：双 ABI APK 中的 Xray `libgojni.so`、FFmpeg、MPEG-H、Libass 必须与已验证 AAR 的 ELF runtime `PT_LOAD` image 一致；Manifest 必须保留 Xray 私有进程与非 exported 约束，并拒绝 boot、电话、安装包和 VPN 相关敏感权限/组件回流。
 
 native 比较刻意不使用最终 APK 内 SO 的 whole-file SHA。Android Gradle strip 会改 ELF section metadata，因此整文件 SHA 不同并不代表运行时代码被替换；验证器只归一化 strip-only section-table header 字段，真正的 runtime load segment、flags、地址和内容仍必须一致。这个 gate 证明的是最终 APK packaging provenance，不替代 Android TV 真机上的 ART/JNI/网络行为验证。
+
+### 2026-09-30 — 同步 FongMi/TV 最新 redirect-aware proxy 基线
+
+核对 FongMi/TV 当前 HEAD 后确认，最新源码 `c616c0aa3613e87529791587a9f71b78c278c991` 只是上一固定 5.6.3 基线 `4afc4473e22a7ed3d98ee12233e0c2a490061000` 的直接子 commit，提交主题为 `Fix proxy selection across redirects`；上游 `app/build.gradle` 的 `versionName` 仍为 5.6.3。FongMi/Release 的 5.6.7 / 5.6.8 版本号因此不能机械理解成五轮 TV 源码架构升级。
+
+这笔上游变化只进入 `catvod` 网络基础层：新增 redirect-aware `ProxyRedirectInterceptor`，让 300/301/302/303/307/308 后续请求继续使用正确的 proxy policy；`OkProxySelector` 用 generation 使旧 policy 在 clear 后失效；`OkAuthenticator` 依据 request 上的 policy 选择认证信息，并在代理切换时避免把旧 `Proxy-Authorization` 带到新代理；同时补上跨 host Authorization 清理、no-redirect 行为、follow-up 上限和连接池复用回归测试。
+
+FingMi-Xray 合并时没有用上游 `OkHttp.java` 整文件覆盖 current：继续保留 TV 网络恢复的独立 API / player client、`resetApiNetworkForResume()`、DNS generation reset 与异步旧 client 清理，只把上游 redirect policy 接入共同 builder。额外的 `tests/test-tv-network-recovery.py` coexistence guard 同时锁定“上游 proxy redirect 修复存在”和“Home 网络 generation 只重建 API client、不破坏后台 playback client”，防止未来同步任一侧时覆盖另一侧。
 
 ### 2026-09-30 — Libass native 容器从已删除的 5.6.6 切到可校验的 5.6.8
 
