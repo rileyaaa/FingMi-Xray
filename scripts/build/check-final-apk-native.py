@@ -13,13 +13,27 @@ SPEC = importlib.util.spec_from_file_location(
 elf_runtime = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(elf_runtime)
 
+FFMPEG_SPEC = importlib.util.spec_from_file_location(
+    "published_568_ffmpeg_contract",
+    ROOT / "scripts/recovery/published_568_ffmpeg_contract.py",
+)
+ffmpeg_contract = importlib.util.module_from_spec(FFMPEG_SPEC)
+FFMPEG_SPEC.loader.exec_module(ffmpeg_contract)
+
+ABIS = ("armeabi-v7a", "arm64-v8a")
+FFMPEG_SONAMES = tuple(sorted(ffmpeg_contract.NATIVE_SHA256[ABIS[0]]))
+if set(FFMPEG_SONAMES) != set(ffmpeg_contract.NATIVE_SHA256[ABIS[1]]):
+    raise RuntimeError("5.6.8 FFmpeg native closure differs across supported TV ABIs")
+
 NATIVES = (
     ("Xray", "libxray/libs/libXray.aar", "libgojni.so"),
-    ("FFmpeg", "app/libs/lib-decoder-ffmpeg-release.aar", "libffmpegJNI.so"),
+    *tuple(
+        (f"FFmpeg/{soname}", "app/libs/lib-decoder-ffmpeg-release.aar", soname)
+        for soname in FFMPEG_SONAMES
+    ),
     ("MPEG-H", "app/libs/lib-decoder-mpegh-release.aar", "libmpeghJNI.so"),
     ("Libass", "app/libs/lib-exoplayer-libass-reconstructed.aar", "libmedia3ass.so"),
 )
-ABIS = ("armeabi-v7a", "arm64-v8a")
 
 
 def unique_read(path: Path, entry: str) -> bytes:
@@ -62,9 +76,11 @@ def verify(root: Path, apk_dir: Path):
 
 def self_test():
     elf_runtime.self_test()
-    expected = {name for name, _aar, _so in NATIVES}
-    if expected != {"Xray", "FFmpeg", "MPEG-H", "Libass"}:
+    expected_groups = {name.split("/", 1)[0] for name, _aar, _so in NATIVES}
+    if expected_groups != {"Xray", "FFmpeg", "MPEG-H", "Libass"}:
         raise AssertionError("native final-packaging inventory changed unexpectedly")
+    if "libffmpegDoviJNI.so" not in FFMPEG_SONAMES:
+        raise AssertionError("Dolby Vision JNI is missing from the 5.6.8 FFmpeg closure")
     if ABIS != ("armeabi-v7a", "arm64-v8a"):
         raise AssertionError("TV ABI inventory changed unexpectedly")
     print("PASS final native packaging inventory self-test")

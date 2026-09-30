@@ -19,6 +19,8 @@ for path in sorted((ROOT / "app/src").rglob("strings.xml")):
 
 player_builder = (ROOT / "scripts/build/build-player-aar-candidate.sh").read_text(encoding="utf-8")
 player_verifier = (ROOT / "scripts/build/player_candidate.py").read_text(encoding="utf-8")
+dolby_overlay = (ROOT / "scripts/build/apply-media3-dolby568-overlay.py").read_text(encoding="utf-8")
+player_importer = (ROOT / "scripts/build/import-player-aar-candidate.py").read_text(encoding="utf-8")
 libass_builder = (ROOT / "scripts/build/build-libass-candidate.py").read_text(encoding="utf-8")
 libass_contract = (ROOT / "scripts/build/check-libass-contract.py").read_text(encoding="utf-8")
 libass_native_contract = (ROOT / "compat/media3-libass/tests/published-568-native-contract.json").read_text(encoding="utf-8")
@@ -28,6 +30,10 @@ for required in (
     ":lib-decoder-ffmpeg:assembleRelease",
     ":lib-decoder-mpegh:assembleRelease",
     ":lib-mpvplayer:assembleRelease",
+    "scripts/build/apply-media3-dolby568-overlay.py",
+    'DOLBY_OVERLAY_ID="fongmi-tv-5.6.8-dolby-release-overlay-v1"',
+    '"androidx/media3/decoder/ffmpeg/FfmpegDolbyVisionP5Renderer.class"',
+    '"androidx/media3/decoder/ffmpeg/FfmpegDolbyVisionP7Converter.class"',
     'rm -rf "$SOURCE_DIR" "$STAGE"',
 ):
     if required not in player_builder:
@@ -39,10 +45,34 @@ for required in (
     '"lib-mpvplayer-release.aar"',
     'EXPECTED_AAR_COUNT = 17',
     '"androidx/media3/decoder/mpegh/MpeghAudioRenderer.class"',
+    'DOLBY_OVERLAY_ID = "fongmi-tv-5.6.8-dolby-release-overlay-v1"',
+    '"androidx/media3/decoder/ffmpeg/FfmpegDolbyVisionP5Renderer.class"',
+    '"androidx/media3/decoder/ffmpeg/FfmpegDolbyVisionP7Converter$Factory.class"',
     "candidate manifest points at an unexpected FongMi/media commit",
+    "candidate manifest is missing the pinned Dolby release overlay",
 ):
     if required not in player_verifier:
         errors.append(f"player candidate verifier lost pinned-source contract: {required}")
+
+for required in (
+    "FfmpegDolbyVisionP5Renderer",
+    "Loaded FfmpegDolbyVisionP5Renderer.",
+    "Error instantiating Dolby Vision profile 5 renderer",
+    "patch_decode_track_selector",
+    "DOLBY_VISION_P5_RENDERER_NAME",
+    "setDolbyVisionP7ConverterFactory",
+    "FfmpegDolbyVisionP7Converter$Factory",
+):
+    if required not in dolby_overlay:
+        errors.append(f"Dolby 5.6.8 overlay lost release contract: {required}")
+for required in (
+    "published_568_ffmpeg_contract",
+    "NATIVE_SHA256",
+    "PUBLISHED_CLOSURE",
+    "libffmpegDoviJNI.so",
+):
+    if required not in player_importer:
+        errors.append(f"player importer lost 5.6.8 FFmpeg closure contract: {required}")
 
 for required in (
     "published-568-native-contract.json",
@@ -79,6 +109,9 @@ for required in (
     "lib-decoder-ffmpeg-release.aar",
     "lib-decoder-mpegh-release.aar",
     "lib-exoplayer-libass-reconstructed.aar",
+    "published_568_ffmpeg_contract.py",
+    "FFMPEG_SONAMES",
+    "libffmpegDoviJNI.so",
     "armeabi-v7a",
     "arm64-v8a",
 ):
@@ -222,6 +255,10 @@ for name, text in (
 
     for required in (
         "bash scripts/build/build-player-aar-candidate.sh",
+        "scripts/recovery/restore-published-568-ffmpeg.py",
+        "--v7-apk build/work/current-main/input/published-v568-v7.apk",
+        "--v8-apk build/work/current-main/input/published-v568-v8.apk",
+        "scripts/recovery/check-published-568-ffmpeg.py --aar app/libs/lib-decoder-ffmpeg-release.aar",
         "'platforms;android-36'",
         ":app:compileLeanbackDebugJavaWithJavac",
         ":app:assembleLeanbackDebug",
@@ -241,6 +278,13 @@ for name, text in (
     ):
         if required not in text:
             errors.append(f"{name} is missing pinned TV build contract: {required}")
+
+    for forbidden in (
+        "scripts/recovery/restore-published-ffmpegjni.py",
+        "scripts/recovery/check-player-ffmpegjni-against-published.py",
+    ):
+        if forbidden in text:
+            errors.append(f"{name} must use the complete 5.6.8 FFmpeg closure; found {forbidden}")
 
     for retired in ("5.6.5", "5.6.6"):
         if f"releases/download/{retired}/" in text:
