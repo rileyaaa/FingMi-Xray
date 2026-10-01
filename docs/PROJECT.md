@@ -135,7 +135,7 @@ HTTP / HTTPS、DRM license、RTSP / RTSPT，以及字幕、弹幕、EPG/XML 等�
 - 不让普通直连缓存把旧网络身份带进 Xray 会话；
 - Xray active 时播放器使用能够注入该会话网络资源的 Exo engine；真正切换播放器属于播放身份变化，先结束旧 Xray 会话，再按普通 FongMi 规则选择新 engine；
 - HTTP / HTTPS 使用当前 Xray client，RTSP / RTSPT 使用会话 SOCKS SocketFactory，DRM license 复用同一 proxied DataSource；
-- Android 本地资源 scheme（`file`、`asset`、`content`、`data`、`rawresource`、`android.resource`）仍保持本地读取，不被伪装成代理流量；其它无法保证网络身份的泛用 scheme 在 Xray active 时 fail-closed；
+- 无 scheme 的本地路径以及 Android 本地资源 scheme（`file`、`asset`、`content`、`data`、`rawresource`、`android.resource`）仍保持本地读取，不被伪装成代理流量；其它无法保证网络身份的泛用 scheme 在 Xray active 时 fail-closed；
 - Xray SOCKS client 从普通 player client 的配置派生，但拥有独立 Dispatcher、ConnectionPool 与 SOCKS 资源；
 - 会话结束后关闭对应 Dispatcher、连接池、executor 和 Service 状态；
 - 旧异步回调不能覆盖更新的播放会话。
