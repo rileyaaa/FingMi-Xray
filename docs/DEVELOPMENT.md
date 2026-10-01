@@ -210,7 +210,7 @@ current player candidate 使用固定公开 FongMi/media 的 MPV 源码。curren
 当前可重复构建依赖：
 
 - 从固定公开 `FongMi/media@3c2cbe8ac742c2fe15eff52f03eeb3b1b648848d` 现场重建的 17-AAR player candidate；
-- 历史 `v5.6.0-xray.5` 黄金 APK：为 Xray API v2 Java bindings / Go JNI 提供成套 provenance，并继续提供当前固定 decoder JNI compatibility 输入；
+- 历史 `v5.6.0-xray.5` 黄金 APK：只为 Xray API v2 Java bindings / Go JNI 提供成套 provenance，并作为 Xray 外部行为与 native parity 的黄金参考；current player / FFmpeg 不从该 APK 回灌；
 - 官方 libXray v26.7.28 AAR 外层容器；
 - 按固定公开 Media3 输入重建的 Libass compatibility AAR；
 - FongMi 5.6.8 immutable Leanback APK 只作为当前 Libass compatibility 所需 `libmedia3ass.so` 的固定容器来源，不作为 current-main 业务/播放器源码来源。
@@ -219,7 +219,7 @@ Libass 的 5.6.8 native contract 只用于证明所取 `libmedia3ass.so` 与当�
 
 `libXray/**` generated bindings 与 `libgojni.so` 必须作为同一 JNI ABI 单元恢复；不能把官方旧 bindings 与黄金 API v2 JNI 单独拼接。当前 `scripts/build/build-published-libxray-aar.py` 从固定黄金 APK恢复匹配的 `libXray/**` bindings 与双 ABI JNI，同时保留官方 v26.7.28 AAR 中未经过 App R8 混淆的通用 `go/**` runtime。
 
-最终 APK native 验证使用 ELF `PT_LOAD` runtime image，而不是 whole-file SHA：Android Gradle strip 可以改变 section metadata，但不能改变运行时 load segments。当前最终门槛核对 Xray、固定 FFmpeg compatibility、MPEG-H 与 Libass 四类 native，并单独检查 merged Manifest：XrayService 必须 `exported=false` / `process=:xray`，同时拒绝 BootReceiver、`RECEIVE_BOOT_COMPLETED`、`READ_PHONE_STATE`、`REQUEST_INSTALL_PACKAGES` 与 VPN service permission 回流。app Manifest 还显式用 `tools:node="remove"` 阻断依赖带入的 `READ_PHONE_STATE`。
+最终 APK native 验证使用 ELF `PT_LOAD` runtime image，而不是 whole-file SHA：Android Gradle strip 可以改变 section metadata，但不能改变运行时 load segments。当前最终门槛核对 Xray、公开 FongMi/media 重建得到的 FFmpeg、MPEG-H 与 Libass 四类 native，并单独检查 merged Manifest：XrayService 必须 `exported=false` / `process=:xray`，同时拒绝 BootReceiver、`RECEIVE_BOOT_COMPLETED`、`REQUEST_INSTALL_PACKAGES` 与 VPN service permission 回流。普通 FongMi 权限不因为本 fork 的一般性安全偏好而额外改写；只有 Xray、TV 网络恢复或防止上游 APK 自更新覆盖 fork 所必需的 Manifest 差异可以长期保留。
 
 current / publish workflow 会在主 Gradle compile / assemble 前清理已消费的 APK、JADX、native harness、Libass extractor 与 reconstruction workdir。修改 compatibility 输入或 hash 时必须同步修改对应 verifier；不得重新加入 5.6.8 Dolby/MPV/ISO Release-only restorer。
 
@@ -393,6 +393,14 @@ FingMi-Xray 当前**不使用 FongMi/Release 的应用内自更新**。原因是
 
 本节允许按日期、版本或里程碑持续维护，但只记录**会长期影响后续开发判断**的故障结论、迁移决策和验证基线；单次失败尝试、临时 trigger、普通 commit / run 流水不在这里展开。
 
+### 2026-10-01 — 以完整 FongMi 上游树重新建立干净开发基线
+
+为消除多轮 AI 维护在旧 `main` 上累积的不可追溯差异，本轮不再继续原地清理，而是先以 `FongMi/TV@c616c0aa3613e87529791587a9f71b78c278c991` 完整仓库树作为基线，再重新应用 FingMi-Xray 自有内容。上游 Android / Java / XML / Gradle / website 源码与资源先按上游 blob 恢复；上游 `.github/workflows/pages.yml` 不迁入，因为本项目所有可执行 workflow 必须保持手动触发，网站自动部署不属于产品代码。
+
+重新应用后的同路径源码差异必须逐项归类到 Xray、Android TV 待机网络恢复、禁用上游 APK 自更新 / 构建发布基础设施，或公开 FongMi/TV 与公开 FongMi/media 无法直接闭合时的最小 compatibility。无法归类的差异必须删除而不是解释成“历史兼容”。Xray 继续以 `v5.6.0-xray.5` armeabi-v7a 正式 APK 为黄金行为参考；新模块结构可以不同，但 normalize / display、VALIDATE / TEST / START / STOP、Binder / generation / timeout、TLS / HY2 pin、VOD / Live identity、DRM / RTSP / subtitle / danmaku / EPG / artwork / preload、失败恢复与资源释放等可观察语义必须逐项映射到发布证据。
+
+TV 网络恢复则以 v7 已确认的后台 / SCREEN_OFF generation、普通 API / DNS / DoH / Spider 重建和网络稳定等待为基础，同时保留后续已验证的完善点：`recoveredGeneration` 防 Home 重建漏恢复、generation 串行恢复、普通 API client 与播放器 client 隔离、Glide 动态取得新 client，以及恢复时清除瞬时图片失败缓存。以上增强仍只服务待机 / 长后台恢复，不引入默认网络 callback 或新的普通业务行为。
+
 ### 2026-09-27 — libXray Java/native ABI 必须成套恢复
 
 `v5.6.3-xray.test.3` 暴露出官方 v26.7.28 Java bindings 与历史 API v2 `libgojni.so` 混搭会在 JNI 初始化阶段查找缺失模型类并杀死 `:xray` 进程。current-main 因此固定使用 `scripts/build/build-published-libxray-aar.py`：从固定发布 APK 恢复匹配的 `libXray/**` API v2 bindings 与 v7 / arm64 JNI，同时保留官方 AAR 中未经过 App R8 混淆的通用 `go/**` runtime。后续升级 libXray 必须整套替换 Java bindings + JNI，不能只换其中一侧。
@@ -485,7 +493,7 @@ Android build-tools 37 的 plain `dexdump` 会把 class 边界打印成带填充
 
 当前代码重新以公开 FongMi/TV + 公开 FongMi/media 为播放器/业务主体：删除 5.6.8 Dolby、MPV、ISO overlay 与对应 restorer/checker，`AudioSetting.MAX_BOOST` 恢复公开上游 1200；current / publish workflow 不再恢复 5.6.8 MPV/ISO/Dolby 功能。保留的只有 Xray、TV 网络恢复、禁用上游自更新、安全/构建基础设施，以及让公开源码能够构建所必需的最小 Media3/Libass/MPV compatibility adapter。
 
-`tests/test-build-hygiene.py` 现在显式拒绝这些 Release-only media 路径重新进入 current-main，并继续锁住最终 APK 递归发现、Manifest `READ_PHONE_STATE` 剔除和 TV-only 构建规则。今后发现 FongMi Release 与公开源码存在差异时，默认跟随公开上游；只有 Xray、TV 网络恢复或不可避免的构建兼容问题才允许在 fork 中形成差异。
+`tests/test-build-hygiene.py` 现在显式拒绝这些 Release-only media 路径重新进入 current-main，并继续锁住最终 APK 递归发现、禁用上游 APK 自更新和 TV-only 构建规则。`READ_PHONE_STATE` 的额外剔除不属于 Xray / TV 网络恢复边界，干净上游重建时已撤回；今后发现 FongMi Release 与公开源码存在差异时，默认跟随公开上游，只有 Xray、TV 网络恢复、禁用上游自更新或不可避免的构建兼容问题才允许在 fork 中形成差异。
 
 
 同日继续做完整上游差异收口：`SubtitleSetting` 与 Chaquopy `Platform` 已恢复为 `FongMi/TV@c616c0aa3613e87529791587a9f71b78c278c991`；正式 current / publish 不再注入历史 APK 的 `libffmpegJNI.so`，而是直接使用 `FongMi/media@3c2cbe8ac742c2fe15eff52f03eeb3b1b648848d` 现场重建的 decoder AAR。历史 FFmpeg restore/check 只保留在 faithful recovery。
