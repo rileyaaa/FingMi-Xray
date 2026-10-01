@@ -62,7 +62,7 @@ final class NativeUdfFileSystem implements Closeable {
     }
     nativeHandle = nativeOpen(reader);
     if (nativeHandle == 0L) {
-      throw new UnsupportedImageException("Could not open UDF image");
+      throw new IOException("Could not open UDF image");
     }
   }
 
