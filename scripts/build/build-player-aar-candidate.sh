@@ -4,6 +4,7 @@ set -euo pipefail
 SOURCE_COMMIT="3c2cbe8ac742c2fe15eff52f03eeb3b1b648848d"
 DOLBY_OVERLAY_ID="fongmi-tv-5.6.8-dolby-release-overlay-v1"
 MPV_OVERLAY_ID="fongmi-tv-5.6.8-mpv-bridge-v2"
+ISO_OVERLAY_ID="fongmi-tv-5.6.8-iso-native-udf-overlay-v1"
 WORKDIR=""
 OUTPUT=""
 
@@ -51,6 +52,7 @@ fi
 
 python3 "$ROOT/scripts/build/apply-media3-dolby568-overlay.py" --source "$SOURCE_DIR"
 python3 "$ROOT/scripts/build/apply-media3-mpv568-overlay.py" --source "$SOURCE_DIR"
+python3 "$ROOT/scripts/build/apply-media3-iso568-overlay.py" --source "$SOURCE_DIR"
 
 (
   cd "$SOURCE_DIR"
@@ -75,7 +77,7 @@ python3 "$ROOT/scripts/build/apply-media3-mpv568-overlay.py" --source "$SOURCE_D
     :lib-ui-danmaku:assembleRelease
 )
 
-python3 - "$SOURCE_DIR" "$STAGE" "$OUTPUT" "$SOURCE_COMMIT" "$DOLBY_OVERLAY_ID" "$MPV_OVERLAY_ID" <<'PY'
+python3 - "$SOURCE_DIR" "$STAGE" "$OUTPUT" "$SOURCE_COMMIT" "$DOLBY_OVERLAY_ID" "$MPV_OVERLAY_ID" "$ISO_OVERLAY_ID" <<'PY'
 from io import BytesIO
 from pathlib import Path
 from zipfile import ZIP_STORED, ZipFile, ZipInfo
@@ -89,12 +91,14 @@ output = Path(sys.argv[3])
 source_commit = sys.argv[4]
 overlay_id = sys.argv[5]
 mpv_overlay_id = sys.argv[6]
+iso_overlay_id = sys.argv[7]
 
 required = {
     "androidx/media3/mpvplayer/MpvPlayer.class",
     "androidx/media3/mpvplayer/nativebridge/MpvClient$LongResultCallback.class",
     "androidx/media3/mpvplayer/media/MpvIsoStream.class",
     "androidx/media3/mpvplayer/media/MpvIsoStreamManager.class",
+    "androidx/media3/extractor/iso/udf/NativeUdfFileSystem.class",
     "is/xyz/mpv/MPVLib$Stream.class",
     "is/xyz/mpv/MPVLib$StreamProvider.class",
     "androidx/media3/exoplayer/trackselection/DecodeTrackSelector.class",
@@ -124,6 +128,7 @@ lines = [
     f"FongMi/media @ {source_commit}",
     f"Dolby overlay: {overlay_id}",
     f"MPV overlay: {mpv_overlay_id}",
+    f"ISO overlay: {iso_overlay_id}",
 ]
 for path in aars:
     target = stage / path.name
