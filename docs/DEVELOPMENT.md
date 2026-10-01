@@ -436,3 +436,11 @@ TV 待机网络审计发现 `OkDns.lookup()` 在 reset/rebuild 并发时存在�
 完成源码、Xray/TV 网络、上游差异与最终构建验证后，干净重建结果成为唯一 `main` 基线。当前 `main` 已通过自动源码/native/assemble/Manifest 门槛；尚未发布新的测试 Release，Android TV 真机 Xray 与待机/长后台网络恢复仍是下一层验收。
 
 随后以当前 `main` 代码反向核对长期文档，确认全部上游同路径差异仍只落在 Xray、TV 网络恢复、禁用上游自更新、构建/测试基础设施与最小 compatibility 范围；同时修正文档中对 Xray 本地 DataSource scheme 的错误描述，并补齐 Core DNS/私网保护、Exo-only proxy 注入、Home-owned 网络恢复与实际 CI guard 清单。
+
+### 2026-10-02 — fresh v7 full-JADX / DEX 独立 Xray 完整性复核
+
+为避免把旧 recovery 结论当成前提再次自证，单独用固定 `v5.6.0-xray.5` APK 再跑一次完整 recovery analysis（run `36910320478`），取得 fresh v7 full-JADX 与双 ABI DEX/dexdump。审计从完整 APK 重新枚举 Xray direct classes、AIDL/Binder glue、Service/session/settings 状态机，并以旧 `PlayerManager(th2)` 的 current-client、Xray-active 与 proxy transition 方法反向穷举所有 caller，覆盖 DRM、RTSP、字幕、弹幕、EPG/XML、artwork/logo/MediaSession、preload、外部播放器和手机导入。
+
+结果没有发现当前 `main` 尚未映射的 Xray runtime path；旧 AIDL 六个事务与当前 `validate/test/start/stop/resetSecurity/cancel` 一一对应，5s bind、1.5s cleanup、30s startup、45s settings timeout 也由 fresh JADX/DEX 重新确认。fresh v7 与仓库 selected reference 的 3 个差异仅是 TV 网络 helper 的格式整理，已恢复为 fresh 文本；此后 63 个 `shared/sources/` 文件与 fresh v7 blob 全部一致。运行代码没有因此修改。
+
+该结论仍限定为**已取证行为/调用链完整映射**：旧 APK 的原始未混淆 Java 源码和 libXray 原始 Go 源码并未找回。native 继续使用正式 APK 固定 SHA 的 `libgojni.so` 与匹配 generated bindings，并由此前成功的双 ABI current-chain parity 验证；最终 Android TV 真机仍是更高层级验收。
