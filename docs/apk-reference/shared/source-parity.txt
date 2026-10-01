@@ -27,3 +27,12 @@ sources/p000/la2.java
 sources/p000/yd0.java
 
 Generated from existing full JADX artifacts 10847466987 (v7) and 10825963688 (v8); no new Action run was started.
+
+Repository retention note (2026-10-02)
+
+The checked-in evidence tree currently retains 63 byte-identical Java sources under shared/sources/
+plus the one ABI-different logical source as v7/ip0.java and v8/ip0.java.
+The historical generation note above names HomeActivity.java among the standby/network selection,
+but HomeActivity.java is not present in the current checked-in apk-reference tree.
+Do not cite HomeActivity as retained selected-JADX evidence unless it is re-extracted from the pinned full artifacts.
+Retained standby/network helper evidence includes gn3.java, ha2.java, l61.java, la2.java and yd0.java.
