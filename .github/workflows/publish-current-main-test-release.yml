@@ -21,7 +21,7 @@ jobs:
       LIBASS_CANDIDATE_SHA256: "f047f8ad84be08aeddb0672500e9b263cafd6f2a009812392554dc55b2019861"
       JADX_VERSION: "1.5.6"
       JADX_SHA256: "545ea2be9c242511bc145755cf4bda2485ade42966e096f8b4d3da2a230e8974"
-      PREVIOUS_RELEASE_TAG: "v5.6.3-xray.test.5"
+      PREVIOUS_RELEASE_TAG: "v5.6.3-xray.test.7"
       RELEASE_TAG: "v5.6.3-xray.test.6"
       BUILD_SOURCE_SHA: ${{ github.sha }}
 
