@@ -20,12 +20,6 @@
             android:text="@string/play_next" />
 
         <com.google.android.material.textview.MaterialTextView
-            android:id="@+id/xray"
-            style="@style/Control"
-            android:layout_marginEnd="8dp"
-            android:text="@string/xray_off" />
-
-        <com.google.android.material.textview.MaterialTextView
             android:id="@+id/prev"
             style="@style/Control"
             android:layout_marginEnd="8dp"

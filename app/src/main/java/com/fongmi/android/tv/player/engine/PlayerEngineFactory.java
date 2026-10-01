@@ -6,7 +6,6 @@ import static com.fongmi.android.tv.player.engine.PlayerEngine.Type.MPV;
 import androidx.media3.common.Player;
 
 import com.fongmi.android.tv.player.exo.ExoPlayerEngine;
-import com.fingmi.xray.network.XrayHttpClient;
 import com.fongmi.android.tv.player.media.PlaySpec;
 import com.fongmi.android.tv.player.mpv.MpvPlayerEngine;
 import com.fongmi.android.tv.setting.PlayerSetting;
@@ -19,11 +18,7 @@ public final class PlayerEngineFactory {
     }
 
     public static PlayerEngine create(int decode, PlaySpec spec, Player.Listener listener) {
-        return create(decode, spec, null, listener);
-    }
-
-    public static PlayerEngine create(int decode, PlaySpec spec, XrayHttpClient proxy, Player.Listener listener) {
-        return proxy == null ? create(decode, resolve(spec), listener) : new ExoPlayerEngine(decode, listener, proxy);
+        return create(decode, resolve(spec), listener);
     }
 
     public static PlayerEngine create(int decode, PlayerEngine.Type type, Player.Listener listener) {
@@ -34,14 +29,7 @@ public final class PlayerEngineFactory {
     }
 
     public static boolean matches(PlayerEngine engine, PlaySpec spec) {
-        return matches(engine, spec, null);
-    }
-
-    public static boolean matches(PlayerEngine engine, PlaySpec spec, XrayHttpClient proxy) {
-        if (engine == null) return false;
-        if (proxy != null) return engine instanceof ExoPlayerEngine exo && exo.proxy() == proxy && !engine.needsRebuild();
-        if (engine instanceof ExoPlayerEngine exo && exo.proxy() != null) return false;
-        return engine.getType() == resolve(spec) && !engine.needsRebuild();
+        return engine != null && engine.getType() == resolve(spec) && !engine.needsRebuild();
     }
 
     private static PlayerEngine.Type resolve(PlaySpec spec) {

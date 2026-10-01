@@ -33,7 +33,6 @@ import com.fongmi.android.tv.utils.KeyUtil;
 import com.fongmi.android.tv.utils.Notify;
 import com.fongmi.android.tv.utils.ResUtil;
 import com.fongmi.android.tv.utils.Util;
-import com.github.catvod.net.OkHttp;
 
 import java.util.ArrayDeque;
 import java.util.List;
@@ -48,7 +47,6 @@ public final class SubtitleSearchDialog extends BaseBottomSheetDialog implements
     private PlayerManager player;
     private String keyword;
     private int nextPos;
-    private int requestId = -1;
 
     public SubtitleSearchDialog() {
         this.states = new ArrayDeque<>();
@@ -165,14 +163,7 @@ public final class SubtitleSearchDialog extends BaseBottomSheetDialog implements
         showProgress();
         updateBackCallback();
         scroller.endLoading(hasMore());
-        requestId = player.withHttpClient(
-                OkHttp.client(),
-                client -> SubtitleApi.detail(
-                        client,
-                        item.getId(),
-                        this::showItems,
-                        this::onError,
-                        this::onXrayTransitionCancelled));
+        SubtitleApi.detail(item.getId(), this::showItems, this::onError);
     }
 
     private void applySub(SubtitleSearchItem item) {
@@ -189,14 +180,7 @@ public final class SubtitleSearchDialog extends BaseBottomSheetDialog implements
         showProgress();
         updateBackCallback();
         scroller.endLoading(hasMore());
-        requestId = player.withHttpClient(
-                OkHttp.client(),
-                client -> SubtitleApi.loadSubtitle(
-                        client,
-                        item,
-                        this::showDownloaded,
-                        this::onError,
-                        this::onXrayTransitionCancelled));
+        SubtitleApi.loadSubtitle(item, this::showDownloaded, this::onError);
     }
 
     private boolean loadMore() {
@@ -211,21 +195,7 @@ public final class SubtitleSearchDialog extends BaseBottomSheetDialog implements
 
     private void requestSearch() {
         updateBackCallback();
-        requestId = player.withHttpClient(
-                OkHttp.client(),
-                client -> SubtitleApi.search(
-                        client,
-                        keyword,
-                        nextPos,
-                        this::onSearch,
-                        this::onSearchError,
-                        this::onXrayTransitionCancelled));
-    }
-
-    private void onXrayTransitionCancelled() {
-        if (binding == null) return;
-        scroller.endLoading(false);
-        showResults(adapter.getItemCount() == 0);
+        SubtitleApi.search(keyword, nextPos, this::onSearch, this::onSearchError);
     }
 
     private void onSearchError(Exception e) {
@@ -281,8 +251,7 @@ public final class SubtitleSearchDialog extends BaseBottomSheetDialog implements
 
     private boolean restoreState() {
         if (canCancelRequest()) {
-            SubtitleApi.cancel(requestId);
-            requestId = -1;
+            SubtitleApi.cancel();
             showResults(false);
             return true;
         } else if (!states.isEmpty()) {
@@ -295,8 +264,7 @@ public final class SubtitleSearchDialog extends BaseBottomSheetDialog implements
 
     private void restore(State state) {
         scroller.reset();
-        SubtitleApi.cancel(requestId);
-        requestId = -1;
+        SubtitleApi.cancel();
         nextPos = state.nextPos();
         adapter.setItems(state.items());
         scroller.endLoading(state.hasMore());
@@ -315,9 +283,8 @@ public final class SubtitleSearchDialog extends BaseBottomSheetDialog implements
     @Override
     public void onDestroyView() {
         states.clear();
-        SubtitleApi.cancel(requestId);
-        requestId = -1;
         binding = null;
+        SubtitleApi.cancel();
         super.onDestroyView();
     }
 

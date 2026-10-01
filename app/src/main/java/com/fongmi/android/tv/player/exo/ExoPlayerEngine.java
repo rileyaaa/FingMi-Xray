@@ -18,7 +18,6 @@ import com.fongmi.android.tv.player.effect.PlayerEffect;
 import com.fongmi.android.tv.player.engine.PlayerEngine;
 import com.fongmi.android.tv.player.media.MediaItemFactory;
 import com.fongmi.android.tv.player.media.PlaySpec;
-import com.fingmi.xray.network.XrayHttpClient;
 
 public class ExoPlayerEngine implements PlayerEngine, AnalyticsListener {
 
@@ -29,18 +28,12 @@ public class ExoPlayerEngine implements PlayerEngine, AnalyticsListener {
     private final ExoDiskPreload preload;
     private final ExoPlayer player;
     private PlaySpec spec;
-    private final XrayHttpClient proxy;
 
     public ExoPlayerEngine(int decode, Player.Listener listener) {
-        this(decode, listener, null);
-    }
-
-    public ExoPlayerEngine(int decode, Player.Listener listener, XrayHttpClient proxy) {
-        this.proxy = proxy;
         this.effect = new ExoPlayerEffect();
         this.preload = new ExoDiskPreload();
         this.provider = new ExoErrorMessageProvider();
-        this.session = new ExoPlayerSession(decode, listener, effect.getAudioProcessor(), proxy);
+        this.session = new ExoPlayerSession(decode, listener, effect.getAudioProcessor());
         this.subtitles = new ExoSubtitleController(session);
         this.player = session.player();
         this.player.addAnalyticsListener(this);
@@ -61,8 +54,6 @@ public class ExoPlayerEngine implements PlayerEngine, AnalyticsListener {
     public void onTracksChanged(@NonNull EventTime eventTime, @NonNull Tracks tracks) {
         effect.applyVideoEffect();
     }
-
-    public XrayHttpClient proxy() { return proxy; }
 
     @Override
     public Type getType() {
@@ -112,7 +103,7 @@ public class ExoPlayerEngine implements PlayerEngine, AnalyticsListener {
 
     @Override
     public void preload(PlaySpec spec, long startPositionMs) {
-        if (proxy == null) session.preload(MediaItemFactory.from(spec), startPositionMs);
+        session.preload(MediaItemFactory.from(spec), startPositionMs);
     }
 
     @Override
@@ -167,7 +158,7 @@ public class ExoPlayerEngine implements PlayerEngine, AnalyticsListener {
         effect.clearAudioEffect();
         if (source == null) player.setMediaItem(item, position);
         else player.setMediaSource(source, position);
-        if (proxy == null) preload.start(player, item);
+        preload.start(player, item);
         prepareAndPlay();
     }
 

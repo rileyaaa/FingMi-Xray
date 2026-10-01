@@ -22,7 +22,6 @@ import androidx.media3.exoplayer.trackselection.SecondaryTextTrackSelector;
 import androidx.media3.exoplayer.trackselection.TrackSelector;
 
 import com.fongmi.android.tv.App;
-import com.fingmi.xray.network.XrayHttpClient;
 import com.fongmi.android.tv.player.subtitle.AndroidFontConfig;
 import com.fongmi.android.tv.player.subtitle.ExternalFont;
 import com.fongmi.android.tv.setting.PlayerSetting;
@@ -51,13 +50,13 @@ final class ExoPlayerSession {
     @Nullable
     private PreloadRequest preloadRequest;
 
-    ExoPlayerSession(int decode, Player.Listener listener, AudioProcessor audioProcessor, @Nullable XrayHttpClient proxy) {
+    ExoPlayerSession(int decode, Player.Listener listener, AudioProcessor audioProcessor) {
         this.decodeTrackSelectorFactory = new DecodeTrackSelectorFactory(decode);
         SecondaryTextTrackSelector.Factory secondaryTextTrackSelectorFactory = new SecondaryTextTrackSelector.Factory(decodeTrackSelectorFactory);
         SecondaryTextOutput secondaryTextOutput = new SecondaryTextOutput();
         this.libassEnabled = PlayerSetting.isLibass();
         this.libassPlaybackSession = createLibassPlaybackSession(libassEnabled);
-        DefaultPreloadManager.Builder builder = createPreloadManagerBuilder(audioProcessor, secondaryTextTrackSelectorFactory, secondaryTextOutput, proxy);
+        DefaultPreloadManager.Builder builder = createPreloadManagerBuilder(audioProcessor, secondaryTextTrackSelectorFactory, secondaryTextOutput);
         this.preloadManager = builder.build();
         this.preloadManager.addListener(new PreloadListener());
         this.player = ExoUtil.buildPlayer(listener, builder);
@@ -126,8 +125,8 @@ final class ExoPlayerSession {
         return preloadRequest == null ? 0 : preloadRequest.startPositionMs();
     }
 
-    private DefaultPreloadManager.Builder createPreloadManagerBuilder(AudioProcessor audioProcessor, SecondaryTextTrackSelector.Factory secondaryTextTrackSelectorFactory, SecondaryTextOutput secondaryTextOutput, @Nullable XrayHttpClient proxy) {
-        return new DefaultPreloadManager.Builder(App.get(), ignored -> DefaultPreloadManager.PreloadStatus.specifiedRangeLoaded(getPreloadStartPositionMs(), PRELOAD_DURATION_MS)).setMediaSourceFactorySupplier(ExoMediaSourceFactory.supplier(libassPlaybackSession, proxy)).setRenderersFactory(ExoUtil.buildRenderersFactory(audioProcessor, secondaryTextOutput, libassPlaybackSession)).setTrackSelectorFactory(secondaryTextTrackSelectorFactory).setLoadControl(ExoUtil.buildLoadControl(MAX_PRELOAD_BUFFER_BYTES));
+    private DefaultPreloadManager.Builder createPreloadManagerBuilder(AudioProcessor audioProcessor, SecondaryTextTrackSelector.Factory secondaryTextTrackSelectorFactory, SecondaryTextOutput secondaryTextOutput) {
+        return new DefaultPreloadManager.Builder(App.get(), ignored -> DefaultPreloadManager.PreloadStatus.specifiedRangeLoaded(getPreloadStartPositionMs(), PRELOAD_DURATION_MS)).setMediaSourceFactorySupplier(ExoMediaSourceFactory.supplier(libassPlaybackSession)).setRenderersFactory(ExoUtil.buildRenderersFactory(audioProcessor, secondaryTextOutput, libassPlaybackSession)).setTrackSelectorFactory(secondaryTextTrackSelectorFactory).setLoadControl(ExoUtil.buildLoadControl(MAX_PRELOAD_BUFFER_BYTES));
     }
 
     private static LibassPlaybackSession createLibassPlaybackSession(boolean libassEnabled) {

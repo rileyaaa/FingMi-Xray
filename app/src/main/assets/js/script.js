@@ -23,14 +23,6 @@ function setting() {
     doAction('setting', { text: $('#setting_text').val(), name: $('#setting_name').val() });
 }
 
-function sendXray() {
-    const link = $('#xray_link').val().trim();
-    if (!link) return;
-    doAction('xray', { link });
-    $('#xray_link').val('');
-    warnToast('已发送到电视');
-}
-
 function sendDanmaku() {
     const text = $('#danmaku_text').val().trim();
     if (!text) return;
@@ -274,7 +266,7 @@ function warnToast(msg) {
 }
 
 function showPanel(id) {
-    for (let i = 1; i <= 6; i++) {
+    for (let i = 1; i <= 5; i++) {
         document.getElementById('panel' + i).classList.toggle('active', i === id);
         document.getElementById('tab' + i).classList.toggle('active', i === id);
     }

@@ -13,7 +13,6 @@ import com.fongmi.android.tv.bean.Vod;
 import com.fongmi.android.tv.event.CastEvent;
 import com.fongmi.android.tv.event.RefreshEvent;
 import com.fongmi.android.tv.event.ServerEvent;
-import com.fongmi.android.tv.event.XrayImportEvent;
 import com.fongmi.android.tv.impl.Callback;
 import com.fongmi.android.tv.server.Nano;
 import com.fongmi.android.tv.server.Server;
@@ -58,7 +57,6 @@ public class Action implements Process {
             case "refresh" -> onRefresh(params);
             case "control" -> onControl(params);
             case "danmaku" -> onDanmaku(params);
-            case "xray" -> onXray(params);
         }
     }
 
@@ -80,12 +78,6 @@ public class Action implements Process {
         String word = params.get("word");
         if (TextUtils.isEmpty(word)) return;
         ServerEvent.search(word);
-    }
-
-    private void onXray(Map<String, String> params) {
-        String link = params.get("link");
-        if (TextUtils.isEmpty(link)) return;
-        XrayImportEvent.post(link.trim());
     }
 
     private void onSetting(Map<String, String> params) {

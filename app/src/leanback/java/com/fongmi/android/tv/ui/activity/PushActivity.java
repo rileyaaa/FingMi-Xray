@@ -44,12 +44,7 @@ public class PushActivity extends BaseActivity {
     @Override
     protected void initView(Bundle savedInstanceState) {
         mBinding.code.setImageBitmap(QRCode.getBitmap(Server.get().getAddress(getTab()), 250, 1));
-        if (getTab() == 6) {
-            mBinding.info.setText(ResUtil.getString(R.string.xray_phone_scan_info, Server.get().getAddress()));
-            mBinding.clip.setVisibility(View.GONE);
-        } else {
-            mBinding.info.setText(ResUtil.getString(R.string.push_info, Server.get().getAddress()));
-        }
+        mBinding.info.setText(ResUtil.getString(R.string.push_info, Server.get().getAddress()));
     }
 
     @Override

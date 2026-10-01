@@ -12,8 +12,6 @@ import java.security.SecureRandom;
 import java.security.cert.X509Certificate;
 import java.util.Map;
 import java.util.Objects;
-import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
 import javax.net.ssl.SSLContext;
@@ -33,29 +31,6 @@ import okhttp3.logging.HttpLoggingInterceptor;
 public class OkHttp {
 
     private static final long TIMEOUT = TimeUnit.SECONDS.toMillis(30);
-
-    /**
-     * Recovered from the shipped APK (thread name: TvNetworkCleanup).
-     *
-     * Cleanup is intentionally serialized and daemon-backed so stale clients
-     * cannot keep the process alive.
-     */
-    private static final ThreadPoolExecutor NETWORK_CLEANUP;
-
-    static {
-        NETWORK_CLEANUP = new ThreadPoolExecutor(
-                0,
-                1,
-                5L,
-                TimeUnit.SECONDS,
-                new LinkedBlockingQueue<>(),
-                runnable -> {
-                    Thread thread = new Thread(runnable, "TvNetworkCleanup");
-                    thread.setDaemon(true);
-                    return thread;
-                });
-        NETWORK_CLEANUP.allowCoreThreadTimeOut(true);
-    }
 
     private ResponseInterceptor responseInterceptor;
     private RequestInterceptor requestInterceptor;
@@ -251,54 +226,9 @@ public class OkHttp {
         };
     }
 
-    /**
-     * Shipped TV resume behavior.
-     *
-     * Only the normal API client is detached here. The dedicated player client
-     * is deliberately left alone so an allowed background playback session is
-     * not destroyed by HomeActivity's network-generation recovery.
-     */
-    public static void resetApiNetworkForResume() {
-        OkHttpClient oldClient;
-        synchronized (OkHttp.class) {
-            oldClient = get().client;
-            get().client = null;
-            dns().resetForNetworkChange();
-        }
-        cleanupClientAsync(oldClient);
-    }
-
-    /**
-     * Recovered client cleanup order. The decompiler damaged the try/catch
-     * edges in this block, but README intent and surrounding lifecycle code
-     * confirm all three resources are meant to be released.
-     */
-    public static void cleanupClientAsync(OkHttpClient client) {
-        if (client == null) return;
-        NETWORK_CLEANUP.execute(() -> {
-            try {
-                client.dispatcher().cancelAll();
-            } catch (Throwable ignored) {
-            }
-            try {
-                client.connectionPool().evictAll();
-            } catch (Throwable ignored) {
-            }
-            try {
-                client.dispatcher().executorService().shutdown();
-            } catch (Throwable ignored) {
-            }
-        });
-    }
-
     public void clear() {
-        OkHttpClient oldClient;
-        synchronized (OkHttp.class) {
-            oldClient = client;
-            client = null;
-            dns().resetAndClear();
-        }
-        cleanupClientAsync(oldClient);
+        cancelAll();
+        dns().clear();
         selector().clear();
         authInterceptor().clear();
         requestInterceptor().clear();

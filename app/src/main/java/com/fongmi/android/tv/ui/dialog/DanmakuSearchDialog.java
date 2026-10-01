@@ -29,7 +29,6 @@ import com.fongmi.android.tv.utils.KeyUtil;
 import com.fongmi.android.tv.utils.Notify;
 import com.fongmi.android.tv.utils.ResUtil;
 import com.fongmi.android.tv.utils.Util;
-import com.github.catvod.net.OkHttp;
 
 import java.util.List;
 
@@ -38,7 +37,6 @@ public final class DanmakuSearchDialog extends BaseBottomSheetDialog implements 
     private final DanmakuAdapter adapter;
     private DialogDanmakuSearchBinding binding;
     private PlayerManager player;
-    private int requestId = -1;
 
     public DanmakuSearchDialog() {
         this.adapter = new DanmakuAdapter(this);
@@ -132,18 +130,7 @@ public final class DanmakuSearchDialog extends BaseBottomSheetDialog implements 
         showProgress();
         adapter.clear();
         Util.hideKeyboard(binding.keyword);
-        requestId = player.withHttpClient(
-                OkHttp.player(),
-                client -> DanmakuApi.search(
-                        client,
-                        getKeyword(),
-                        getEpisode(),
-                        this::onSuccess,
-                        this::onError,
-                        () -> {
-                            if (binding == null) return;
-                            showResults(adapter.getItemCount() == 0);
-                        }));
+        DanmakuApi.search(getKeyword(), getEpisode(), this::onSuccess, this::onError);
     }
 
     @Override
@@ -165,9 +152,8 @@ public final class DanmakuSearchDialog extends BaseBottomSheetDialog implements 
 
     @Override
     public void onDestroyView() {
-        DanmakuApi.cancel(requestId);
-        requestId = -1;
         binding = null;
+        DanmakuApi.cancel();
         super.onDestroyView();
     }
 }

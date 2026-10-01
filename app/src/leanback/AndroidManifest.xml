@@ -14,6 +14,7 @@
         android:required="false" />
 
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
 
     <application android:banner="@mipmap/ic_banner">
 
@@ -179,15 +180,20 @@
             android:configChanges="screenSize|smallestScreenSize|screenLayout|orientation"
             android:screenOrientation="sensorLandscape" />
 
-        <activity
-            android:name=".ui.activity.SettingXrayActivity"
-            android:configChanges="screenSize|smallestScreenSize|screenLayout|orientation"
-            android:screenOrientation="sensorLandscape" />
-
         <service
             android:name=".service.DLNARendererService"
             android:exported="false"
             android:foregroundServiceType="mediaPlayback" />
+
+        <receiver
+            android:name=".receiver.BootReceiver"
+            android:exported="true"
+            android:priority="999">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.QUICKBOOT_POWERON" />
+            </intent-filter>
+        </receiver>
 
     </application>
 </manifest>

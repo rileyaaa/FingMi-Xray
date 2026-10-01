@@ -1,149 +1,68 @@
-# FingMi-Xray
+# 影視TV
 
-FingMi-Xray 是基于 [FongMi/TV](https://github.com/FongMi/TV) 的 Android TV 二次开发项目。
+適用於 Android TV 與手機的影音應用程式，整合媒體瀏覽與播放體驗，並支援外部配置與 [CatVod](https://github.com/CatVodTVOfficial/CatVodTVJarLoader) Spider 介面擴充。
 
-项目主要面向一种很具体的播放场景：**影视接口、节目单和播放地址本身可以正常获取，但部分港澳台、海外或跨境媒体线路在当前网络环境下直连质量较差。**
+**App 本身不內建或提供任何內容來源。** 外部內容需自行配置，也可開啟本地媒體檔案或推送媒體網址。
 
-FingMi-Xray 将 Xray 集成到播放器内部。遇到这类内容时，可以只为**当前正在播放的媒体会话**临时启用 Xray，而不需要给整台电视建立系统 VPN，也不要求路由器长期运行代理。
+[使用與開發指南](https://fongmi.github.io/TV/) · [討論群組](https://t.me/fongmi_official)
 
-## 项目版本
+## 開始使用
 
-当前 `main` 基于 FongMi/TV 5.6.3。**当前 `main` 是架构、源码和发布构建基线；`v5.6.0-xray.5` armeabi-v7a 正式 APK 是 Xray 外部行为的黄金参考。** 后续维护保留当前模块化 `:xray` 架构，但节点解析、VALIDATE / TEST / START / STOP、Binder / Service、播放代理、切换、失败恢复和资源释放等 Xray 行为应与黄金参考保持等价。历史 faithful APK 重建本身不是 current-main 发布前置条件。
+1. 安裝適合裝置的 APK：`leanback` 為電視版，`mobile` 為手機版；依 Android 系統支援的 ABI 選擇 `arm64-v8a` 或 `armeabi-v7a`。最低需求為 Android 7.0（API 24）。
+2. 在設定中加入自己的配置，格式與欄位見[配置範例](https://fongmi.github.io/TV/config/#examples)。
+3. 也可從系統檔案管理員開啟媒體檔案，或透過推送入口播放媒體網址。
 
-当前可上 Android TV 真机测试的 pre-release 为 `v5.6.3-xray.test.6`。该版本来自最终上游边界收口后的 TV-only 构建，自动构建与最终 APK provenance / Manifest gate 已通过；Android TV 真机行为回归仍需继续。
+## 主要功能
 
-主要组件版本如下：
+- **播放**：Media3／ExoPlayer、mpv、硬解與 FFmpeg 軟解；字幕、彈幕、音軌、倍速與片頭／片尾跳過。
+- **瀏覽與管理**：分類篩選、搜尋、播放記錄、收藏與無痕模式。
+- **播放清單**：M3U／TXT／JSON 格式、清單分組與 XMLTV 節目資訊。
+- **操作**：電視遙控器、手機手勢、畫中畫與背景音訊。
+- **互通**：DLNA 投放／接收、Android Auto、本地 HTTP 控制與裝置同步。
 
-| 组件 | 当前版本 / 基线 |
+實際能力依配置、媒體、播放引擎與裝置而異；本地 HTTP API 僅供可信任區域網路使用，不要直接轉發到公網。
+
+## 開發文件
+
+| 文件 | 內容 |
 | --- | --- |
-| FongMi/TV | **5.6.3**（commit `c616c0aa3613e87529791587a9f71b78c278c991`） |
-| FongMi/media / Media3 fork | **1.11.0**（commit `3c2cbe8ac742c2fe15eff52f03eeb3b1b648848d`） |
-| Media3 container | **1.11.0** |
-| libXray AAR | **v26.7.28** |
-| Xray-core | **v26.7.28** |
-| QuickJS wrapper | **3.2.3** |
-| Chaquopy Gradle Plugin | **17.0.0** |
-| Python runtime | **3.10** |
-| OkHttp | **5.5.0** |
-| AndroidX Media | **1.8.0** |
-| AndroidX Leanback | **1.2.0** |
-| AndroidX AppCompat | **1.8.0** |
-| AndroidX Lifecycle Service | **2.11.0** |
-| AndroidX RecyclerView | **1.4.0** |
-| Room | **2.8.4** |
-| Glide | **5.0.9** |
-| Material Components | **1.14.0** |
+| [App 功能](https://fongmi.github.io/TV/features/) | 操作與功能介紹 |
+| [配置字典](https://fongmi.github.io/TV/config/) | 配置欄位、網路設定與 JSON 範例 |
+| [擴充介接](https://fongmi.github.io/TV/spider/) | Java／Python／JavaScript 範例、方法與回傳格式 |
+| [本地 API](https://fongmi.github.io/TV/local/) | 播放控制、推送、檔案與同步端點 |
+| [網站維護](website/README.md) | 靜態網站建置與 GitHub Pages 發布 |
 
-当前播放器 AAR 统一来自固定的 FongMi/media 1.11.0 候选。MPV、FFmpeg 等 native 组件没有在当前工程中维护独立、可直接声明的 semver，因此不另外虚构版本号；当前构建规则见 [DEVELOPMENT.md](docs/DEVELOPMENT.md)，历史二进制来源和 v7 Xray 黄金行为证据见 [RECOVERY.md](docs/RECOVERY.md)。
+`app/src/main/` 為共用邏輯，`app/src/leanback/`、`app/src/mobile/` 為各自的 UI。模組清單見 [settings.gradle](settings.gradle)，SDK 與依賴版本見 [libs.versions.toml](gradle/libs.versions.toml)。
 
-### 构建环境
+## Windows 建置
 
-| 项目 | 版本 |
-| --- | --- |
-| Java | **21** |
-| Gradle | **9.7.1** |
-| Android Gradle Plugin | **9.3.1** |
-| compileSdk | **37** |
-| targetSdk | **37** |
-| minSdk | **24** |
-| Android SDK Platform（CI） | **37.0** |
-| Android Build Tools（CI） | **37.0.0** |
-| desugar_jdk_libs_nio | **2.1.5** |
+先準備以下環境與檔案：
 
-<details>
-<summary>其他 Gradle 依赖版本</summary>
+- **JDK 21、Android SDK、Python 3.10**。SDK 平台版本依 `compileSdk` 設定；Python 可用 `py -3.10 --version` 確認，找不到時在 [chaquo/build.gradle](chaquo/build.gradle) 的 Python 區塊設定 `buildPython`。
+- **配套 AAR**：放入 `app/libs/`。`lib-*.aar` 未納入 Git，單純 clone 不包含完整播放器依賴。
+- **自己的簽章檔與 `local.properties`**：在儲存庫根目錄建立下列設定，將所有範例值替換成自己的資料。
 
-| 依赖 | 版本 |
-| --- | --- |
-| AndroidX Annotation | 1.10.0 |
-| AndroidX Biometric | 1.1.0 |
-| AndroidX Palette | 1.0.0 |
-| AndroidX Preference | 1.2.1 |
-| AndroidX SplashScreen | 1.2.0 |
-| AndroidX Startup | 1.2.0 |
-| AndroidX SwipeRefreshLayout | 1.2.0 |
-| AndroidX ViewPager2 | 1.1.0 |
-| android-gif-drawable | 1.2.32 |
-| AndroidAutoSize | 1.2.1 |
-| Brotli | 0.1.2 |
-| Apache Commons Compress | 1.28.0 |
-| CustomActivityOnCrash | 2.4.0 |
-| Flexbox | 3.0.0 |
-| EventBus | 3.3.1 |
-| Gson | 2.14.0 |
-| Guava | 33.7.1-android |
-| JNA | 5.19.1 |
-| juniversalchardet | 1.0.3 |
-| Logger | 2.2.0 |
-| Lottie | 6.7.1 |
-| MaterialDesignColors | 1.0.0 |
-| NanoHTTPD | 2.3.1 |
-| NewPipeExtractor | v0.26.5 |
-| PermissionX | 1.8.1 |
-| RTMP Client | v3.2.0.m2 |
-| Sardine Android | 0.9 |
-| Simple XML | 2.7.1 |
-| SMBJ | 0.15.0 |
-| TextDrawable | 1.0.3 |
-| ZXing Android Embedded | 4.3.0 |
-| ZXing Core | 3.5.4 |
-| JUnit（test） | 4.13.2 |
+```properties
+sdk.dir=C:/Android/Sdk
+storeFile=C:/keys/yingshi-tv.jks
+keyAlias=your-key-alias
+storePassword=your-keystore-password
+```
 
-</details>
+金鑰密碼與 keystore 密碼共用 `storePassword`；不要提交簽章檔或真實密碼。
 
-## 核心设计
+在儲存庫根目錄以 PowerShell 執行：
 
-- **上游优先**：业务功能层只长期维护 Xray 与 Android TV 网络恢复；其他 FongMi/TV 业务、UI、播放器和设置默认跟随上游，仅保留两大模块接入所需的最小差异。
-- **默认直连**：首页、搜索、详情、普通接口等仍使用 FongMi 原有网络。
-- **按需开启**：只有用户在当前播放中手动开启 Xray，当前媒体连接才进入 Xray。
-- **会话隔离**：切集、切频道、换线路、换源、换播放器等逻辑播放身份变化后，新播放默认重新直连；同一身份内的 parser / redirect / CDN 实际 URL 变化不重置 Xray。
-- **非全局代理**：不使用 Android `VpnService`，不接管其他应用或整台设备的网络。
-- **独立进程**：Xray Core 运行在应用自己的 `:xray` 私有进程中，会话结束后收口相关网络与运行资源。
-- **电视网络恢复**：另外保留针对部分 Android TV 长后台、待机或 Fast Start 后旧连接失效的网络恢复逻辑；这项能力与 Xray 播放代理彼此独立。
-- **旧 Android 运行时兼容**：虽然源码使用 Java 21 编译，Xray 路径仍按 Android 12 / SDK 32 等旧 ART 的实际 API 能力约束，并由源码 guard 阻止 `StringBuilder.isEmpty()`、较新的 URL codec overload、`String.isBlank()` 等运行时不兼容调用重新进入关键路径。
-- **不使用上游自更新**：Home 不自动检查 FongMi/Release，设置页版本号只显示信息，`Updater` 为 no-op，应用也不申请 `REQUEST_INSTALL_PACKAGES`，避免用户升级时被上游 APK 覆盖当前 Xray fork。
+```powershell
+# 電視版
+.\gradlew.bat :app:assembleLeanbackRelease
 
-实际使用原则很简单：**直连正常就直接播放；直连卡顿时再尝试 Xray；开启后不适合当前线路就关闭。**
+# 手機版
+.\gradlew.bat :app:assembleMobileRelease
+```
 
-## Xray 节点
+APK 按 ABI 分包並輸出至 `Release/apk/`。簽章不同的 APK 不能直接覆蓋既有安裝。網站位於 `website/`，可獨立建置，不需編譯 Android App。
 
-设置页支持保存和测试 Xray 分享链接，也可以在同一局域网内通过手机向电视导入较长的分享链接。
+## Star History
 
-主要兼容：
-
-- VLESS
-- VMess
-- Trojan
-- Shadowsocks
-- Hysteria2 / hy2
-
-兼容目标以常见单节点分享格式为主。不同客户端生成的非标准链接可能存在差异。
-
-## 重构后的结构
-
-早期版本的 Xray 逻辑与 FongMi 播放代码耦合较深。源码恢复后，仓库重新整理了职责边界：
-
-- `:xray`：Xray 配置、Service / Binder、会话控制、SOCKS 网络资源与安全逻辑；
-- `:libxray`：Android 侧 `libXray.aar` 依赖入口；
-- `:app`：FongMi 的 VOD / Live 播放身份、播放器与 UI 接线；
-- `:catvod`：普通业务网络、DNS / DoH 与 Spider；
-- `compat/`：当前 5.6.3 构建仍需维护的媒体兼容源码与补丁；
-- `recovery/`：历史发布版 faithful 恢复、native 动态 fixture 与节点兼容证据；其中经固定 SHA 验证的 v7 行为证据用于约束 current Xray parity；
-- `docs/apk-reference/`：正式 APK 的最小可复核 JADX / Manifest / DEX 文本证据；
-- `tests/`：current-main 的源码 guard、JVM lifecycle、native chain parity 与测试 fixture。
-
-这样做的目的，是让项目自己的能力尽量集中在稳定边界内，减少后续跟随 FongMi/TV 上游升级时的侵入式修改。
-
-## 文档
-
-- [PROJECT.md](docs/PROJECT.md)：项目设计、职责边界与长期架构约束。
-- [DEVELOPMENT.md](docs/DEVELOPMENT.md)：当前源码结构、构建方式、上游同步和开发维护说明。
-- [AI_COLLABORATION.md](docs/AI_COLLABORATION.md)：AI 与用户共同开发时的执行限制、CI 查询、交接和非流水账文档维护准则。
-- [RECOVERY.md](docs/RECOVERY.md)：`v5.6.0-xray.5` 的 faithful 恢复、APK/JADX/DEX/native 证据、二进制 provenance 与 Xray 黄金行为索引。
-- [ORIGINAL_README.md](docs/ORIGINAL_README.md)：冻结保存的原 `v5.6.0-xray.5` 发布说明，不随 current-main 改写。
-
-## 说明
-
-本项目不提供影视资源、点播源、直播源、Spider、第三方 Jar、Xray 节点、代理订阅或代理网络服务。用户自行导入的第三方资源由相应提供方负责，请自行判断其合法性、安全性和可用性，并遵守所在地法律法规。
-
-FongMi/TV、XTLS/libXray、Xray-core 以及其他第三方代码分别遵循其自身许可证。仓库许可证见 [LICENSE.md](LICENSE.md)。
+[![Star History Chart](https://api.star-history.com/svg?repos=FongMi/TV&type=Date)](https://www.star-history.com/#FongMi/TV&Date)

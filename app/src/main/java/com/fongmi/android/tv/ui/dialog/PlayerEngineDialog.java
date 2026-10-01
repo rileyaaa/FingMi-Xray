@@ -22,7 +22,6 @@ public final class PlayerEngineDialog extends BaseBottomSheetDialog {
     private DialogPlayerEngineBinding binding;
     private PlayerManager player;
     private TextView target;
-    private Runnable onEngineChanged;
 
     public static void setText(TextView view) {
         setText(view, null);
@@ -34,21 +33,10 @@ public final class PlayerEngineDialog extends BaseBottomSheetDialog {
     }
 
     public static void show(FragmentActivity activity, TextView view, PlayerManager player) {
-        show(activity, view, player, null);
-    }
-
-    public static void show(
-            FragmentActivity activity,
-            TextView view,
-            PlayerManager player,
-            Runnable onEngineChanged) {
-        for (Fragment fragment : activity.getSupportFragmentManager().getFragments()) {
-            if (fragment instanceof PlayerEngineDialog) return;
-        }
+        for (Fragment fragment : activity.getSupportFragmentManager().getFragments()) if (fragment instanceof PlayerEngineDialog) return;
         PlayerEngineDialog dialog = new PlayerEngineDialog();
         dialog.player = player;
         dialog.target = view;
-        dialog.onEngineChanged = onEngineChanged;
         dialog.show(activity.getSupportFragmentManager(), null);
     }
 
@@ -89,8 +77,6 @@ public final class PlayerEngineDialog extends BaseBottomSheetDialog {
     }
 
     private void selectEngine(int engine) {
-        int previous = getCurrentEngine(player);
-        if (engine != previous && onEngineChanged != null) onEngineChanged.run();
         if (player == null) PlayerSetting.putEngine(engine);
         else player.setEngine(engine);
         setText(target, player);

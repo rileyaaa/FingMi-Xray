@@ -90,7 +90,6 @@ dependencies {
     implementation project(':catvod')
     implementation project(':chaquo')
     implementation project(':quickjs')
-    implementation project(':xray')
     implementation libs.appcompat
     implementation libs.lifecycle.service
     implementation libs.media
@@ -122,6 +121,5 @@ dependencies {
     annotationProcessor libs.room.compiler
     annotationProcessor libs.eventbus.annotation.processor
     annotationProcessor libs.glide.compiler
-    testImplementation 'junit:junit:4.13.2'
     coreLibraryDesugaring libs.desugar
 }

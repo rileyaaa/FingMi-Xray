@@ -70,16 +70,6 @@
                     <button onclick="setting()" class="md-btn md-btn-filled md-btn-full">確定</button>
                 </div>
             </div>
-            <!-- Xray -->
-            <div id="panel6" class="tab-panel">
-                <div class="panel-content">
-                    <div class="md-field">
-                        <textarea id="xray_link" class="md-input md-textarea" rows="7" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="粘贴 VLESS / VMess / Trojan / Shadowsocks / Hysteria2 分享链接"></textarea>
-                    </div>
-                    <button class="md-btn md-btn-filled md-btn-full" onclick="sendXray()">发送到电视</button>
-                    <div class="panel-note">仅发送到当前电视输入框，不会自动保存；回到电视后请按“保存”。需要时可另点“测试连接”。</div>
-                </div>
-            </div>
             <!-- 本地 -->
             <div id="panel5" class="tab-panel">
                 <input type="file" id="file_uploader" onchange="onFileSelected()" multiple />
@@ -121,12 +111,6 @@
                     <svg class="md-nav-icon" viewBox="0 0 24 24"><path d="M0 0h24v24H0V0z" fill="none"/><path d="M9.17 6l2 2H20v10H4V6h5.17M10 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2h-8l-2-2z"/></svg>
                 </div>
                 <span class="md-nav-label">本地</span>
-            </div>
-            <div id="tab6" class="md-nav-item" onclick="showPanel(6)">
-                <div class="md-nav-indicator">
-                    <svg class="md-nav-icon" viewBox="0 0 24 24"><path d="M0 0h24v24H0V0z" fill="none"/><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm-1 15-4-4 1.4-1.4 2.6 2.6 4.6-4.6L17 11l-6 6z"/></svg>
-                </div>
-                <span class="md-nav-label">Xray</span>
             </div>
         </nav>
     </div>

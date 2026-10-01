@@ -204,9 +204,6 @@ public abstract class PlaybackActivity extends BaseActivity implements MediaCont
     protected void onPrepare() {
     }
 
-    protected void onPlaybackUrlChanged(String url) {
-    }
-
     protected void onTracksChanged() {
     }
 
@@ -416,7 +413,6 @@ public abstract class PlaybackActivity extends BaseActivity implements MediaCont
         player().bindPlayerView(getPlayerView());
         danmakuController.bind(getPlayerView());
         getPlayerView().setPlayer(player);
-        updatePlaybackDanmakuClient();
         syncDanmakuSource();
         restoreDebugView();
     }
@@ -428,14 +424,10 @@ public abstract class PlaybackActivity extends BaseActivity implements MediaCont
     private void configurePlayerView() {
         PlayerView playerView = getPlayerView();
         playerView.setRender(PlayerSetting.getRender());
-        updatePlaybackDanmakuClient();
+        danmakuController.setOkHttpClient(OkHttp.player());
         danmakuController.setEnabled(DanmakuSetting.isShow());
         danmakuController.setConfig(DanmakuSetting.getConfig());
         SubtitleSetting.applyStyle(playerView.getSubtitleView());
-    }
-
-    protected final void updatePlaybackDanmakuClient() {
-        danmakuController.setOkHttpClient(player().getPlaybackHttpClient(OkHttp.player()));
     }
 
     private void syncDanmakuSource() {
@@ -527,11 +519,6 @@ public abstract class PlaybackActivity extends BaseActivity implements MediaCont
         @Override
         public void onError(String msg) {
             if (isOwner()) PlaybackActivity.this.onError(msg);
-        }
-
-        @Override
-        public void onPlaybackUrlChanged(String url) {
-            if (isOwner()) PlaybackActivity.this.onPlaybackUrlChanged(url);
         }
 
         @Override
