@@ -401,6 +401,8 @@ FingMi-Xray 当前**不使用 FongMi/Release 的应用内自更新**。原因是
 
 TV 网络恢复则以 v7 已确认的后台 / SCREEN_OFF generation、普通 API / DNS / DoH / Spider 重建和网络稳定等待为基础，同时保留后续已验证的完善点：`recoveredGeneration` 防 Home 重建漏恢复、generation 串行恢复、普通 API client 与播放器 client 隔离、Glide 动态取得新 client，以及恢复时清除瞬时图片失败缓存。以上增强仍只服务待机 / 长后台恢复，不引入默认网络 callback 或新的普通业务行为。
 
+干净分支完整验证 run `36844344680`（source `8433b2627c5cfa38093e9a9ce18c6e0e527835e9`）已成功通过：fork source guards、v7/arm64 Xray native 动态 parity、公开 player/native 依赖重建、Libass compatibility 重建、5.6.3 Leanback 编译、双 ABI TV APK assemble、最终 native provenance 与 merged Manifest gate 全部成功。该验证只证明源码/构建/自动 parity 基线成立，Android TV 真机 Xray 与待机唤醒行为仍需继续实机回归。
+
 ### 2026-09-27 — libXray Java/native ABI 必须成套恢复
 
 `v5.6.3-xray.test.3` 暴露出官方 v26.7.28 Java bindings 与历史 API v2 `libgojni.so` 混搭会在 JNI 初始化阶段查找缺失模型类并杀死 `:xray` 进程。current-main 因此固定使用 `scripts/build/build-published-libxray-aar.py`：从固定发布 APK 恢复匹配的 `libXray/**` API v2 bindings 与 v7 / arm64 JNI，同时保留官方 AAR 中未经过 App R8 混淆的通用 `go/**` runtime。后续升级 libXray 必须整套替换 Java bindings + JNI，不能只换其中一侧。
