@@ -19,10 +19,12 @@ RECOVERY_DIR = ROOT / "scripts" / "recovery"
 sys.path.insert(0, str(RECOVERY_DIR))
 from published_568_ffmpeg_contract import NATIVE_SHA256  # noqa: E402
 from published_568_mpv_contract import NATIVE_SHA256 as MPV_NATIVE_SHA256  # noqa: E402
+from published_568_iso_contract import NATIVE_SHA256 as ISO_NATIVE_SHA256  # noqa: E402
 
 
 DECODER_NAME = "lib-decoder-ffmpeg-release.aar"
 MPV_NAME = "lib-mpvplayer-release.aar"
+ISO_NAME = "lib-extractor-release.aar"
 PUBLISHED_CLOSURE = {
     f"jni/{abi}/{soname}": digest
     for abi, libraries in NATIVE_SHA256.items()
@@ -35,6 +37,11 @@ DOVI_JNI = {
 PUBLISHED_MPV = {
     f"jni/{abi}/{soname}": digest
     for abi, libraries in MPV_NATIVE_SHA256.items()
+    for soname, digest in libraries.items()
+}
+PUBLISHED_ISO = {
+    f"jni/{abi}/{soname}": digest
+    for abi, libraries in ISO_NATIVE_SHA256.items()
     for soname, digest in libraries.items()
 }
 
@@ -111,6 +118,28 @@ def verified_mpv_replacement(candidate: bytes, replacement: bytes) -> bytes:
     return replacement
 
 
+def verified_iso_replacement(candidate: bytes, replacement: bytes) -> bytes:
+    """Accept only addition of immutable FongMi 5.6.8 libisoJNI.so entries."""
+    with ZipFile(BytesIO(candidate)) as original, ZipFile(BytesIO(replacement)) as restored:
+        before = original.namelist()
+        after = restored.namelist()
+        if len(before) != len(set(before)) or len(after) != len(set(after)):
+            raise ValueError("extractor AAR contains duplicate ZIP entries")
+        before_set = set(before)
+        if before_set.intersection(PUBLISHED_ISO):
+            raise ValueError("candidate extractor unexpectedly already contains native ISO entries")
+        if set(after) != before_set | set(PUBLISHED_ISO):
+            raise ValueError("restored extractor changed archive inventory unexpectedly")
+        for name in before:
+            if restored.read(name) != original.read(name):
+                raise ValueError(f"restored extractor changed candidate entry: {name}")
+        for name, wanted in PUBLISHED_ISO.items():
+            observed = hashlib.sha256(restored.read(name)).hexdigest()
+            if observed != wanted:
+                raise ValueError(f"restored extractor has unverified native ISO entry: {name}")
+    return replacement
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
@@ -128,6 +157,11 @@ def main() -> None:
         type=Path,
         help="MPV AAR restored from both SHA-verified published APKs",
     )
+    parser.add_argument(
+        "--restored-iso",
+        type=Path,
+        help="extractor AAR with pinned libisoJNI restored from both published APKs",
+    )
     args = parser.parse_args()
 
     try:
@@ -141,6 +175,11 @@ def main() -> None:
             payload[MPV_NAME] = verified_mpv_replacement(
                 payload[MPV_NAME],
                 args.restored_mpv.read_bytes(),
+            )
+        if args.restored_iso:
+            payload[ISO_NAME] = verified_iso_replacement(
+                payload[ISO_NAME],
+                args.restored_iso.read_bytes(),
             )
     except (BadZipFile, KeyError, ValueError, OSError) as error:
         parser.error(str(error))
