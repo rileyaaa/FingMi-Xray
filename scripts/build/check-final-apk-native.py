@@ -28,6 +28,13 @@ MPV_SPEC = importlib.util.spec_from_file_location(
 mpv_contract = importlib.util.module_from_spec(MPV_SPEC)
 MPV_SPEC.loader.exec_module(mpv_contract)
 
+ISO_SPEC = importlib.util.spec_from_file_location(
+    "published_568_iso_contract",
+    ROOT / "scripts/recovery/published_568_iso_contract.py",
+)
+iso_contract = importlib.util.module_from_spec(ISO_SPEC)
+ISO_SPEC.loader.exec_module(iso_contract)
+
 ABIS = ("armeabi-v7a", "arm64-v8a")
 FFMPEG_SONAMES = tuple(sorted(ffmpeg_contract.NATIVE_SHA256[ABIS[0]]))
 if set(FFMPEG_SONAMES) != set(ffmpeg_contract.NATIVE_SHA256[ABIS[1]]):
@@ -35,6 +42,9 @@ if set(FFMPEG_SONAMES) != set(ffmpeg_contract.NATIVE_SHA256[ABIS[1]]):
 MPV_SONAMES = tuple(sorted(mpv_contract.NATIVE_SHA256[ABIS[0]]))
 if set(MPV_SONAMES) != set(mpv_contract.NATIVE_SHA256[ABIS[1]]):
     raise RuntimeError("5.6.8 MPV native bridge differs across supported TV ABIs")
+ISO_SONAMES = tuple(sorted(iso_contract.NATIVE_SHA256[ABIS[0]]))
+if set(ISO_SONAMES) != set(iso_contract.NATIVE_SHA256[ABIS[1]]):
+    raise RuntimeError("5.6.8 native ISO closure differs across supported TV ABIs")
 
 NATIVES = (
     ("Xray", "libxray/libs/libXray.aar", "libgojni.so"),
@@ -45,6 +55,10 @@ NATIVES = (
     *tuple(
         (f"MPV/{soname}", "app/libs/lib-mpvplayer-release.aar", soname)
         for soname in MPV_SONAMES
+    ),
+    *tuple(
+        (f"ISO/{soname}", "app/libs/lib-extractor-release.aar", soname)
+        for soname in ISO_SONAMES
     ),
     ("MPEG-H", "app/libs/lib-decoder-mpegh-release.aar", "libmpeghJNI.so"),
     ("Libass", "app/libs/lib-exoplayer-libass-reconstructed.aar", "libmedia3ass.so"),
