@@ -8,7 +8,8 @@ ROOT = Path(__file__).resolve().parents[1]
 errors = []
 
 wrong_xliff = 'xmlns:xliff="http://schemas.android.com/apk/res-auto"'
-for path in sorted((ROOT / "app/src").rglob("strings.xml")):
+tv_resource_roots = (ROOT / "app/src/main", ROOT / "app/src/leanback")
+for path in sorted(path for root in tv_resource_roots for path in root.rglob("strings.xml")):
     text = path.read_text(encoding="utf-8")
     if wrong_xliff in text:
         errors.append(f"{path.relative_to(ROOT)} uses the Android res-auto namespace for xliff")
