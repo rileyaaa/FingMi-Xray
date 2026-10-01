@@ -1324,6 +1324,7 @@ import androidx.annotation.Nullable;
 import androidx.media3.common.C;
 import androidx.media3.common.MediaItem;
 import androidx.media3.common.Timeline;
+import androidx.media3.common.util.TimestampAdjuster;
 import androidx.media3.datasource.DataSource;
 import androidx.media3.exoplayer.drm.DrmSessionManagerProvider;
 import androidx.media3.exoplayer.iso.IsoNavigationSession;
@@ -1338,9 +1339,16 @@ import androidx.media3.exoplayer.upstream.LoadErrorHandlingPolicy;
 import androidx.media3.extractor.Extractor;
 import androidx.media3.extractor.ExtractorsFactory;
 import androidx.media3.extractor.iso.bdmv.BdmvTsExtractor;
+import androidx.media3.extractor.iso.bdmv.ClpiInfo;
+import androidx.media3.extractor.iso.bdmv.EpMapEntry;
+import androidx.media3.extractor.iso.bdmv.StreamInfo;
+import androidx.media3.extractor.ts.DvdPrivateStreamReader;
 import androidx.media3.extractor.ts.PsExtractor;
 import java.io.Closeable;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 
 /**
  * One navigation segment backed by {@link IsoNavigationDataSource}.
@@ -1371,37 +1379,171 @@ public final class IsoNavigationMediaSource extends CompositeMediaSource<Void> {
             ? navigationFactory
             : navigationFactory.createReplayDataSourceFactory(replaySegmentId, replay);
     ExtractorsFactory extractorsFactory =
-        () -> {
-          IsoNavigationSession session = navigationFactory.getSession();
-          if (session != null) {
-            if (session.getDiscType() == IsoNavigationSession.DISC_TYPE_DVD) {
-              return new Extractor[] {new PsExtractor()};
-            }
-            if (session.getDiscType() == IsoNavigationSession.DISC_TYPE_BLURAY) {
-              return new Extractor[] {
-                new BdmvTsExtractor(
-                    /* clipInfo= */ null,
-                    /* startM2ts= */ 0L,
-                    /* inTimeTicks= */ 0L,
-                    C.TIME_UNSET,
-                    navigationFactory::pollTimestampOffsetUs)
-              };
-            }
-          }
+        () -> createNavigationExtractors(navigationFactory.getSession(), navigationFactory);
+    ProgressiveMediaSource.Factory progressiveFactory =
+        new ProgressiveMediaSource.Factory(streamFactory, extractorsFactory);
+    progressiveFactory.setLoadErrorHandlingPolicy(loadErrorHandlingPolicy);
+    childSource = progressiveFactory.createMediaSource(mediaItem);
+  }
+
+  private static Extractor[] createNavigationExtractors(
+      @Nullable IsoNavigationSession session, IsoNavigationDataSource.Factory navigationFactory) {
+    if (session != null) {
+      try {
+        if (session.getDiscType() == IsoNavigationSession.DISC_TYPE_DVD) {
           return new Extractor[] {
-            new PsExtractor(),
+            new PsExtractor(
+                new TimestampAdjuster(0),
+                buildDvdPrivateStreamReader(session),
+                /* injectedSeekMap= */ null)
+          };
+        }
+        if (session.getDiscType() == IsoNavigationSession.DISC_TYPE_BLURAY) {
+          return new Extractor[] {
             new BdmvTsExtractor(
-                /* clipInfo= */ null,
+                buildCurrentBdmvClipInfo(session),
                 /* startM2ts= */ 0L,
                 /* inTimeTicks= */ 0L,
                 C.TIME_UNSET,
                 navigationFactory::pollTimestampOffsetUs)
           };
-        };
-    ProgressiveMediaSource.Factory progressiveFactory =
-        new ProgressiveMediaSource.Factory(streamFactory, extractorsFactory);
-    progressiveFactory.setLoadErrorHandlingPolicy(loadErrorHandlingPolicy);
-    childSource = progressiveFactory.createMediaSource(mediaItem);
+        }
+      } catch (IOException ignored) {
+        // The session controller will surface native failures. Keep extractor sniffing available
+        // here so ProgressiveMediaSource does not lose both DVD and Blu-ray fallback paths.
+      }
+    }
+    return new Extractor[] {
+      new PsExtractor(),
+      new BdmvTsExtractor(
+          /* clipInfo= */ null,
+          /* startM2ts= */ 0L,
+          /* inTimeTicks= */ 0L,
+          C.TIME_UNSET,
+          navigationFactory::pollTimestampOffsetUs)
+    };
+  }
+
+  private static DvdPrivateStreamReader buildDvdPrivateStreamReader(
+      IsoNavigationSession session) throws IOException {
+    String[] audioLanguages = new String[8];
+    String[] subtitleLanguages = new String[32];
+    int[] activeAudioStreams = new int[8];
+    int[] activeSubtitleStreams = new int[32];
+    Arrays.fill(audioLanguages, "");
+    Arrays.fill(subtitleLanguages, "");
+    Arrays.fill(activeAudioStreams, C.INDEX_UNSET);
+    Arrays.fill(activeSubtitleStreams, C.INDEX_UNSET);
+    fillDvdTrackLanguages(session, /* subtitle= */ false, audioLanguages);
+    fillDvdTrackLanguages(session, /* subtitle= */ true, subtitleLanguages);
+    return new DvdPrivateStreamReader(
+        audioLanguages,
+        subtitleLanguages,
+        /* vobsubIdxBytes= */ null,
+        activeAudioStreams,
+        activeSubtitleStreams);
+  }
+
+  private static void fillDvdTrackLanguages(
+      IsoNavigationSession session, boolean subtitle, String[] languages) throws IOException {
+    int titleIndex = session.getCurrentTitleIndex();
+    int clipIndex = session.getCurrentClipIndex();
+    if (titleIndex == C.INDEX_UNSET || clipIndex == C.INDEX_UNSET) {
+      return;
+    }
+    String[] tracks = session.getTrackInfo(titleIndex, subtitle, clipIndex);
+    if (tracks == null) {
+      return;
+    }
+    for (int i = 0; i + 3 < tracks.length; i += 4) {
+      try {
+        int streamIndex = Integer.parseInt(tracks[i]);
+        if (streamIndex >= 0 && streamIndex < languages.length) {
+          languages[streamIndex] = tracks[i + 3] != null ? tracks[i + 3] : "";
+        }
+      } catch (NumberFormatException ignored) {
+      }
+    }
+  }
+
+  @Nullable
+  private static ClpiInfo buildCurrentBdmvClipInfo(IsoNavigationSession session)
+      throws IOException {
+    int titleIndex = session.getCurrentTitleIndex();
+    int clipIndex = session.getCurrentClipIndex();
+    if (titleIndex == C.INDEX_UNSET || clipIndex == C.INDEX_UNSET) {
+      return null;
+    }
+    long[][] raw = session.getClipInfo(clipIndex);
+    if (raw == null
+        || raw.length != 3
+        || raw[0].length % 4 != 0
+        || raw[1].length % 6 != 0
+        || raw[2].length % 3 != 0) {
+      return null;
+    }
+
+    String clipName = Integer.toString(clipIndex);
+    String[] clipNames = session.getClipNames(titleIndex);
+    if (clipNames != null && clipIndex < clipNames.length && clipNames[clipIndex] != null) {
+      clipName = clipNames[clipIndex];
+    }
+
+    long[] sequence = raw[0];
+    int stcCount = sequence.length / 4;
+    long[] spnStcStarts = new long[stcCount];
+    long[] stcPresentationStartTimes = new long[stcCount];
+    long[] stcPresentationEndTimes = new long[stcCount];
+    long durationTicks = 0L;
+    for (int i = 0; i < stcCount; i++) {
+      int base = i * 4;
+      spnStcStarts[i] = sequence[base + 1];
+      stcPresentationStartTimes[i] = sequence[base + 2];
+      stcPresentationEndTimes[i] = sequence[base + 3];
+      durationTicks +=
+          Math.max(0L, stcPresentationEndTimes[i] - stcPresentationStartTimes[i]);
+    }
+
+    List<StreamInfo> streams = new ArrayList<>(raw[1].length / 6);
+    for (int i = 0; i < raw[1].length; i += 6) {
+      streams.add(
+          new StreamInfo(
+              (int) raw[1][i],
+              (int) raw[1][i + 1],
+              decodeIso639(raw[1][i + 2]),
+              (int) raw[1][i + 3],
+              (int) raw[1][i + 4],
+              (int) raw[1][i + 5]));
+    }
+
+    List<EpMapEntry> epMap = new ArrayList<>(raw[2].length / 3);
+    for (int i = 0; i < raw[2].length; i += 3) {
+      epMap.add(new EpMapEntry(raw[2][i], raw[2][i + 1], raw[2][i + 2] != 0L));
+    }
+
+    return new ClpiInfo(
+        clipName,
+        streams,
+        epMap,
+        durationTicks,
+        sequence.length > 0 ? (int) sequence[0] : 0,
+        stcCount > 0 ? stcPresentationStartTimes[0] : 0L,
+        spnStcStarts,
+        stcPresentationStartTimes,
+        stcPresentationEndTimes);
+  }
+
+  private static String decodeIso639(long packed) {
+    char[] language = {
+      (char) ((packed >> 16) & 0xFF),
+      (char) ((packed >> 8) & 0xFF),
+      (char) (packed & 0xFF)
+    };
+    int length = 0;
+    while (length < language.length && language[length] != 0) {
+      length++;
+    }
+    return new String(language, 0, length);
   }
 
   @Nullable
