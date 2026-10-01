@@ -7,7 +7,7 @@ import argparse
 from pathlib import Path
 
 
-OVERLAY_ID = "fongmi-tv-5.6.8-iso-native-navigation-overlay-v2"
+OVERLAY_ID = "fongmi-tv-5.6.8-iso-navigation-stream-overlay-v3"
 
 
 def replace_once(text: str, old: str, new: str, label: str) -> str:
@@ -383,7 +383,7 @@ public final class IsoNavigationSession implements Closeable {
     return true;
   }
 
-  public synchronized int read(byte[] buffer, int offset, int length, int readFlags)
+  public synchronized int read(byte[] buffer, int offset, int length, int expectedDiscontinuityId)
       throws IOException {
     ensureOpenLocked();
     if (offset < 0 || length < 0 || offset > buffer.length - length) {
@@ -393,7 +393,7 @@ public final class IsoNavigationSession implements Closeable {
       return 0;
     }
     throwFailureLocked();
-    int result = nativeRead(nativeHandle, buffer, offset, length, readFlags);
+    int result = nativeRead(nativeHandle, buffer, offset, length, expectedDiscontinuityId);
     refreshStateLocked();
     if (hasPendingActions()) {
       schedulePump();
@@ -688,6 +688,584 @@ def patch_navigation_keep_rules(path: Path) -> None:
     path.write_text(text, encoding="utf-8")
 
 
+
+def write_navigation_data_source(path: Path) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(
+        """/*
+ * Copyright (C) 2026 The Android Open Source Project
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ */
+package androidx.media3.exoplayer.source.iso;
+
+import android.net.Uri;
+import androidx.annotation.Nullable;
+import androidx.media3.common.C;
+import androidx.media3.common.PlaybackException;
+import androidx.media3.datasource.BaseDataSource;
+import androidx.media3.datasource.DataSource;
+import androidx.media3.datasource.DataSourceException;
+import androidx.media3.datasource.DataSpec;
+import androidx.media3.datasource.IsoDataReader;
+import androidx.media3.exoplayer.iso.IsoNavigationSession;
+import java.io.ByteArrayOutputStream;
+import java.io.Closeable;
+import java.io.IOException;
+import java.io.InterruptedIOException;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
+
+/**
+ * DataSource backed by the 5.6.8 disc-navigation JNI stream.
+ *
+ * <p>The native reader uses -2 for "wait for navigation state", -4 for "the expected
+ * discontinuity was replaced", and -5 for end of the current navigation segment. The final
+ * nativeRead argument is the expected discontinuity id, or -1 until the first segment is
+ * established.
+ */
+public final class IsoNavigationDataSource extends BaseDataSource {
+
+  private static final int RESULT_WAIT_FOR_STATE = -2;
+  private static final int RESULT_SEGMENT_REPLACED = -4;
+  private static final int RESULT_SEGMENT_END = -5;
+
+  private final Factory factory;
+
+  @Nullable private IsoNavigationSession session;
+  @Nullable private Uri uri;
+  @Nullable private byte[] replay;
+  private int replayPosition;
+  private long bytesRemaining;
+  private int segmentId;
+  private boolean opened;
+
+  private IsoNavigationDataSource(Factory factory) {
+    super(false);
+    this.factory = factory;
+  }
+
+  @Override
+  public long open(DataSpec dataSpec) throws IOException {
+    transferInitializing(dataSpec);
+    Factory.Binding binding = factory.bind(dataSpec.uri);
+    session = binding.session;
+    segmentId = binding.segmentId;
+    uri = dataSpec.uri;
+    replay = binding.replay;
+
+    if (replay != null) {
+      if (dataSpec.position > replay.length) {
+        throw new DataSourceException(PlaybackException.ERROR_CODE_IO_READ_POSITION_OUT_OF_RANGE);
+      }
+      replayPosition = (int) dataSpec.position;
+      long available = replay.length - replayPosition;
+      bytesRemaining =
+          dataSpec.length == C.LENGTH_UNSET ? available : Math.min(dataSpec.length, available);
+    } else {
+      if (dataSpec.position != 0) {
+        throw new DataSourceException(PlaybackException.ERROR_CODE_IO_READ_POSITION_OUT_OF_RANGE);
+      }
+      replayPosition = 0;
+      bytesRemaining = dataSpec.length;
+    }
+
+    opened = true;
+    transferStarted(dataSpec);
+    return bytesRemaining;
+  }
+
+  @Override
+  public int read(byte[] buffer, int offset, int length) throws IOException {
+    if (length == 0) {
+      return 0;
+    }
+    if (bytesRemaining == 0) {
+      return C.RESULT_END_OF_INPUT;
+    }
+
+    byte[] completedReplay = replay;
+    if (completedReplay != null) {
+      int available = completedReplay.length - replayPosition;
+      int toRead =
+          (int)
+              Math.min(
+                  Math.min((long) length, available),
+                  bytesRemaining == C.LENGTH_UNSET ? Long.MAX_VALUE : bytesRemaining);
+      if (toRead <= 0) {
+        return C.RESULT_END_OF_INPUT;
+      }
+      System.arraycopy(completedReplay, replayPosition, buffer, offset, toRead);
+      replayPosition += toRead;
+      if (bytesRemaining != C.LENGTH_UNSET) {
+        bytesRemaining -= toRead;
+      }
+      bytesTransferred(toRead);
+      return toRead;
+    }
+
+    IsoNavigationSession active = session;
+    if (active == null) {
+      throw new IOException("Disc navigation data source is closed");
+    }
+
+    int requested =
+        (int)
+            Math.min(
+                (long) length,
+                bytesRemaining == C.LENGTH_UNSET ? (long) length : bytesRemaining);
+    while (true) {
+      boolean established = factory.isSegmentEstablished();
+      if (established && active.getDiscontinuityId() != segmentId) {
+        throw new SegmentChangedException(segmentId, active.getDiscontinuityId());
+      }
+
+      long observedGeneration = active.getStateGeneration();
+      int expectedDiscontinuityId = established ? segmentId : C.INDEX_UNSET;
+      int result =
+          active.read(buffer, offset, requested, expectedDiscontinuityId);
+      int currentSegmentId = active.getDiscontinuityId();
+      boolean menuActive = active.isMenuActive();
+
+      if (!established) {
+        segmentId = currentSegmentId;
+        if (result > 0 || menuActive || result == RESULT_SEGMENT_END) {
+          factory.establishSegment(currentSegmentId);
+          established = true;
+        }
+      }
+
+      if (result == RESULT_WAIT_FOR_STATE) {
+        active.waitForStateChange(observedGeneration);
+        continue;
+      }
+      if (result == RESULT_SEGMENT_REPLACED) {
+        throw new SegmentChangedException(segmentId, currentSegmentId);
+      }
+      if (result == RESULT_SEGMENT_END || result == C.RESULT_END_OF_INPUT) {
+        factory.finishSegment(segmentId, menuActive);
+        return C.RESULT_END_OF_INPUT;
+      }
+      if (result < 0) {
+        throw new IOException("Unexpected disc navigation read result: " + result);
+      }
+      if (result == 0) {
+        throw new IOException("Disc navigation native reader made no progress");
+      }
+
+      factory.capture(segmentId, menuActive, buffer, offset, result);
+      if (bytesRemaining != C.LENGTH_UNSET) {
+        bytesRemaining -= result;
+      }
+      bytesTransferred(result);
+      return result;
+    }
+  }
+
+  @Nullable
+  @Override
+  public Uri getUri() {
+    return uri;
+  }
+
+  @Override
+  public Map<String, List<String>> getResponseHeaders() {
+    return Collections.emptyMap();
+  }
+
+  @Override
+  public void close() {
+    session = null;
+    uri = null;
+    replay = null;
+    replayPosition = 0;
+    bytesRemaining = 0;
+    if (opened) {
+      opened = false;
+      transferEnded();
+    }
+  }
+
+  public static final class SegmentChangedException extends InterruptedIOException {
+    public final int expectedDiscontinuityId;
+    public final int actualDiscontinuityId;
+
+    SegmentChangedException(int expectedDiscontinuityId, int actualDiscontinuityId) {
+      super(
+          "Disc navigation segment replaced: expected "
+              + expectedDiscontinuityId
+              + ", actual "
+              + actualDiscontinuityId);
+      this.expectedDiscontinuityId = expectedDiscontinuityId;
+      this.actualDiscontinuityId = actualDiscontinuityId;
+    }
+  }
+
+  /** Shared owner for all DataSource instances of one navigation MediaSource. */
+  public static final class Factory implements DataSource.Factory, Closeable {
+
+    private static final int MAX_MENU_REPLAY_BYTES = 64 * 1024 * 1024;
+
+    private final DataSource.Factory upstreamFactory;
+    private final int initialMenuAction;
+
+    @Nullable private IsoDataReader reader;
+    @Nullable private IsoNavigationSession session;
+    @Nullable private Uri isoUri;
+    @Nullable private ByteArrayOutputStream capture;
+    @Nullable private byte[] replay;
+    private int captureSegmentId = C.INDEX_UNSET;
+    private int replaySegmentId = C.INDEX_UNSET;
+    private int segmentId = C.INDEX_UNSET;
+    private boolean captureDisabled;
+    private boolean segmentEstablished;
+    private boolean closed;
+
+    public Factory(DataSource.Factory upstreamFactory, int initialMenuAction) {
+      if (initialMenuAction != IsoNavigationSession.ACTION_MENU
+          && initialMenuAction != IsoNavigationSession.ACTION_POPUP_MENU
+          && initialMenuAction != IsoNavigationSession.ACTION_TITLE_MENU) {
+        throw new IllegalArgumentException("Unsupported initial disc menu action");
+      }
+      this.upstreamFactory = upstreamFactory;
+      this.initialMenuAction = initialMenuAction;
+    }
+
+    @Override
+    public DataSource createDataSource() {
+      return new IsoNavigationDataSource(this);
+    }
+
+    @Nullable
+    public synchronized IsoNavigationSession getSession() {
+      return session;
+    }
+
+    public synchronized boolean isSegmentEstablished() {
+      return segmentEstablished;
+    }
+
+    private synchronized Binding bind(Uri requestedUri) throws IOException {
+      if (closed) {
+        throw new IOException("Disc navigation source is closed");
+      }
+      Uri normalized =
+          requestedUri.getFragment() == null
+              ? requestedUri
+              : requestedUri.buildUpon().fragment(null).build();
+      if (session == null) {
+        IsoDataReader newReader = new IsoDataReader(upstreamFactory, normalized);
+        IsoNavigationSession newSession = null;
+        try {
+          newSession = IsoNavigationSession.open(newReader);
+          if (newSession == null) {
+            throw new IOException("Disc navigation native library is unavailable");
+          }
+          // Force the title table to be readable before exposing the shared session.
+          newSession.getTitleCount();
+          reader = newReader;
+          session = newSession;
+          isoUri = normalized;
+          segmentId = newSession.getDiscontinuityId();
+          if (newSession.hasMenu()) {
+            newSession.dispatchAction(initialMenuAction);
+          }
+        } catch (IOException | RuntimeException error) {
+          newReader.close();
+          if (newSession != null) {
+            newSession.close();
+          }
+          throw error;
+        }
+      } else if (!normalized.equals(isoUri)) {
+        throw new IOException("Disc navigation session cannot switch ISO files");
+      }
+
+      IsoNavigationSession active = session;
+      if (active == null) {
+        throw new IOException("Disc navigation source is closed");
+      }
+      int current = active.getDiscontinuityId();
+      if (segmentEstablished && current != segmentId) {
+        resetForSegment(current);
+      } else if (!segmentEstablished) {
+        segmentId = current;
+      }
+      byte[] completedReplay =
+          replay != null && replaySegmentId == segmentId
+              ? Arrays.copyOf(replay, replay.length)
+              : null;
+      return new Binding(active, segmentId, completedReplay);
+    }
+
+    private synchronized void establishSegment(int id) {
+      if (!segmentEstablished || segmentId != id) {
+        resetForSegment(id);
+      }
+      segmentEstablished = true;
+    }
+
+    private synchronized void capture(
+        int id, boolean menuActive, byte[] buffer, int offset, int length) {
+      if (!menuActive || length <= 0) {
+        return;
+      }
+      if (captureSegmentId != id) {
+        captureSegmentId = id;
+        capture = null;
+        captureDisabled = false;
+      }
+      if (captureDisabled) {
+        return;
+      }
+      if (capture == null) {
+        capture = new ByteArrayOutputStream(Math.min(length, 65536));
+      }
+      if (capture.size() > MAX_MENU_REPLAY_BYTES - length) {
+        capture = null;
+        captureDisabled = true;
+        return;
+      }
+      capture.write(buffer, offset, length);
+    }
+
+    private synchronized void finishSegment(int id, boolean menuActive) {
+      if (menuActive
+          && id == captureSegmentId
+          && !captureDisabled
+          && capture != null
+          && capture.size() > 0) {
+        replay = capture.toByteArray();
+        replaySegmentId = id;
+      }
+      capture = null;
+      captureDisabled = false;
+    }
+
+    private void resetForSegment(int id) {
+      segmentId = id;
+      segmentEstablished = false;
+      captureSegmentId = C.INDEX_UNSET;
+      replaySegmentId = C.INDEX_UNSET;
+      capture = null;
+      replay = null;
+      captureDisabled = false;
+    }
+
+    @Override
+    public synchronized void close() {
+      closed = true;
+      IsoNavigationSession oldSession = session;
+      IsoDataReader oldReader = reader;
+      session = null;
+      reader = null;
+      isoUri = null;
+      resetForSegment(C.INDEX_UNSET);
+      if (oldSession != null) {
+        oldSession.close();
+      }
+      if (oldReader != null) {
+        oldReader.close();
+      }
+    }
+
+    private static final class Binding {
+      public final IsoNavigationSession session;
+      public final int segmentId;
+      @Nullable public final byte[] replay;
+
+      Binding(IsoNavigationSession session, int segmentId, @Nullable byte[] replay) {
+        this.session = session;
+        this.segmentId = segmentId;
+        this.replay = replay;
+      }
+    }
+  }
+}
+""",
+        encoding="utf-8",
+    )
+
+
+def write_navigation_media_source(path: Path) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(
+        """/*
+ * Copyright (C) 2026 The Android Open Source Project
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ */
+package androidx.media3.exoplayer.source.iso;
+
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
+import androidx.media3.common.C;
+import androidx.media3.common.MediaItem;
+import androidx.media3.common.Timeline;
+import androidx.media3.datasource.DataSource;
+import androidx.media3.exoplayer.drm.DrmSessionManagerProvider;
+import androidx.media3.exoplayer.iso.IsoNavigationSession;
+import androidx.media3.exoplayer.source.CompositeMediaSource;
+import androidx.media3.exoplayer.source.MediaPeriod;
+import androidx.media3.exoplayer.source.MediaSource;
+import androidx.media3.exoplayer.source.ProgressiveMediaSource;
+import androidx.media3.exoplayer.upstream.Allocator;
+import androidx.media3.exoplayer.upstream.DefaultLoadErrorHandlingPolicy;
+import androidx.media3.exoplayer.upstream.LoadErrorHandlingPolicy;
+import androidx.media3.extractor.Extractor;
+import androidx.media3.extractor.ExtractorsFactory;
+import androidx.media3.extractor.iso.bdmv.BdmvTsExtractor;
+import androidx.media3.extractor.ts.PsExtractor;
+import java.io.IOException;
+
+/**
+ * One navigation segment backed by {@link IsoNavigationDataSource}.
+ *
+ * <p>The controller is intentionally separate: when the shared session advances its
+ * discontinuity id, the controller replaces this source with a new instance while keeping the
+ * same {@link IsoNavigationDataSource.Factory}. That matches the 5.6.8 segmented navigation
+ * model without folding player policy into the JNI transport.
+ */
+public final class IsoNavigationMediaSource extends CompositeMediaSource<Void> {
+
+  private final MediaItem mediaItem;
+  private final IsoNavigationDataSource.Factory navigationFactory;
+  private final MediaSource childSource;
+
+  private IsoNavigationMediaSource(
+      MediaItem mediaItem,
+      DataSource.Factory upstreamFactory,
+      int initialMenuAction,
+      LoadErrorHandlingPolicy loadErrorHandlingPolicy) {
+    this.mediaItem = mediaItem;
+    navigationFactory = new IsoNavigationDataSource.Factory(upstreamFactory, initialMenuAction);
+    ExtractorsFactory extractorsFactory =
+        () -> {
+          IsoNavigationSession session = navigationFactory.getSession();
+          if (session != null) {
+            if (session.getDiscType() == IsoNavigationSession.DISC_TYPE_DVD) {
+              return new Extractor[] {new PsExtractor()};
+            }
+            if (session.getDiscType() == IsoNavigationSession.DISC_TYPE_BLURAY) {
+              return new Extractor[] {
+                new BdmvTsExtractor(
+                    /* clipInfo= */ null,
+                    /* startM2ts= */ 0L,
+                    /* inTimeTicks= */ 0L,
+                    C.TIME_UNSET)
+              };
+            }
+          }
+          return new Extractor[] {
+            new PsExtractor(),
+            new BdmvTsExtractor(
+                /* clipInfo= */ null,
+                /* startM2ts= */ 0L,
+                /* inTimeTicks= */ 0L,
+                C.TIME_UNSET)
+          };
+        };
+    ProgressiveMediaSource.Factory progressiveFactory =
+        new ProgressiveMediaSource.Factory(navigationFactory, extractorsFactory);
+    progressiveFactory.setLoadErrorHandlingPolicy(loadErrorHandlingPolicy);
+    childSource = progressiveFactory.createMediaSource(mediaItem);
+  }
+
+  @Nullable
+  public IsoNavigationSession getNavigationSession() {
+    return navigationFactory.getSession();
+  }
+
+  public boolean dispatchMenuAction(int action) {
+    IsoNavigationSession session = navigationFactory.getSession();
+    return session != null && session.dispatchAction(action);
+  }
+
+  @NonNull
+  @Override
+  public MediaItem getMediaItem() {
+    return mediaItem;
+  }
+
+  @Override
+  protected void prepareSourceInternal(@Nullable androidx.media3.datasource.TransferListener listener) {
+    super.prepareSourceInternal(listener);
+    prepareChildSource(null, childSource);
+  }
+
+  @Override
+  protected void onChildSourceInfoRefreshed(
+      Void id, @NonNull MediaSource mediaSource, @NonNull Timeline timeline) {
+    refreshSourceInfo(timeline);
+  }
+
+  @NonNull
+  @Override
+  public MediaPeriod createPeriod(
+      @NonNull MediaPeriodId id, @NonNull Allocator allocator, long startPositionUs) {
+    return childSource.createPeriod(id, allocator, startPositionUs);
+  }
+
+  @Override
+  public void releasePeriod(@NonNull MediaPeriod mediaPeriod) {
+    childSource.releasePeriod(mediaPeriod);
+  }
+
+  @Override
+  protected void releaseSourceInternal() {
+    super.releaseSourceInternal();
+    navigationFactory.close();
+  }
+
+  public static final class Factory implements MediaSource.Factory {
+
+    private final DataSource.Factory upstreamFactory;
+    private final int initialMenuAction;
+    private LoadErrorHandlingPolicy loadErrorHandlingPolicy;
+
+    public Factory(DataSource.Factory upstreamFactory, int initialMenuAction) {
+      this.upstreamFactory = upstreamFactory;
+      this.initialMenuAction = initialMenuAction;
+      loadErrorHandlingPolicy = new DefaultLoadErrorHandlingPolicy();
+    }
+
+    @NonNull
+    @Override
+    public MediaSource createMediaSource(@NonNull MediaItem mediaItem) {
+      return new IsoNavigationMediaSource(
+          mediaItem, upstreamFactory, initialMenuAction, loadErrorHandlingPolicy);
+    }
+
+    @NonNull
+    @Override
+    public MediaSource.Factory setDrmSessionManagerProvider(
+        @NonNull DrmSessionManagerProvider drmSessionManagerProvider) {
+      return this;
+    }
+
+    @NonNull
+    @Override
+    public MediaSource.Factory setLoadErrorHandlingPolicy(
+        @NonNull LoadErrorHandlingPolicy loadErrorHandlingPolicy) {
+      this.loadErrorHandlingPolicy = loadErrorHandlingPolicy;
+      return this;
+    }
+
+    @NonNull
+    @Override
+    public @C.ContentType int[] getSupportedTypes() {
+      return new int[] {C.CONTENT_TYPE_OTHER};
+    }
+  }
+}
+""",
+        encoding="utf-8",
+    )
+
+
+
 def patch_udf(path: Path) -> None:
     text = path.read_text(encoding="utf-8")
     text = replace_once(
@@ -822,6 +1400,14 @@ def main() -> None:
         root
         / "libraries/exoplayer/src/main/java/androidx/media3/exoplayer/iso/IsoNavigationSession.java"
     )
+    navigation_data_source_path = (
+        root
+        / "libraries/exoplayer/src/main/java/androidx/media3/exoplayer/source/iso/IsoNavigationDataSource.java"
+    )
+    navigation_media_source_path = (
+        root
+        / "libraries/exoplayer/src/main/java/androidx/media3/exoplayer/source/iso/IsoNavigationMediaSource.java"
+    )
     exoplayer_proguard = root / "libraries/exoplayer/proguard-rules.txt"
 
     for required in (udf_path, parsed_path, exoplayer_proguard):
@@ -830,6 +1416,8 @@ def main() -> None:
 
     write_native_udf(native_path)
     write_navigation_session(navigation_path)
+    write_navigation_data_source(navigation_data_source_path)
+    write_navigation_media_source(navigation_media_source_path)
     patch_udf(udf_path)
     patch_iso_parsed_media(parsed_path)
     patch_navigation_keep_rules(exoplayer_proguard)
