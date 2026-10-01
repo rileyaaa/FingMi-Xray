@@ -549,7 +549,7 @@ Android build-tools 37 的 plain `dexdump` 会把 class 边界打印成带填充
 5.6.8 targeted native audit 重新对固定 public `libplayer.so/libmpv.so` 与 Release 双 ABI二进制做了独立 ELF/JNI 对比。Release `libplayer.so` 明确新增 `enqueueCommandLongResult`，command reply descriptor 从 `(JI)V` 升为 `(JIJ)V`，并按类名/方法名调用 `MPVLib$Stream` 的 `read/seek/size/cancel/close` 与静态 `openStream`；同时其 NEEDED 包含 `libmpv.so`、`libavcodec.so`、`libswscale.so`。这证明新版 Java bridge、`libplayer.so`、`libmpv.so` 不能拆开迁移。
 
 current 已新增 MPV overlay、双 ABI native contract/restorer/checker，并把 overlay identity、关键 class、mpvplayer unit-test task、importer immutable mutation、current/publish restore/check 和最终 APK PT_LOAD gate 接入现有 17-AAR 构建链。app 的 MPV managed options 也已加入 `secondary-sub-scale`。随后 run `36758945496` 在 marker source `dc7b5b06...` 上完整成功：source guards、17-AAR rebuild、MPV bridge unit tests、5.6.8 MPV native restore/check、Xray parity、Libass、Leanback Java compile、双 ABI APK assemble、MPEG-H、最终 Xray/FFmpeg/MPV/MPEG-H/Libass PT_LOAD 与 merged Manifest security contract 全部通过。remote ISO / disc menu 与 `libisoJNI.so` 仍保留为下一阶段；真机 MPV script/stream 行为仍需运行时验收。
-### 2026-10-01 — MPV remote ISO stream 第二阶段接入，等待 full current-main
+### 2026-10-01 — MPV remote ISO stream 第二阶段接入并通过 full current-main
 
 在第一阶段 MPV bridge 已通过 full current-main 后，继续按 5.6.7/5.6.8 Release 证据恢复 HTTP(S) ISO 的 `media3iso://` stream 路径。Release full-JADX 已确认触发条件为 MediaItem MIME `video/x-iso` 或 URI path 以 `.iso` 结尾（忽略大小写）；只有 HTTP/HTTPS 会注册临时 `media3iso://<uuid>/disc.iso`，本地 ISO 只去除 fragment 后直接交给 mpv。
 
@@ -562,5 +562,5 @@ current overlay 已升级为 `fongmi-tv-5.6.8-mpv-bridge-v2`，新增：
 - mpvplayer 新增 datasource dependency 和 `MpvIsoStreamTest`，candidate builder/verifier 也要求 `MpvIsoStream` / `MpvIsoStreamManager` class 确实进入 `lib-mpvplayer-release.aar`；
 - build hygiene 同步锁住 overlay v2、`media3iso://`、DataSource factory 与新 class，防止后续回退成“只有 Stream ABI、没有实际 ISO provider”。
 
-证据边界：Release 内部还有一层约 4 MiB page、3 worker 的并行 Range 预取/cache；当前第二阶段先恢复 URI/header/seek/read/size/cancel 生命周期与 JNI 可观察行为，没有把该内部性能优化冒充成已逐实现等价。最新 HEAD 尚未完成 full current-main，因此此里程碑暂时只表示 source/build-chain integration。`libisoJNI.so`、`IsoNavigationSession` / native UDF、disc-menu 以及 `libnodebridge.so` 仍未迁移。
+证据边界：Release 内部还有一层约 4 MiB page、3 worker 的并行 Range 预取/cache；当前第二阶段先恢复 URI/header/seek/read/size/cancel 生命周期与 JNI 可观察行为，没有把该内部性能优化冒充成已逐实现等价。随后 run `36796521437` 在 marker source `4c3cc9dd...` 上完整成功：source guards、17-AAR rebuild、MPV bridge/ISO overlay unit tests、5.6.8 MPV native restore/check、Xray parity、Libass、Leanback Java compile、双 ABI APK assemble、MPEG-H、最终 Xray/FFmpeg/MPV/MPEG-H/Libass PT_LOAD 与 merged Manifest security contract 全部通过。`libisoJNI.so`、`IsoNavigationSession` / native UDF、disc-menu 以及 `libnodebridge.so` 仍未迁移；remote ISO 真机 Range/seek/cancel 行为仍属于运行时验收层。
 
