@@ -97,7 +97,7 @@ Xray 是**当前播放会话的可选网络通道**，不是设备级代理。
 
 `:libxray` 只提供 Android AAR 依赖入口，让 `:xray` 不需要把大型二进制直接塞进业务源码。
 
-二进制来源与校验规则属于构建流程，不属于业务模块职责。历史 APK 可以同时承担当前部分 native 字节的 provenance 和 Xray 行为黄金证据，但不能反过来要求 current-main 恢复旧版混合架构。
+二进制来源与校验规则属于构建流程，不属于业务模块职责。历史 APK 可以同时承担当前部分 native 字节的 provenance 和 Xray 行为黄金证据，但不能反过来要求当前 `main` 恢复旧版混合架构。
 
 ### `:app`
 
@@ -165,7 +165,7 @@ HTTP / HTTPS、DRM license 和 RTSP 等与当前媒体播放直接相关的连�
 - URL 编解码等兼容点优先使用在低 Android 版本上已有的 overload；
 - `StringBuilder.isEmpty()`、`String.isBlank()`、集合 factory 等已知风险 API 由源码 guard 阻止重新进入 Xray 路径；
 - `LibXrayBridge`、Service 与 client 对 Java linkage failure 做明确收口，尽量返回可诊断错误而不是只留下 Binder process death；
-- libXray 调用只记录不含节点、密码等敏感内容的阶段日志，用于判断 native 调用在哪一步中止；
+- `LibXrayBridge` 不在逐次 native invoke 路径输出额外 begin/end 日志；故障通过去敏后的 Service/client 错误、Binder 状态、Android logcat 与定向 parity / harness 定位；
 - release 混淆必须保留 gomobile / libXray JNI 所需类名与方法名。
 
 这些约束属于当前架构本身，不是旧发布版兼容测试的临时补丁。
@@ -180,7 +180,7 @@ FingMi-Xray 不允许应用内从 FongMi/Release 下载并安装上游 APK。上
 - Manifest 不申请 `REQUEST_INSTALL_PACKAGES`；
 - 测试包和正式包只由本仓库明确构建、发布并由用户主动安装。
 
-从 5.6.3 重构线开始，**现行重构分支负责源码、架构、构建和上游同步；`v5.6.0-xray.5` v7 正式 APK 是 Xray 外部行为黄金参考。** current-main 不要求重新通过 faithful APK 重建才能发布，但涉及 Xray 行为的修改必须通过冻结证据、自动 parity 或真机证据证明没有无意偏离。
+从 5.6.3 重构线开始，**`main` 负责现行源码、架构、构建和上游同步；`v5.6.0-xray.5` v7 正式 APK 是 Xray 外部行为黄金参考。** `main` 不要求重新通过 faithful APK 重建才能发布，但涉及 Xray 行为的修改必须通过冻结证据、自动 parity 或真机证据证明没有无意偏离。
 
 ## 9. 上游升级原则
 
@@ -195,7 +195,7 @@ FingMi-Xray 应尽可能继续跟随 FongMi/TV，而不是复制整个上游长�
 5. 不主动修改与两大模块无关的播放器效果、设置、页面交互、业务模型或通用工具；
 6. 媒体二进制或 API 不匹配时，只允许使用明确、最小的 compatibility adapter 让当前上游代码可构建，不把 adapter 演变成第三套业务实现；
 7. 低版本兼容补丁只处理项目新增/接线代码中的已证实问题；上游原样代码默认保留上游写法；
-8. 历史发布版证据与当前工程重构分开保存；v7 证据用于定义 Xray 外部行为黄金参考，但不定义 current-main 的源码组织、上游版本或混合架构；
+8. 历史发布版证据与当前工程重构分开保存；v7 证据用于定义 Xray 外部行为黄金参考，但不定义 `main` 的源码组织、上游版本或混合架构；
 
 ## 10. 仓库中各类材料的定位
 
@@ -213,4 +213,4 @@ FingMi-Xray 应尽可能继续跟随 FongMi/TV，而不是复制整个上游长�
 | `scripts/build/` | 当前依赖与 compatibility 构建工具 |
 | `scripts/recovery/` | 历史 faithful / native 恢复与来源提取工具 |
 
-当前工程代码与历史 faithful 恢复代码是两种不同用途的材料。当前重构线决定现行架构与实现；历史 v7 证据回答“发布版 Xray 的外部行为是什么、当前复用二进制从哪里来”。目标是把黄金行为映射到当前模块化架构，而不是把 current-main 回退成旧源码结构。
+当前工程代码与历史 faithful 恢复代码是两种不同用途的材料。当前 `main` 决定现行架构与实现；历史 v7 证据回答“发布版 Xray 的外部行为是什么、当前复用二进制从哪里来”。目标是把黄金行为映射到当前模块化架构，而不是把 `main` 回退成旧源码结构。
