@@ -73,7 +73,7 @@ JADX 中出现不可能分支、R8 合并控制流或自相矛盾时，必须继
 
 主要材料：
 
-- `shared/sources/`：从 v7 / arm64 完整 JADX 中筛出的 Xray、播放器接线、设置、安全和 TV 网络恢复相关 Java 文本。selected source 共 64 个，其中 63 个两 ABI 逐字节一致；唯一差异 `p000/ip0.java` 是 R8 生成的 EventBus subscriber index，注册内容相同、生成顺序不同；
+- `shared/sources/`：当前 Git 中保存 63 个 v7 / arm64 逐字节一致的 selected Java source；第 64 个逻辑 selected source `p000/ip0.java` 是唯一双 ABI 差异项，因此分别保存在 `docs/apk-reference/v7/ip0.java` 与 `docs/apk-reference/v8/ip0.java`。两份 `ip0` 的 EventBus 注册内容相同，只是 R8 生成的 `HashMap.put` 顺序不同。历史 `shared/source-parity.txt` 曾在 generation note 中列出 `HomeActivity.java`，但当前 Git 证据树并未保留该文件，后续不得把它当成“已提交 selected JADX”引用；
 - `shared/AndroidManifest.xml`：两 ABI 一致的 Manifest 文本；
 - `shared/dex-sha256.txt`：APK 内 DEX SHA-256；
 - `shared/apk-diff.txt`：两正式 APK ZIP entry 级差异；
@@ -217,7 +217,7 @@ Live 的会话边界包括切频道、换线路 / 源、直播配置变化和播
 | `XraySettingsController` | `LegacyXraySettingsController` + 设置页 DEX | 45s timeout、delete/reset 顺序、phone-import abandon |
 | `XrayErrorSanitizer` | `LegacyXrayErrorSanitizer` | 文本去敏主体镜像；current 额外支持 Throwable/LinkageError 收口 |
 
-另外两段旧 helper 因为属于 FongMi 播放器接口而留在 `:app`：`XrayArtworkBitmapLoader` 对应 `LegacyXrayBitmapLoader/rf2`，`ExoMediaSourceFactory.GuardedPlaybackDataSource` 对应 `LegacyXraySchemeGuardDataSource/or2`。两者的 local-scheme / Unicode whitespace 判定已重新按 v7 对齐。
+另外两段旧 helper 因为属于 FongMi 播放器接口而留在 `:app`：`XrayArtworkBitmapLoader` 对应 `LegacyXrayBitmapLoader/rf2`，`ExoMediaSourceFactory.GuardedPlaybackDataSource` 对应 `LegacyXraySchemeGuardDataSource/or2`。两者的 local-scheme / Unicode whitespace 判定已重新按 v7 对齐：`file`、`asset`、`content`、`data`、`rawresource`、`android.resource` 继续走本地资源；HTTP(S) 使用当前 Xray DataSource；其它无法保证网络身份的泛用 scheme 在 Xray active 时拒绝。
 
 旧 `PlayerEngine` 曾暴露 Xray getter，但 5.6.3 新播放器架构不再需要污染该上游接口；`main` 的 blob guard 要求 `PlayerEngine.java` 与 `FongMi/TV@c616c0aa3613e87529791587a9f71b78c278c991` 完全一致，原 getter 语义迁入 `PlayerManager`、`ExoPlayerEngine.proxy()` 与 `PlayerEngineFactory(proxy)`。因此“PlayerEngine 不含 Xray”是架构迁移结果，不是漏迁。
 
@@ -243,10 +243,10 @@ Live 的会话边界包括切频道、换线路 / 源、直播配置变化和播
 固定 Media3 player candidate 来源：
 
 - FongMi/media commit：`3c2cbe8ac742c2fe15eff52f03eeb3b1b648848d`
-- 历史 recovery artifact 曾得到 candidate ZIP SHA-256 `0ed42581af11ac7163ebde148b318807c244e2a318f40c41d33f50b70bf967ee`；它只作为当时取证记录，不再是 当前 / recovery workflow 的长期存储依赖。
+- 历史 recovery artifact 曾得到 candidate ZIP SHA-256 `0ed42581af11ac7163ebde148b318807c244e2a318f40c41d33f50b70bf967ee`；它只作为当时取证记录，不再是当前构建或 recovery workflow 的长期存储依赖。
 - 现行流程统一由 `scripts/build/build-player-aar-candidate.sh` 从上述固定 commit 重建 17 个 AAR（包含 `lib-decoder-mpegh`），并由 `scripts/build/player_candidate.py` 校验文件集合、每个 AAR 的 manifest SHA 与关键播放器 class。外层 ZIP 本身不再作为长期 pin。
 
-历史 faithful recovery 曾确认发布 APK 中的 `libffmpegJNI.so` 与固定公开 media candidate 不同，并建立了对应恢复工具。这项能力**只保留为旧 APK / faithful recovery 证据**；`main` 与 当前 publish 已不再注入发布版 FFmpeg JNI，而是直接使用固定公开 FongMi/media 现场重建出的 decoder AAR。
+历史 faithful recovery 曾确认发布 APK 中的 `libffmpegJNI.so` 与固定公开 media candidate 不同，并建立了对应恢复工具。这项能力**只保留为旧 APK / faithful recovery 证据**；`main` 与当前 publish workflow 已不再注入发布版 FFmpeg JNI，而是直接使用固定公开 FongMi/media 现场重建出的 decoder AAR。
 
 历史发布版 FFmpeg JNI 证据：
 
@@ -315,9 +315,9 @@ faithful recovery 生成的 decoder AAR SHA-256 为 `31a1db2570416147cc6889643d2
 - `tests/test-v2rayn-share-chain.py`
 - `tests/test-v2rayn-reference-chain.py`
 
-发布 JNI 已建立 converter、API v2、lifecycle、TLS / HY2 probe、age、v2rayN-shaped 输入、IPv6 / DNS dial 等定向执行证据。faithful 重建使用发布 JNI 字节，不用可读重建补丁冒充原始 Go 源码。`main` 继续复用固定 SHA 的 native 字节，并用双 ABI current-chain 动态 parity 将 当前 Java 配置链与 v7 黄金 oracle 对齐；faithful APK 能否重新 assemble 仍不是 current 发布条件。
+发布 JNI 已建立 converter、API v2、lifecycle、TLS / HY2 probe、age、v2rayN-shaped 输入、IPv6 / DNS dial 等定向执行证据。faithful 重建使用发布 JNI 字节，不用可读重建补丁冒充原始 Go 源码。`main` 继续复用固定 SHA 的 native 字节，并用双 ABI current-chain 动态 parity 将当前 Java 配置链与 v7 黄金 oracle 对齐；faithful APK 能否重新 assemble 仍不是当前 `main` 发布条件。
 
-## 9. 归档 faithful 构建工具（非 current 构建链）
+## 9. 归档 faithful 构建工具（非 `main` 构建链）
 
 这一节保留的是历史重建工具。它们只在需要复核旧发布版、重新提取历史 native 来源或研究旧行为时使用；正常 `main` 开发和发布**不要求执行本节流程**。
 
@@ -369,7 +369,7 @@ GitHub Actions 对应两段手动流程：
 
 这些 workflow 只允许手动 `workflow_dispatch`，并视为历史归档工具。它们的成功或失败不再决定当前 5.6.3+ 架构能否发布；`main` 的构建、源码 guard、当前回归与 Android 运行测试才决定当前版本验收。
 
-## 10. 历史证据与 current parity 原则
+## 10. 历史证据与当前 parity 原则
 
 需要复核历史恢复材料时，必须区分：
 
@@ -382,4 +382,4 @@ GitHub Actions 对应两段手动流程：
 
 较低级别证据只能证明对应层级，不能替代更高层级验证。
 
-如果未来出现新的 APK / DEX / native 证据改变既有结论，应先修正 recovery reference / fixture，再更新 current parity 测试与本文。current 重构实现不需要回退旧 faithful 架构，但凡已经确认属于 v7 Xray 外部行为的语义，应在当前模块中恢复或做等价映射。最终仍需用 current 测试、构建和 Android TV 设备回归确认真实运行。
+如果未来出现新的 APK / DEX / native 证据改变既有结论，应先修正 recovery reference / fixture，再更新当前 parity 测试与本文。当前重构实现不需要回退旧 faithful 架构，但凡已经确认属于 v7 Xray 外部行为的语义，应在当前模块中恢复或做等价映射。最终仍需用当前测试、构建和 Android TV 设备回归确认真实运行。
