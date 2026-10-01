@@ -11,9 +11,13 @@ import okhttp3.dnsoverhttps.DnsOverHttps;
 public final class ha2 implements Dns {
 
     public final ConcurrentHashMap f7012a = new ConcurrentHashMap();
+
     public volatile C0923jh f7013b;
+
     public volatile xh0 f7014c;
+
     public volatile DnsOverHttps f7015d;
+
     public volatile OkHttpClient f7016e;
 
     public final void m3986a(xh0 xh0Var) {
