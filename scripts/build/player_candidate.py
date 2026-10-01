@@ -12,7 +12,7 @@ from zipfile import BadZipFile, ZipFile
 SOURCE_COMMIT = "3c2cbe8ac742c2fe15eff52f03eeb3b1b648848d"
 DOLBY_OVERLAY_ID = "fongmi-tv-5.6.8-dolby-release-overlay-v1"
 MPV_OVERLAY_ID = "fongmi-tv-5.6.8-mpv-bridge-v2"
-ISO_OVERLAY_ID = "fongmi-tv-5.6.8-iso-native-udf-overlay-v1"
+ISO_OVERLAY_ID = "fongmi-tv-5.6.8-iso-native-navigation-overlay-v2"
 EXPECTED_AAR_COUNT = 17
 REQUIRED_AARS = {
     "lib-common-release.aar",
@@ -27,6 +27,7 @@ REQUIRED_CLASSES = {
     "androidx/media3/mpvplayer/media/MpvIsoStream.class",
     "androidx/media3/mpvplayer/media/MpvIsoStreamManager.class",
     "androidx/media3/extractor/iso/udf/NativeUdfFileSystem.class",
+    "androidx/media3/exoplayer/iso/IsoNavigationSession.class",
     "is/xyz/mpv/MPVLib$Stream.class",
     "is/xyz/mpv/MPVLib$StreamProvider.class",
     "androidx/media3/exoplayer/trackselection/DecodeTrackSelector.class",
@@ -116,6 +117,17 @@ def read_verified_candidate(path: Path) -> dict[str, bytes]:
 
                 with ZipFile(BytesIO(data)) as aar:
                     classes = aar.read("classes.jar")
+                    if filename == "lib-exoplayer-release.aar":
+                        if "proguard.txt" not in aar.namelist():
+                            raise ValueError("candidate exoplayer AAR lacks consumer ProGuard rules")
+                        keep_rules = aar.read("proguard.txt")
+                        if (
+                            b"-keep class androidx.media3.exoplayer.iso.IsoNavigationSession { *; }"
+                            not in keep_rules
+                        ):
+                            raise ValueError(
+                                "candidate exoplayer AAR lost IsoNavigationSession JNI keep rule"
+                            )
                 with ZipFile(BytesIO(classes)) as jar:
                     found.update(REQUIRED_CLASSES.intersection(jar.namelist()))
 
