@@ -67,7 +67,7 @@ public final class XrayArtworkBitmapLoader implements BitmapLoader {
     private static boolean isLocal(Uri uri) {
         if (uri == null) return false;
         String scheme = uri.getScheme();
-        if (scheme == null || scheme.trim().isEmpty()) return true;
+        if (isBlank(scheme)) return true;
         String value = scheme.toLowerCase(Locale.ROOT);
         return "file".equals(value)
                 || "asset".equals(value)
@@ -75,5 +75,15 @@ public final class XrayArtworkBitmapLoader implements BitmapLoader {
                 || "data".equals(value)
                 || "rawresource".equals(value)
                 || "android.resource".equals(value);
+    }
+
+    private static boolean isBlank(String value) {
+        if (value == null) return true;
+        for (int offset = 0; offset < value.length();) {
+            int codePoint = value.codePointAt(offset);
+            if (!Character.isWhitespace(codePoint)) return false;
+            offset += Character.charCount(codePoint);
+        }
+        return true;
     }
 }

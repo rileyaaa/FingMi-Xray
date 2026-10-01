@@ -138,6 +138,8 @@ require(
 
 require(
     "app/src/main/java/com/fongmi/android/tv/player/exo/ExoMediaSourceFactory.java",
+    "private static boolean isBlank(String value)",
+    "Character.isWhitespace(codePoint)",
     '"file".equalsIgnoreCase(scheme)',
     '"content".equalsIgnoreCase(scheme)',
     '"android.resource".equalsIgnoreCase(scheme)',

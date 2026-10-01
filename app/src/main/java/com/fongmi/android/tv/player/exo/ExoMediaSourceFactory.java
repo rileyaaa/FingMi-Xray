@@ -230,7 +230,7 @@ public class ExoMediaSourceFactory implements MediaSource.Factory {
         }
 
         private static boolean isAllowed(String scheme) {
-            if (scheme == null || scheme.trim().isEmpty()) return true;
+            if (isBlank(scheme)) return true;
             return "http".equalsIgnoreCase(scheme)
                     || "https".equalsIgnoreCase(scheme)
                     || "file".equalsIgnoreCase(scheme)
@@ -239,6 +239,16 @@ public class ExoMediaSourceFactory implements MediaSource.Factory {
                     || "data".equalsIgnoreCase(scheme)
                     || "rawresource".equalsIgnoreCase(scheme)
                     || "android.resource".equalsIgnoreCase(scheme);
+        }
+
+        private static boolean isBlank(String value) {
+            if (value == null) return true;
+            for (int offset = 0; offset < value.length();) {
+                int codePoint = value.codePointAt(offset);
+                if (!Character.isWhitespace(codePoint)) return false;
+                offset += Character.charCount(codePoint);
+            }
+            return true;
         }
     }
 }
