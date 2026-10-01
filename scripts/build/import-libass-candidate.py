@@ -10,16 +10,19 @@ import importlib.util
 import io
 import os
 from pathlib import Path
+import sys
 import subprocess
 import tempfile
 from zipfile import ZipFile
 
 ROOT = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(ROOT/'scripts/build'))
+from libass_build_contract import LIBASS_CANDIDATE_AAR_SHA256
 spec = importlib.util.spec_from_file_location('libass_build', ROOT/'scripts/build/build-libass-candidate.py')
 build = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(build)
 NAME = 'lib-exoplayer-libass-reconstructed.aar'
-AAR_SHA256 = 'f047f8ad84be08aeddb0672500e9b263cafd6f2a009812392554dc55b2019861'
+AAR_SHA256 = LIBASS_CANDIDATE_AAR_SHA256
 ORIGINAL_EXTRACTOR = '9f5d306cabf3118ae26417c02870200dd245da853f980cdc8d51b27db34accd9'
 
 def inventory(payload):
