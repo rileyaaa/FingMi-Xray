@@ -1,0 +1,56 @@
+name: Build pinned FongMi Media3 player AARs
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  player-aars:
+    runs-on: ubuntu-latest
+    timeout-minutes: 55
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.10"
+
+      - name: Prepare Android platform 36
+        shell: bash
+        run: |
+          set -euo pipefail
+          sdk_root="${ANDROID_HOME:-/usr/local/lib/android/sdk}"
+          sdkmanager="$sdk_root/cmdline-tools/latest/bin/sdkmanager"
+          test -x "$sdkmanager"
+          yes | "$sdkmanager" --licenses >/dev/null 2>&1 || true
+          "$sdkmanager" --install 'platforms;android-36' 'build-tools;36.0.0'
+
+      - name: Rebuild pinned player candidate
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p build/recovery/player
+          bash scripts/build/build-player-aar-candidate.sh \
+            --workdir build/recovery/player/source \
+            --output build/recovery/player/fongmi-media3-aar-candidate-1.11.0.zip
+          python3 scripts/build/player_candidate.py \
+            build/recovery/player/fongmi-media3-aar-candidate-1.11.0.zip
+
+      - name: Upload short-lived player candidate
+        if: success()
+        uses: actions/upload-artifact@v7
+        with:
+          name: fongmi-media3-aar-candidate-1.11.0-review
+          path: build/recovery/player/fongmi-media3-aar-candidate-1.11.0.zip
+          if-no-files-found: error
+          retention-days: 3
+          compression-level: 0

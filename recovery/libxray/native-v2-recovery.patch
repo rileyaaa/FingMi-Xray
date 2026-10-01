@@ -1,0 +1,1046 @@
+diff --git a/go.mod b/go.mod
+index ef69942..c36a48a 100644
+--- a/go.mod
++++ b/go.mod
+@@ -3,6 +3,8 @@ module github.com/xtls/libxray
+ go 1.26.3
+ 
+ require (
++	github.com/apernet/quic-go v0.59.1-0.20260425001925-6c6cc9bcb716
++	github.com/metacubex/age v0.0.0-20260603010618-28d156b4ea78
+ 	github.com/stretchr/testify v1.11.1
+ 	github.com/xtls/xray-core v1.260327.1-0.20260728075948-5ca6f4b7d4dc
+ 	google.golang.org/protobuf v1.36.11
+@@ -11,7 +13,6 @@ require (
+ 
+ require (
+ 	github.com/andybalholm/brotli v1.0.6 // indirect
+-	github.com/apernet/quic-go v0.59.1-0.20260425001925-6c6cc9bcb716 // indirect
+ 	github.com/cloudflare/circl v1.6.4 // indirect
+ 	github.com/davecgh/go-spew v1.1.1 // indirect
+ 	github.com/ghodss/yaml v1.0.1-0.20220118164431-d8423dcdf344 // indirect
+@@ -21,6 +22,9 @@ require (
+ 	github.com/juju/ratelimit v1.0.2 // indirect
+ 	github.com/klauspost/compress v1.17.4 // indirect
+ 	github.com/klauspost/cpuid/v2 v2.4.0 // indirect
++	github.com/metacubex/hkdf v0.1.0 // indirect
++	github.com/metacubex/hpke v0.1.0 // indirect
++	github.com/metacubex/mlkem v0.1.0 // indirect
+ 	github.com/miekg/dns v1.1.72 // indirect
+ 	github.com/pelletier/go-toml v1.9.5 // indirect
+ 	github.com/pion/dtls/v3 v3.1.4 // indirect
+diff --git a/go.sum b/go.sum
+index 6c9ce21..98dee9c 100644
+--- a/go.sum
++++ b/go.sum
+@@ -36,6 +36,14 @@ github.com/kr/pretty v0.3.1 h1:flRD4NNwYAUpkphVc1HcthR4KEIFJ65n8Mw5qdRn3LE=
+ github.com/kr/pretty v0.3.1/go.mod h1:hoEshYVHaxMs3cyo3Yncou5ZscifuDolrwPKZanG3xk=
+ github.com/kr/text v0.2.0 h1:5Nx0Ya0ZqY2ygV366QzturHI13Jq95ApcVaJBhpS+AY=
+ github.com/kr/text v0.2.0/go.mod h1:eLer722TekiGuMkidMxC/pM04lWEeraHUUmBw8l2grE=
++github.com/metacubex/age v0.0.0-20260603010618-28d156b4ea78 h1:LqWr0vb9zDNuQS+jJd4fnRYk/SEI7KJ7TDe/L4WFK48=
++github.com/metacubex/age v0.0.0-20260603010618-28d156b4ea78/go.mod h1:BTBG/iVY7rg3qq5WdVCg0GFk58CSvCDSbjy8I7kEx/c=
++github.com/metacubex/hkdf v0.1.0 h1:fPA6VzXK8cU1foc/TOmGCDmSa7pZbxlnqhl3RNsthaA=
++github.com/metacubex/hkdf v0.1.0/go.mod h1:3seEfds3smgTAXqUGn+tgEJH3uXdsUjOiduG/2EtvZ4=
++github.com/metacubex/hpke v0.1.0 h1:gu2jUNhraehWi0P/z5HX2md3d7L1FhPQE6/Q0E9r9xQ=
++github.com/metacubex/hpke v0.1.0/go.mod h1:vfDm6gfgrwlXUxKDkWbcE44hXtmc1uxLDm2BcR11b3U=
++github.com/metacubex/mlkem v0.1.0 h1:wFClitonSFcmipzzQvax75beLQU+D7JuC+VK1RzSL8I=
++github.com/metacubex/mlkem v0.1.0/go.mod h1:amhaXZVeYNShuy9BILcR7P0gbeo/QLZsnqCdL8U2PDQ=
+ github.com/miekg/dns v1.1.72 h1:vhmr+TF2A3tuoGNkLDFK9zi36F2LS+hKTRW0Uf8kbzI=
+ github.com/miekg/dns v1.1.72/go.mod h1:+EuEPhdHOsfk6Wk5TT2CzssZdqkmFhf8r+aVyDEToIs=
+ github.com/pelletier/go-toml v1.9.5 h1:4yBQzkHv+7BHq2PQUZF3Mx0IYxG7LsP222s7Agd3ve8=
+diff --git a/invoke.go b/invoke.go
+index 231d0f5..1e7b1a3 100644
+--- a/invoke.go
++++ b/invoke.go
+@@ -59,12 +59,18 @@ func Invoke(requestJSON string) string {
+ 		return encodeInvokeResponse(&XrayVersionResponse{Version: xray.XrayVersion()}, nil)
+ 	case LibXrayMethodGetXrayState:
+ 		return encodeInvokeResponse(&GetXrayStateResponse{Running: xray.GetXrayState()}, nil)
++	case LibXrayMethodProbeTLSCertificate:
++		return invokeProbeTLSCertificate(request.Payload)
++	case LibXrayMethodProbeHysteria2Certificate:
++		return invokeProbeHysteria2Certificate(request.Payload)
++	case LibXrayMethodGenerateAgeKeyPair:
++		return invokeGenerateAgeKeyPair(request.Payload)
+ 	default:
+ 		return encodeInvokeResponse(nil, errors.New("unknown method"))
+ 	}
+ }
+ func validateAPIVersion(version int) error {
+-	if version == 0 || version == 1 {
++	if version == 2 {
+ 		return nil
+ 	}
+ 	return errors.New("unsupported apiVersion")
+@@ -137,7 +143,7 @@ func invokeConvertShareLinksToXrayJson(payload json.RawMessage) string {
+ 	if err != nil {
+ 		return encodeInvokeResponse(nil, err)
+ 	}
+-	xrayJson, err := share.ConvertShareLinksToXrayJson(request.Text)
++	xrayJson, err := share.ConvertShareLinksToXrayJsonWithAge(request.Text, request.Age)
+ 	if err != nil {
+ 		return encodeInvokeResponse(nil, err)
+ 	}
+@@ -193,7 +199,7 @@ func invokePingBatch(payload json.RawMessage) string {
+ 	configs := make([]xray.PingBatchItem, len(request.Configs))
+ 	for i, config := range request.Configs {
+ 		configs[i] = xray.PingBatchItem{
+-			ConfigPath:  config.ConfigPath,
++			XrayJson:    config.XrayJson,
+ 			OutboundTag: config.OutboundTag,
+ 		}
+ 	}
+@@ -223,7 +229,7 @@ func invokeTestXray(payload json.RawMessage) string {
+ 	if err != nil {
+ 		return encodeInvokeNoDataResponse(err)
+ 	}
+-	err = xray.TestXray(request.ConfigPath)
++	err = xray.TestXray(request.XrayJson)
+ 	return encodeInvokeNoDataResponse(err)
+ }
+ 
+@@ -232,7 +238,7 @@ func invokeRunXray(payload json.RawMessage) string {
+ 	if err != nil {
+ 		return encodeInvokeNoDataResponse(err)
+ 	}
+-	err = xray.RunXray(request.ConfigPath)
++	err = xray.RunXray(request.XrayJson)
+ 	return encodeInvokeNoDataResponse(err)
+ }
+ 
+@@ -244,3 +250,32 @@ func invokeRunXrayFromJSON(payload json.RawMessage) string {
+ 	err = xray.RunXrayFromJSON(request.ConfigJSON)
+ 	return encodeInvokeNoDataResponse(err)
+ }
++
++func invokeProbeTLSCertificate(payload json.RawMessage) string {
++	request, err := decodePayload[ProbeTLSCertificateRequest](payload)
++	if err != nil {
++		return encodeInvokeResponse(&ProbeCertificateResponse{}, err)
++	}
++	sha, err := xray.ProbeTLSCertificate(request.Server, request.Port, request.ServerName, request.Fingerprint, request.ALPN, request.Timeout)
++	return encodeInvokeResponse(&ProbeCertificateResponse{SHA256: sha}, err)
++}
++
++func invokeProbeHysteria2Certificate(payload json.RawMessage) string {
++	request, err := decodePayload[ProbeHysteria2CertificateRequest](payload)
++	if err != nil {
++		return encodeInvokeResponse(&ProbeCertificateResponse{}, err)
++	}
++	sha, err := xray.ProbeHysteria2Certificate(request.Server, request.Port, request.ServerName, request.Timeout)
++	return encodeInvokeResponse(&ProbeCertificateResponse{SHA256: sha}, err)
++}
++
++func invokeGenerateAgeKeyPair(payload json.RawMessage) string {
++	request, err := decodePayload[struct {
++		KeyType string `json:"keyType,omitempty"`
++	}](payload)
++	if err != nil {
++		return encodeInvokeResponse(nil, err)
++	}
++	pair, err := share.GenerateAgeKeyPair(request.KeyType)
++	return encodeInvokeResponse(pair, err)
++}
+diff --git a/invoke_model.go b/invoke_model.go
+index a0cd316..5a4436b 100644
+--- a/invoke_model.go
++++ b/invoke_model.go
+@@ -1,7 +1,10 @@
+ // libXray is an Xray wrapper focusing on improving the experience of Xray-core mobile development.
+ package libXray
+ 
+-import "encoding/json"
++import (
++	"encoding/json"
++	"github.com/xtls/libxray/share"
++)
+ 
+ type LibXrayMethod string
+ 
+@@ -18,6 +21,9 @@ const (
+ 	LibXrayMethodStopXray                    LibXrayMethod = "stopXray"
+ 	LibXrayMethodXrayVersion                 LibXrayMethod = "xrayVersion"
+ 	LibXrayMethodGetXrayState                LibXrayMethod = "getXrayState"
++	LibXrayMethodProbeTLSCertificate         LibXrayMethod = "probeTLSCertificate"
++	LibXrayMethodProbeHysteria2Certificate   LibXrayMethod = "probeHysteria2Certificate"
++	LibXrayMethodGenerateAgeKeyPair          LibXrayMethod = "generateAgeKeyPair"
+ )
+ 
+ type LibXrayInvokeRequest struct {
+@@ -35,7 +41,8 @@ type GetFreePortsResponse struct {
+ }
+ 
+ type ConvertShareLinksToXrayJsonRequest struct {
+-	Text string `json:"text,omitempty"`
++	Text string                  `json:"text,omitempty"`
++	Age  *share.AgeDecryptConfig `json:"age,omitempty"`
+ }
+ 
+ type ConvertXrayJsonToShareLinksRequest struct {
+@@ -70,7 +77,8 @@ type PingBatchRequest struct {
+ }
+ 
+ type PingBatchItemRequest struct {
+-	ConfigPath  string `json:"configPath,omitempty"`
++	XrayJson    string `json:"xrayJson,omitempty"`
++	ConfigPath  string `json:"-"` // Retained for Go source compatibility only.
+ 	OutboundTag string `json:"outboundTag,omitempty"`
+ }
+ 
+@@ -85,7 +93,28 @@ type PingBatchItemResponse struct {
+ }
+ 
+ type RunXrayRequest struct {
+-	ConfigPath string `json:"configPath,omitempty"`
++	XrayJson   string `json:"xrayJson,omitempty"`
++	ConfigPath string `json:"-"` // Not accepted by the published v2 JNI.
++}
++
++type ProbeTLSCertificateRequest struct {
++	Server      string   `json:"server,omitempty"`
++	Port        int      `json:"port,omitempty"`
++	ServerName  string   `json:"serverName,omitempty"`
++	Fingerprint string   `json:"fingerprint,omitempty"`
++	ALPN        []string `json:"alpn,omitempty"`
++	Timeout     int      `json:"timeout,omitempty"`
++}
++
++type ProbeHysteria2CertificateRequest struct {
++	Server     string `json:"server,omitempty"`
++	Port       int    `json:"port,omitempty"`
++	ServerName string `json:"serverName,omitempty"`
++	Timeout    int    `json:"timeout,omitempty"`
++}
++
++type ProbeCertificateResponse struct {
++	SHA256 string `json:"sha256,omitempty"`
+ }
+ 
+ type RunXrayFromJSONRequest struct {
+diff --git a/candidate/published_v2_test.go b/published_v2_test.go
+new file mode 100644
+index 0000000..8ff5b5e
+--- /dev/null
++++ b/published_v2_test.go
+@@ -0,0 +1,52 @@
++package libXray
++
++import (
++	_ "embed"
++	"encoding/json"
++	"reflect"
++	"testing"
++)
++
++//go:embed testdata/published-v7-api-v2.json
++var publishedV2Oracle []byte
++
++// The oracle contains actual published ARMv7 JNI responses. Exclude network
++// reachability and random key creation; those are exercised separately.
++func TestPublishedV2Dispatcher(t *testing.T) {
++	var oracle struct {
++		Cases []struct {
++			ID       string `json:"id"`
++			Request  any    `json:"request"`
++			Response any    `json:"response"`
++		} `json:"cases"`
++	}
++	if err := json.Unmarshal(publishedV2Oracle, &oracle); err != nil {
++		t.Fatal(err)
++	}
++	selected := map[string]bool{"empty": true, "version0": true, "version1": true, "unknown": true,
++		"test_missing": true, "test_invalid": true, "test_valid": true, "run_valid": true,
++		"running": true, "run_again": true, "stop": true, "stopped": true,
++		"batch_empty": true, "batch_bad": true, "tls_missing": true, "hy2_missing": true,
++		"age_missing": true, "age_key_bad": true}
++	for _, c := range oracle.Cases {
++		if !selected[c.ID] {
++			continue
++		}
++		t.Run(c.ID, func(t *testing.T) {
++			var request string
++			if s, ok := c.Request.(string); ok {
++				request = s
++			} else {
++				b, _ := json.Marshal(c.Request)
++				request = string(b)
++			}
++			var actual any
++			if err := json.Unmarshal([]byte(Invoke(request)), &actual); err != nil {
++				t.Fatal(err)
++			}
++			if !reflect.DeepEqual(actual, c.Response) {
++				t.Errorf("published=%v, reconstructed=%v", c.Response, actual)
++			}
++		})
++	}
++}
+diff --git a/candidate/share/age.go b/share/age.go
+new file mode 100644
+index 0000000..7f84331
+--- /dev/null
++++ b/share/age.go
+@@ -0,0 +1,83 @@
++package share
++
++import (
++	"bufio"
++	"errors"
++	"io"
++	"strings"
++
++	"github.com/metacubex/age"
++	"github.com/metacubex/age/armor"
++	"github.com/xtls/xray-core/infra/conf"
++)
++
++// Reconstructed behavior from the published Android JNI, not recovered
++// original source. Plain links continue through the regular converter.
++type AgeDecryptConfig struct {
++	SecretKey string `json:"secretKey,omitempty"`
++}
++type AgeKeyPair struct {
++	SecretKey string `json:"secretKey"`
++	PublicKey string `json:"publicKey"`
++}
++
++func GenerateAgeKeyPair(keyType string) (*AgeKeyPair, error) {
++	switch strings.ToLower(strings.TrimSpace(keyType)) {
++	case "", "x25519":
++		key, err := age.GenerateX25519Identity()
++		if err != nil {
++			return nil, err
++		}
++		return &AgeKeyPair{key.String(), key.Recipient().String()}, nil
++	case "hybrid":
++		key, err := age.GenerateHybridIdentity()
++		if err != nil {
++			return nil, err
++		}
++		return &AgeKeyPair{key.String(), key.Recipient().String()}, nil
++	default:
++		return nil, errors.New("unsupported age key type")
++	}
++}
++
++func ConvertShareLinksToXrayJsonWithAge(input string, config *AgeDecryptConfig) (*conf.Config, error) {
++	input = strings.TrimSpace(strings.ReplaceAll(input, "\r\n", "\n"))
++	if !strings.HasPrefix(input, armor.Header) {
++		return ConvertShareLinksToXrayJson(input)
++	}
++	if config == nil || strings.TrimSpace(config.SecretKey) == "" {
++		return nil, errors.New("missing age secret key")
++	}
++	identity, err := parseNativeAgeIdentity(config.SecretKey)
++	if err != nil {
++		return nil, err
++	}
++	decrypted, err := age.Decrypt(armor.NewReader(bufio.NewReader(strings.NewReader(input))), identity)
++	if err != nil {
++		return nil, errors.New("age decryption failed: " + err.Error())
++	}
++	plain, err := io.ReadAll(io.LimitReader(decrypted, 16*1024*1024+1))
++	if err != nil {
++		return nil, errors.New("age decryption failed: " + err.Error())
++	}
++	if len(plain) > 16*1024*1024 {
++		return nil, errors.New("age plaintext too large")
++	}
++	return ConvertShareLinksToXrayJson(string(plain))
++}
++
++func parseNativeAgeIdentity(secret string) (age.Identity, error) {
++	secret = strings.TrimSpace(secret)
++	if strings.HasPrefix(secret, "AGE-SECRET-KEY-PQ-") {
++		identity, err := age.ParseHybridIdentity(secret)
++		if err == nil {
++			return identity, nil
++		}
++	} else if strings.HasPrefix(secret, "AGE-SECRET-KEY-") {
++		identity, err := age.ParseX25519Identity(secret)
++		if err == nil {
++			return identity, nil
++		}
++	}
++	return nil, errors.New("invalid or unsupported age secret key")
++}
+diff --git a/candidate/share/age_recovery_test.go b/share/age_recovery_test.go
+new file mode 100644
+index 0000000..9a2a02c
+--- /dev/null
++++ b/share/age_recovery_test.go
+@@ -0,0 +1,42 @@
++package share
++
++import (
++	"bytes"
++	"testing"
++
++	"github.com/metacubex/age"
++	"github.com/metacubex/age/armor"
++)
++
++func TestPublishedAgeDecryptionRoundTrip(t *testing.T) {
++	pair, err := GenerateAgeKeyPair("x25519")
++	if err != nil {
++		t.Fatal(err)
++	}
++	identity, err := age.ParseX25519Identity(pair.SecretKey)
++	if err != nil {
++		t.Fatal(err)
++	}
++	var ciphertext bytes.Buffer
++	armored := armor.NewWriter(&ciphertext)
++	writer, err := age.Encrypt(armored, identity.Recipient())
++	if err != nil {
++		t.Fatal(err)
++	}
++	if _, err = writer.Write([]byte("trojan://password@example.com:443")); err != nil {
++		t.Fatal(err)
++	}
++	if err = writer.Close(); err != nil {
++		t.Fatal(err)
++	}
++	if err = armored.Close(); err != nil {
++		t.Fatal(err)
++	}
++	config, err := ConvertShareLinksToXrayJsonWithAge(ciphertext.String(), &AgeDecryptConfig{SecretKey: pair.SecretKey})
++	if err != nil {
++		t.Fatal(err)
++	}
++	if len(config.OutboundConfigs) != 1 || config.OutboundConfigs[0].Protocol != "trojan" {
++		t.Fatalf("decrypted outbound: %+v", config.OutboundConfigs)
++	}
++}
+diff --git a/candidate/testdata/published-v7-api-v2.json b/testdata/published-v7-api-v2.json
+new file mode 100644
+index 0000000..b54eb22
+--- /dev/null
++++ b/testdata/published-v7-api-v2.json
+@@ -0,0 +1,327 @@
++{
++  "schema": 1,
++  "evidence": {
++    "kind": "published-native-execution",
++    "abi": "armeabi-v7a",
++    "jni_sha256": "6f01f219fe4087790cd8e647394de9dbefc61e0d750d927924b93f120b06fb7e",
++    "route": "gomobile proxylibXray__Invoke -> libxray.Invoke",
++    "runtime": "QEMU user-mode ARM + Android API24 Bionic",
++    "limits": "No ART, Java normalizer, certificate network probe or playback in this capture"
++  },
++  "cases": [
++    {
++      "id": "empty",
++      "request": "",
++      "response": {
++        "success": false,
++        "data": null,
++        "error": "unexpected end of JSON input"
++      },
++      "raw_response": "{\"success\":false,\"data\":null,\"error\":\"unexpected end of JSON input\"}"
++    },
++    {
++      "id": "version0",
++      "request": {
++        "method": "testXray",
++        "payload": {}
++      },
++      "response": {
++        "success": false,
++        "data": null,
++        "error": "unsupported apiVersion"
++      },
++      "raw_response": "{\"success\":false,\"data\":null,\"error\":\"unsupported apiVersion\"}"
++    },
++    {
++      "id": "version1",
++      "request": {
++        "apiVersion": 1,
++        "method": "testXray",
++        "payload": {}
++      },
++      "response": {
++        "success": false,
++        "data": null,
++        "error": "unsupported apiVersion"
++      },
++      "raw_response": "{\"success\":false,\"data\":null,\"error\":\"unsupported apiVersion\"}"
++    },
++    {
++      "id": "unknown",
++      "request": {
++        "apiVersion": 2,
++        "method": "bogus"
++      },
++      "response": {
++        "success": false,
++        "data": null,
++        "error": "unknown method"
++      },
++      "raw_response": "{\"success\":false,\"data\":null,\"error\":\"unknown method\"}"
++    },
++    {
++      "id": "test_missing",
++      "request": {
++        "apiVersion": 2,
++        "method": "testXray",
++        "payload": {}
++      },
++      "response": {
++        "success": false,
++        "data": null,
++        "error": "infra/conf/serial: failed to read config file > EOF"
++      },
++      "raw_response": "{\"success\":false,\"data\":null,\"error\":\"infra/conf/serial: failed to read config file \\u003e EOF\"}"
++    },
++    {
++      "id": "test_invalid",
++      "request": {
++        "apiVersion": 2,
++        "method": "testXray",
++        "payload": {
++          "xrayJson": "invalid"
++        }
++      },
++      "response": {
++        "success": false,
++        "data": null,
++        "error": "infra/conf/serial: failed to read config file at line 1 char 1 > invalid character 'i' looking for beginning of value"
++      },
++      "raw_response": "{\"success\":false,\"data\":null,\"error\":\"infra/conf/serial: failed to read config file at line 1 char 1 \\u003e invalid character 'i' looking for beginning of value\"}"
++    },
++    {
++      "id": "test_valid",
++      "request": {
++        "apiVersion": 2,
++        "method": "testXray",
++        "payload": {
++          "xrayJson": "{\"outbounds\":[{\"protocol\":\"freedom\",\"tag\":\"direct\"}]}"
++        }
++      },
++      "response": {
++        "success": true,
++        "data": {},
++        "error": ""
++      },
++      "raw_response": "{\"success\":true,\"data\":{},\"error\":\"\"}"
++    },
++    {
++      "id": "run_valid",
++      "request": {
++        "apiVersion": 2,
++        "method": "runXray",
++        "payload": {
++          "xrayJson": "{\"outbounds\":[{\"protocol\":\"freedom\",\"tag\":\"direct\"}]}"
++        }
++      },
++      "response": {
++        "success": true,
++        "data": {},
++        "error": ""
++      },
++      "raw_response": "{\"success\":true,\"data\":{},\"error\":\"\"}"
++    },
++    {
++      "id": "running",
++      "request": {
++        "apiVersion": 2,
++        "method": "getXrayState"
++      },
++      "response": {
++        "success": true,
++        "data": {
++          "running": true
++        },
++        "error": ""
++      },
++      "raw_response": "{\"success\":true,\"data\":{\"running\":true},\"error\":\"\"}"
++    },
++    {
++      "id": "run_again",
++      "request": {
++        "apiVersion": 2,
++        "method": "runXray",
++        "payload": {
++          "xrayJson": "{}"
++        }
++      },
++      "response": {
++        "success": false,
++        "data": null,
++        "error": "xray is already running"
++      },
++      "raw_response": "{\"success\":false,\"data\":null,\"error\":\"xray is already running\"}"
++    },
++    {
++      "id": "stop",
++      "request": {
++        "apiVersion": 2,
++        "method": "stopXray"
++      },
++      "response": {
++        "success": true,
++        "data": {},
++        "error": ""
++      },
++      "raw_response": "{\"success\":true,\"data\":{},\"error\":\"\"}"
++    },
++    {
++      "id": "stopped",
++      "request": {
++        "apiVersion": 2,
++        "method": "getXrayState"
++      },
++      "response": {
++        "success": true,
++        "data": {
++          "running": false
++        },
++        "error": ""
++      },
++      "raw_response": "{\"success\":true,\"data\":{\"running\":false},\"error\":\"\"}"
++    },
++    {
++      "id": "batch_empty",
++      "request": {
++        "apiVersion": 2,
++        "method": "pingBatch",
++        "payload": {}
++      },
++      "response": {
++        "success": false,
++        "data": null,
++        "error": "ping batch configs are empty"
++      },
++      "raw_response": "{\"success\":false,\"data\":null,\"error\":\"ping batch configs are empty\"}"
++    },
++    {
++      "id": "batch_bad",
++      "request": {
++        "apiVersion": 2,
++        "method": "pingBatch",
++        "payload": {
++          "configs": [
++            {
++              "xrayJson": "bad",
++              "outboundTag": "proxy"
++            }
++          ],
++          "timeout": 1000,
++          "url": "http://127.0.0.1/"
++        }
++      },
++      "response": {
++        "success": true,
++        "data": {
++          "results": [
++            {
++              "success": false,
++              "delay": 10000,
++              "error": "invalid character 'b' looking for beginning of value"
++            }
++          ]
++        },
++        "error": ""
++      },
++      "raw_response": "{\"success\":true,\"data\":{\"results\":[{\"success\":false,\"delay\":10000,\"error\":\"invalid character 'b' looking for beginning of value\"}]},\"error\":\"\"}"
++    },
++    {
++      "id": "tls_missing",
++      "request": {
++        "apiVersion": 2,
++        "method": "probeTLSCertificate",
++        "payload": {}
++      },
++      "response": {
++        "success": false,
++        "data": {},
++        "error": "missing TLS server"
++      },
++      "raw_response": "{\"success\":false,\"data\":{},\"error\":\"missing TLS server\"}"
++    },
++    {
++      "id": "tls_closed",
++      "request": {
++        "apiVersion": 2,
++        "method": "probeTLSCertificate",
++        "payload": {
++          "server": "127.0.0.1",
++          "port": 1,
++          "serverName": "localhost",
++          "timeout": 1000
++        }
++      },
++      "response": {
++        "success": false,
++        "data": {},
++        "error": "dial tcp 127.0.0.1:1: connect: connection refused"
++      },
++      "raw_response": "{\"success\":false,\"data\":{},\"error\":\"dial tcp 127.0.0.1:1: connect: connection refused\"}"
++    },
++    {
++      "id": "hy2_missing",
++      "request": {
++        "apiVersion": 2,
++        "method": "probeHysteria2Certificate",
++        "payload": {}
++      },
++      "response": {
++        "success": false,
++        "data": {},
++        "error": "missing Hysteria2 server"
++      },
++      "raw_response": "{\"success\":false,\"data\":{},\"error\":\"missing Hysteria2 server\"}"
++    },
++    {
++      "id": "hy2_closed",
++      "request": {
++        "apiVersion": 2,
++        "method": "probeHysteria2Certificate",
++        "payload": {
++          "server": "127.0.0.1",
++          "port": 1,
++          "serverName": "localhost",
++          "timeout": 1000
++        }
++      },
++      "response": {
++        "success": false,
++        "data": {},
++        "error": "context deadline exceeded"
++      },
++      "raw_response": "{\"success\":false,\"data\":{},\"error\":\"context deadline exceeded\"}"
++    },
++    {
++      "id": "age_missing",
++      "request": {
++        "apiVersion": 2,
++        "method": "convertShareLinksToXrayJson",
++        "payload": {
++          "text": "age-encryption.org/v1"
++        }
++      },
++      "response": {
++        "success": false,
++        "data": null,
++        "error": "unsupported share format"
++      },
++      "raw_response": "{\"success\":false,\"data\":null,\"error\":\"unsupported share format\"}"
++    },
++    {
++      "id": "age_key_bad",
++      "request": {
++        "apiVersion": 2,
++        "method": "generateAgeKeyPair",
++        "payload": {
++          "keyType": "bogus"
++        }
++      },
++      "response": {
++        "success": false,
++        "data": null,
++        "error": "unsupported age key type"
++      },
++      "raw_response": "{\"success\":false,\"data\":null,\"error\":\"unsupported age key type\"}"
++    }
++  ]
++}
+diff --git a/candidate/xray/cert_probe.go b/xray/cert_probe.go
+new file mode 100644
+index 0000000..bcbb00e
+--- /dev/null
++++ b/xray/cert_probe.go
+@@ -0,0 +1,66 @@
++package xray
++
++import (
++	"context"
++	"crypto/sha256"
++	"crypto/tls"
++	"encoding/hex"
++	"errors"
++	"fmt"
++	"net"
++	"strings"
++	"time"
++	coreTLS "github.com/xtls/xray-core/transport/internet/tls"
++)
++
++// ProbeTLSCertificate obtains the leaf certificate from a synthetic or real
++// endpoint without requiring it to be trusted. The pin is lowercase SHA-256
++// of the certificate DER, as returned by the published JNI.
++func ProbeTLSCertificate(server string, port int, serverName, fingerprint string, alpn []string, timeout int) (string, error) {
++	server, serverName = strings.TrimSpace(server), strings.TrimSpace(serverName)
++	if server == "" {
++		return "", errors.New("missing TLS server")
++	}
++	if port <= 0 || port > 65535 {
++		return "", errors.New("invalid TLS port")
++	}
++	fingerprint = strings.ToLower(strings.TrimSpace(fingerprint))
++	hello := coreTLS.GetFingerprint(fingerprint)
++	if hello == nil {
++		return "", errors.New("unknown TLS fingerprint")
++	}
++	if serverName == "" {
++		serverName = server
++	}
++	if timeout <= 0 {
++		timeout = 5000
++	}
++	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(timeout)*time.Millisecond)
++	defer cancel()
++	conn, err := (&net.Dialer{}).DialContext(ctx, "tcp", net.JoinHostPort(server, fmt.Sprint(port)))
++	if err != nil {
++		return "", err
++	}
++	defer conn.Close()
++	_ = conn.SetDeadline(time.Now().Add(time.Duration(timeout) * time.Millisecond))
++	tlsConn := coreTLS.UClient(conn, &tls.Config{ServerName: serverName, NextProtos: cleanProbeALPN(alpn), InsecureSkipVerify: true}, hello).(*coreTLS.UConn)
++	if err := tlsConn.HandshakeContext(ctx); err != nil {
++		return "", err
++	}
++	certificates := tlsConn.ConnectionState().PeerCertificates
++	if len(certificates) == 0 {
++		return "", errors.New("TLS peer has no certificate")
++	}
++	sum := sha256.Sum256(certificates[0].Raw)
++	return hex.EncodeToString(sum[:]), nil
++}
++
++func cleanProbeALPN(alpn []string) []string {
++	clean := make([]string, 0, len(alpn))
++	for _, entry := range alpn {
++		if entry = strings.TrimSpace(entry); entry != "" {
++			clean = append(clean, entry)
++		}
++	}
++	return clean
++}
+diff --git a/candidate/xray/cert_probe_test.go b/xray/cert_probe_test.go
+new file mode 100644
+index 0000000..67b0a03
+--- /dev/null
++++ b/xray/cert_probe_test.go
+@@ -0,0 +1,29 @@
++package xray
++
++import (
++	"crypto/sha256"
++	"encoding/hex"
++	"net"
++	"net/http"
++	"net/http/httptest"
++	"strconv"
++	"testing"
++)
++
++func TestPublishedTLSProbeLocal(t *testing.T) {
++	server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {}))
++	defer server.Close()
++	host, rawPort, err := net.SplitHostPort(server.Listener.Addr().String())
++	if err != nil {
++		t.Fatal(err)
++	}
++	port, _ := strconv.Atoi(rawPort)
++	got, err := ProbeTLSCertificate(host, port, "localhost", "", nil, 2000)
++	if err != nil {
++		t.Fatal(err)
++	}
++	sum := sha256.Sum256(server.TLS.Certificates[0].Certificate[0])
++	if got != hex.EncodeToString(sum[:]) {
++		t.Fatalf("pin=%s want=%x", got, sum)
++	}
++}
+diff --git a/candidate/xray/hy2_cert_probe.go b/xray/hy2_cert_probe.go
+new file mode 100644
+index 0000000..78c8e84
+--- /dev/null
++++ b/xray/hy2_cert_probe.go
+@@ -0,0 +1,47 @@
++package xray
++
++import (
++	"context"
++	"crypto/sha256"
++	"crypto/tls"
++	"encoding/hex"
++	"errors"
++	"fmt"
++	"net"
++	"strings"
++	"time"
++
++	quic "github.com/apernet/quic-go"
++)
++
++// ProbeHysteria2Certificate uses a QUIC handshake to inspect the leaf DER pin.
++func ProbeHysteria2Certificate(server string, port int, serverName string, timeout int) (string, error) {
++	server, serverName = strings.TrimSpace(server), strings.TrimSpace(serverName)
++	if server == "" {
++		return "", errors.New("missing Hysteria2 server")
++	}
++	if port <= 0 || port > 65535 {
++		return "", errors.New("invalid Hysteria2 port")
++	}
++	if serverName == "" {
++		serverName = server
++	}
++	if timeout <= 0 {
++		timeout = 5000
++	}
++	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(timeout)*time.Millisecond)
++	defer cancel()
++	conn, err := quic.DialAddr(ctx, net.JoinHostPort(server, fmt.Sprint(port)),
++		&tls.Config{ServerName: serverName, NextProtos: []string{"h3"}, InsecureSkipVerify: true},
++		&quic.Config{EnableDatagrams: true})
++	if err != nil {
++		return "", err
++	}
++	defer conn.CloseWithError(0, "")
++	certificates := conn.ConnectionState().TLS.PeerCertificates
++	if len(certificates) == 0 {
++		return "", errors.New("Hysteria2 peer has no certificate")
++	}
++	sum := sha256.Sum256(certificates[0].Raw)
++	return hex.EncodeToString(sum[:]), nil
++}
+diff --git a/xray/ping_batch.go b/xray/ping_batch.go
+index 947498d..cc467c1 100644
+--- a/xray/ping_batch.go
++++ b/xray/ping_batch.go
+@@ -10,6 +10,7 @@ import (
+ 	"net/http"
+ 	"net/url"
+ 	"os"
++	"strings"
+ 	"sync"
+ 	"time"
+ 
+@@ -26,7 +27,8 @@ const (
+ )
+ 
+ type PingBatchItem struct {
+-	ConfigPath  string
++	XrayJson    string
++	ConfigPath  string // Go-only compatibility for upstream path-based callers.
+ 	OutboundTag string
+ }
+ 
+@@ -59,7 +61,16 @@ func PingBatch(
+ 	mergedOutbounds := make([]conf.OutboundDetourConfig, 0, len(items))
+ 
+ 	for index, item := range items {
+-		outbounds, err := readPingOutbounds(item.ConfigPath)
++		inline := item.XrayJson
++		if inline == "" && item.ConfigPath != "" {
++			legacy, readErr := os.ReadFile(item.ConfigPath)
++			if readErr != nil {
++				results[index] = failedPingBatchResult(nodep.PingDelayError, readErr)
++				continue
++			}
++			inline = string(legacy)
++		}
++		outbounds, err := readPingOutbounds(inline)
+ 		if err != nil {
+ 			results[index] = failedPingBatchResult(nodep.PingDelayError, err)
+ 			continue
+@@ -155,19 +166,13 @@ func validatePingBatchRequest(
+ 	return nil
+ }
+ 
+-func readPingOutbounds(path string) ([]conf.OutboundDetourConfig, error) {
+-	if path == "" {
+-		return nil, errors.New("ping config path is empty")
+-	}
+-
+-	file, err := os.Open(path)
+-	if err != nil {
+-		return nil, err
++func readPingOutbounds(xrayJson string) ([]conf.OutboundDetourConfig, error) {
++	if xrayJson == "" {
++		return nil, errors.New("ping config JSON is empty")
+ 	}
+-	defer file.Close()
+ 
+ 	var config pingOutboundConfig
+-	decoder := json.NewDecoder(&confJSON.Reader{Reader: file})
++	decoder := json.NewDecoder(&confJSON.Reader{Reader: strings.NewReader(xrayJson)})
+ 	if err := decoder.Decode(&config); err != nil {
+ 		return nil, err
+ 	}
+diff --git a/xray/validation.go b/xray/validation.go
+index f7e2c1e..c47d727 100644
+--- a/xray/validation.go
++++ b/xray/validation.go
+@@ -2,8 +2,8 @@ package xray
+ 
+ // Test Xray Config.
+ // configPath means the config.json file path.
+-func TestXray(configPath string) error {
+-	server, err := StartXray(configPath)
++func TestXray(xrayJson string) error {
++	server, err := newXrayInstance(xrayJson)
+ 	if err != nil {
+ 		return err
+ 	}
+diff --git a/xray/xray.go b/xray/xray.go
+index a684bff..91be711 100644
+--- a/xray/xray.go
++++ b/xray/xray.go
+@@ -1,6 +1,7 @@
+ package xray
+ 
+ import (
++	"bytes"
+ 	"errors"
+ 	"runtime/debug"
+ 	"sync"
+@@ -18,9 +19,10 @@ var (
+ 
+ var ErrAlreadyRunning = errors.New("xray is already running")
+ 
+-func StartXray(configPath string) (*core.Instance, error) {
+-	file := cmdarg.Arg{configPath}
+-	config, err := core.LoadConfig("json", file)
++// newXrayInstance constructs the core without starting it. The published JNI
++// accepts an inline xrayJson payload for both validation and playback startup.
++func newXrayInstance(xrayJson string) (*core.Instance, error) {
++	config, err := core.LoadConfig("json", bytes.NewReader([]byte(xrayJson)))
+ 	if err != nil {
+ 		return nil, err
+ 	}
+@@ -33,6 +35,15 @@ func StartXray(configPath string) (*core.Instance, error) {
+ 	return server, nil
+ }
+ 
++// StartXray retains the path-based helper used by the legacy single ping API.
++func StartXray(configPath string) (*core.Instance, error) {
++	config, err := core.LoadConfig("json", cmdarg.Arg{configPath})
++	if err != nil {
++		return nil, err
++	}
++	return core.New(config)
++}
++
+ func StartXrayFromJSON(configJSON string) (*core.Instance, error) {
+ 	// Convert JSON string to bytes
+ 	configBytes := []byte(configJSON)
+@@ -48,7 +59,7 @@ func StartXrayFromJSON(configJSON string) (*core.Instance, error) {
+ 
+ // Run Xray instance.
+ // configPath means the config.json file path.
+-func RunXray(configPath string) (err error) {
++func RunXray(xrayJson string) (err error) {
+ 	coreServerMu.Lock()
+ 	defer coreServerMu.Unlock()
+ 	if coreServer != nil {
+@@ -56,7 +67,7 @@ func RunXray(configPath string) (err error) {
+ 	}
+ 
+ 	memory.InitForceFree()
+-	server, err := StartXray(configPath)
++	server, err := newXrayInstance(xrayJson)
+ 	if err != nil {
+ 		return
+ 	}

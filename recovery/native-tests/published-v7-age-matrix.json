@@ -1,0 +1,944 @@
+{
+  "schema": 1,
+  "evidence": {
+    "kind": "published-native-execution",
+    "abi": "armeabi-v7a",
+    "jni_sha256": "6f01f219fe4087790cd8e647394de9dbefc61e0d750d927924b93f120b06fb7e",
+    "route": "gomobile proxylibXray__Invoke -> libxray.Invoke",
+    "runtime": "QEMU user-mode ARM + Android API24 Bionic",
+    "limits": "No ART, Java normalizer, certificate network probe or playback in this capture"
+  },
+  "cases": [
+    {
+      "id": "age_x25519_success",
+      "request": {
+        "apiVersion": 2,
+        "method": "convertShareLinksToXrayJson",
+        "payload": {
+          "age": {
+            "secretKey": "AGE-SECRET-KEY-16EV0D4VMFMDAME0QL8X0DR36S05D5LG5AAKZ4UQNXHW5NZP3Q0EQKZXEH6"
+          },
+          "text": "-----BEGIN AGE ENCRYPTED FILE-----\nYWdlLWVuY3J5cHRpb24ub3JnL3YxCi0+IFgyNTUxOSBJTTNnNk5EUzFOSXJFWkNB\nNXUwRlpkMmluaTYraVhIZHdXR3YveE1UaFMwCjRqcGxDMThhRWEvMnN3M0hHM2tn\nNTkzRHhUdFVsYkIwTEljTCt3TTMyK00KLS0tIGM2aElQNXR0U2Y0TFFlYXVDMWU1\nNHlGMTEzNlVFREZ4YTVuM2ZKZUVnV00K6aFH/Q+08y1gW0Byv4xKWAZ7tQXsKbxW\ntRNxoD/r8SP1H+Vg/swv4ve8VdafRZsLaml8sM3DtOKpgDrEd7/89j5MLD2qG/7n\nsfNaHrIbQt4=\n-----END AGE ENCRYPTED FILE-----\n"
+        }
+      },
+      "response": {
+        "success": true,
+        "data": {
+          "api": null,
+          "burstObservatory": null,
+          "dns": null,
+          "env": null,
+          "fakeDns": null,
+          "geodata": null,
+          "inbounds": null,
+          "log": null,
+          "metrics": null,
+          "observatory": null,
+          "outbounds": [
+            {
+              "mux": null,
+              "protocol": "trojan",
+              "proxySettings": null,
+              "sendThrough": "synthetic",
+              "settings": {
+                "address": "example.invalid",
+                "email": "",
+                "flow": "",
+                "level": 0,
+                "password": "synthetic",
+                "port": 443,
+                "servers": null
+              },
+              "streamSettings": {
+                "address": null,
+                "finalmask": null,
+                "grpcSettings": null,
+                "httpupgradeSettings": null,
+                "hysteriaSettings": null,
+                "kcpSettings": null,
+                "method": null,
+                "network": "raw",
+                "port": 0,
+                "rawSettings": null,
+                "realitySettings": null,
+                "security": "tls",
+                "sockopt": null,
+                "splithttpSettings": null,
+                "tcpSettings": null,
+                "tlsSettings": {
+                  "allowInsecure": false,
+                  "alpn": null,
+                  "certificates": null,
+                  "cipherSuites": "",
+                  "curvePreferences": null,
+                  "disableSystemRoot": false,
+                  "echConfigList": "",
+                  "echServerKeys": "",
+                  "echSockopt": null,
+                  "enableSessionResumption": false,
+                  "fingerprint": "",
+                  "masterKeyLog": "",
+                  "maxVersion": "",
+                  "minVersion": "",
+                  "pinnedPeerCertSha256": "",
+                  "rejectUnknownSni": false,
+                  "serverName": "",
+                  "verifyPeerCertByName": ""
+                },
+                "wsSettings": null,
+                "xhttpSettings": null
+              },
+              "tag": "",
+              "targetStrategy": ""
+            }
+          ],
+          "policy": null,
+          "reverse": null,
+          "routing": null,
+          "stats": null,
+          "transport": null,
+          "version": null
+        },
+        "error": ""
+      },
+      "raw_response": "{\"success\":true,\"data\":{\"api\":null,\"burstObservatory\":null,\"dns\":null,\"env\":null,\"fakeDns\":null,\"geodata\":null,\"inbounds\":null,\"log\":null,\"metrics\":null,\"observatory\":null,\"outbounds\":[{\"mux\":null,\"protocol\":\"trojan\",\"proxySettings\":null,\"sendThrough\":\"synthetic\",\"settings\":{\"address\":\"example.invalid\",\"email\":\"\",\"flow\":\"\",\"level\":0,\"password\":\"synthetic\",\"port\":443,\"servers\":null},\"streamSettings\":{\"address\":null,\"finalmask\":null,\"grpcSettings\":null,\"httpupgradeSettings\":null,\"hysteriaSettings\":null,\"kcpSettings\":null,\"method\":null,\"network\":\"raw\",\"port\":0,\"rawSettings\":null,\"realitySettings\":null,\"security\":\"tls\",\"sockopt\":null,\"splithttpSettings\":null,\"tcpSettings\":null,\"tlsSettings\":{\"allowInsecure\":false,\"alpn\":null,\"certificates\":null,\"cipherSuites\":\"\",\"curvePreferences\":null,\"disableSystemRoot\":false,\"echConfigList\":\"\",\"echServerKeys\":\"\",\"echSockopt\":null,\"enableSessionResumption\":false,\"fingerprint\":\"\",\"masterKeyLog\":\"\",\"maxVersion\":\"\",\"minVersion\":\"\",\"pinnedPeerCertSha256\":\"\",\"rejectUnknownSni\":false,\"serverName\":\"\",\"verifyPeerCertByName\":\"\"},\"wsSettings\":null,\"xhttpSettings\":null},\"tag\":\"\",\"targetStrategy\":\"\"}],\"policy\":null,\"reverse\":null,\"routing\":null,\"stats\":null,\"transport\":null,\"version\":null},\"error\":\"\"}"
+    },
+    {
+      "id": "age_hybrid_success",
+      "request": {
+        "apiVersion": 2,
+        "method": "convertShareLinksToXrayJson",
+        "payload": {
+          "age": {
+            "secretKey": "AGE-SECRET-KEY-PQ-1DPFZDWJX704H7MR9MCMRK8R4VY0SLZQAJJCJ0C4EG3AJX70MR7XS58Y9GN"
+          },
+          "text": "-----BEGIN AGE ENCRYPTED FILE-----\nYWdlLWVuY3J5cHRpb24ub3JnL3YxCi0+IG1sa2VtNzY4eDI1NTE5IEtCTkc1SmpP\nYTdVS3pTSjdqSG1DeUsyYjVVUU5DRDE1aHVhMXZOWDY1aEFSUUVIcDQ4SmI3WlhD\nc2l4eWw4NEkxZVd5cEwzQzBZTTJJSkZDRWo4R0pPeTJBVmZZdHBrb2ZNbGE0UVdk\nQXA2a3ZtWUJEN09zakNpOEc4TEdMNzlxYjVkc1UxQzFsQ1Zla2JUc3FiZ3Zqcmdz\nMUhBdXFGMysxejgvMVpNdExwU3lVWmhlZ0pIaFNvMW1Fb0FpbWJBK3EvY0RHRSsv\neFBIZzVsUVp3Q0EvN2t1VnY4a09UM2JBUVNYQ2pJeS9ib29iVVpCcDlBMWdzQXRD\ndzdlUStPQ1RFcjA2Y1BqaERDT0lMZzFQVFMzV1EwVFZMQmt4M2hRNC8wS3lsQTZW\nOTVWMFU3MFRjZTlWamxvbW9yOUtVWnQxQTVlRjJqLzZnSXZxOU1hSURyeFRLd0Ns\nSGhKZ0hPRHlpOWNtQTFWWit3eUhYUmR6bEw4dDVOTmNZTHRIbnNxN1dqMkZWYngw\nL3hPRTRvWWhNNERzeDBEQXRmSzhuRGxGR0Jxa0hubVpvTzJnT3VkVk1lVXlQTUhJ\ndlBOblRDK0F1VWN3cUxTL0hhSnRCRmhDenZiMEQ4VHAwZU15bUYyZTc1dFRSN0tR\ncDVUM0pRZ2k0bjhPTUM5TXZvbC81ZFNTUWcvTDRyNlRwcklZS1dRVUJKTkdqMndn\nMDFGZEZYbDNkL0tNKys1aS9ReGVmaHhTeDVWRTM0eGFQdDhNWFIvV1NUR05PV3FG\nUmF0NkJEMU8rMHdNc2c4bmdWVkpkSHpRN2k1TEVHUnl5NU9oQ1pIU1hvTzVUTjJF\na2RJWWdDN3NOdDRmSzM0UzE1alVWWGxXRnNIbEhEMk1qSmpUak9GU0VlWTFISUQ1\nakl5MmR6NVJaZ3lIVmVpbWYrOUVoTzI4VjJDOWtqNTRxQXhSMWtRUDNlbWVJc3FK\nZXZpSVh4eGJCU2pZRHRVanF5WlJwZm01MCt4ZGZjbk9yaS9UdVlYcDdxTDIwOHZV\nOHV4QUh0eWlSd3hBYjdWck9NU0Y4WGo4N3ljWmZZWjRobkZ2STduWWlHRFNXU1JO\nTm12VHJUQnMvWWpadmR2Ym56K20yQVlRTGtvMVhEMm9DcEdSdFYxYklwM2pCbFV6\neStDTEZhb2RHSzBRZ3paNEFvaDJlWnI4Q2F1ck84aE96c2pjQkx1QjFMWU5BOGN0\nOVh3U0NKbWdmblp1cERyckRlT2JmcWlDQW14VjVUVkEyZnJQcFIyM213OTZyZUUv\nLzcrQlJ1ZGZMVGowTXZ2eHQ1ZEl1NjZUTXBxZk54dXBjc3d1ZUhORjRFblNOYTB5\nL3kycFYvQmsyaHRhbzErUmI4NU9Oa3gyZk5Lb0hvc1g5NE9MWTFNTUlBS2JrZHZr\naXphd21IcTlYNlZmSVZUZmk5S0IwVWdPQUdCOE8wa2lmVmduNk9lUkhiN0poR1FO\neHczeUtNQUR2MkR6Z1laQ1grSmpnaWN1MUtpWHl0SWtSNzhWbFBNdTU4WThQSmph\nT09rZmFkSUFwYkhPVmU3STVPNzZzamQ0THgzd2JESmZnejNIVFdkVjlQcUo4dFhq\na1g5NjhSQXQ0eFRFbzNVMWJCWkxLZ0xvQlU3ckhDbkFnUDNNcVBMZGRXL29CbmZx\nZERZdXJIWWlPNTdlaDdHZUpFNll2dU43OUViUHFSM0dDb2hrS2l6SVNRQXdzSEVD\ncG5SOERBSFlzVlhnWDNvOUhtMDFpQktoNit5Szc5OVZlM0JFVzk3WlBjOXYxV1lS\ndFpSeEk1ODh2TUU3ZXZReDhIZUNGN3dMOHVIMnVNN0R2M2lNTmtLN24zYTBtUWNz\nZWFMd0wxamNNRXVUakVZTTNwQktwaldzYTZ4WmhMbk9DMXdIcTFRcVhvQkMwM1Nm\nKzhDdXlUeEYxSjVBb0IrYTd3VThFTFlwZjNGUFhZUTRQbDB1aWtLYWwrOW9BUQpJ\nRi9MMXRxdmZLUzJ6bXZmY2hFTTRUTGErakNmTDcxTk55R2d5cXh1T0JNCi0tLSB1\naTNyenNDcWlERERxNVFVNE1GQ1dnR21ESEt0eHRZRXBvYnVMU1lRa3VvClRQ/EoR\nZ2J4/Apd2j5Q2ykBb5TI3YxgUsQT0GEuHGLNfUBxLNByvSn8TjbxYUOjmQHPfFDS\nGbq816v81F8f+IPP7pt8LiUmFhCvj4BBwriR\n-----END AGE ENCRYPTED FILE-----\n"
+        }
+      },
+      "response": {
+        "success": true,
+        "data": {
+          "api": null,
+          "burstObservatory": null,
+          "dns": null,
+          "env": null,
+          "fakeDns": null,
+          "geodata": null,
+          "inbounds": null,
+          "log": null,
+          "metrics": null,
+          "observatory": null,
+          "outbounds": [
+            {
+              "mux": null,
+              "protocol": "trojan",
+              "proxySettings": null,
+              "sendThrough": "synthetic",
+              "settings": {
+                "address": "example.invalid",
+                "email": "",
+                "flow": "",
+                "level": 0,
+                "password": "synthetic",
+                "port": 443,
+                "servers": null
+              },
+              "streamSettings": {
+                "address": null,
+                "finalmask": null,
+                "grpcSettings": null,
+                "httpupgradeSettings": null,
+                "hysteriaSettings": null,
+                "kcpSettings": null,
+                "method": null,
+                "network": "raw",
+                "port": 0,
+                "rawSettings": null,
+                "realitySettings": null,
+                "security": "tls",
+                "sockopt": null,
+                "splithttpSettings": null,
+                "tcpSettings": null,
+                "tlsSettings": {
+                  "allowInsecure": false,
+                  "alpn": null,
+                  "certificates": null,
+                  "cipherSuites": "",
+                  "curvePreferences": null,
+                  "disableSystemRoot": false,
+                  "echConfigList": "",
+                  "echServerKeys": "",
+                  "echSockopt": null,
+                  "enableSessionResumption": false,
+                  "fingerprint": "",
+                  "masterKeyLog": "",
+                  "maxVersion": "",
+                  "minVersion": "",
+                  "pinnedPeerCertSha256": "",
+                  "rejectUnknownSni": false,
+                  "serverName": "",
+                  "verifyPeerCertByName": ""
+                },
+                "wsSettings": null,
+                "xhttpSettings": null
+              },
+              "tag": "",
+              "targetStrategy": ""
+            }
+          ],
+          "policy": null,
+          "reverse": null,
+          "routing": null,
+          "stats": null,
+          "transport": null,
+          "version": null
+        },
+        "error": ""
+      },
+      "raw_response": "{\"success\":true,\"data\":{\"api\":null,\"burstObservatory\":null,\"dns\":null,\"env\":null,\"fakeDns\":null,\"geodata\":null,\"inbounds\":null,\"log\":null,\"metrics\":null,\"observatory\":null,\"outbounds\":[{\"mux\":null,\"protocol\":\"trojan\",\"proxySettings\":null,\"sendThrough\":\"synthetic\",\"settings\":{\"address\":\"example.invalid\",\"email\":\"\",\"flow\":\"\",\"level\":0,\"password\":\"synthetic\",\"port\":443,\"servers\":null},\"streamSettings\":{\"address\":null,\"finalmask\":null,\"grpcSettings\":null,\"httpupgradeSettings\":null,\"hysteriaSettings\":null,\"kcpSettings\":null,\"method\":null,\"network\":\"raw\",\"port\":0,\"rawSettings\":null,\"realitySettings\":null,\"security\":\"tls\",\"sockopt\":null,\"splithttpSettings\":null,\"tcpSettings\":null,\"tlsSettings\":{\"allowInsecure\":false,\"alpn\":null,\"certificates\":null,\"cipherSuites\":\"\",\"curvePreferences\":null,\"disableSystemRoot\":false,\"echConfigList\":\"\",\"echServerKeys\":\"\",\"echSockopt\":null,\"enableSessionResumption\":false,\"fingerprint\":\"\",\"masterKeyLog\":\"\",\"maxVersion\":\"\",\"minVersion\":\"\",\"pinnedPeerCertSha256\":\"\",\"rejectUnknownSni\":false,\"serverName\":\"\",\"verifyPeerCertByName\":\"\"},\"wsSettings\":null,\"xhttpSettings\":null},\"tag\":\"\",\"targetStrategy\":\"\"}],\"policy\":null,\"reverse\":null,\"routing\":null,\"stats\":null,\"transport\":null,\"version\":null},\"error\":\"\"}"
+    },
+    {
+      "id": "age_wrong_identity",
+      "request": {
+        "apiVersion": 2,
+        "method": "convertShareLinksToXrayJson",
+        "payload": {
+          "age": {
+            "secretKey": "AGE-SECRET-KEY-1464KYHULYDDLEUXQAA2EFSC2CQDRRDJ8KRYDZFC2Q7ETGVU5XEGQRFCZFE"
+          },
+          "text": "-----BEGIN AGE ENCRYPTED FILE-----\nYWdlLWVuY3J5cHRpb24ub3JnL3YxCi0+IFgyNTUxOSBJTTNnNk5EUzFOSXJFWkNB\nNXUwRlpkMmluaTYraVhIZHdXR3YveE1UaFMwCjRqcGxDMThhRWEvMnN3M0hHM2tn\nNTkzRHhUdFVsYkIwTEljTCt3TTMyK00KLS0tIGM2aElQNXR0U2Y0TFFlYXVDMWU1\nNHlGMTEzNlVFREZ4YTVuM2ZKZUVnV00K6aFH/Q+08y1gW0Byv4xKWAZ7tQXsKbxW\ntRNxoD/r8SP1H+Vg/swv4ve8VdafRZsLaml8sM3DtOKpgDrEd7/89j5MLD2qG/7n\nsfNaHrIbQt4=\n-----END AGE ENCRYPTED FILE-----\n"
+        }
+      },
+      "response": {
+        "success": false,
+        "data": null,
+        "error": "unable to decrypt age subscription"
+      },
+      "raw_response": "{\"success\":false,\"data\":null,\"error\":\"unable to decrypt age subscription\"}"
+    },
+    {
+      "id": "age_unsupported_identity",
+      "request": {
+        "apiVersion": 2,
+        "method": "convertShareLinksToXrayJson",
+        "payload": {
+          "age": {
+            "secretKey": "AGE-PLUGIN-YUBIKEY-1SYNTHETIC"
+          },
+          "text": "-----BEGIN AGE ENCRYPTED FILE-----\nYWdlLWVuY3J5cHRpb24ub3JnL3YxCi0+IFgyNTUxOSBJTTNnNk5EUzFOSXJFWkNB\nNXUwRlpkMmluaTYraVhIZHdXR3YveE1UaFMwCjRqcGxDMThhRWEvMnN3M0hHM2tn\nNTkzRHhUdFVsYkIwTEljTCt3TTMyK00KLS0tIGM2aElQNXR0U2Y0TFFlYXVDMWU1\nNHlGMTEzNlVFREZ4YTVuM2ZKZUVnV00K6aFH/Q+08y1gW0Byv4xKWAZ7tQXsKbxW\ntRNxoD/r8SP1H+Vg/swv4ve8VdafRZsLaml8sM3DtOKpgDrEd7/89j5MLD2qG/7n\nsfNaHrIbQt4=\n-----END AGE ENCRYPTED FILE-----\n"
+        }
+      },
+      "response": {
+        "success": false,
+        "data": null,
+        "error": "invalid or unsupported age secret key"
+      },
+      "raw_response": "{\"success\":false,\"data\":null,\"error\":\"invalid or unsupported age secret key\"}"
+    },
+    {
+      "id": "age_malformed_identity",
+      "request": {
+        "apiVersion": 2,
+        "method": "convertShareLinksToXrayJson",
+        "payload": {
+          "age": {
+            "secretKey": "AGE-SECRET-KEY-1BAD"
+          },
+          "text": "-----BEGIN AGE ENCRYPTED FILE-----\nYWdlLWVuY3J5cHRpb24ub3JnL3YxCi0+IFgyNTUxOSBJTTNnNk5EUzFOSXJFWkNB\nNXUwRlpkMmluaTYraVhIZHdXR3YveE1UaFMwCjRqcGxDMThhRWEvMnN3M0hHM2tn\nNTkzRHhUdFVsYkIwTEljTCt3TTMyK00KLS0tIGM2aElQNXR0U2Y0TFFlYXVDMWU1\nNHlGMTEzNlVFREZ4YTVuM2ZKZUVnV00K6aFH/Q+08y1gW0Byv4xKWAZ7tQXsKbxW\ntRNxoD/r8SP1H+Vg/swv4ve8VdafRZsLaml8sM3DtOKpgDrEd7/89j5MLD2qG/7n\nsfNaHrIbQt4=\n-----END AGE ENCRYPTED FILE-----\n"
+        }
+      },
+      "response": {
+        "success": false,
+        "data": null,
+        "error": "invalid or unsupported age secret key"
+      },
+      "raw_response": "{\"success\":false,\"data\":null,\"error\":\"invalid or unsupported age secret key\"}"
+    },
+    {
+      "id": "age_recipient_as_identity",
+      "request": {
+        "apiVersion": 2,
+        "method": "convertShareLinksToXrayJson",
+        "payload": {
+          "age": {
+            "secretKey": "age1sdrz2n9pdsch3jhwkkzjn9uhgx60h4y8x7j646xlfn3nc6rfhuuqnxzycr"
+          },
+          "text": "-----BEGIN AGE ENCRYPTED FILE-----\nYWdlLWVuY3J5cHRpb24ub3JnL3YxCi0+IFgyNTUxOSBJTTNnNk5EUzFOSXJFWkNB\nNXUwRlpkMmluaTYraVhIZHdXR3YveE1UaFMwCjRqcGxDMThhRWEvMnN3M0hHM2tn\nNTkzRHhUdFVsYkIwTEljTCt3TTMyK00KLS0tIGM2aElQNXR0U2Y0TFFlYXVDMWU1\nNHlGMTEzNlVFREZ4YTVuM2ZKZUVnV00K6aFH/Q+08y1gW0Byv4xKWAZ7tQXsKbxW\ntRNxoD/r8SP1H+Vg/swv4ve8VdafRZsLaml8sM3DtOKpgDrEd7/89j5MLD2qG/7n\nsfNaHrIbQt4=\n-----END AGE ENCRYPTED FILE-----\n"
+        }
+      },
+      "response": {
+        "success": false,
+        "data": null,
+        "error": "invalid or unsupported age secret key"
+      },
+      "raw_response": "{\"success\":false,\"data\":null,\"error\":\"invalid or unsupported age secret key\"}"
+    },
+    {
+      "id": "age_missing_identity",
+      "request": {
+        "apiVersion": 2,
+        "method": "convertShareLinksToXrayJson",
+        "payload": {
+          "age": {
+            "secretKey": ""
+          },
+          "text": "-----BEGIN AGE ENCRYPTED FILE-----\nYWdlLWVuY3J5cHRpb24ub3JnL3YxCi0+IFgyNTUxOSBJTTNnNk5EUzFOSXJFWkNB\nNXUwRlpkMmluaTYraVhIZHdXR3YveE1UaFMwCjRqcGxDMThhRWEvMnN3M0hHM2tn\nNTkzRHhUdFVsYkIwTEljTCt3TTMyK00KLS0tIGM2aElQNXR0U2Y0TFFlYXVDMWU1\nNHlGMTEzNlVFREZ4YTVuM2ZKZUVnV00K6aFH/Q+08y1gW0Byv4xKWAZ7tQXsKbxW\ntRNxoD/r8SP1H+Vg/swv4ve8VdafRZsLaml8sM3DtOKpgDrEd7/89j5MLD2qG/7n\nsfNaHrIbQt4=\n-----END AGE ENCRYPTED FILE-----\n"
+        }
+      },
+      "response": {
+        "success": false,
+        "data": null,
+        "error": "missing age secret key"
+      },
+      "raw_response": "{\"success\":false,\"data\":null,\"error\":\"missing age secret key\"}"
+    },
+    {
+      "id": "age_malformed_armor",
+      "request": {
+        "apiVersion": 2,
+        "method": "convertShareLinksToXrayJson",
+        "payload": {
+          "age": {
+            "secretKey": "AGE-SECRET-KEY-16EV0D4VMFMDAME0QL8X0DR36S05D5LG5AAKZ4UQNXHW5NZP3Q0EQKZXEH6"
+          },
+          "text": "-----BEGIN AGE ENCRYPTED FILE-----\n!not base64!\n-----END AGE ENCRYPTED FILE-----"
+        }
+      },
+      "response": {
+        "success": false,
+        "data": null,
+        "error": "malformed age armor"
+      },
+      "raw_response": "{\"success\":false,\"data\":null,\"error\":\"malformed age armor\"}"
+    },
+    {
+      "id": "age_armor_truncated",
+      "request": {
+        "apiVersion": 2,
+        "method": "convertShareLinksToXrayJson",
+        "payload": {
+          "age": {
+            "secretKey": "AGE-SECRET-KEY-16EV0D4VMFMDAME0QL8X0DR36S05D5LG5AAKZ4UQNXHW5NZP3Q0EQKZXEH6"
+          },
+          "text": "-----BEGIN AGE ENCRYPTED FILE-----\nYWdlLWVuY3J5cHRpb24ub3JnL3YxCi0+IFgyNTUxOSBJTTNnNk5EUzFOSXJFWkNB\nNXUwRlpkMmluaTYraVhIZHdXR3YveE1UaFMwCjRqcGxDMThhRWEvMnN3M0hHM2tn\nNTkzRHhUdFVsYkIwTEljTCt3TTMyK00KLS0tIGM2aElQNXR0U2Y0TFFlYXVDMWU1\nNHlGMTEzNlVFREZ4YTVuM2ZKZUVnV00K6aFH/Q+08y1gW0Byv4xKWAZ7tQXsKbxW\ntRNxoD/r8SP1H+Vg/swv4ve8VdafRZsLaml8sM3DtOKpgDrEd7/89j5MLD2qG/7n\nsfNaHrIbQt4=\n"
+        }
+      },
+      "response": {
+        "success": false,
+        "data": null,
+        "error": "malformed age armor"
+      },
+      "raw_response": "{\"success\":false,\"data\":null,\"error\":\"malformed age armor\"}"
+    },
+    {
+      "id": "age_empty_armor",
+      "request": {
+        "apiVersion": 2,
+        "method": "convertShareLinksToXrayJson",
+        "payload": {
+          "age": {
+            "secretKey": "AGE-SECRET-KEY-16EV0D4VMFMDAME0QL8X0DR36S05D5LG5AAKZ4UQNXHW5NZP3Q0EQKZXEH6"
+          },
+          "text": "-----BEGIN AGE ENCRYPTED FILE-----\n-----END AGE ENCRYPTED FILE-----"
+        }
+      },
+      "response": {
+        "success": false,
+        "data": null,
+        "error": "malformed age armor"
+      },
+      "raw_response": "{\"success\":false,\"data\":null,\"error\":\"malformed age armor\"}"
+    },
+    {
+      "id": "age_decrypted_invalid",
+      "request": {
+        "apiVersion": 2,
+        "method": "convertShareLinksToXrayJson",
+        "payload": {
+          "age": {
+            "secretKey": "AGE-SECRET-KEY-16EV0D4VMFMDAME0QL8X0DR36S05D5LG5AAKZ4UQNXHW5NZP3Q0EQKZXEH6"
+          },
+          "text": "-----BEGIN AGE ENCRYPTED FILE-----\nYWdlLWVuY3J5cHRpb24ub3JnL3YxCi0+IFgyNTUxOSB6QS85bEYxTG5SeURIRnZY\nVGgxbnJHbDk5RW11TDFXU25EYWpqWWVRaTFZCmdDaUYrQ09iQzFVL29ZSzEvK2J5\nMlRNd3RhZFRpaGloOFhLVDdxS1ZoUTgKLS0tIFlQS2NiamJ1bUtJdEpGcUtsK0hQ\nZGdyQUJpMVBmeUxIUDZTbUxtNmpYYkEKWuchY++8A9yK8PfhM/9l5JUZ3XDnCyyA\n8SPeaLc0kB+nUfAkFFoY7jz1Jel5sV4d\n-----END AGE ENCRYPTED FILE-----\n"
+        }
+      },
+      "response": {
+        "success": false,
+        "data": null,
+        "error": "decrypted subscription is unsupported"
+      },
+      "raw_response": "{\"success\":false,\"data\":null,\"error\":\"decrypted subscription is unsupported\"}"
+    },
+    {
+      "id": "age_empty_plaintext",
+      "request": {
+        "apiVersion": 2,
+        "method": "convertShareLinksToXrayJson",
+        "payload": {
+          "age": {
+            "secretKey": "AGE-SECRET-KEY-16EV0D4VMFMDAME0QL8X0DR36S05D5LG5AAKZ4UQNXHW5NZP3Q0EQKZXEH6"
+          },
+          "text": "-----BEGIN AGE ENCRYPTED FILE-----\nYWdlLWVuY3J5cHRpb24ub3JnL3YxCi0+IFgyNTUxOSBVT0pvd0tpYkQ4V1F4QlNz\nYUNEV3ViSW9yVm9idG14LzNSbjIvRkwvN2hzCjdQSG52ODBUVUgxTEVza3ZqeVlI\nUEg2VUp4Z3NFOUkrMjVJQWUvRXVnd1UKLS0tIEtrNUNrTjdlWmpsNStSU3VOTDJ4\nZEkxYk5WbW4vSS9sNkVkOE95Z2tsdFUKhnhuwdckd9ekyCjb/TJiqS0IfuIXEiF2\nJLXyP6FoAHE=\n-----END AGE ENCRYPTED FILE-----\n"
+        }
+      },
+      "response": {
+        "success": false,
+        "data": null,
+        "error": "decrypted subscription is unsupported"
+      },
+      "raw_response": "{\"success\":false,\"data\":null,\"error\":\"decrypted subscription is unsupported\"}"
+    },
+    {
+      "id": "age_multiple_links",
+      "request": {
+        "apiVersion": 2,
+        "method": "convertShareLinksToXrayJson",
+        "payload": {
+          "age": {
+            "secretKey": "AGE-SECRET-KEY-16EV0D4VMFMDAME0QL8X0DR36S05D5LG5AAKZ4UQNXHW5NZP3Q0EQKZXEH6"
+          },
+          "text": "-----BEGIN AGE ENCRYPTED FILE-----\nYWdlLWVuY3J5cHRpb24ub3JnL3YxCi0+IFgyNTUxOSA4RWhCcFU1K1FwRTArUWtk\nenN4NDBLdHFwWlBsbXhFU09oM3I4M0JBMkM0CmV5WHhUS0F2Yyt0VGZoTnhLOGVV\nREZCWGdJSm5JT0llUFRPQlBZUFhCVm8KLS0tIFVTY2ZCVmhMd1NzNkZ3UFcwSE5R\nRFp5V3Y1MW04MXRXRlNwcUs5UlZwZU0Kg5bX+aN8q0tE2xlQUlphoEQKauWfVMXV\nNPq5wVw/fZC/b2jvkOksc9r+Dq3BB14VObxGvXFXm9nzrmu2IXS+9UZofHlxJQiy\nP/1Xa6cqrYWWENPJH1qKQdLfcXdhwrWyTbs+t1xF5dxArypc+p2PWfObtu1tQcDk\nqHBlwwxg0mECdNKqINlt7WH4v2Xh8uiKv7VWAmN13wA9eVrl8/FIsDK+\n-----END AGE ENCRYPTED FILE-----\n"
+        }
+      },
+      "response": {
+        "success": true,
+        "data": {
+          "api": null,
+          "burstObservatory": null,
+          "dns": null,
+          "env": null,
+          "fakeDns": null,
+          "geodata": null,
+          "inbounds": null,
+          "log": null,
+          "metrics": null,
+          "observatory": null,
+          "outbounds": [
+            {
+              "mux": null,
+              "protocol": "trojan",
+              "proxySettings": null,
+              "sendThrough": "synthetic",
+              "settings": {
+                "address": "example.invalid",
+                "email": "",
+                "flow": "",
+                "level": 0,
+                "password": "synthetic",
+                "port": 443,
+                "servers": null
+              },
+              "streamSettings": {
+                "address": null,
+                "finalmask": null,
+                "grpcSettings": null,
+                "httpupgradeSettings": null,
+                "hysteriaSettings": null,
+                "kcpSettings": null,
+                "method": null,
+                "network": "raw",
+                "port": 0,
+                "rawSettings": null,
+                "realitySettings": null,
+                "security": "tls",
+                "sockopt": null,
+                "splithttpSettings": null,
+                "tcpSettings": null,
+                "tlsSettings": {
+                  "allowInsecure": false,
+                  "alpn": null,
+                  "certificates": null,
+                  "cipherSuites": "",
+                  "curvePreferences": null,
+                  "disableSystemRoot": false,
+                  "echConfigList": "",
+                  "echServerKeys": "",
+                  "echSockopt": null,
+                  "enableSessionResumption": false,
+                  "fingerprint": "",
+                  "masterKeyLog": "",
+                  "maxVersion": "",
+                  "minVersion": "",
+                  "pinnedPeerCertSha256": "",
+                  "rejectUnknownSni": false,
+                  "serverName": "",
+                  "verifyPeerCertByName": ""
+                },
+                "wsSettings": null,
+                "xhttpSettings": null
+              },
+              "tag": "",
+              "targetStrategy": ""
+            },
+            {
+              "mux": null,
+              "protocol": "vless",
+              "proxySettings": null,
+              "sendThrough": "two",
+              "settings": {
+                "address": "example.invalid",
+                "email": "",
+                "encryption": "none",
+                "flow": "",
+                "id": "00000000-0000-0000-0000-000000000001",
+                "level": 0,
+                "port": 443,
+                "reverse": null,
+                "seed": "",
+                "testpre": 0,
+                "testseed": null,
+                "vnext": null
+              },
+              "streamSettings": {
+                "address": null,
+                "finalmask": null,
+                "grpcSettings": null,
+                "httpupgradeSettings": null,
+                "hysteriaSettings": null,
+                "kcpSettings": null,
+                "method": null,
+                "network": "raw",
+                "port": 0,
+                "rawSettings": null,
+                "realitySettings": null,
+                "security": "tls",
+                "sockopt": null,
+                "splithttpSettings": null,
+                "tcpSettings": null,
+                "tlsSettings": {
+                  "allowInsecure": false,
+                  "alpn": null,
+                  "certificates": null,
+                  "cipherSuites": "",
+                  "curvePreferences": null,
+                  "disableSystemRoot": false,
+                  "echConfigList": "",
+                  "echServerKeys": "",
+                  "echSockopt": null,
+                  "enableSessionResumption": false,
+                  "fingerprint": "",
+                  "masterKeyLog": "",
+                  "maxVersion": "",
+                  "minVersion": "",
+                  "pinnedPeerCertSha256": "",
+                  "rejectUnknownSni": false,
+                  "serverName": "",
+                  "verifyPeerCertByName": ""
+                },
+                "wsSettings": null,
+                "xhttpSettings": null
+              },
+              "tag": "",
+              "targetStrategy": ""
+            }
+          ],
+          "policy": null,
+          "reverse": null,
+          "routing": null,
+          "stats": null,
+          "transport": null,
+          "version": null
+        },
+        "error": ""
+      },
+      "raw_response": "{\"success\":true,\"data\":{\"api\":null,\"burstObservatory\":null,\"dns\":null,\"env\":null,\"fakeDns\":null,\"geodata\":null,\"inbounds\":null,\"log\":null,\"metrics\":null,\"observatory\":null,\"outbounds\":[{\"mux\":null,\"protocol\":\"trojan\",\"proxySettings\":null,\"sendThrough\":\"synthetic\",\"settings\":{\"address\":\"example.invalid\",\"email\":\"\",\"flow\":\"\",\"level\":0,\"password\":\"synthetic\",\"port\":443,\"servers\":null},\"streamSettings\":{\"address\":null,\"finalmask\":null,\"grpcSettings\":null,\"httpupgradeSettings\":null,\"hysteriaSettings\":null,\"kcpSettings\":null,\"method\":null,\"network\":\"raw\",\"port\":0,\"rawSettings\":null,\"realitySettings\":null,\"security\":\"tls\",\"sockopt\":null,\"splithttpSettings\":null,\"tcpSettings\":null,\"tlsSettings\":{\"allowInsecure\":false,\"alpn\":null,\"certificates\":null,\"cipherSuites\":\"\",\"curvePreferences\":null,\"disableSystemRoot\":false,\"echConfigList\":\"\",\"echServerKeys\":\"\",\"echSockopt\":null,\"enableSessionResumption\":false,\"fingerprint\":\"\",\"masterKeyLog\":\"\",\"maxVersion\":\"\",\"minVersion\":\"\",\"pinnedPeerCertSha256\":\"\",\"rejectUnknownSni\":false,\"serverName\":\"\",\"verifyPeerCertByName\":\"\"},\"wsSettings\":null,\"xhttpSettings\":null},\"tag\":\"\",\"targetStrategy\":\"\"},{\"mux\":null,\"protocol\":\"vless\",\"proxySettings\":null,\"sendThrough\":\"two\",\"settings\":{\"address\":\"example.invalid\",\"email\":\"\",\"encryption\":\"none\",\"flow\":\"\",\"id\":\"00000000-0000-0000-0000-000000000001\",\"level\":0,\"port\":443,\"reverse\":null,\"seed\":\"\",\"testpre\":0,\"testseed\":null,\"vnext\":null},\"streamSettings\":{\"address\":null,\"finalmask\":null,\"grpcSettings\":null,\"httpupgradeSettings\":null,\"hysteriaSettings\":null,\"kcpSettings\":null,\"method\":null,\"network\":\"raw\",\"port\":0,\"rawSettings\":null,\"realitySettings\":null,\"security\":\"tls\",\"sockopt\":null,\"splithttpSettings\":null,\"tcpSettings\":null,\"tlsSettings\":{\"allowInsecure\":false,\"alpn\":null,\"certificates\":null,\"cipherSuites\":\"\",\"curvePreferences\":null,\"disableSystemRoot\":false,\"echConfigList\":\"\",\"echServerKeys\":\"\",\"echSockopt\":null,\"enableSessionResumption\":false,\"fingerprint\":\"\",\"masterKeyLog\":\"\",\"maxVersion\":\"\",\"minVersion\":\"\",\"pinnedPeerCertSha256\":\"\",\"rejectUnknownSni\":false,\"serverName\":\"\",\"verifyPeerCertByName\":\"\"},\"wsSettings\":null,\"xhttpSettings\":null},\"tag\":\"\",\"targetStrategy\":\"\"}],\"policy\":null,\"reverse\":null,\"routing\":null,\"stats\":null,\"transport\":null,\"version\":null},\"error\":\"\"}"
+    },
+    {
+      "id": "age_plain_then_encrypted",
+      "request": {
+        "apiVersion": 2,
+        "method": "convertShareLinksToXrayJson",
+        "payload": {
+          "age": {
+            "secretKey": "AGE-SECRET-KEY-16EV0D4VMFMDAME0QL8X0DR36S05D5LG5AAKZ4UQNXHW5NZP3Q0EQKZXEH6"
+          },
+          "text": "trojan://synthetic@example.invalid:443#synthetic\n-----BEGIN AGE ENCRYPTED FILE-----\nYWdlLWVuY3J5cHRpb24ub3JnL3YxCi0+IFgyNTUxOSBJTTNnNk5EUzFOSXJFWkNB\nNXUwRlpkMmluaTYraVhIZHdXR3YveE1UaFMwCjRqcGxDMThhRWEvMnN3M0hHM2tn\nNTkzRHhUdFVsYkIwTEljTCt3TTMyK00KLS0tIGM2aElQNXR0U2Y0TFFlYXVDMWU1\nNHlGMTEzNlVFREZ4YTVuM2ZKZUVnV00K6aFH/Q+08y1gW0Byv4xKWAZ7tQXsKbxW\ntRNxoD/r8SP1H+Vg/swv4ve8VdafRZsLaml8sM3DtOKpgDrEd7/89j5MLD2qG/7n\nsfNaHrIbQt4=\n-----END AGE ENCRYPTED FILE-----\n"
+        }
+      },
+      "response": {
+        "success": true,
+        "data": {
+          "api": null,
+          "burstObservatory": null,
+          "dns": null,
+          "env": null,
+          "fakeDns": null,
+          "geodata": null,
+          "inbounds": null,
+          "log": null,
+          "metrics": null,
+          "observatory": null,
+          "outbounds": [
+            {
+              "mux": null,
+              "protocol": "trojan",
+              "proxySettings": null,
+              "sendThrough": "synthetic",
+              "settings": {
+                "address": "example.invalid",
+                "email": "",
+                "flow": "",
+                "level": 0,
+                "password": "synthetic",
+                "port": 443,
+                "servers": null
+              },
+              "streamSettings": {
+                "address": null,
+                "finalmask": null,
+                "grpcSettings": null,
+                "httpupgradeSettings": null,
+                "hysteriaSettings": null,
+                "kcpSettings": null,
+                "method": null,
+                "network": "raw",
+                "port": 0,
+                "rawSettings": null,
+                "realitySettings": null,
+                "security": "tls",
+                "sockopt": null,
+                "splithttpSettings": null,
+                "tcpSettings": null,
+                "tlsSettings": {
+                  "allowInsecure": false,
+                  "alpn": null,
+                  "certificates": null,
+                  "cipherSuites": "",
+                  "curvePreferences": null,
+                  "disableSystemRoot": false,
+                  "echConfigList": "",
+                  "echServerKeys": "",
+                  "echSockopt": null,
+                  "enableSessionResumption": false,
+                  "fingerprint": "",
+                  "masterKeyLog": "",
+                  "maxVersion": "",
+                  "minVersion": "",
+                  "pinnedPeerCertSha256": "",
+                  "rejectUnknownSni": false,
+                  "serverName": "",
+                  "verifyPeerCertByName": ""
+                },
+                "wsSettings": null,
+                "xhttpSettings": null
+              },
+              "tag": "",
+              "targetStrategy": ""
+            }
+          ],
+          "policy": null,
+          "reverse": null,
+          "routing": null,
+          "stats": null,
+          "transport": null,
+          "version": null
+        },
+        "error": ""
+      },
+      "raw_response": "{\"success\":true,\"data\":{\"api\":null,\"burstObservatory\":null,\"dns\":null,\"env\":null,\"fakeDns\":null,\"geodata\":null,\"inbounds\":null,\"log\":null,\"metrics\":null,\"observatory\":null,\"outbounds\":[{\"mux\":null,\"protocol\":\"trojan\",\"proxySettings\":null,\"sendThrough\":\"synthetic\",\"settings\":{\"address\":\"example.invalid\",\"email\":\"\",\"flow\":\"\",\"level\":0,\"password\":\"synthetic\",\"port\":443,\"servers\":null},\"streamSettings\":{\"address\":null,\"finalmask\":null,\"grpcSettings\":null,\"httpupgradeSettings\":null,\"hysteriaSettings\":null,\"kcpSettings\":null,\"method\":null,\"network\":\"raw\",\"port\":0,\"rawSettings\":null,\"realitySettings\":null,\"security\":\"tls\",\"sockopt\":null,\"splithttpSettings\":null,\"tcpSettings\":null,\"tlsSettings\":{\"allowInsecure\":false,\"alpn\":null,\"certificates\":null,\"cipherSuites\":\"\",\"curvePreferences\":null,\"disableSystemRoot\":false,\"echConfigList\":\"\",\"echServerKeys\":\"\",\"echSockopt\":null,\"enableSessionResumption\":false,\"fingerprint\":\"\",\"masterKeyLog\":\"\",\"maxVersion\":\"\",\"minVersion\":\"\",\"pinnedPeerCertSha256\":\"\",\"rejectUnknownSni\":false,\"serverName\":\"\",\"verifyPeerCertByName\":\"\"},\"wsSettings\":null,\"xhttpSettings\":null},\"tag\":\"\",\"targetStrategy\":\"\"}],\"policy\":null,\"reverse\":null,\"routing\":null,\"stats\":null,\"transport\":null,\"version\":null},\"error\":\"\"}"
+    },
+    {
+      "id": "age_encrypted_then_plain",
+      "request": {
+        "apiVersion": 2,
+        "method": "convertShareLinksToXrayJson",
+        "payload": {
+          "age": {
+            "secretKey": "AGE-SECRET-KEY-16EV0D4VMFMDAME0QL8X0DR36S05D5LG5AAKZ4UQNXHW5NZP3Q0EQKZXEH6"
+          },
+          "text": "-----BEGIN AGE ENCRYPTED FILE-----\nYWdlLWVuY3J5cHRpb24ub3JnL3YxCi0+IFgyNTUxOSBJTTNnNk5EUzFOSXJFWkNB\nNXUwRlpkMmluaTYraVhIZHdXR3YveE1UaFMwCjRqcGxDMThhRWEvMnN3M0hHM2tn\nNTkzRHhUdFVsYkIwTEljTCt3TTMyK00KLS0tIGM2aElQNXR0U2Y0TFFlYXVDMWU1\nNHlGMTEzNlVFREZ4YTVuM2ZKZUVnV00K6aFH/Q+08y1gW0Byv4xKWAZ7tQXsKbxW\ntRNxoD/r8SP1H+Vg/swv4ve8VdafRZsLaml8sM3DtOKpgDrEd7/89j5MLD2qG/7n\nsfNaHrIbQt4=\n-----END AGE ENCRYPTED FILE-----\n\ntrojan://synthetic@example.invalid:443#synthetic"
+        }
+      },
+      "response": {
+        "success": false,
+        "data": null,
+        "error": "malformed age armor"
+      },
+      "raw_response": "{\"success\":false,\"data\":null,\"error\":\"malformed age armor\"}"
+    },
+    {
+      "id": "age_two_encrypted",
+      "request": {
+        "apiVersion": 2,
+        "method": "convertShareLinksToXrayJson",
+        "payload": {
+          "age": {
+            "secretKey": "AGE-SECRET-KEY-16EV0D4VMFMDAME0QL8X0DR36S05D5LG5AAKZ4UQNXHW5NZP3Q0EQKZXEH6"
+          },
+          "text": "-----BEGIN AGE ENCRYPTED FILE-----\nYWdlLWVuY3J5cHRpb24ub3JnL3YxCi0+IFgyNTUxOSBJTTNnNk5EUzFOSXJFWkNB\nNXUwRlpkMmluaTYraVhIZHdXR3YveE1UaFMwCjRqcGxDMThhRWEvMnN3M0hHM2tn\nNTkzRHhUdFVsYkIwTEljTCt3TTMyK00KLS0tIGM2aElQNXR0U2Y0TFFlYXVDMWU1\nNHlGMTEzNlVFREZ4YTVuM2ZKZUVnV00K6aFH/Q+08y1gW0Byv4xKWAZ7tQXsKbxW\ntRNxoD/r8SP1H+Vg/swv4ve8VdafRZsLaml8sM3DtOKpgDrEd7/89j5MLD2qG/7n\nsfNaHrIbQt4=\n-----END AGE ENCRYPTED FILE-----\n\n-----BEGIN AGE ENCRYPTED FILE-----\nYWdlLWVuY3J5cHRpb24ub3JnL3YxCi0+IFgyNTUxOSBJTTNnNk5EUzFOSXJFWkNB\nNXUwRlpkMmluaTYraVhIZHdXR3YveE1UaFMwCjRqcGxDMThhRWEvMnN3M0hHM2tn\nNTkzRHhUdFVsYkIwTEljTCt3TTMyK00KLS0tIGM2aElQNXR0U2Y0TFFlYXVDMWU1\nNHlGMTEzNlVFREZ4YTVuM2ZKZUVnV00K6aFH/Q+08y1gW0Byv4xKWAZ7tQXsKbxW\ntRNxoD/r8SP1H+Vg/swv4ve8VdafRZsLaml8sM3DtOKpgDrEd7/89j5MLD2qG/7n\nsfNaHrIbQt4=\n-----END AGE ENCRYPTED FILE-----\n"
+        }
+      },
+      "response": {
+        "success": false,
+        "data": null,
+        "error": "malformed age armor"
+      },
+      "raw_response": "{\"success\":false,\"data\":null,\"error\":\"malformed age armor\"}"
+    },
+    {
+      "id": "age_whitespace_crlf",
+      "request": {
+        "apiVersion": 2,
+        "method": "convertShareLinksToXrayJson",
+        "payload": {
+          "age": {
+            "secretKey": " AGE-SECRET-KEY-16EV0D4VMFMDAME0QL8X0DR36S05D5LG5AAKZ4UQNXHW5NZP3Q0EQKZXEH6 "
+          },
+          "text": " \r\n-----BEGIN AGE ENCRYPTED FILE-----\r\nYWdlLWVuY3J5cHRpb24ub3JnL3YxCi0+IFgyNTUxOSBJTTNnNk5EUzFOSXJFWkNB\r\nNXUwRlpkMmluaTYraVhIZHdXR3YveE1UaFMwCjRqcGxDMThhRWEvMnN3M0hHM2tn\r\nNTkzRHhUdFVsYkIwTEljTCt3TTMyK00KLS0tIGM2aElQNXR0U2Y0TFFlYXVDMWU1\r\nNHlGMTEzNlVFREZ4YTVuM2ZKZUVnV00K6aFH/Q+08y1gW0Byv4xKWAZ7tQXsKbxW\r\ntRNxoD/r8SP1H+Vg/swv4ve8VdafRZsLaml8sM3DtOKpgDrEd7/89j5MLD2qG/7n\r\nsfNaHrIbQt4=\r\n-----END AGE ENCRYPTED FILE-----\r\n \r\n"
+        }
+      },
+      "response": {
+        "success": true,
+        "data": {
+          "api": null,
+          "burstObservatory": null,
+          "dns": null,
+          "env": null,
+          "fakeDns": null,
+          "geodata": null,
+          "inbounds": null,
+          "log": null,
+          "metrics": null,
+          "observatory": null,
+          "outbounds": [
+            {
+              "mux": null,
+              "protocol": "trojan",
+              "proxySettings": null,
+              "sendThrough": "synthetic",
+              "settings": {
+                "address": "example.invalid",
+                "email": "",
+                "flow": "",
+                "level": 0,
+                "password": "synthetic",
+                "port": 443,
+                "servers": null
+              },
+              "streamSettings": {
+                "address": null,
+                "finalmask": null,
+                "grpcSettings": null,
+                "httpupgradeSettings": null,
+                "hysteriaSettings": null,
+                "kcpSettings": null,
+                "method": null,
+                "network": "raw",
+                "port": 0,
+                "rawSettings": null,
+                "realitySettings": null,
+                "security": "tls",
+                "sockopt": null,
+                "splithttpSettings": null,
+                "tcpSettings": null,
+                "tlsSettings": {
+                  "allowInsecure": false,
+                  "alpn": null,
+                  "certificates": null,
+                  "cipherSuites": "",
+                  "curvePreferences": null,
+                  "disableSystemRoot": false,
+                  "echConfigList": "",
+                  "echServerKeys": "",
+                  "echSockopt": null,
+                  "enableSessionResumption": false,
+                  "fingerprint": "",
+                  "masterKeyLog": "",
+                  "maxVersion": "",
+                  "minVersion": "",
+                  "pinnedPeerCertSha256": "",
+                  "rejectUnknownSni": false,
+                  "serverName": "",
+                  "verifyPeerCertByName": ""
+                },
+                "wsSettings": null,
+                "xhttpSettings": null
+              },
+              "tag": "",
+              "targetStrategy": ""
+            }
+          ],
+          "policy": null,
+          "reverse": null,
+          "routing": null,
+          "stats": null,
+          "transport": null,
+          "version": null
+        },
+        "error": ""
+      },
+      "raw_response": "{\"success\":true,\"data\":{\"api\":null,\"burstObservatory\":null,\"dns\":null,\"env\":null,\"fakeDns\":null,\"geodata\":null,\"inbounds\":null,\"log\":null,\"metrics\":null,\"observatory\":null,\"outbounds\":[{\"mux\":null,\"protocol\":\"trojan\",\"proxySettings\":null,\"sendThrough\":\"synthetic\",\"settings\":{\"address\":\"example.invalid\",\"email\":\"\",\"flow\":\"\",\"level\":0,\"password\":\"synthetic\",\"port\":443,\"servers\":null},\"streamSettings\":{\"address\":null,\"finalmask\":null,\"grpcSettings\":null,\"httpupgradeSettings\":null,\"hysteriaSettings\":null,\"kcpSettings\":null,\"method\":null,\"network\":\"raw\",\"port\":0,\"rawSettings\":null,\"realitySettings\":null,\"security\":\"tls\",\"sockopt\":null,\"splithttpSettings\":null,\"tcpSettings\":null,\"tlsSettings\":{\"allowInsecure\":false,\"alpn\":null,\"certificates\":null,\"cipherSuites\":\"\",\"curvePreferences\":null,\"disableSystemRoot\":false,\"echConfigList\":\"\",\"echServerKeys\":\"\",\"echSockopt\":null,\"enableSessionResumption\":false,\"fingerprint\":\"\",\"masterKeyLog\":\"\",\"maxVersion\":\"\",\"minVersion\":\"\",\"pinnedPeerCertSha256\":\"\",\"rejectUnknownSni\":false,\"serverName\":\"\",\"verifyPeerCertByName\":\"\"},\"wsSettings\":null,\"xhttpSettings\":null},\"tag\":\"\",\"targetStrategy\":\"\"}],\"policy\":null,\"reverse\":null,\"routing\":null,\"stats\":null,\"transport\":null,\"version\":null},\"error\":\"\"}"
+    },
+    {
+      "id": "age_corrupt_ciphertext",
+      "request": {
+        "apiVersion": 2,
+        "method": "convertShareLinksToXrayJson",
+        "payload": {
+          "age": {
+            "secretKey": "AGE-SECRET-KEY-16EV0D4VMFMDAME0QL8X0DR36S05D5LG5AAKZ4UQNXHW5NZP3Q0EQKZXEH6"
+          },
+          "text": "-----BEGIN AGE ENCRYPTED FILE-----\nYWdlLWVuY3J5cHRpb24ub3JnL3YxCi0+IFgyNTUxOSBJTTNnNk5EUzFOSXJFWkNB\nNXUwRlpkMmluaTYraVhIZHdXR3YveE1UaFMwCjRqcGxDMThhRWEvMnN3M0hHM2tn\nNTkzRHhUdFVsYkIwTEljTCt3TTMyK00KLS0tIGM2aElQNXR0U2Y0TFFlYXVDMWU1\nNHlGMTEzNlVFREZ4YTVuM2ZKZUVnV00K6aFH/Q+08y1gW0Byv4xKWAZ7tQXsKbxW\ntRNxoD/r8SP1H+Vg/swv4ve8VdafRZsLaml8sM3DtOKpgDrEd7/89j5MLD2qG/7n\nsfNaHrIbQt8=\n-----END AGE ENCRYPTED FILE-----\n"
+        }
+      },
+      "response": {
+        "success": false,
+        "data": null,
+        "error": "malformed age armor"
+      },
+      "raw_response": "{\"success\":false,\"data\":null,\"error\":\"malformed age armor\"}"
+    },
+    {
+      "id": "key_",
+      "request": {
+        "apiVersion": 2,
+        "method": "generateAgeKeyPair",
+        "payload": {
+          "keyType": ""
+        }
+      },
+      "response": {
+        "success": true,
+        "data": {
+          "secretKey": "AGE-SECRET-KEY-16RTE0N66UY9QX536V5MM7ZL4ZQJLCGE2ZNXL248R7PXK6RZWZHGSXCS8RD",
+          "publicKey": "age12gfxelhtedg2lyvh2hpuxfqjr8u220qermgjg2v9488qdrvt8fdqkljzhz"
+        },
+        "error": ""
+      },
+      "raw_response": "{\"success\":true,\"data\":{\"secretKey\":\"AGE-SECRET-KEY-16RTE0N66UY9QX536V5MM7ZL4ZQJLCGE2ZNXL248R7PXK6RZWZHGSXCS8RD\",\"publicKey\":\"age12gfxelhtedg2lyvh2hpuxfqjr8u220qermgjg2v9488qdrvt8fdqkljzhz\"},\"error\":\"\"}"
+    },
+    {
+      "id": "key_x25519",
+      "request": {
+        "apiVersion": 2,
+        "method": "generateAgeKeyPair",
+        "payload": {
+          "keyType": "x25519"
+        }
+      },
+      "response": {
+        "success": true,
+        "data": {
+          "secretKey": "AGE-SECRET-KEY-1LUNG7W4WCJC9UE7RH7XE3K9PDSMF6YENDQ9Q9MMX66Q80K6U8AKQJFC3PD",
+          "publicKey": "age1270wszlt9439uvdd6hgexa97jl0tl8djtvnkmztutxqjx54rya7sgt4e7t"
+        },
+        "error": ""
+      },
+      "raw_response": "{\"success\":true,\"data\":{\"secretKey\":\"AGE-SECRET-KEY-1LUNG7W4WCJC9UE7RH7XE3K9PDSMF6YENDQ9Q9MMX66Q80K6U8AKQJFC3PD\",\"publicKey\":\"age1270wszlt9439uvdd6hgexa97jl0tl8djtvnkmztutxqjx54rya7sgt4e7t\"},\"error\":\"\"}"
+    },
+    {
+      "id": "key_hybrid",
+      "request": {
+        "apiVersion": 2,
+        "method": "generateAgeKeyPair",
+        "payload": {
+          "keyType": "hybrid"
+        }
+      },
+      "response": {
+        "success": true,
+        "data": {
+          "secretKey": "AGE-SECRET-KEY-PQ-1NFTYVPVEWSYADW4PTGYR9D4A2TNS3S5VFUC78FE4Y0E7HWU7MMXSM88PCT",
+          "publicKey": "age1pq1n928hvssj3wcz55hqzayc5fy25620ttzk8ynzwnryze5yaft6pezmf88gvckspstu5zhv3qanuvgsfg5224d99my2wl6xlq4v5crd22gre4txx3q0jwh5vedd5m84rdyxmue5zv5wu6emzwdkytttfrs4sdqnpgf0p35psnaypet0uc6y6a33jpeugv0ysjeqvg8u99zqa7w88h7gf8y0q9vmcpza4cx0hdwyh4rkuhdux72zaft9vl5s50mvy7xx3jmcfg5ucauzmpewpk5k3gu2cxzt3f3mfnjwqzhhss9qgjhhfn2xz6x8l3mstn5ce8pdp0ndrx44jnjul63xx4c4h5mq6zdtzzrvwyq837t322p48ufyxg8dvfstz3kq7j9tekgxtlr3t5nkfcaj7vx352slm53dnzdhsyv5xwpagshq8z5r35hr56exyw4h20cjsmlugm4t2gscdxkzam8ajsph6kt7zqj8g7p5avfygnr6egxthpwa9azgru2ngkg4d3pxvcwzapex9yv068zfqe2qxm5nqqurj6ne3nvmj423f905nz8dw7am54vdqvclzetwzht59n45p4awfs9dsg3dlrzttcp9g9wwfmml2af90gxwm8g2gkr5aaf2mp0gx6c66egwaf8de3xenrhucsjz6tq065vhhrf3xwskwrvy2ldy6g68s2uxvw3f9yws0usq0pjzkfj5kwpjc0s30evcu7jw5dml3evffecr6u2pqrjwlrkkp33exzg7zm8cuzmzl0uvwzegzxty5kze4yfm96jqyngy2cmw8z3fyaccsmuljm8kzp8syhafjd3za5a5h6u98ep4vd950dt6eah6338m0dp4qrgha7srz9zc6qg3zjxnh4cegp25l66wxw4hp62dcx9uuc2g93uz3dvzgjfngvfr6s842f8eym3nykg0zvlrw9jdv92svefsjxsyj0yrnvhc4vz2unx07m2nfdrzcyajwmpvjv5x2s3umumv3ksy47349ncvwe6azj7hcqh2w8phsjnvgur39uu8zj2t89e2zq847jztzn5w3m3tv9h8qgn6gyt2mtx4yfah38kgs3vgk45m2uy5m2k0v2qcs55jvq75yfnegz62nat4pv8rpgdthqsrdcvzg64rge5ctep0jdr3sm6gzap3pujckmepqrwlzmtzcaq9ayz76xjw6dq5k73999qtgsghm2jueayvhrfg6z89zymu7ugmhnhwd8egq4hxkwz6c2p4gshfdy6jgmtrsqsv85yjw30hzavfp344nln5k30sck8nv9m0axxga45mvxfqw4vc4ggr9mpm5nd8gyh2zy983lmpqyzqsu5marsntsp8vvup325wglehd3sqxnkmuvuyas9d6eswpjyqz8dj9m2x8dsh3z5cgfj5nr6su2rjuuz40vcq9pun0jndj36rp9g9kz7kaw9xgcp5f7epnsx693e5kjwfekrnqzqv329d920n3ylsfxv44a44n3xvzmc28m4w2cnny5n6434wqxav65e24sfqa7204csssuyw6g63wmtvj0e3vf3l2pzzl6rj2s9zlr7cewmlxlr95s0amerqz23q5ektqxfwg6thjdvyqa8qkax4y59qd7zm9x5mpy7c979sd7yra46f0d27es4ukjsardul5wjt8j35hzkadmaacqna5ycfxvcxe3c3zx0txneu99elf4nd60nw7d0333q3gntjewt8dyyxn4xtj2zxdx24qcq3g3pqucgfmxsgkh58pp7qw5yc6s7xvg5qaazwuzwsqdc5ehajc63q8rqwckt3thwzc7hmd7ltf2ttsff57cm9w5mfcs4zwkzeve5ngu20gaetrmk5ptxldyclrjwzclu5tfwmy0x8awcd746glu98adn05ampajtwuk3ulsdtexaxscs7mzu"
+        },
+        "error": ""
+      },
+      "raw_response": "{\"success\":true,\"data\":{\"secretKey\":\"AGE-SECRET-KEY-PQ-1NFTYVPVEWSYADW4PTGYR9D4A2TNS3S5VFUC78FE4Y0E7HWU7MMXSM88PCT\",\"publicKey\":\"age1pq1n928hvssj3wcz55hqzayc5fy25620ttzk8ynzwnryze5yaft6pezmf88gvckspstu5zhv3qanuvgsfg5224d99my2wl6xlq4v5crd22gre4txx3q0jwh5vedd5m84rdyxmue5zv5wu6emzwdkytttfrs4sdqnpgf0p35psnaypet0uc6y6a33jpeugv0ysjeqvg8u99zqa7w88h7gf8y0q9vmcpza4cx0hdwyh4rkuhdux72zaft9vl5s50mvy7xx3jmcfg5ucauzmpewpk5k3gu2cxzt3f3mfnjwqzhhss9qgjhhfn2xz6x8l3mstn5ce8pdp0ndrx44jnjul63xx4c4h5mq6zdtzzrvwyq837t322p48ufyxg8dvfstz3kq7j9tekgxtlr3t5nkfcaj7vx352slm53dnzdhsyv5xwpagshq8z5r35hr56exyw4h20cjsmlugm4t2gscdxkzam8ajsph6kt7zqj8g7p5avfygnr6egxthpwa9azgru2ngkg4d3pxvcwzapex9yv068zfqe2qxm5nqqurj6ne3nvmj423f905nz8dw7am54vdqvclzetwzht59n45p4awfs9dsg3dlrzttcp9g9wwfmml2af90gxwm8g2gkr5aaf2mp0gx6c66egwaf8de3xenrhucsjz6tq065vhhrf3xwskwrvy2ldy6g68s2uxvw3f9yws0usq0pjzkfj5kwpjc0s30evcu7jw5dml3evffecr6u2pqrjwlrkkp33exzg7zm8cuzmzl0uvwzegzxty5kze4yfm96jqyngy2cmw8z3fyaccsmuljm8kzp8syhafjd3za5a5h6u98ep4vd950dt6eah6338m0dp4qrgha7srz9zc6qg3zjxnh4cegp25l66wxw4hp62dcx9uuc2g93uz3dvzgjfngvfr6s842f8eym3nykg0zvlrw9jdv92svefsjxsyj0yrnvhc4vz2unx07m2nfdrzcyajwmpvjv5x2s3umumv3ksy47349ncvwe6azj7hcqh2w8phsjnvgur39uu8zj2t89e2zq847jztzn5w3m3tv9h8qgn6gyt2mtx4yfah38kgs3vgk45m2uy5m2k0v2qcs55jvq75yfnegz62nat4pv8rpgdthqsrdcvzg64rge5ctep0jdr3sm6gzap3pujckmepqrwlzmtzcaq9ayz76xjw6dq5k73999qtgsghm2jueayvhrfg6z89zymu7ugmhnhwd8egq4hxkwz6c2p4gshfdy6jgmtrsqsv85yjw30hzavfp344nln5k30sck8nv9m0axxga45mvxfqw4vc4ggr9mpm5nd8gyh2zy983lmpqyzqsu5marsntsp8vvup325wglehd3sqxnkmuvuyas9d6eswpjyqz8dj9m2x8dsh3z5cgfj5nr6su2rjuuz40vcq9pun0jndj36rp9g9kz7kaw9xgcp5f7epnsx693e5kjwfekrnqzqv329d920n3ylsfxv44a44n3xvzmc28m4w2cnny5n6434wqxav65e24sfqa7204csssuyw6g63wmtvj0e3vf3l2pzzl6rj2s9zlr7cewmlxlr95s0amerqz23q5ektqxfwg6thjdvyqa8qkax4y59qd7zm9x5mpy7c979sd7yra46f0d27es4ukjsardul5wjt8j35hzkadmaacqna5ycfxvcxe3c3zx0txneu99elf4nd60nw7d0333q3gntjewt8dyyxn4xtj2zxdx24qcq3g3pqucgfmxsgkh58pp7qw5yc6s7xvg5qaazwuzwsqdc5ehajc63q8rqwckt3thwzc7hmd7ltf2ttsff57cm9w5mfcs4zwkzeve5ngu20gaetrmk5ptxldyclrjwzclu5tfwmy0x8awcd746glu98adn05ampajtwuk3ulsdtexaxscs7mzu\"},\"error\":\"\"}"
+    },
+    {
+      "id": "key_ X25519 ",
+      "request": {
+        "apiVersion": 2,
+        "method": "generateAgeKeyPair",
+        "payload": {
+          "keyType": " X25519 "
+        }
+      },
+      "response": {
+        "success": false,
+        "data": null,
+        "error": "unsupported age key type"
+      },
+      "raw_response": "{\"success\":false,\"data\":null,\"error\":\"unsupported age key type\"}"
+    },
+    {
+      "id": "key_HYBRID",
+      "request": {
+        "apiVersion": 2,
+        "method": "generateAgeKeyPair",
+        "payload": {
+          "keyType": "HYBRID"
+        }
+      },
+      "response": {
+        "success": false,
+        "data": null,
+        "error": "unsupported age key type"
+      },
+      "raw_response": "{\"success\":false,\"data\":null,\"error\":\"unsupported age key type\"}"
+    },
+    {
+      "id": "key_scrypt",
+      "request": {
+        "apiVersion": 2,
+        "method": "generateAgeKeyPair",
+        "payload": {
+          "keyType": "scrypt"
+        }
+      },
+      "response": {
+        "success": false,
+        "data": null,
+        "error": "unsupported age key type"
+      },
+      "raw_response": "{\"success\":false,\"data\":null,\"error\":\"unsupported age key type\"}"
+    },
+    {
+      "id": "key_ssh",
+      "request": {
+        "apiVersion": 2,
+        "method": "generateAgeKeyPair",
+        "payload": {
+          "keyType": "ssh"
+        }
+      },
+      "response": {
+        "success": false,
+        "data": null,
+        "error": "unsupported age key type"
+      },
+      "raw_response": "{\"success\":false,\"data\":null,\"error\":\"unsupported age key type\"}"
+    },
+    {
+      "id": "key_invalid",
+      "request": {
+        "apiVersion": 2,
+        "method": "generateAgeKeyPair",
+        "payload": {
+          "keyType": "invalid"
+        }
+      },
+      "response": {
+        "success": false,
+        "data": null,
+        "error": "unsupported age key type"
+      },
+      "raw_response": "{\"success\":false,\"data\":null,\"error\":\"unsupported age key type\"}"
+    },
+    {
+      "id": "key_bad_payload",
+      "request": {
+        "apiVersion": 2,
+        "method": "generateAgeKeyPair",
+        "payload": {
+          "keyType": 3
+        }
+      },
+      "response": {
+        "success": false,
+        "data": null,
+        "error": "json: cannot unmarshal number into Go struct field GenerateAgeKeyPairRequest.keyType of type libXray.AgeKeyType"
+      },
+      "raw_response": "{\"success\":false,\"data\":null,\"error\":\"json: cannot unmarshal number into Go struct field GenerateAgeKeyPairRequest.keyType of type libXray.AgeKeyType\"}"
+    }
+  ]
+}

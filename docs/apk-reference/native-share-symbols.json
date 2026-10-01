@@ -1,0 +1,116 @@
+{
+  "kind": "Go objdump source-line and symbol evidence, not original source",
+  "jni_sha256": "40b08a399871973ba6ad5898ca7097961337d7aeddb4b3378b153a66679eeece",
+  "go_version": "1.26.3",
+  "reproduce": "go tool objdump -s <symbol-regex> <pinned-v8-libgojni.so>",
+  "functions": [
+    {
+      "symbol": "github.com/xtls/libxray/share.decodeShareUserInfo",
+      "original_source": "C:/Users/Administrator/Desktop/Codex/work/libXray-final/share/parse_share.go",
+      "first_line": 22,
+      "arm64_virtual_address": "0x1cc8440"
+    },
+    {
+      "symbol": "github.com/xtls/libxray/share.normalizeHysteriaMultiPortLink",
+      "original_source": "C:/Users/Administrator/Desktop/Codex/work/libXray-final/share/parse_share.go",
+      "first_line": 227,
+      "arm64_virtual_address": "0x1cc9400"
+    },
+    {
+      "symbol": "github.com/xtls/libxray/share.firstHysteriaPort",
+      "original_source": "C:/Users/Administrator/Desktop/Codex/work/libXray-final/share/parse_share.go",
+      "first_line": 286,
+      "arm64_virtual_address": "0x1cc9a90"
+    },
+    {
+      "symbol": "github.com/xtls/libxray/share.rawQueryHasKey",
+      "original_source": "C:/Users/Administrator/Desktop/Codex/work/libXray-final/share/parse_share.go",
+      "first_line": 320,
+      "arm64_virtual_address": "0x1cc9f00"
+    },
+    {
+      "symbol": "github.com/xtls/libxray/share.parseSharePort",
+      "original_source": "C:/Users/Administrator/Desktop/Codex/work/libXray-final/share/parse_share.go",
+      "first_line": 366,
+      "arm64_virtual_address": "0x1cca2d0"
+    },
+    {
+      "symbol": "github.com/xtls/libxray/share.normalizeHysteriaPinSHA256",
+      "original_source": "C:/Users/Administrator/Desktop/Codex/work/libXray-final/share/stream.go",
+      "first_line": 112,
+      "arm64_virtual_address": "0x1ccc700"
+    },
+    {
+      "symbol": "github.com/xtls/libxray/share.parseShareALPN",
+      "original_source": "C:/Users/Administrator/Desktop/Codex/work/libXray-final/share/stream.go",
+      "first_line": 128,
+      "arm64_virtual_address": "0x1ccc8c0"
+    },
+    {
+      "symbol": "github.com/xtls/libxray/share.cleanShareALPN",
+      "original_source": "C:/Users/Administrator/Desktop/Codex/work/libXray-final/share/stream.go",
+      "first_line": 142,
+      "arm64_virtual_address": "0x1ccc9b0"
+    },
+    {
+      "symbol": "github.com/xtls/libxray/share.legacyKCPMTU",
+      "original_source": "C:/Users/Administrator/Desktop/Codex/work/libXray-final/share/transport_build.go",
+      "first_line": 161,
+      "arm64_virtual_address": "0x1ccd9f0"
+    },
+    {
+      "symbol": "github.com/xtls/libxray/share.legacyKCPFinalMask",
+      "original_source": "C:/Users/Administrator/Desktop/Codex/work/libXray-final/share/transport_build.go",
+      "first_line": 182,
+      "arm64_virtual_address": "0x1ccdc30"
+    },
+    {
+      "symbol": "github.com/xtls/libxray.invokeConvertShareLinksToXrayJson",
+      "original_source": "C:/Users/Administrator/Desktop/Codex/work/libXray-final/invoke.go",
+      "first_line": 163,
+      "arm64_virtual_address": "0x1d25000"
+    },
+    {
+      "symbol": "github.com/xtls/libxray.cleanShareConfigNullFields",
+      "original_source": "C:/Users/Administrator/Desktop/Codex/work/libXray-final/invoke.go",
+      "first_line": 183,
+      "arm64_virtual_address": "0x1d250e0"
+    },
+    {
+      "symbol": "github.com/xtls/libxray.cleanNullRawMessageFields",
+      "original_source": "C:/Users/Administrator/Desktop/Codex/work/libXray-final/invoke.go",
+      "first_line": 196,
+      "arm64_virtual_address": "0x1d251c0"
+    },
+    {
+      "symbol": "github.com/xtls/libxray/share.xrayShareLink.parseSecurityFromURL",
+      "original_source": "C:/Users/Administrator/Desktop/Codex/work/libXray-final/share/stream.go",
+      "first_line": 30,
+      "arm64_virtual_address": "0x1ccbd60"
+    },
+    {
+      "symbol": "github.com/xtls/libxray/share.buildHy2FinalMask",
+      "original_source": "C:/Users/Administrator/Desktop/Codex/work/libXray-final/share/hysteria_mask.go",
+      "first_line": 12,
+      "arm64_virtual_address": "0x1cc7e60"
+    },
+    {
+      "symbol": "github.com/xtls/libxray/share.buildStreamFromTransportFields",
+      "original_source": "C:/Users/Administrator/Desktop/Codex/work/libXray-final/share/transport_build.go",
+      "first_line": 78,
+      "arm64_virtual_address": "0x1ccd1a0"
+    },
+    {
+      "symbol": "github.com/xtls/libxray/share.transportFieldsFromVmessQR",
+      "original_source": "C:/Users/Administrator/Desktop/Codex/work/libXray-final/share/transport_build.go",
+      "first_line": 51,
+      "arm64_virtual_address": "0x1cccf60"
+    }
+  ],
+  "cleanup_string_literals": {
+    "0x3f48f3": "kcpSettings",
+    "0x3f9c39": "realitySettings",
+    "0x3ed849": "target",
+    "0x3ebbaf": "dest"
+  }
+}

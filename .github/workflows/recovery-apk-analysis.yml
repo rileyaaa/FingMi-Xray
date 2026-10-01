@@ -1,0 +1,251 @@
+name: Recovery APK analysis
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  analyze:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    env:
+      V7_APK_URL: https://github.com/rileyaaa/FingMi-Xray/releases/download/v5.6.0-xray.5/FongMi-Xray-TV-v5.6.0-xray.5-armeabi-v7a.apk
+      V7_APK_SHA256: cacc7a90ce082adf955fc80a444b54f8cc86d5b5c3ac7acb13d1392b59928bda
+      V8_APK_URL: https://github.com/rileyaaa/FingMi-Xray/releases/download/v5.6.0-xray.5/FongMi-Xray-TV-v5.6.0-xray.5-arm64-v8a.apk
+      V8_APK_SHA256: b5ac05193c1e19809fc7ffb3048f7d75aaa2124eace9953d669f4a81a477c21d
+      JADX_VERSION: 1.5.6
+      JADX_SHA256: 545ea2be9c242511bc145755cf4bda2485ade42966e096f8b4d3da2a230e8974
+      BUILD_SOURCE_SHA: ${{ github.sha }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ env.BUILD_SOURCE_SHA }}
+
+      - name: Verify temporary push trigger source
+        if: github.event_name == 'push'
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$BUILD_SOURCE_SHA" = "$GITHUB_SHA"
+          git fetch --no-tags --depth=2 origin "$GITHUB_SHA"
+          parent="$(git rev-parse "$GITHUB_SHA^")"
+          changed="$(git diff --name-only "$parent" "$GITHUB_SHA")"
+          test "$changed" = ".github/.trigger-recovery-apk-analysis"
+
+      - name: Set up Java
+        uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Download and verify published APKs
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p recovery/work/apk
+          gh release download v5.6.0-xray.5             --repo rileyaaa/FingMi-Xray             --pattern 'FongMi-Xray-TV-v5.6.0-xray.5-armeabi-v7a.apk'             --pattern 'FongMi-Xray-TV-v5.6.0-xray.5-arm64-v8a.apk'             --dir recovery/work/apk
+          mv recovery/work/apk/FongMi-Xray-TV-v5.6.0-xray.5-armeabi-v7a.apk recovery/work/apk/fingmi-v7.apk
+          mv recovery/work/apk/FongMi-Xray-TV-v5.6.0-xray.5-arm64-v8a.apk recovery/work/apk/fingmi-v8.apk
+          echo "$V7_APK_SHA256  recovery/work/apk/fingmi-v7.apk" | sha256sum -c -
+          echo "$V8_APK_SHA256  recovery/work/apk/fingmi-v8.apk" | sha256sum -c -
+
+      - name: Download analysis tools
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p recovery/work/tools
+          curl -fL --retry 3 --retry-delay 2             "https://github.com/skylot/jadx/releases/download/v${JADX_VERSION}/jadx-${JADX_VERSION}.zip"             -o recovery/work/tools/jadx.zip
+          echo "$JADX_SHA256  recovery/work/tools/jadx.zip" | sha256sum -c -
+          unzip -q recovery/work/tools/jadx.zip -d recovery/work/tools/jadx
+          chmod +x recovery/work/tools/jadx/bin/jadx
+
+      - name: Compare APK and DEX contents
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p recovery/evidence/v7-dex recovery/evidence/v8-dex recovery/evidence/reports
+          unzip -j recovery/work/apk/fingmi-v7.apk 'classes*.dex' -d recovery/evidence/v7-dex
+          unzip -j recovery/work/apk/fingmi-v8.apk 'classes*.dex' -d recovery/evidence/v8-dex
+
+          {
+            echo "# v7 DEX SHA-256"
+            sha256sum recovery/evidence/v7-dex/classes*.dex
+            echo
+            echo "# v8 DEX SHA-256"
+            sha256sum recovery/evidence/v8-dex/classes*.dex
+          } > recovery/evidence/reports/dex-sha256.txt
+
+          python3 - <<'PY'
+          import hashlib, json, zipfile
+          from pathlib import Path
+
+          root = Path("recovery/work/apk")
+          apks = {"v7": root / "fingmi-v7.apk", "v8": root / "fingmi-v8.apk"}
+
+          def inventory(path):
+              result = {}
+              with zipfile.ZipFile(path) as zf:
+                  for info in zf.infolist():
+                      if info.is_dir():
+                          continue
+                      with zf.open(info) as fp:
+                          h = hashlib.sha256()
+                          while True:
+                              chunk = fp.read(1024 * 1024)
+                              if not chunk:
+                                  break
+                              h.update(chunk)
+                      result[info.filename] = {
+                          "size": info.file_size,
+                          "sha256": h.hexdigest(),
+                      }
+              return result
+
+          inv = {name: inventory(path) for name, path in apks.items()}
+          names = sorted(set(inv["v7"]) | set(inv["v8"]))
+          diffs = []
+          for name in names:
+              a, b = inv["v7"].get(name), inv["v8"].get(name)
+              if a != b:
+                  if name.startswith("lib/"):
+                      category = "native"
+                  elif name.startswith("META-INF/"):
+                      category = "signing"
+                  elif name.startswith("classes") and name.endswith(".dex"):
+                      category = "dex"
+                  else:
+                      category = "other"
+                  diffs.append({"path": name, "category": category, "v7": a, "v8": b})
+
+          summary = {
+              "v7_entry_count": len(inv["v7"]),
+              "v8_entry_count": len(inv["v8"]),
+              "difference_count": len(diffs),
+              "difference_categories": {
+                  c: sum(1 for x in diffs if x["category"] == c)
+                  for c in ("dex", "native", "signing", "other")
+              },
+              "differences": diffs,
+          }
+          out = Path("recovery/evidence/reports")
+          (out / "apk-diff.json").write_text(json.dumps(summary, indent=2), encoding="utf-8")
+          with (out / "apk-diff.txt").open("w", encoding="utf-8") as fp:
+              fp.write(json.dumps({k: v for k, v in summary.items() if k != "differences"}, indent=2))
+              fp.write("\n\n")
+              for item in diffs:
+                  fp.write(f"[{item['category']}] {item['path']}\n")
+          PY
+
+      - name: Fully decompile v7 with JADX
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf recovery/evidence/jadx-v7
+          set +e
+          recovery/work/tools/jadx/bin/jadx             --deobf             --comments-level warn             -d recovery/evidence/jadx-v7             recovery/work/apk/fingmi-v7.apk
+          status=$?
+          set -e
+          echo "JADX v7 exit code: $status" | tee recovery/evidence/reports/jadx-v7-status.txt
+          test -d recovery/evidence/jadx-v7/sources
+
+      - name: Extract targeted DEX bytecode from v7 and v8
+        shell: bash
+        run: |
+          set -euo pipefail
+          sdk_root="${ANDROID_SDK_ROOT:-${ANDROID_HOME:-}}"
+          test -n "$sdk_root"
+          DEXDUMP="$(find "$sdk_root/build-tools" -type f -name dexdump | sort -V | tail -n 1)"
+          test -x "$DEXDUMP"
+          echo "Using $DEXDUMP" | tee recovery/evidence/reports/dexdump-tool.txt
+
+          cat > recovery/work/extract_dexdump.py <<'PY'
+          import re
+          import sys
+          from pathlib import Path
+
+          # Raw DEX descriptors use the original root-package R8 names.
+          # JADX renders these classes under the synthetic display package p000,
+          # so never use the JADX display path (Lp000/...) for DEX matching.
+          targets = {
+              "La04;": "p000__a04",
+              "Lth2;": "p000__th2",
+              "Lnq0;": "p000__nq0",
+              "Lpz3;": "p000__pz3",
+              "Lor2;": "p000__or2",
+              "Lyz3;": "p000__yz3",
+              "Lhz3;": "p000__hz3",
+              "Llu2;": "p000__lu2",
+              "Lkz3;": "p000__kz3",
+              "Lj81;": "p000__j81",
+              "Lx82;": "p000__x82",
+              "Lcom/fongmi/android/tv/xray/XrayService;":
+                  "com__fongmi__android__tv__xray__XrayService",
+          }
+
+          abi, dex_name, out_dir, location_path = sys.argv[1:5]
+          text = sys.stdin.read()
+          starts = [m.start() for m in re.finditer(r"(?m)^\s*Class #\d+\s+-\s*$", text)]
+          starts.append(len(text))
+          out = Path(out_dir)
+          out.mkdir(parents=True, exist_ok=True)
+
+          found = 0
+          with Path(location_path).open("a", encoding="utf-8") as loc:
+              for i in range(len(starts) - 1):
+                  section = text[starts[i]:starts[i + 1]]
+                  m = re.search(r"Class descriptor\s*:\s*'([^']+)'", section)
+                  if not m or m.group(1) not in targets:
+                      continue
+                  desc = m.group(1)
+                  safe = targets[desc]
+                  (out / f"{safe}.dexdump.txt").write_text(section, encoding="utf-8")
+                  loc.write(f"{desc} -> {dex_name}\n")
+                  found += 1
+          print(f"{abi} {dex_name}: extracted {found} target classes", file=sys.stderr)
+          PY
+
+          for abi in v7 v8; do
+            out="recovery/evidence/dexdump-${abi}"
+            loc="recovery/evidence/reports/${abi}-class-location.txt"
+            mkdir -p "$out"
+            : > "$loc"
+            for dex in recovery/evidence/${abi}-dex/classes*.dex; do
+              "$DEXDUMP" -d -f -h -l plain "$dex" | python3 recovery/work/extract_dexdump.py                 "$abi" "$(basename "$dex")" "$out" "$loc"
+            done
+          done
+
+          test -s recovery/evidence/reports/v7-class-location.txt
+          test -s recovery/evidence/reports/v8-class-location.txt
+          test -f recovery/evidence/dexdump-v7/p000__a04.dexdump.txt
+          test -f recovery/evidence/dexdump-v8/p000__a04.dexdump.txt
+
+      - name: Upload v7 full JADX evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: fingmi-v7-jadx-v5.6.0-xray.5
+          path: recovery/evidence/jadx-v7
+          retention-days: 3
+          compression-level: 6
+
+      - name: Upload dual-ABI DEX and smali evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: fingmi-v7-v8-dex-smali-v5.6.0-xray.5
+          path: |
+            recovery/evidence/v7-dex
+            recovery/evidence/v8-dex
+            recovery/evidence/dexdump-v7
+            recovery/evidence/dexdump-v8
+            recovery/evidence/reports
+          retention-days: 3
+          compression-level: 6

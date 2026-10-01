@@ -1,0 +1,58 @@
+{
+  "repository": "2dust/v2rayN",
+  "commit": "d433aa3b0484c43d10e6de1c441e30d5e4a2525b",
+  "method": "Source-derived exporter model; not execution of C# application",
+  "sources": [
+    {
+      "path": "v2rayN/ServiceLib/Handler/Fmt/BaseFmt.cs",
+      "sha256": "953bd48a971fb8aa58fcd82c6db361f69672064a6073d3b1e853814f7f9d8ed0"
+    },
+    {
+      "path": "v2rayN/ServiceLib/Handler/Fmt/VmessFmt.cs",
+      "sha256": "3b7b469e271bff5a5f32da39a2dcdf367cbe11bb5b7f9701262261bdac44adeb"
+    },
+    {
+      "path": "v2rayN/ServiceLib/Handler/Fmt/VLESSFmt.cs",
+      "sha256": "c7149d58d9246ff16fdec2b2ea9e2312d15e1951f0b02f328a1f286666ae3ede"
+    },
+    {
+      "path": "v2rayN/ServiceLib/Handler/Fmt/Hysteria2Fmt.cs",
+      "sha256": "8639ffd09e7bcf04d2fc2cdecda1fa5a87bb6887789e13d1825004a4c04eb7fa"
+    },
+    {
+      "path": "v2rayN/ServiceLib/Handler/Fmt/TrojanFmt.cs",
+      "sha256": "08f1f865978c7f309d268e990cf4b3d47005dfe3f1d6ec2ae91e886c37daed54"
+    },
+    {
+      "path": "v2rayN/ServiceLib/Common/Utils.cs",
+      "sha256": "10c8782acc1bc29b803f6b28504231a047ed863b02056fd19f18d381c8606fa6"
+    },
+    {
+      "path": "v2rayN/ServiceLib/Common/JsonUtils.cs",
+      "sha256": "1e03872383272e314cb78928169f24b63366308616c7e00e9dd7723e2f9818b7"
+    },
+    {
+      "path": "v2rayN/ServiceLib/Models/Dto/VmessQRCode.cs",
+      "sha256": "095f31ef050b21328fde7c6624dc471c37fefd724e09bd7fd396f454cb5955d3"
+    },
+    {
+      "path": "v2rayN/ServiceLib/Global.cs",
+      "sha256": "2a26040bfb410eeb88eea884fe73fbc77717dae302e674cad0b0fcabdce600c8"
+    }
+  ],
+  "observations": [
+    "Utils.UrlEncode uses Uri.EscapeDataString; Base64Encode uses UTF-8 standard padded base64.",
+    "VmessQRCode v/port/aid WriteAsString; JsonUtils ignores null, preserves empty strings.",
+    "KCP seed mapped to VMess path; null host omitted; exporter has no VMess MTU field.",
+    "gRPC serviceName/authority/mode emitted only with nonempty serviceName; gun is not multiMode.",
+    "Reality pbk/sid/spx/fp/sni separate from node address; empty flow omitted.",
+    "Normal HY2 exporter retains numeric authority port and writes mport, not authority hopping. Realm export outside scope.",
+    "Trojan false allowInsecure and empty ALPN omitted; WS query path escaped once.",
+    "HY2 insecure true becomes TOFU pin in Java; synthetic probe called on first range port 1000; converter config authority port remains443; udpHop interval0 is the native default sentinel, not a measured hop period."
+  ],
+  "limits": [
+    "No live node access, Android Keystore, ART or playback.",
+    "Published converter null fields preserved; native testXray accepts resulting config.",
+    "Protocol exporter model covers only these five combinations, not every v2rayN feature."
+  ]
+}

@@ -1,0 +1,319 @@
+name: Current main Android build
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 100
+
+    env:
+      OLD_V7_SHA256: "cacc7a90ce082adf955fc80a444b54f8cc86d5b5c3ac7acb13d1392b59928bda"
+      OLD_V8_SHA256: "b5ac05193c1e19809fc7ffb3048f7d75aaa2124eace9953d669f4a81a477c21d"
+      LIBASS_V7_APK_SHA256: "2859ebef12bf0fa0dfec023d410df478ac5e5a82a72ef2be48f6e4fa09a24761"
+      LIBASS_V8_APK_SHA256: "948df594843e304c332476a380163dc1cc74f964be5ea1539ff0465a9dd936eb"
+      MEDIA3_CONTAINER_SHA256: "930fca2f018f06f1d08c12599f8c97f31eddbd728edee5de06eb53a882f8fc54"
+      LIBASS_CANDIDATE_SHA256: "f047f8ad84be08aeddb0672500e9b263cafd6f2a009812392554dc55b2019861"
+      JADX_VERSION: "1.5.6"
+      JADX_SHA256: "545ea2be9c242511bc145755cf4bda2485ade42966e096f8b4d3da2a230e8974"
+      BUILD_SOURCE_SHA: ${{ github.sha }}
+
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ env.BUILD_SOURCE_SHA }}
+
+      - name: Verify temporary push trigger source
+        if: github.event_name == 'push'
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$BUILD_SOURCE_SHA"
+          test "$BUILD_SOURCE_SHA" = "$GITHUB_SHA"
+          git fetch --no-tags --depth=2 origin "$GITHUB_SHA"
+          parent="$(git rev-parse "$GITHUB_SHA^")"
+          test -n "$parent"
+          changed="$(git diff --name-only "$parent" "$GITHUB_SHA")"
+          test "$changed" = ".github/.trigger-current-main-build"
+
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.10"
+
+      - name: Run fork source guards
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 tests/test-xray-android-runtime-compat.py
+          python3 tests/test-xray-core-parity.py
+          python3 tests/test-xray-playback-parity.py
+          python3 tests/test-xray-playback-address-parity.py
+          python3 tests/test-xray-session-races.py
+          python3 tests/test-xray-service-client-lifecycle.py
+          python3 tests/test-xray-normalizer-parity.py
+          python3 tests/test-xray-transport-security-parity.py
+          python3 tests/test-upstream-update-disabled.py
+          python3 scripts/build/check-elf-runtime.py --self-test
+          python3 scripts/build/check-final-apk-native.py --self-test
+          python3 scripts/build/check-final-apk-manifest.py --self-test
+          python3 tests/test-build-hygiene.py
+          python3 tests/test-tv-network-recovery.py
+
+      - name: Prepare Android SDK 36 and 37
+        shell: bash
+        run: |
+          set -euo pipefail
+          sdk_root="${ANDROID_HOME:-/usr/local/lib/android/sdk}"
+          sdkmanager="$sdk_root/cmdline-tools/latest/bin/sdkmanager"
+          test -x "$sdkmanager"
+          yes | "$sdkmanager" --licenses >/dev/null 2>&1 || true
+          "$sdkmanager" --channel=3 --install 'platforms;android-36' 'build-tools;36.0.0' 'platforms;android-37.0' 'build-tools;37.0.0'
+
+      - name: Prepare debug-only local signing configuration
+        shell: bash
+        run: |
+          set -euo pipefail
+          keytool -genkeypair -noprompt             -keystore "$RUNNER_TEMP/current-main-debug.jks"             -storepass android             -keypass android             -alias recovery             -dname "CN=FingMi-Xray Current Main,O=Local,C=US"             -keyalg RSA -keysize 2048 -validity 3650
+          cat > local.properties <<EOF
+          storeFile=$RUNNER_TEMP/current-main-debug.jks
+          keyAlias=recovery
+          storePassword=android
+          EOF
+
+      - name: Rebuild and verify pinned player/native inputs
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p build/work/current-main/input build/work/current-main/restored
+
+          bash scripts/build/build-player-aar-candidate.sh \
+            --workdir build/work/current-main/player-source \
+            --output build/work/current-main/input/player-candidate.zip
+
+          gh release download v5.6.0-xray.5             --repo rileyaaa/FingMi-Xray             --pattern 'FongMi-Xray-TV-v5.6.0-xray.5-armeabi-v7a.apk'             --pattern 'FongMi-Xray-TV-v5.6.0-xray.5-arm64-v8a.apk'             --dir build/work/current-main/input
+          mv build/work/current-main/input/FongMi-Xray-TV-v5.6.0-xray.5-armeabi-v7a.apk             build/work/current-main/input/published-v560-v7.apk
+          mv build/work/current-main/input/FongMi-Xray-TV-v5.6.0-xray.5-arm64-v8a.apk             build/work/current-main/input/published-v560-v8.apk
+
+          curl -fL --retry 3             'https://github.com/FongMi/Release/releases/download/5.6.8/leanback-armeabi_v7a.apk'             -o build/work/current-main/input/published-v568-v7.apk
+          curl -fL --retry 3             'https://github.com/FongMi/Release/releases/download/5.6.8/leanback-arm64_v8a.apk'             -o build/work/current-main/input/published-v568-v8.apk
+
+          curl -fL --retry 3             'https://dl.google.com/dl/android/maven2/androidx/media3/media3-container/1.11.0/media3-container-1.11.0.aar'             -o build/work/current-main/input/media3-container-1.11.0.aar
+
+          curl -fL --retry 3 --retry-delay 2             "https://github.com/skylot/jadx/releases/download/v${JADX_VERSION}/jadx-${JADX_VERSION}.zip"             -o build/work/current-main/input/jadx.zip
+
+          printf '%s  %s\n'             "$OLD_V7_SHA256" build/work/current-main/input/published-v560-v7.apk             "$OLD_V8_SHA256" build/work/current-main/input/published-v560-v8.apk             "$LIBASS_V7_APK_SHA256" build/work/current-main/input/published-v568-v7.apk             "$LIBASS_V8_APK_SHA256" build/work/current-main/input/published-v568-v8.apk             "$MEDIA3_CONTAINER_SHA256" build/work/current-main/input/media3-container-1.11.0.aar             "$JADX_SHA256" build/work/current-main/input/jadx.zip             | sha256sum -c -
+
+          mkdir -p build/work/current-main/tools/jadx
+          unzip -q build/work/current-main/input/jadx.zip -d build/work/current-main/tools/jadx
+          chmod +x build/work/current-main/tools/jadx/bin/jadx
+
+      - name: Prepare public player and Xray native dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 scripts/build/import-player-aar-candidate.py             build/work/current-main/input/player-candidate.zip
+
+          bash scripts/recovery/fetch-libxray.sh
+          sdk_root="${ANDROID_HOME:-/usr/local/lib/android/sdk}"
+          python3 scripts/build/build-published-libxray-aar.py             --official-aar libxray/libs/libXray.aar             --v7-apk build/work/current-main/input/published-v560-v7.apk             --v8-apk build/work/current-main/input/published-v560-v8.apk             --jadx build/work/current-main/tools/jadx/bin/jadx             --android-jar "$sdk_root/platforms/android-37.0/android.jar"             --work-dir build/work/current-main/libxray-bindings             --to build/work/current-main/restored/libXray.aar
+
+          cp build/work/current-main/restored/libXray.aar libxray/libs/libXray.aar
+
+      - name: Verify current Xray chain against published v7 and arm64 native
+        shell: bash
+        run: |
+          set -euo pipefail
+          work="build/work/current-main/xray-native-chain"
+          mkdir -p "$work"
+
+          unzip -p build/work/current-main/input/published-v560-v7.apk \
+            lib/armeabi-v7a/libgojni.so > "$work/published-v7-libgojni.so"
+          unzip -p build/work/current-main/input/published-v560-v8.apk \
+            lib/arm64-v8a/libgojni.so > "$work/published-arm64-libgojni.so"
+          printf '%s  %s\n%s  %s\n' \
+            "6f01f219fe4087790cd8e647394de9dbefc61e0d750d927924b93f120b06fb7e" "$work/published-v7-libgojni.so" \
+            "40b08a399871973ba6ad5898ca7097961337d7aeddb4b3378b153a66679eeece" "$work/published-arm64-libgojni.so" \
+            | sha256sum -c -
+
+          python3 scripts/recovery/prepare-native-converter-harness.py \
+            --workdir "$work/v7-harness" \
+            --jni "$work/published-v7-libgojni.so"
+
+          python3 tests/test-current-native-share-chain.py \
+            --abi armeabi-v7a \
+            --workdir "$work/test" \
+            --jni "$work/published-v7-libgojni.so" \
+            --bridge "$work/v7-harness/invoke-bridge" \
+            --qemu "$work/v7-harness/qemu/usr/bin/qemu-arm-static" \
+            --android-root "$work/v7-harness/android/root"
+
+          python3 scripts/recovery/prepare-native-converter-harness.py \
+            --abi arm64-v8a \
+            --workdir "$work/arm64-harness" \
+            --jni "$work/published-arm64-libgojni.so"
+
+          python3 tests/test-current-native-share-chain.py \
+            --abi arm64-v8a \
+            --workdir "$work/test" \
+            --jni "$work/published-arm64-libgojni.so" \
+            --bridge "$work/arm64-harness/invoke-bridge" \
+            --qemu "$work/arm64-harness/qemu/usr/bin/qemu-aarch64-static" \
+            --android-root "$work/arm64-harness/android/root"
+
+      - name: Build and import reconstructed Libass candidate
+        shell: bash
+        run: |
+          set -euo pipefail
+          work="build/work/current-main"
+          mvn -B dependency:get -Dartifact=org.robolectric:android-all:15-robolectric-12650502
+          mvn -B dependency:get -Dartifact=com.google.guava:guava:33.3.1-android
+          mvn -B dependency:get -Dartifact=androidx.annotation:annotation-jvm:1.9.1 -DremoteRepositories=google::default::https://dl.google.com/dl/android/maven2
+
+          python3 scripts/build/build-libass-extractor.py             --candidate "$work/input/player-candidate.zip"             --workdir "$work/extractor"             --container "$work/input/media3-container-1.11.0.aar"             --maven "$(command -v mvn)"
+
+          android_all="$HOME/.m2/repository/org/robolectric/android-all/15-robolectric-12650502/android-all-15-robolectric-12650502.jar"
+          test -s "$android_all"
+
+          python3 scripts/build/build-libass-candidate.py             --candidate "$work/input/player-candidate.zip"             --extractor "$work/extractor/lib-extractor-libass-release.aar"             --container "$work/input/media3-container-1.11.0.aar"             --v7-apk "$work/input/published-v568-v7.apk"             --v8-apk "$work/input/published-v568-v8.apk"             --android-jar "$android_all"             --output "$work/lib-exoplayer-libass-reconstructed.aar"
+
+          echo "$LIBASS_CANDIDATE_SHA256  $work/lib-exoplayer-libass-reconstructed.aar" | sha256sum -c -
+          python3 scripts/build/check-libass-contract.py --aar "$work/lib-exoplayer-libass-reconstructed.aar"
+
+          python3 scripts/build/import-libass-candidate.py             --aar "$work/lib-exoplayer-libass-reconstructed.aar"             --extractor "$work/extractor/lib-extractor-libass-release.aar"             --container "$work/input/media3-container-1.11.0.aar"
+
+          # All verified reconstruction inputs have now been imported into app/libs
+          # and libxray/libs. Reclaim transient provenance/native harness space before
+          # the main Gradle build so hosted-runner disk is reserved for compile/assemble.
+          rm -rf \
+            "$work/input" \
+            "$work/tools" \
+            "$work/restored" \
+            "$work/libxray-bindings" \
+            "$work/xray-native-chain" \
+            "$work/extractor"
+          rm -f \
+            "$work/lib-exoplayer-libass-reconstructed.aar" \
+            "$work/lib-exoplayer-libass-reconstructed.json"
+          mkdir -p "$work"
+
+      - name: Compile current 5.6.3 Leanback source
+        shell: bash
+        run: |
+          set -euo pipefail
+          chmod +x gradlew
+          ./gradlew --no-daemon :app:compileLeanbackDebugJavaWithJavac --stacktrace --warning-mode all
+
+      - name: Assemble Android TV debug APKs
+        shell: bash
+        run: |
+          set -euo pipefail
+          ./gradlew --no-daemon :app:assembleLeanbackDebug --stacktrace --warning-mode all
+
+      - name: Verify MPEG-H survives final TV APK packaging
+        shell: bash
+        run: |
+          set -euo pipefail
+          for abi in armeabi-v7a arm64-v8a; do
+            apk="$(find app/build/outputs/apk/leanback -type f -name "app-leanback-${abi}-debug.apk" -print -quit)"
+            test -n "$apk"
+            test -s "$apk"
+            entry="lib/${abi}/libmpeghJNI.so"
+            unzip -Z1 "$apk" | grep -Fx "$entry"
+            size="$(unzip -p "$apk" "$entry" | wc -c)"
+            test "$size" -gt 100000
+            unzip -p "$apk" 'classes*.dex' | strings | grep -F 'Landroidx/media3/decoder/mpegh/MpeghAudioRenderer;' >/dev/null
+            echo "PASS MPEG-H ${abi}: ${size} bytes in $apk"
+          done
+
+      - name: Verify pinned native runtime survives final TV APK packaging
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 scripts/build/check-final-apk-native.py \
+            --apk-dir app/build/outputs/apk/leanback
+
+      - name: Verify final Leanback manifest security contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          sdk_root="${ANDROID_HOME:-/usr/local/lib/android/sdk}"
+          apkanalyzer="$sdk_root/cmdline-tools/latest/bin/apkanalyzer"
+          test -x "$apkanalyzer"
+          mapfile -t apks < <(
+            find app/build/outputs/apk/leanback -type f -name 'app-leanback-*-debug.apk' -print | sort
+          )
+          test "${#apks[@]}" -eq 2
+          for apk in "${apks[@]}"; do
+            test -s "$apk"
+            python3 scripts/build/check-final-apk-manifest.py \
+              --apkanalyzer "$apkanalyzer" \
+              --apk "$apk"
+          done
+      - name: Record build inputs and outputs
+        if: success()
+        shell: bash
+        run: |
+          set -euo pipefail
+          {
+            echo "commit=$GITHUB_SHA"
+            java -version 2>&1 | head -n 1
+            ./gradlew --version | sed -n '1,12p'
+            echo "libass_candidate_sha256=$LIBASS_CANDIDATE_SHA256"
+            find app/build/outputs/apk/leanback -type f -name '*.apk' -print0 | sort -z | xargs -0 sha256sum
+          } | tee build/work/current-main/BUILD_RESULT.txt
+
+      - name: Upload current-main debug APKs
+        if: success()
+        uses: actions/upload-artifact@v7
+        with:
+          name: fingmi-xray-5.6.3-current-main-debug
+          path: |
+            app/build/outputs/apk/leanback/**/*.apk
+            build/work/current-main/BUILD_RESULT.txt
+            build/reports/problems/problems-report.html
+          if-no-files-found: error
+          retention-days: 2
+          compression-level: 0
+
+      - name: Remove superseded current-main debug artifacts
+        if: success()
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mapfile -t stale_ids < <(
+            gh api "repos/${GITHUB_REPOSITORY}/actions/artifacts?per_page=100"               --jq '.artifacts
+                    | map(select(.name == "fingmi-xray-5.6.3-current-main-debug"))
+                    | sort_by(.id)
+                    | reverse
+                    | .[1:][]
+                    | .id'
+          )
+          for id in "${stale_ids[@]}"; do
+            gh api --method DELETE "repos/${GITHUB_REPOSITORY}/actions/artifacts/$id"
+            echo "DELETE superseded debug artifact $id"
+          done
+
+      - name: Upload build reports on failure
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: fingmi-xray-5.6.3-build-failure-reports
+          path: |
+            app/build/reports/
+            **/build/reports/
+          if-no-files-found: ignore
+          retention-days: 1

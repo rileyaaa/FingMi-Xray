@@ -1,0 +1,22 @@
+[
+  {"id":"empty","request":""},
+  {"id":"version0","request":{"method":"testXray","payload":{}}},
+  {"id":"version1","request":{"apiVersion":1,"method":"testXray","payload":{}}},
+  {"id":"unknown","request":{"apiVersion":2,"method":"bogus"}},
+  {"id":"test_missing","request":{"apiVersion":2,"method":"testXray","payload":{}}},
+  {"id":"test_invalid","request":{"apiVersion":2,"method":"testXray","payload":{"xrayJson":"invalid"}}},
+  {"id":"test_valid","request":{"apiVersion":2,"method":"testXray","payload":{"xrayJson":"{\"outbounds\":[{\"protocol\":\"freedom\",\"tag\":\"direct\"}]}"}}},
+  {"id":"run_valid","request":{"apiVersion":2,"method":"runXray","payload":{"xrayJson":"{\"outbounds\":[{\"protocol\":\"freedom\",\"tag\":\"direct\"}]}"}}},
+  {"id":"running","request":{"apiVersion":2,"method":"getXrayState"}},
+  {"id":"run_again","request":{"apiVersion":2,"method":"runXray","payload":{"xrayJson":"{}"}}},
+  {"id":"stop","request":{"apiVersion":2,"method":"stopXray"}},
+  {"id":"stopped","request":{"apiVersion":2,"method":"getXrayState"}},
+  {"id":"batch_empty","request":{"apiVersion":2,"method":"pingBatch","payload":{}}},
+  {"id":"batch_bad","request":{"apiVersion":2,"method":"pingBatch","payload":{"configs":[{"xrayJson":"bad","outboundTag":"proxy"}],"timeout":1000,"url":"http://127.0.0.1/"}}},
+  {"id":"tls_missing","request":{"apiVersion":2,"method":"probeTLSCertificate","payload":{}}},
+  {"id":"tls_closed","request":{"apiVersion":2,"method":"probeTLSCertificate","payload":{"server":"127.0.0.1","port":1,"serverName":"localhost","timeout":1000}}},
+  {"id":"hy2_missing","request":{"apiVersion":2,"method":"probeHysteria2Certificate","payload":{}}},
+  {"id":"hy2_closed","request":{"apiVersion":2,"method":"probeHysteria2Certificate","payload":{"server":"127.0.0.1","port":1,"serverName":"localhost","timeout":1000}}},
+  {"id":"age_missing","request":{"apiVersion":2,"method":"convertShareLinksToXrayJson","payload":{"text":"age-encryption.org/v1"}}},
+  {"id":"age_key_bad","request":{"apiVersion":2,"method":"generateAgeKeyPair","payload":{"keyType":"bogus"}}}
+]

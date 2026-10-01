@@ -1,0 +1,46 @@
+<resources xmlns:xliff="http://schemas.android.com/apk/res-auto">
+
+    <!-- Home -->
+    <string name="home_vod">Vod</string>
+    <string name="home_live">Live</string>
+    <string name="home_search">Search</string>
+    <string name="home_keep">Keep</string>
+    <string name="home_push">Push</string>
+    <string name="home_setting">Setting</string>
+    <string name="home_history">History</string>
+    <string name="home_recommend">Recommend</string>
+
+    <!-- Collect -->
+    <string name="collect_result">Search results for <xliff:g name="name">%s</xliff:g></string>
+
+    <!-- Push -->
+    <string name="push_clip">Push clipboard content</string>
+    <string name="push_info">Scan QR Code or enter the URL in browser\n<xliff:g name="name">%s</xliff:g></string>
+
+
+    <!-- Xray -->
+    <string name="xray_changed_retry">Xray settings changed while the connection test was running. Test again.</string>
+    <string name="xray_delete">Delete</string>
+    <string name="xray_deleted">Xray configuration deleted</string>
+    <string name="xray_error">Xray ERROR</string>
+    <string name="xray_link">Share link</string>
+    <string name="xray_link_hint">VLESS, VMess, Trojan, Shadowsocks or Hysteria 2 link</string>
+    <string name="xray_live_required">Select a live channel before enabling Xray</string>
+    <string name="xray_not_configured">Not configured</string>
+    <string name="xray_off">Xray OFF</string>
+    <string name="xray_on">Xray ON</string>
+    <string name="xray_phone_import">Phone input</string>
+    <string name="xray_phone_received">Xray link received. Review it and save on TV.</string>
+    <string name="xray_phone_scan_info">Scan with your phone, paste the full Xray share link in the browser, then send it to TV\n%s</string>
+    <string name="xray_public_http_required">This live protocol cannot be fully proxied by Xray</string>
+    <string name="xray_save">Save</string>
+    <string name="xray_saved">Xray configuration saved</string>
+    <string name="xray_setting">Xray setting</string>
+    <string name="xray_starting">Xray starting</string>
+    <string name="xray_test">Test connection</string>
+    <string name="xray_test_success">Connected, %1$d ms</string>
+    <string name="xray_udp">UDP</string>
+    <string name="xray_vod_public_http_required">This video protocol cannot be fully proxied by Xray</string>
+    <string name="xray_vod_required">Start video playback before enabling Xray</string>
+
+</resources>

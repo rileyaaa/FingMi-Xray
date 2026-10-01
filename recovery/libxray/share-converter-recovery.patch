@@ -1,0 +1,616 @@
+--- a/invoke.go
++++ b/invoke.go
+@@ -138,7 +138,11 @@
+ 		return encodeInvokeResponse(nil, err)
+ 	}
+ 	xrayJson, err := share.ConvertShareLinksToXrayJson(request.Text)
+-	return encodeInvokeResponse(xrayJson, err)
++	if err != nil {
++		return encodeInvokeResponse(nil, err)
++	}
++	clean, err := cleanShareConfigNullFields(xrayJson)
++	return encodeInvokeResponse(clean, err)
+ }
+ 
+ func invokeConvertXrayJsonToShareLinks(payload json.RawMessage) string {
+--- /dev/null
++++ b/recovered_share_cleanup.go
+@@ -0,0 +1,38 @@
++package libXray
++
++import "encoding/json"
++
++// Reconstructed from published invoke.go:183-223, including the narrow key list.
++func cleanShareConfigNullFields(config any) (any, error) {
++	raw, err := json.Marshal(config)
++	if err != nil {
++		return nil, err
++	}
++	var value any
++	if err = json.Unmarshal(raw, &value); err != nil {
++		return nil, err
++	}
++	cleanNullRawMessageFields(value)
++	return value, nil
++}
++func cleanNullRawMessageFields(value any) {
++	switch node := value.(type) {
++	case map[string]any:
++		for key, fields := range map[string][]string{"kcpSettings": {"header", "seed"}, "realitySettings": {"target", "dest"}} {
++			if obj, ok := node[key].(map[string]any); ok {
++				for _, field := range fields {
++					if obj[field] == nil {
++						delete(obj, field)
++					}
++				}
++			}
++		}
++		for _, child := range node {
++			cleanNullRawMessageFields(child)
++		}
++	case []any:
++		for _, child := range node {
++			cleanNullRawMessageFields(child)
++		}
++	}
++}
+--- /dev/null
++++ b/share/recovered_compat.go
+@@ -0,0 +1,212 @@
++package share
++
++// Reconstructed behavior, not recovered original source. Evidence: the pinned
++// v5.6.0-xray.5 ARM binaries' DWARF/disassembly and native response fixtures.
++import (
++	"encoding/json"
++	"fmt"
++	"github.com/xtls/xray-core/infra/conf"
++	"net/url"
++	"strconv"
++	"strings"
++)
++
++func decodeShareUserInfo(user *url.Userinfo) (string, error) {
++	if user == nil {
++		return "", nil
++	}
++	return url.PathUnescape(user.String())
++}
++func parseSharePort(link *url.URL) (uint16, error) {
++	p, e := strconv.ParseUint(link.Port(), 10, 16)
++	if e != nil || p == 0 {
++		return 0, fmt.Errorf("invalid share port %q", link.Port())
++	}
++	return uint16(p), nil
++}
++func firstHysteriaPort(ports string) (string, error) {
++	first := ""
++	for _, part := range strings.Split(ports, ",") {
++		r := strings.Split(part, "-")
++		if len(r) > 2 {
++			return "", fmt.Errorf("invalid hysteria2 port hopping %q", ports)
++		}
++		a, e := strconv.ParseUint(r[0], 10, 16)
++		if e != nil || a == 0 {
++			return "", fmt.Errorf("invalid hysteria2 port hopping %q", ports)
++		}
++		if len(r) == 2 {
++			b, e := strconv.ParseUint(r[1], 10, 16)
++			if e != nil || b < a {
++				return "", fmt.Errorf("invalid hysteria2 port hopping %q", ports)
++			}
++		}
++		if first == "" {
++			first = r[0]
++		}
++	}
++	return first, nil
++}
++func rawQueryHasKey(raw, key string) bool {
++	for _, p := range strings.Split(raw, "&") {
++		k, _, _ := strings.Cut(p, "=")
++		k, e := url.QueryUnescape(k)
++		if e == nil && k == key {
++			return true
++		}
++	}
++	return false
++}
++func normalizeHysteriaMultiPortLink(link string) (string, error) {
++	if !strings.HasPrefix(link, "hy2://") && !strings.HasPrefix(link, "hysteria2://") {
++		return link, nil
++	}
++	start := strings.Index(link, "://") + 3
++	end := len(link)
++	if i := strings.IndexAny(link[start:], "/?#"); i >= 0 {
++		end = start + i
++	}
++	authority := link[start:end]
++	hostStart := strings.LastIndex(authority, "@") + 1
++	host := authority[hostStart:]
++	colon := strings.LastIndex(host, ":")
++	if strings.HasPrefix(host, "[") {
++		close := strings.Index(host, "]")
++		if close < 0 || close+1 >= len(host) || host[close+1] != ':' {
++			return link, nil
++		}
++		colon = close + 1
++	}
++	if colon < 0 {
++		return link, nil
++	}
++	ports := host[colon+1:]
++	if !strings.ContainsAny(ports, ",-") {
++		return link, nil
++	}
++	first, e := firstHysteriaPort(ports)
++	if e != nil {
++		return "", e
++	}
++	suffix := link[end:]
++	body, fragment, hasFragment := strings.Cut(suffix, "#")
++	path, query, hasQuery := strings.Cut(body, "?")
++	if rawQueryHasKey(query, "ports") {
++		return "", fmt.Errorf("ambiguous hysteria2 port hopping")
++	}
++	if hasQuery && query != "" {
++		query += "&"
++	}
++	query += "ports=" + url.QueryEscape(ports)
++	result := link[:start] + authority[:hostStart+colon+1] + first + path + "?" + query
++	if hasFragment {
++		result += "#" + fragment
++	}
++	return result, nil
++}
++func normalizeLegacyShadowsocksLink(link string) (string, error) {
++	if !strings.HasPrefix(link, "ss://") {
++		return link, nil
++	}
++	body, fragment, hasFragment := strings.Cut(link[5:], "#")
++	if strings.Contains(body, "@") {
++		return link, nil
++	}
++	decoded, e := decodeBase64Text(body)
++	if e != nil {
++		return "", e
++	}
++	at := strings.LastIndex(decoded, "@")
++	if at <= 0 || at == len(decoded)-1 {
++		return "", fmt.Errorf("invalid legacy shadowsocks link")
++	}
++	cipher, password, ok := strings.Cut(decoded[:at], ":")
++	if !ok || cipher == "" {
++		return "", fmt.Errorf("invalid legacy shadowsocks credentials")
++	}
++	result := "ss://" + url.UserPassword(cipher, password).String() + "@" + decoded[at+1:]
++	if hasFragment {
++		result += "#" + fragment
++	}
++	return result, nil
++}
++func normalizeHysteriaPinSHA256(pin string) (string, error) {
++	pin = strings.ToLower(strings.ReplaceAll(strings.ReplaceAll(strings.TrimSpace(pin), ":", ""), "-", ""))
++	if len(pin) != 64 {
++		return "", fmt.Errorf("invalid hysteria2 certificate pin")
++	}
++	for _, r := range pin {
++		if !(r >= '0' && r <= '9' || r >= 'a' && r <= 'f') {
++			return "", fmt.Errorf("invalid hysteria2 certificate pin")
++		}
++	}
++	return pin, nil
++}
++func cleanShareALPN(values []string) []string {
++	out := make([]string, 0, len(values))
++	for _, v := range values {
++		if v = strings.TrimSpace(v); v != "" {
++			out = append(out, v)
++		}
++	}
++	return out
++}
++func parseShareALPN(value string) []string {
++	value = strings.TrimSpace(value)
++	if value == "" {
++		return nil
++	}
++	if strings.HasPrefix(value, "[") {
++		var a []string
++		if json.Unmarshal([]byte(value), &a) == nil {
++			return cleanShareALPN(a)
++		}
++	}
++	return cleanShareALPN(strings.Split(value, ","))
++}
++func legacyKCPMTU(header string, seedPresent bool) (uint32, error) {
++	overhead := uint32(0)
++	switch strings.ToLower(strings.TrimSpace(header)) {
++	case "", "none":
++	case "dns":
++		overhead = 31
++	case "dtls", "wechat", "wechat-video":
++		overhead = 13
++	case "srtp", "utp", "wireguard":
++		overhead = 4
++	default:
++		return 0, fmt.Errorf("unsupported legacy mKCP header: %s", header)
++	}
++	if seedPresent {
++		return 1350 - overhead - 16, nil
++	}
++	return 1350 - overhead - 6, nil
++}
++func legacyKCPFinalMask(header, seed string, seedPresent bool) (*conf.FinalMask, error) {
++	header = strings.ToLower(strings.TrimSpace(header))
++	switch header {
++	case "", "none":
++		header = ""
++	case "wechat-video":
++		header = "wechat"
++	case "dns", "dtls", "wechat", "srtp", "utp", "wireguard":
++	default:
++		return nil, fmt.Errorf("unsupported legacy mKCP header: %s", header)
++	}
++	if !seedPresent {
++		seed = ""
++	}
++	mask := func(h, v string) conf.Mask {
++		raw, _ := json.Marshal(struct {
++			Header string `json:"header"`
++			Value  string `json:"value"`
++		}{h, v})
++		r := json.RawMessage(raw)
++		return conf.Mask{Type: "mkcp-legacy", Settings: &r}
++	}
++	udp := []conf.Mask{mask("", seed)}
++	if header != "" {
++		udp = append(udp, mask(header, ""))
++	}
++	return &conf.FinalMask{Udp: udp}, nil
++}
+--- a/share/parse_share.go
++++ b/share/parse_share.go
+@@ -145,6 +145,14 @@
+ 	forEachLine(text, func(raw string) bool {
+ 		line := strings.TrimSpace(raw)
+ 		if line == "" {
++			return true
++		}
++		line, err := normalizeLegacyShadowsocksLink(line)
++		if err != nil {
++			return true
++		}
++		line, err = normalizeHysteriaMultiPortLink(line)
++		if err != nil {
+ 			return true
+ 		}
+ 		u, err := url.Parse(line)
+@@ -190,13 +198,16 @@
+ }
+ 
+ func (proxy xrayShareLink) shadowsocksOutbound() (*conf.OutboundDetourConfig, error) {
++	if proxy.link.Query().Has("plugin") {
++		return nil, fmt.Errorf("shadowsocks SIP003 plugins are unsupported")
++	}
+ 	outbound := &conf.OutboundDetourConfig{}
+ 	outbound.Protocol = "shadowsocks"
+ 	setOutboundName(outbound, proxy.link.Fragment)
+ 
+ 	settings := &conf.ShadowsocksClientConfig{}
+ 	settings.Address = parseAddress(proxy.link.Hostname())
+-	port, err := strconv.Atoi(proxy.link.Port())
++	port, err := parseSharePort(proxy.link)
+ 	if err != nil {
+ 		return nil, err
+ 	}
+@@ -262,13 +273,13 @@
+ 
+ 	settings := conf.VMessOutboundConfig{}
+ 	settings.Address = parseAddress(proxy.link.Hostname())
+-	port, err := strconv.Atoi(proxy.link.Port())
+-	if err != nil {
+-		return nil, err
+-	}
+-	settings.Port = uint16(port)
+-
+-	id, err := url.QueryUnescape(proxy.link.User.String())
++	port, err := parseSharePort(proxy.link)
++	if err != nil {
++		return nil, err
++	}
++	settings.Port = uint16(port)
++
++	id, err := decodeShareUserInfo(proxy.link.User)
+ 	if err != nil {
+ 		return nil, err
+ 	}
+@@ -299,13 +310,13 @@
+ 
+ 	settings := &conf.VLessOutboundConfig{}
+ 	settings.Address = parseAddress(proxy.link.Hostname())
+-	port, err := strconv.Atoi(proxy.link.Port())
+-	if err != nil {
+-		return nil, err
+-	}
+-	settings.Port = uint16(port)
+-
+-	id, err := url.QueryUnescape(proxy.link.User.String())
++	port, err := parseSharePort(proxy.link)
++	if err != nil {
++		return nil, err
++	}
++	settings.Port = uint16(port)
++
++	id, err := decodeShareUserInfo(proxy.link.User)
+ 	if err != nil {
+ 		return nil, err
+ 	}
+@@ -340,7 +351,7 @@
+ 
+ 	settings := &conf.SocksClientConfig{}
+ 	settings.Address = parseAddress(proxy.link.Hostname())
+-	port, err := strconv.Atoi(proxy.link.Port())
++	port, err := parseSharePort(proxy.link)
+ 	if err != nil {
+ 		return nil, err
+ 	}
+@@ -380,13 +391,13 @@
+ 
+ 	settings := &conf.TrojanClientConfig{}
+ 	settings.Address = parseAddress(proxy.link.Hostname())
+-	port, err := strconv.Atoi(proxy.link.Port())
+-	if err != nil {
+-		return nil, err
+-	}
+-	settings.Port = uint16(port)
+-
+-	password, err := url.QueryUnescape(proxy.link.User.String())
++	port, err := parseSharePort(proxy.link)
++	if err != nil {
++		return nil, err
++	}
++	settings.Port = uint16(port)
++
++	password, err := decodeShareUserInfo(proxy.link.User)
+ 	if err != nil {
+ 		return nil, err
+ 	}
+@@ -414,7 +425,11 @@
+ 	settings := &conf.HysteriaClientConfig{}
+ 	settings.Version = 2
+ 	settings.Address = parseAddress(proxy.link.Hostname())
+-	port, err := strconv.Atoi(proxy.link.Port())
++	port := uint16(443)
++	var err error
++	if proxy.link.Port() != "" {
++		port, err = parseSharePort(proxy.link)
++	}
+ 	if err != nil {
+ 		return nil, err
+ 	}
+@@ -431,7 +446,7 @@
+ 
+ 	hysteriaSettings := &conf.HysteriaConfig{}
+ 	hysteriaSettings.Version = 2
+-	auth, err := url.QueryUnescape(proxy.link.User.String())
++	auth, err := decodeShareUserInfo(proxy.link.User)
+ 	if err != nil {
+ 		return nil, err
+ 	}
+--- a/share/stream.go
++++ b/share/stream.go
+@@ -1,15 +1,15 @@
+ package share
+ 
+ import (
++	"fmt"
+ 	"net/url"
+-	"strings"
+ 
+ 	"github.com/xtls/xray-core/infra/conf"
+ )
+ 
+ func (proxy xrayShareLink) streamSettings(link *url.URL) (*conf.StreamConfig, error) {
+ 	query := link.Query()
+-	if len(query) == 0 {
++	if len(query) == 0 && proxy.link.Scheme != "trojan" {
+ 		return nil, nil
+ 	}
+ 
+@@ -40,14 +40,29 @@
+ 	realitySettings.ServerName = sni
+ 
+ 	tlsSettings.ECHConfigList = query.Get("ech")
+-	tlsSettings.PinnedPeerCertSha256 = query.Get("pcs")
++	pin := query.Get("pcs")
++	fromHy2Pin := false
++	if link.Scheme == "hy2" || link.Scheme == "hysteria2" {
++		if values, present := query["pinSHA256"]; present && len(values) > 0 {
++			if len(values) != 1 || values[0] == "" || query.Has("pcs") {
++				return fmt.Errorf("ambiguous hysteria2 certificate pin")
++			}
++			var err error
++			pin, err = normalizeHysteriaPinSHA256(values[0])
++			if err != nil {
++				return err
++			}
++			fromHy2Pin = true
++		}
++	}
++	tlsSettings.PinnedPeerCertSha256 = pin
+ 	tlsSettings.VerifyPeerCertByName = query.Get("vcn")
+ 
+-	if alpn := query.Get("alpn"); alpn != "" {
+-		tlsSettings.ALPN = new(conf.StringList(strings.Split(alpn, ",")))
++	if alpn := parseShareALPN(query.Get("alpn")); len(alpn) > 0 {
++		tlsSettings.ALPN = new(conf.StringList(alpn))
+ 	}
+ 
+-	if query.Get("insecure") == "1" {
++	if query.Get("insecure") == "1" && !fromHy2Pin {
+ 		tlsSettings.AllowInsecure = true
+ 	}
+ 
+--- a/share/transport_build.go
++++ b/share/transport_build.go
+@@ -12,8 +12,10 @@
+ type shareTransportFields struct {
+ 	Network         string
+ 	HeaderType      string
++	HeaderPresent   bool
+ 	Path            string
+ 	Host            string
++	SeedPresent     bool
+ 	Seed            string // KCP seed (URL query or VMess QR path-as-seed)
+ 	GrpcAuthority   string
+ 	GrpcServiceName string
+@@ -31,6 +33,8 @@
+ 	return shareTransportFields{
+ 		Network:         network,
+ 		HeaderType:      q.Get("headerType"),
++		HeaderPresent:   q.Has("headerType"),
++		SeedPresent:     q.Has("seed"),
+ 		Path:            q.Get("path"),
+ 		Host:            q.Get("host"),
+ 		Seed:            q.Get("seed"),
+@@ -60,6 +64,8 @@
+ 		t.GrpcMultiMode = p.Type == "multi"
+ 	case "kcp", "mkcp":
+ 		t.Seed = p.Path
++		t.SeedPresent = p.Path != ""
++		t.HeaderPresent = p.Type != ""
+ 	}
+ 	if network == "xhttp" || network == "splithttp" {
+ 		t.XHTTPMode = p.Type
+@@ -97,15 +103,18 @@
+ 		}
+ 	case "kcp", "mkcp":
+ 		kcpSettings := &conf.KCPConfig{}
+-		if t.HeaderType != "" {
+-			header := XrayFakeHeader{Type: t.HeaderType}
+-			headerRawMessage, err := convertJsonToRawMessage(header)
++		if t.FMJSON == "" && (t.HeaderPresent || t.SeedPresent) {
++			mask, err := legacyKCPFinalMask(t.HeaderType, t.Seed, t.SeedPresent)
+ 			if err != nil {
+ 				return nil, err
+ 			}
+-			kcpSettings.HeaderConfig = headerRawMessage
++			mtu, err := legacyKCPMTU(t.HeaderType, t.SeedPresent)
++			if err != nil {
++				return nil, err
++			}
++			kcpSettings.Mtu = new(mtu)
++			streamSettings.FinalMask = mask
+ 		}
+-		kcpSettings.Seed = new(t.Seed)
+ 		streamSettings.KCPSettings = kcpSettings
+ 	case "ws", "websocket":
+ 		streamSettings.WSSettings = &conf.WebSocketConfig{Path: t.Path, Host: t.Host}
+--- a/share/vmess.go
++++ b/share/vmess.go
+@@ -4,7 +4,6 @@
+ 	"encoding/json"
+ 	"fmt"
+ 	"strconv"
+-	"strings"
+ 
+ 	"github.com/xtls/xray-core/infra/conf"
+ )
+@@ -42,9 +41,9 @@
+ 	settings := conf.VMessOutboundConfig{}
+ 	settings.Address = parseAddress(proxy.Add)
+ 	portStr := fmt.Sprintf("%v", proxy.Port)
+-	port, err := strconv.Atoi(portStr)
+-	if err != nil {
+-		return nil, err
++	port, err := strconv.ParseUint(portStr, 10, 16)
++	if err != nil || port == 0 {
++		return nil, fmt.Errorf("invalid vmess port %q", portStr)
+ 	}
+ 	settings.Port = uint16(port)
+ 	settings.ID = proxy.Id
+@@ -71,8 +70,8 @@
+ 	tlsSettings := &conf.TLSConfig{}
+ 	tlsSettings.Fingerprint = proxy.Fp
+ 	tlsSettings.ServerName = proxy.Sni
+-	if proxy.Alpn != "" {
+-		tlsSettings.ALPN = new(conf.StringList(strings.Split(proxy.Alpn, ",")))
++	if alpn := parseShareALPN(proxy.Alpn); len(alpn) > 0 {
++		tlsSettings.ALPN = new(conf.StringList(alpn))
+ 	}
+ 
+ 	if proxy.Tls == "" {
+--- a/share/hysteria_mask.go
++++ b/share/hysteria_mask.go
+@@ -2,6 +2,8 @@
+ 
+ import (
+ 	"encoding/json"
++	"fmt"
++	"strings"
+ 
+ 	"github.com/xtls/xray-core/infra/conf"
+ )
+@@ -39,6 +41,21 @@
+ 		}
+ 	}
+ 
++	obfsType = strings.ToLower(strings.TrimSpace(obfsType))
++	switch obfsType {
++	case "":
++		if obfsPassword != "" {
++			return nil, fmt.Errorf("hysteria2 obfs password supplied without obfs type")
++		}
++	case "salamander":
++		if obfsPassword == "" {
++			return nil, fmt.Errorf("hysteria2 salamander obfs requires password")
++		}
++	case "gecko":
++		return nil, fmt.Errorf("hysteria2 gecko obfs is unsupported by locked Xray-core")
++	default:
++		return nil, fmt.Errorf("unsupported hysteria2 obfs type %q", obfsType)
++	}
+ 	var udpMasks []conf.Mask
+ 	if obfsType == "salamander" && obfsPassword != "" {
+ 		obfs := conf.Mask{Type: "salamander"}
+--- a/share/parse_share_test.go
++++ b/share/parse_share_test.go
+@@ -365,9 +365,15 @@
+ func TestConvertShareLinksToXrayJson_TransportKcpGrpcHttpUpgradeXhttp(t *testing.T) {
+ 	t.Run("kcp", func(t *testing.T) {
+ 		link := "vless://" + testShareUUID + "@k.example:443?encryption=none&type=kcp&headerType=srtp&seed=myseed"
+-		_, err := ConvertShareLinksToXrayJson(link)
+-		require.Error(t, err)
+-		assert.Contains(t, err.Error(), "mkcp header & seed has been removed")
++		// Published native fixtures: legacy KCP is translated to finalmask.
++		cfg, err := ConvertShareLinksToXrayJson(link)
++		require.NoError(t, err)
++		stream := cfg.OutboundConfigs[0].StreamSetting
++		require.NotNil(t, stream.KCPSettings.Mtu)
++		assert.Equal(t, uint32(1330), *stream.KCPSettings.Mtu)
++		require.NotNil(t, stream.FinalMask)
++		require.Len(t, stream.FinalMask.Udp, 2)
++		assert.Equal(t, "mkcp-legacy", stream.FinalMask.Udp[0].Type)
+ 	})
+ 
+ 	t.Run("grpc", func(t *testing.T) {
+@@ -527,9 +533,15 @@
+ 	t.Run("kcp", func(t *testing.T) {
+ 		qr := `{"ps":"k","add":"kcp.host","port":"8391","id":"` + testShareUUID + `","net":"kcp","path":"seedval","type":"wireguard"}`
+ 		link := "vmess://" + base64.StdEncoding.EncodeToString([]byte(qr))
+-		_, err := ConvertShareLinksToXrayJson(link)
+-		require.Error(t, err)
+-		assert.Contains(t, err.Error(), "mkcp header & seed has been removed")
++		// Published native fixtures: legacy KCP is translated to finalmask.
++		cfg, err := ConvertShareLinksToXrayJson(link)
++		require.NoError(t, err)
++		stream := cfg.OutboundConfigs[0].StreamSetting
++		require.NotNil(t, stream.KCPSettings.Mtu)
++		assert.Equal(t, uint32(1330), *stream.KCPSettings.Mtu)
++		require.NotNil(t, stream.FinalMask)
++		require.Len(t, stream.FinalMask.Udp, 2)
++		assert.Equal(t, "mkcp-legacy", stream.FinalMask.Udp[0].Type)
+ 	})
+ }
+ 

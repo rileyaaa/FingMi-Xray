@@ -1,0 +1,229 @@
+{
+  "version": "5.6.5",
+  "evidence_scope": "neighbor-release contract, not exact5.6.3 source",
+  "v7_apk_sha256": "43efc084598782820079347f00e0d26bb2b594ce7087579b8859856c0c6b2132",
+  "v8_apk_sha256": "5ea69f5dab085f25948f4dfac5ef4cf4ed42bc49e54a86e6075fba83b6b46123",
+  "dex_sha256": "a1b7f5735678e7b09dbd522d080ff6ada3fc4cf6ffe064278c35ebccb49020f8",
+  "abis": {
+    "armeabi-v7a": {
+      "sha256": "052c81b548649a0a3d697f034640f8c4b00530b6572662b16cc6ca3f6efb1f26",
+      "elf_machine": 40,
+      "methods": [
+        {
+          "name": "nativeAddFont",
+          "descriptor": "(JLjava/lang/String;[B)V",
+          "function": "0x7dcd9",
+          "table": "0x1ce400"
+        },
+        {
+          "name": "nativeCreate",
+          "descriptor": "(JLjava/lang/String;Ljava/lang/String;)J",
+          "function": "0x7db8d",
+          "table": "0x1ce3e8"
+        },
+        {
+          "name": "nativeCreateLibrary",
+          "descriptor": "(Ljava/lang/String;)J",
+          "function": "0x7da61",
+          "table": "0x1ce3d0"
+        },
+        {
+          "name": "nativeProcessChunk",
+          "descriptor": "(J[BIIJJ)V",
+          "function": "0x7e0a9",
+          "table": "0x1ce43c"
+        },
+        {
+          "name": "nativeProcessCodecPrivate",
+          "descriptor": "(J[BII)V",
+          "function": "0x7de0d",
+          "table": "0x1ce418"
+        },
+        {
+          "name": "nativeProcessData",
+          "descriptor": "(J[BII)V",
+          "function": "0x7dee9",
+          "table": "0x1ce424"
+        },
+        {
+          "name": "nativeProcessTimedData",
+          "descriptor": "(J[BIIJ)V",
+          "function": "0x7dfc5",
+          "table": "0x1ce430"
+        },
+        {
+          "name": "nativeRelease",
+          "descriptor": "(J)V",
+          "function": "0x7dcb5",
+          "table": "0x1ce3f4"
+        },
+        {
+          "name": "nativeReleaseLibrary",
+          "descriptor": "(J)V",
+          "function": "0x7db71",
+          "table": "0x1ce3dc"
+        },
+        {
+          "name": "nativeRenderFrame",
+          "descriptor": "(JJZZ)Landroidx/media3/exoplayer/libass/LibassFrame;",
+          "function": "0x7e6d9",
+          "table": "0x1ce490"
+        },
+        {
+          "name": "nativeSetBottomPositionFraction",
+          "descriptor": "(JF)V",
+          "function": "0x7e331",
+          "table": "0x1ce46c"
+        },
+        {
+          "name": "nativeSetCacheLimits",
+          "descriptor": "(JII)V",
+          "function": "0x7e679",
+          "table": "0x1ce484"
+        },
+        {
+          "name": "nativeSetFontScale",
+          "descriptor": "(JFZ)V",
+          "function": "0x7e299",
+          "table": "0x1ce460"
+        },
+        {
+          "name": "nativeSetFonts",
+          "descriptor": "(JLjava/lang/String;Ljava/lang/String;)V",
+          "function": "0x7ddb1",
+          "table": "0x1ce40c"
+        },
+        {
+          "name": "nativeSetFrameSize",
+          "descriptor": "(JIIIIII)V",
+          "function": "0x7e19d",
+          "table": "0x1ce448"
+        },
+        {
+          "name": "nativeSetStorageSize",
+          "descriptor": "(JII)V",
+          "function": "0x7e239",
+          "table": "0x1ce454"
+        },
+        {
+          "name": "nativeSetStyleOverride",
+          "descriptor": "(JZLjava/lang/String;FIIIIFF)V",
+          "function": "0x7e3b9",
+          "table": "0x1ce478"
+        }
+      ]
+    },
+    "arm64-v8a": {
+      "sha256": "c625360ef9224a516a1092ea757130f4c6f11c63544c50a1b279b654cf4710f7",
+      "elf_machine": 183,
+      "methods": [
+        {
+          "name": "nativeAddFont",
+          "descriptor": "(JLjava/lang/String;[B)V",
+          "function": "0xb286c",
+          "table": "0x246de0"
+        },
+        {
+          "name": "nativeCreate",
+          "descriptor": "(JLjava/lang/String;Ljava/lang/String;)J",
+          "function": "0xb2664",
+          "table": "0x246db0"
+        },
+        {
+          "name": "nativeCreateLibrary",
+          "descriptor": "(Ljava/lang/String;)J",
+          "function": "0xb2468",
+          "table": "0x246d80"
+        },
+        {
+          "name": "nativeProcessChunk",
+          "descriptor": "(J[BIIJJ)V",
+          "function": "0xb2e88",
+          "table": "0x246e58"
+        },
+        {
+          "name": "nativeProcessCodecPrivate",
+          "descriptor": "(J[BII)V",
+          "function": "0xb2a90",
+          "table": "0x246e10"
+        },
+        {
+          "name": "nativeProcessData",
+          "descriptor": "(J[BII)V",
+          "function": "0xb2be0",
+          "table": "0x246e28"
+        },
+        {
+          "name": "nativeProcessTimedData",
+          "descriptor": "(J[BIIJ)V",
+          "function": "0xb2d30",
+          "table": "0x246e40"
+        },
+        {
+          "name": "nativeRelease",
+          "descriptor": "(J)V",
+          "function": "0xb2834",
+          "table": "0x246dc8"
+        },
+        {
+          "name": "nativeReleaseLibrary",
+          "descriptor": "(J)V",
+          "function": "0xb2634",
+          "table": "0x246d98"
+        },
+        {
+          "name": "nativeRenderFrame",
+          "descriptor": "(JJZZ)Landroidx/media3/exoplayer/libass/LibassFrame;",
+          "function": "0xb3774",
+          "table": "0x246f00"
+        },
+        {
+          "name": "nativeSetBottomPositionFraction",
+          "descriptor": "(JF)V",
+          "function": "0xb3294",
+          "table": "0x246eb8"
+        },
+        {
+          "name": "nativeSetCacheLimits",
+          "descriptor": "(JII)V",
+          "function": "0xb36d0",
+          "table": "0x246ee8"
+        },
+        {
+          "name": "nativeSetFontScale",
+          "descriptor": "(JFZ)V",
+          "function": "0xb31ac",
+          "table": "0x246ea0"
+        },
+        {
+          "name": "nativeSetFonts",
+          "descriptor": "(JLjava/lang/String;Ljava/lang/String;)V",
+          "function": "0xb29ec",
+          "table": "0x246df8"
+        },
+        {
+          "name": "nativeSetFrameSize",
+          "descriptor": "(JIIIIII)V",
+          "function": "0xb2ff4",
+          "table": "0x246e70"
+        },
+        {
+          "name": "nativeSetStorageSize",
+          "descriptor": "(JII)V",
+          "function": "0xb3108",
+          "table": "0x246e88"
+        },
+        {
+          "name": "nativeSetStyleOverride",
+          "descriptor": "(JZLjava/lang/String;FIIIIFF)V",
+          "function": "0xb334c",
+          "table": "0x246ed0"
+        }
+      ]
+    }
+  },
+  "constructors": {
+    "LibassFrame": "(I[Landroidx/media3/exoplayer/libass/LibassImage;)V",
+    "LibassImage": "(IIIII[BI)V"
+  }
+}
