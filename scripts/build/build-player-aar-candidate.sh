@@ -4,7 +4,7 @@ set -euo pipefail
 SOURCE_COMMIT="3c2cbe8ac742c2fe15eff52f03eeb3b1b648848d"
 DOLBY_OVERLAY_ID="fongmi-tv-5.6.8-dolby-release-overlay-v1"
 MPV_OVERLAY_ID="fongmi-tv-5.6.8-mpv-bridge-v2"
-ISO_OVERLAY_ID="fongmi-tv-5.6.8-iso-native-udf-overlay-v1"
+ISO_OVERLAY_ID="fongmi-tv-5.6.8-iso-native-navigation-overlay-v2"
 WORKDIR=""
 OUTPUT=""
 
@@ -99,6 +99,7 @@ required = {
     "androidx/media3/mpvplayer/media/MpvIsoStream.class",
     "androidx/media3/mpvplayer/media/MpvIsoStreamManager.class",
     "androidx/media3/extractor/iso/udf/NativeUdfFileSystem.class",
+    "androidx/media3/exoplayer/iso/IsoNavigationSession.class",
     "is/xyz/mpv/MPVLib$Stream.class",
     "is/xyz/mpv/MPVLib$StreamProvider.class",
     "androidx/media3/exoplayer/trackselection/DecodeTrackSelector.class",
@@ -114,6 +115,7 @@ required = {
     "androidx/media3/exoplayer/video/DolbyVisionP7Converter$Factory.class",
 }
 found = set()
+navigation_keep_found = False
 aars = sorted(set(
     source.glob("libraries/*/buildout/outputs/aar/*-release.aar")
 ) | set(
@@ -136,11 +138,20 @@ for path in aars:
     data = target.read_bytes()
     with ZipFile(BytesIO(data)) as archive:
         classes = archive.read("classes.jar")
+        if target.name == "lib-exoplayer-release.aar":
+            if "proguard.txt" not in archive.namelist():
+                raise SystemExit("lib-exoplayer-release.aar lacks consumer ProGuard rules")
+            navigation_keep_found = (
+                b"-keep class androidx.media3.exoplayer.iso.IsoNavigationSession { *; }"
+                in archive.read("proguard.txt")
+            )
     with ZipFile(BytesIO(classes)) as jar:
         found.update(required.intersection(jar.namelist()))
     lines.append(f"{hashlib.sha256(data).hexdigest()}  {target.name}")
 
 missing = required - found
+if not navigation_keep_found:
+    raise SystemExit("lib-exoplayer-release.aar lost IsoNavigationSession consumer keep rule")
 lines += ["", "Required classes found:"] + sorted(found)
 lines += ["", "Required classes missing:"] + sorted(missing)
 manifest = ("\n".join(lines) + "\n").encode()
