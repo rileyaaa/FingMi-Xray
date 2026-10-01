@@ -219,7 +219,7 @@ player candidate 的信任根是固定 `FongMi/media` commit；每次构建都�
 
 - `apply-media3-mpv568-overlay.py` 在固定 public MPV 源码上恢复 `MPVLib.enqueueCommandLongResult(...)`、三参数 command reply、`MPVLib.Stream` / stream registry、`MpvClient` long-result callback 与 `MpvCommandDispatcher` script load/unload；
 - Release `libplayer.so` 的 JNI 字符串已经独立证明它要求 `MPVLib$Stream`、`openStream`、`read/seek/size/cancel/close` 和 `eventCommandReply(long,int,long)`，因此这些不是仅凭 JADX 猜出的接口；
-- 双 ABI `libplayer.so` 与 `libmpv.so` 已由 `published_568_mpv_contract.py` 固定 SHA，并由独立 restorer/checker 作为一个 bridge native 单元恢复；current/publish 与 final APK provenance gate 已接入，但最新 HEAD 尚未完成 full build 验证；
+- 双 ABI `libplayer.so` 与 `libmpv.so` 已由 `published_568_mpv_contract.py` 固定 SHA，并由独立 restorer/checker 作为一个 bridge native 单元恢复；current/publish 与 final APK provenance gate 已接入，并已在最新 full current-main TV build 中通过；
 - 5.6.8 subtitle 路径的 `secondary-sub-scale` 已补入 Media3 subtitle defaults 和 app `MpvUtil` ownership，并由 overlay unit test / source guard 约束；
 - 5.6.7 Release 明确包含“播放腳本”“ISO 原盤起播、光碟選單”，5.6.8 又继续声明“改善 mpv 字幕及原生播放元件”，因此这些属于发布行为，不是未暴露的内部实验接口。
 
@@ -239,7 +239,7 @@ FongMi/TV 公开 HEAD `c616c0aa...` 与 Release 5.6.8 不是完整一一对应�
 - current / publish workflow 已切到完整 5.6.8 FFmpeg closure，不再走历史“只替换 5.6.0 单个 `libffmpegJNI.so`”路径；
 - full current-main TV build 已实际通过：17-AAR rebuild/verifier、5.6.8 FFmpeg restore/check、Xray 双 ABI native parity、Libass rebuild/import、Leanback Java compile、v7/arm64 APK assemble、MPEG-H final packaging、Xray/FFmpeg/MPEG-H/Libass final `PT_LOAD` provenance 和 merged Manifest security contract 全部成功。
 
-**当前边界：** 5.6.8 MPV bridge 第一阶段（long-result/script JNI、Stream ABI、secondary subtitle scale、双 ABI `libplayer.so` / `libmpv.so` provenance）已接入 current source/build chain，但**尚未完成最新 HEAD 的 full current-main 编译/assemble/final APK 验证**。remote ISO stream、disc-menu native path / `libisoJNI.so` 与 `libnodebridge.so` 仍未迁移。因此现在仍不能说“5.6.8 播放器 / media 已完整同步”。Android TV 真机上的 P5/P7、Xray、网络生命周期与 MPV/ISO 行为仍属于最终运行时验收层。
+**当前边界：** 5.6.8 MPV bridge 第一阶段（long-result/script JNI、Stream ABI、secondary subtitle scale、双 ABI `libplayer.so` / `libmpv.so` provenance）已接入 current source/build chain，并已通过最新 full current-main：17-AAR rebuild、mpvplayer unit tests、Leanback Java compile、双 ABI APK assemble，以及最终 APK 中 `libplayer.so` / `libmpv.so` 的 PT_LOAD provenance。remote ISO stream、disc-menu native path / `libisoJNI.so` 与 `libnodebridge.so` 仍未迁移。因此现在仍不能说“5.6.8 播放器 / media 已完整同步”。Android TV 真机上的 P5/P7、Xray、网络生命周期与 MPV/ISO 行为仍属于最终运行时验收层。
 
 ## 6. 二进制依赖
 
@@ -544,8 +544,8 @@ Android build-tools 37 的 plain `dexdump` 会把 class 边界打印成带填充
 同一阶段继续审计 5.6.7 / 5.6.8 Release，确认 MPV / ISO 仍是独立未完成面：Release MPV bridge 新增 long-result script command、stream registry / `media3iso://` remote ISO、secondary subtitle scale；固定 public `libplayer.so` 与 Release 字节不一致，`libmpv.so` 也已变化；Release 还包含 public source 没有的 `libisoJNI.so` / native disc-navigation 路径。后续必须把 MPV Java bridge + `libplayer.so` + `libmpv.so` 作为同一 ABI 单元恢复/验证，并单独建立 ISO native provenance，不能只换一个 SO。5.6.8 `libnodebridge.so` 变化也继续作为独立 provenance 项处理。
 
 
-### 2026-10-01 — 5.6.8 MPV bridge 第一阶段接入，等待 full current-main 验证
+### 2026-10-01 — 5.6.8 MPV bridge 第一阶段接入并通过 full current-main
 
 5.6.8 targeted native audit 重新对固定 public `libplayer.so/libmpv.so` 与 Release 双 ABI二进制做了独立 ELF/JNI 对比。Release `libplayer.so` 明确新增 `enqueueCommandLongResult`，command reply descriptor 从 `(JI)V` 升为 `(JIJ)V`，并按类名/方法名调用 `MPVLib$Stream` 的 `read/seek/size/cancel/close` 与静态 `openStream`；同时其 NEEDED 包含 `libmpv.so`、`libavcodec.so`、`libswscale.so`。这证明新版 Java bridge、`libplayer.so`、`libmpv.so` 不能拆开迁移。
 
-current 已新增 MPV overlay、双 ABI native contract/restorer/checker，并把 overlay identity、关键 class、mpvplayer unit-test task、importer immutable mutation、current/publish restore/check 和最终 APK PT_LOAD gate 接入现有 17-AAR 构建链。app 的 MPV managed options 也已加入 `secondary-sub-scale`。本里程碑只表示**源码/构建链接线完成**；在最新 HEAD 完成 full current-main 前，不把 MPV compile、双 ABI APK packaging 或真机行为写成已验证。remote ISO / disc menu 与 `libisoJNI.so` 保留为下一阶段。
+current 已新增 MPV overlay、双 ABI native contract/restorer/checker，并把 overlay identity、关键 class、mpvplayer unit-test task、importer immutable mutation、current/publish restore/check 和最终 APK PT_LOAD gate 接入现有 17-AAR 构建链。app 的 MPV managed options 也已加入 `secondary-sub-scale`。随后 run `36758945496` 在 marker source `dc7b5b06...` 上完整成功：source guards、17-AAR rebuild、MPV bridge unit tests、5.6.8 MPV native restore/check、Xray parity、Libass、Leanback Java compile、双 ABI APK assemble、MPEG-H、最终 Xray/FFmpeg/MPV/MPEG-H/Libass PT_LOAD 与 merged Manifest security contract 全部通过。remote ISO / disc menu 与 `libisoJNI.so` 仍保留为下一阶段；真机 MPV script/stream 行为仍需运行时验收。
