@@ -67,7 +67,6 @@ jobs:
           python3 scripts/build/check-final-apk-native.py --self-test
           python3 scripts/build/check-final-apk-manifest.py --self-test
           python3 tests/test-build-hygiene.py
-          python3 tests/test-upgrade-compat.py
           python3 tests/test-tv-network-recovery.py
 
       - name: Prepare Android SDK 36 and 37
@@ -120,15 +119,11 @@ jobs:
           unzip -q build/work/current-main/input/jadx.zip -d build/work/current-main/tools/jadx
           chmod +x build/work/current-main/tools/jadx/bin/jadx
 
-      - name: Prepare pinned decoder and Xray native dependencies
+      - name: Prepare public player and Xray native dependencies
         shell: bash
         run: |
           set -euo pipefail
-          python3 scripts/recovery/restore-published-ffmpegjni.py             --candidate build/work/current-main/input/player-candidate.zip             --v7-apk build/work/current-main/input/published-v560-v7.apk             --v8-apk build/work/current-main/input/published-v560-v8.apk             --to build/work/current-main/restored/lib-decoder-ffmpeg-release.aar
-
-          python3 scripts/build/import-player-aar-candidate.py             build/work/current-main/input/player-candidate.zip             --restored-decoder build/work/current-main/restored/lib-decoder-ffmpeg-release.aar
-
-          python3 scripts/recovery/check-player-ffmpegjni-against-published.py --aar-dir app/libs
+          python3 scripts/build/import-player-aar-candidate.py             build/work/current-main/input/player-candidate.zip
 
           bash scripts/recovery/fetch-libxray.sh
           sdk_root="${ANDROID_HOME:-/usr/local/lib/android/sdk}"

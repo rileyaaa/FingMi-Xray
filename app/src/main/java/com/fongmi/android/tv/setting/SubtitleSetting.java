@@ -79,8 +79,7 @@ public class SubtitleSetting {
 
     public static int getStyleMode() {
         int legacy = Prefers.getBoolean("caption") ? STYLE_SYSTEM : STYLE_ORIGINAL;
-        int migrated = Prefers.getInt("subtitle_style_source", legacy);
-        return Math.clamp(Prefers.getInt("subtitle_style", migrated), STYLE_ORIGINAL, STYLE_CUSTOM);
+        return Math.clamp(Prefers.getInt("subtitle_style", legacy), STYLE_ORIGINAL, STYLE_CUSTOM);
     }
 
     public static void putStyleMode(int style) {

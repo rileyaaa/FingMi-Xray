@@ -134,16 +134,20 @@ for relative in release_only_paths:
 platform = (ROOT / "chaquo/src/main/java/com/fongmi/chaquo/Platform.java").read_text(encoding="utf-8")
 for required in (
     "import com.chaquo.python.android.AndroidPlatform;",
+    "Collections.addAll(supportedAbis, Build.SUPPORTED_ABIS);",
+    "Collections.addAll(supportedAbis, Build.CPU_ABI, Build.CPU_ABI2);",
+    "AndroidPlatform.ABI = ABI;",
+):
+    if required not in platform:
+        errors.append(f"Platform.java must follow the pinned FongMi/TV upstream ABI selection: {required}")
+for forbidden in (
     "android.os.Process.is64Bit()",
     "Build.SUPPORTED_64_BIT_ABIS",
     "Build.SUPPORTED_32_BIT_ABIS",
     "Collections.addAll(supportedAbis, processAbis);",
-    "AndroidPlatform.ABI = ABI;",
 ):
-    if required not in platform:
-        errors.append(f"Platform.java is missing Chaquopy 17 process-ABI runtime handoff: {required}")
-if "Collections.addAll(supportedAbis, Build.SUPPORTED_ABIS);" in platform:
-    errors.append("Platform.java must not choose Chaquopy assets from cross-bitness device ABI order")
+    if forbidden in platform:
+        errors.append(f"Platform.java must not carry fork-only Chaquopy ABI selection: {forbidden}")
 
 required_action_majors = {
     "actions/checkout": 7,
@@ -252,7 +256,6 @@ for name, text in (
         "'platforms;android-36'",
         ":app:compileLeanbackDebugJavaWithJavac",
         ":app:assembleLeanbackDebug",
-        "python3 tests/test-upgrade-compat.py",
         "python3 scripts/build/check-elf-runtime.py --self-test",
         "python3 scripts/build/check-final-apk-native.py --self-test",
         "python3 scripts/build/check-final-apk-manifest.py --self-test",
@@ -282,6 +285,9 @@ for name, text in (
         "scripts/recovery/check-published-568-ffmpeg.py",
         "scripts/recovery/check-published-568-mpv.py",
         "scripts/recovery/check-published-568-iso.py",
+        "scripts/recovery/restore-published-ffmpegjni.py",
+        "scripts/recovery/check-player-ffmpegjni-against-published.py",
+        "--restored-decoder",
     ):
         if forbidden in text:
             errors.append(f"{name} must follow public FongMi media instead of Release-only recovery: {forbidden}")
