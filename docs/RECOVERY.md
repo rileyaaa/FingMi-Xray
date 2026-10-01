@@ -80,6 +80,8 @@ JADX 中出现不可能分支、R8 合并控制流或自相矛盾时，必须继
 - `shared/source-parity.txt`：selected source 的双 ABI 对照；
 - `native-share-symbols.json`：发布 libXray Go JNI 中 share conversion / Invoke 相关 symbol、源码行和地址索引。
 
+2026-10-02 又独立执行了一次固定输入的完整取证：只触发一次 `recovery-apk-analysis.yml`（run `36910320478`），重新得到 v7 完整 JADX（artifact `11186391673`，10,017 个文件）以及 v7/v8 DEX + targeted dexdump（artifact `11186181891`）。这次不是只复用旧 selected source，而是从 fresh full-JADX 重新反向枚举 Xray 直接引用、旧 `PlayerManager(th2)` 的 current-client/proxy caller，以及 generated Binder/timeout glue。同步三份仅格式不同的网络 helper 后，当前 Git 中 63 个 `shared/sources/` Java 文件全部与 fresh v7 JADX Git blob 精确一致；`ip0.java` 仍作为唯一双 ABI 文本差异分别保存。
+
 常用 R8 / JADX 导航：
 
 | R8 / JADX | 责任 | readable reference |
@@ -222,6 +224,8 @@ Live 的会话边界包括切频道、换线路 / 源、直播配置变化和播
 旧 `PlayerEngine` 曾暴露 Xray getter，但 5.6.3 新播放器架构不再需要污染该上游接口；`main` 的 blob guard 要求 `PlayerEngine.java` 与 `FongMi/TV@c616c0aa3613e87529791587a9f71b78c278c991` 完全一致，原 getter 语义迁入 `PlayerManager`、`ExoPlayerEngine.proxy()` 与 `PlayerEngineFactory(proxy)`。因此“PlayerEngine 不含 Xray”是架构迁移结果，不是漏迁。
 
 这张账本只说明**已取证的行为映射**，不是声称已经拿到旧 APK 的原始未混淆源码。任何未来发现的新 full-JADX / DEX caller 都应先补到本表及 parity guard，再修改当前实现。
+
+本次 fresh full-JADX / DEX 复核重新确认的外围 caller 包括：Live EPG/XML、VOD 自动弹幕、弹幕搜索与播放器重建后的 client 重绑、字幕搜索/详情/下载、远程 MediaSession artwork、VOD/Live artwork/logo、preload/cache、外部播放器、手机导入，以及 VOD/Live 的 proxy install/remove 与逻辑播放身份变化。旧外部播放器本身也只接收原始 URL/headers，并不获得应用内部 SOCKS；当前实现保持同一边界。fresh AIDL 事务 1~6 也与当前 `validate / test / start / stop / resetSecurity / cancel` 顺序一致，callback 参数形状一致。此次没有发现新的、尚未映射到当前 `main` 的 Xray runtime path。
 
 ### Android TV 网络恢复
 
@@ -381,5 +385,7 @@ GitHub Actions 对应两段手动流程：
 - Android TV 真机运行。
 
 较低级别证据只能证明对应层级，不能替代更高层级验证。
+
+2026-10-02 fresh audit 的结论强度因此定义为：在固定 v7 APK 可反编译/可枚举的 Java、DEX、Binder、播放器外围调用链范围内，未发现当前 `main` 缺失的已知 Xray 功能或网络旁路；native Xray Core 则继续使用发布 APK 中固定 SHA 的 `libgojni.so` 字节与匹配 generated Java bindings，并已有双 ABI current-chain 动态 parity。这个结论是“已取证外部行为与调用链完整映射”，不是“恢复了原始源码逐字节 1:1”。
 
 如果未来出现新的 APK / DEX / native 证据改变既有结论，应先修正 recovery reference / fixture，再更新当前 parity 测试与本文。当前重构实现不需要回退旧 faithful 架构，但凡已经确认属于 v7 Xray 外部行为的语义，应在当前模块中恢复或做等价映射。最终仍需用当前测试、构建和 Android TV 设备回归确认真实运行。
