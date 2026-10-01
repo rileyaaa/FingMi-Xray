@@ -10,6 +10,7 @@ from zipfile import ZipFile,ZipInfo,ZIP_DEFLATED
 ROOT=Path(__file__).resolve().parents[2]
 sys.path.insert(0,str(Path(__file__).resolve().parent))
 from player_candidate import read_verified_candidate
+from libass_build_contract import LIBASS_EXTRACTOR_AAR_SHA256
 SOURCE='libraries/extractor/src/main/java/androidx/media3/extractor/mkv/MatroskaExtractor.java'
 SOURCE_SHA='84e01966733fec404de062fce4aa5c221af432c570afcef9eb1ad0cab07f495f'
 RESTORED_SHA='203c3ef5626afa3bc0401befc07a347a3e32e6e2b835b0164b0c05eeba1560db'
@@ -85,7 +86,7 @@ def main():
  assert produced and all(selected(n) for n in produced),'Unexpected compiled classes'
  classes.update(produced)
  assert all(classes[n]==b for n,b in original.items() if not selected(n))
- entries['classes.jar']=write_zip(classes);out=work/'lib-extractor-libass-release.aar';out.write_bytes(write_zip(entries))
- report={'candidate_zip_sha256':sha(a.candidate.read_bytes()),'original_source_sha256':SOURCE_SHA,'restored_source_sha256':RESTORED_SHA,'integration_source_sha256':COPY_SHA,'source_provenance':'Matroska: real FongMi/media@9dae39e9689ee305c83f94bd11cf3bcecb9d6171 source plus reconstructed configuration-preserving constructor; timed parser: reconstructed published5.6.5 behavior','reconstructed_timed_parser_source_sha256':TIMED_SOURCES,'official_container_aar_sha256':CONTAINER_SHA,'original_extractor_aar_sha256':sha(aar),'output_aar_sha256':sha(out.read_bytes()),'replaced_classes':sorted(produced),'other_class_contents_unchanged':True,'tests':'5 synthetic public extractor read-path tests plus4 timed-parser propagation/compatibility tests and1 flags-copy test','limitation':'restores Matroska callbacks and parser timestamps; not a complete newer Libass API/AAR'}
+ entries['classes.jar']=write_zip(classes);out=work/'lib-extractor-libass-release.aar';out_data=write_zip(entries);observed_output=sha(out_data);assert observed_output==LIBASS_EXTRACTOR_AAR_SHA256,'Unexpected reconstructed extractor AAR SHA: '+observed_output;out.write_bytes(out_data)
+ report={'candidate_zip_sha256':sha(a.candidate.read_bytes()),'original_source_sha256':SOURCE_SHA,'restored_source_sha256':RESTORED_SHA,'integration_source_sha256':COPY_SHA,'source_provenance':'Matroska: real FongMi/media@9dae39e9689ee305c83f94bd11cf3bcecb9d6171 source plus reconstructed configuration-preserving constructor; timed parser: reconstructed published5.6.5 behavior','reconstructed_timed_parser_source_sha256':TIMED_SOURCES,'official_container_aar_sha256':CONTAINER_SHA,'original_extractor_aar_sha256':sha(aar),'output_aar_sha256':observed_output,'replaced_classes':sorted(produced),'other_class_contents_unchanged':True,'tests':'5 synthetic public extractor read-path tests plus4 timed-parser propagation/compatibility tests and1 flags-copy test','limitation':'restores Matroska callbacks and parser timestamps; not a complete newer Libass API/AAR'}
  (work/'extractor-evidence.json').write_text(json.dumps(report,indent=2)+'\n');print(json.dumps(report,indent=2))
 if __name__=='__main__':main()
