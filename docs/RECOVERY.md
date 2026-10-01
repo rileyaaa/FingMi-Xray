@@ -217,7 +217,7 @@ Live 的会话边界包括切频道、换线路 / 源、直播配置变化和播
 | `XraySettingsController` | `LegacyXraySettingsController` + 设置页 DEX | 45s timeout、delete/reset 顺序、phone-import abandon |
 | `XrayErrorSanitizer` | `LegacyXrayErrorSanitizer` | 文本去敏主体镜像；current 额外支持 Throwable/LinkageError 收口 |
 
-另外两段旧 helper 因为属于 FongMi 播放器接口而留在 `:app`：`XrayArtworkBitmapLoader` 对应 `LegacyXrayBitmapLoader/rf2`，`ExoMediaSourceFactory.GuardedPlaybackDataSource` 对应 `LegacyXraySchemeGuardDataSource/or2`。两者的 local-scheme / Unicode whitespace 判定已重新按 v7 对齐：`file`、`asset`、`content`、`data`、`rawresource`、`android.resource` 继续走本地资源；HTTP(S) 使用当前 Xray DataSource；其它无法保证网络身份的泛用 scheme 在 Xray active 时拒绝。
+另外两段旧 helper 因为属于 FongMi 播放器接口而留在 `:app`：`XrayArtworkBitmapLoader` 对应 `LegacyXrayBitmapLoader/rf2`，`ExoMediaSourceFactory.GuardedPlaybackDataSource` 对应 `LegacyXraySchemeGuardDataSource/or2`。两者的 local-scheme / Unicode whitespace 判定已重新按 v7 对齐：无 scheme 的本地路径以及 `file`、`asset`、`content`、`data`、`rawresource`、`android.resource` 继续走本地资源；HTTP(S) 使用当前 Xray DataSource；其它无法保证网络身份的泛用 scheme 在 Xray active 时拒绝。
 
 旧 `PlayerEngine` 曾暴露 Xray getter，但 5.6.3 新播放器架构不再需要污染该上游接口；`main` 的 blob guard 要求 `PlayerEngine.java` 与 `FongMi/TV@c616c0aa3613e87529791587a9f71b78c278c991` 完全一致，原 getter 语义迁入 `PlayerManager`、`ExoPlayerEngine.proxy()` 与 `PlayerEngineFactory(proxy)`。因此“PlayerEngine 不含 Xray”是架构迁移结果，不是漏迁。
 
