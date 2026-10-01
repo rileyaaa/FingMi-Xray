@@ -106,12 +106,14 @@ def verify(root: Path, apk_dir: Path):
 def self_test():
     elf_runtime.self_test()
     expected_groups = {name.split("/", 1)[0] for name, _aar, _so in NATIVES}
-    if expected_groups != {"Xray", "FFmpeg", "MPV", "MPEG-H", "Libass"}:
+    if expected_groups != {"Xray", "FFmpeg", "MPV", "ISO", "MPEG-H", "Libass"}:
         raise AssertionError("native final-packaging inventory changed unexpectedly")
     if "libffmpegDoviJNI.so" not in FFMPEG_SONAMES:
         raise AssertionError("Dolby Vision JNI is missing from the 5.6.8 FFmpeg closure")
     if set(MPV_SONAMES) != {"libmpv.so", "libplayer.so"}:
         raise AssertionError("MPV 5.6.8 native bridge inventory changed unexpectedly")
+    if set(ISO_SONAMES) != {"libisoJNI.so"}:
+        raise AssertionError("ISO 5.6.8 native inventory changed unexpectedly")
     if ABIS != ("armeabi-v7a", "arm64-v8a"):
         raise AssertionError("TV ABI inventory changed unexpectedly")
     with tempfile.TemporaryDirectory(prefix="final-apk-native-") as directory:
