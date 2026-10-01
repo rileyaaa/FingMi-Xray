@@ -204,6 +204,8 @@ for required in (
     "RESULT_SEGMENT_END = -5",
     "expectedDiscontinuityId",
     "active.read(buffer, offset, requested, expectedDiscontinuityId)",
+    "signalStateChangeLocked()",
+    "result = pumpNativeLocked();",
     "MAX_MENU_REPLAY_BYTES = 64 * 1024 * 1024",
     "public final class IsoNavigationMediaSource extends CompositeMediaSource<Void>",
     "new BdmvTsExtractor(",
