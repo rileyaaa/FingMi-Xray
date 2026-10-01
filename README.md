@@ -8,9 +8,9 @@ FingMi-Xray 将 Xray 集成到播放器内部。遇到这类内容时，可以�
 
 ## 项目版本
 
-FongMi/TV 上游基线为 5.6.3（`c616c0aa3613e87529791587a9f71b78c278c991`）。2026-10-02，完成“完整上游树 → 重新应用 Xray / TV 网络恢复”的重建、静态审计与最终 CI 后，该重建线已作为新的 `main` 基线。**`v5.6.0-xray.5` armeabi-v7a 正式 APK 仍是 Xray 外部行为的黄金参考。** 新架构继续保留独立 `:xray` 模块，但节点解析、VALIDATE / TEST / START / STOP、Binder / Service、播放代理、切换、失败恢复和资源释放等可观察行为应与黄金参考保持等价。历史 faithful APK 重建本身不是当前重构线的发布前置条件。
+当前 `main` 以 FongMi/TV 5.6.3（`c616c0aa3613e87529791587a9f71b78c278c991`）为公开上游基线，只长期维护 **Xray 播放代理**与 **Android TV 网络恢复**两项自有能力。**`v5.6.0-xray.5` armeabi-v7a 正式 APK 仍是 Xray 外部行为的黄金参考。** 当前模块结构可以不同，但节点解析、VALIDATE / TEST / START / STOP、Binder / Service、播放代理、切换、失败恢复和资源释放等可观察语义必须在已取证范围内与黄金参考保持等价。
 
-当前可上 Android TV 真机测试的 pre-release 为 `v5.6.3-xray.test.6`。该版本来自最终上游边界收口后的 TV-only 构建，自动构建与最终 APK provenance / Manifest gate 已通过；Android TV 真机行为回归仍需继续。
+GitHub Releases 目前仍保留 `v5.6.3-xray.test.6` 作为上一测试版；它早于 2026-10-02 完成的 `main` 全量重建，因此**不能当作当前 `main` 的最终二进制**。当前 `main` 已通过完整源码 guard、双 ABI Xray parity、Leanback 编译/组装、native provenance 与 Manifest gate，但尚未发布新的测试 Release；Android TV 真机 Xray 与待机网络恢复回归仍是下一层验收。
 
 主要组件版本如下：
 
@@ -119,7 +119,7 @@ FongMi/TV 上游基线为 5.6.3（`c616c0aa3613e87529791587a9f71b78c278c991`）�
 
 兼容目标以常见单节点分享格式为主。不同客户端生成的非标准链接可能存在差异。
 
-## 重构后的结构
+## 当前结构
 
 早期版本的 Xray 逻辑与 FongMi 播放代码耦合较深。源码恢复后，仓库重新整理了职责边界：
 
@@ -130,7 +130,7 @@ FongMi/TV 上游基线为 5.6.3（`c616c0aa3613e87529791587a9f71b78c278c991`）�
 - `compat/`：当前 5.6.3 构建仍需维护的媒体兼容源码与补丁；
 - `recovery/`：历史发布版 faithful 恢复、native 动态 fixture 与节点兼容证据；其中经固定 SHA 验证的 v7 行为证据用于约束 current Xray parity；
 - `docs/apk-reference/`：正式 APK 的最小可复核 JADX / Manifest / DEX 文本证据；
-- `tests/`：current-main 的源码 guard、JVM lifecycle、native chain parity 与测试 fixture。
+- `tests/`：当前 `main` 的源码 guard、JVM lifecycle、native chain parity 与测试 fixture。
 
 这样做的目的，是让项目自己的能力尽量集中在稳定边界内，减少后续跟随 FongMi/TV 上游升级时的侵入式修改。
 
@@ -138,9 +138,9 @@ FongMi/TV 上游基线为 5.6.3（`c616c0aa3613e87529791587a9f71b78c278c991`）�
 
 - [PROJECT.md](docs/PROJECT.md)：项目设计、职责边界与长期架构约束。
 - [DEVELOPMENT.md](docs/DEVELOPMENT.md)：当前源码结构、构建方式、上游同步和开发维护说明。
-- [AI_COLLABORATION.md](docs/AI_COLLABORATION.md)：AI 与用户共同开发时的执行限制、CI 查询、交接和非流水账文档维护准则。
+- [AI_COLLABORATION.md](docs/AI_COLLABORATION.md)：**冻结**的 AI 协作执行限制；除非用户明确解除冻结，不再修改。
 - [RECOVERY.md](docs/RECOVERY.md)：`v5.6.0-xray.5` 的 faithful 恢复、APK/JADX/DEX/native 证据、二进制 provenance 与 Xray 黄金行为索引。
-- [ORIGINAL_README.md](docs/ORIGINAL_README.md)：冻结保存的原 `v5.6.0-xray.5` 发布说明，不随 current-main 改写。
+- [ORIGINAL_README.md](docs/ORIGINAL_README.md)：**冻结**保存的原 `v5.6.0-xray.5` 发布说明；除非用户明确解除冻结，不再修改。
 
 ## 说明
 
