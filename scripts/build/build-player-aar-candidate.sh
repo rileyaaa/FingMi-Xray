@@ -4,7 +4,7 @@ set -euo pipefail
 SOURCE_COMMIT="3c2cbe8ac742c2fe15eff52f03eeb3b1b648848d"
 DOLBY_OVERLAY_ID="fongmi-tv-5.6.8-dolby-release-overlay-v1"
 MPV_OVERLAY_ID="fongmi-tv-5.6.8-mpv-bridge-v2"
-ISO_OVERLAY_ID="fongmi-tv-5.6.8-iso-native-navigation-overlay-v2"
+ISO_OVERLAY_ID="fongmi-tv-5.6.8-iso-navigation-stream-overlay-v3"
 WORKDIR=""
 OUTPUT=""
 
@@ -100,6 +100,10 @@ required = {
     "androidx/media3/mpvplayer/media/MpvIsoStreamManager.class",
     "androidx/media3/extractor/iso/udf/NativeUdfFileSystem.class",
     "androidx/media3/exoplayer/iso/IsoNavigationSession.class",
+    "androidx/media3/exoplayer/source/iso/IsoNavigationDataSource.class",
+    "androidx/media3/exoplayer/source/iso/IsoNavigationDataSource$Factory.class",
+    "androidx/media3/exoplayer/source/iso/IsoNavigationMediaSource.class",
+    "androidx/media3/exoplayer/source/iso/IsoNavigationMediaSource$Factory.class",
     "is/xyz/mpv/MPVLib$Stream.class",
     "is/xyz/mpv/MPVLib$StreamProvider.class",
     "androidx/media3/exoplayer/trackselection/DecodeTrackSelector.class",
