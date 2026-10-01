@@ -433,7 +433,7 @@ current Java 的 normalize → transport security → runtime config 链会分�
 
 Glide 原先在初始化时固定保存 `OkHttp.client()`，普通 API client 在待机 / 换网恢复后被重建时，Glide 仍可能继续持有旧 transport。现在 `OkGlideModule` 每个请求动态取得当前 API client；网络 generation 恢复时也会清理 `ImgUtil` 的 transient failed URL 集合，使网络恢复后的图片重新具备重试机会。
 
-网络恢复仍保留 generation、`recoveredGeneration`、stale callback / task-id 拒绝、Spider 串行 clear、API 与 playback/Xray client 隔离等 current 改进。Leanback Manifest 已取消 BootReceiver 与 `RECEIVE_BOOT_COMPLETED`，避免在 Home / `TvNetworkLifecycle` 之外形成第二个独立网络入口。约 6 秒稳定检查之后网络才恢复的慢唤醒场景仍属于真机验证项；没有证据前不增加永久轮询或默认网络 callback。
+网络恢复仍保留 generation、`recoveredGeneration`、stale callback / task-id 拒绝、Spider 串行 clear、API 与 playback/Xray client 隔离等 current 改进。Leanback Manifest 已取消 BootReceiver 与 `RECEIVE_BOOT_COMPLETED`，避免在 Home / `TvNetworkLifecycle` 之外形成第二个独立网络入口。约 6 秒稳定检查之后网络才恢复的慢唤醒场景仍属于真机验证项；没有证据前不增加永久轮询或默认网络 callback。 DoH lookup 同时在与 reset/rebuild 相同的同步边界内快照当前 resolver，再在锁外执行真实 DNS 请求，避免待机恢复并发置空旧 `doh` 时发生双重读取的 TOCTOU 空引用。
 
 ### 2026-10-01 — 再次收紧 FongMi 上游边界
 

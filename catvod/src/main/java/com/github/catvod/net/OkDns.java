@@ -102,6 +102,7 @@ public class OkDns implements Dns {
     @NonNull
     @Override
     public List<InetAddress> lookup(@NonNull String hostname) throws UnknownHostException {
+        Dns resolver;
         synchronized (this) {
             if (doh == null) {
                 Supplier<Doh> lazy = supplier;
@@ -111,8 +112,9 @@ public class OkDns implements Dns {
                     rebuildDoh(currentDoh);
                 }
             }
+            resolver = doh != null ? doh : Dns.SYSTEM;
         }
-        return (doh != null ? doh : Dns.SYSTEM).lookup(get(hostname));
+        return resolver.lookup(get(hostname));
     }
 
     private synchronized void initDoh(Supplier<Doh> supplier) {

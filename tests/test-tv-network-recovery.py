@@ -13,12 +13,13 @@ IMG = ROOT / "app/src/main/java/com/fongmi/android/tv/utils/ImgUtil.java"
 LEANBACK_MANIFEST = ROOT / "app/src/leanback/AndroidManifest.xml"
 REFERENCE = ROOT / "docs/apk-reference/shared/sources/p000/gn3.java"
 OKHTTP = ROOT / "catvod/src/main/java/com/github/catvod/net/OkHttp.java"
+OKDNS = ROOT / "catvod/src/main/java/com/github/catvod/net/OkDns.java"
 PROXY_SELECTOR = ROOT / "catvod/src/main/java/com/github/catvod/net/OkProxySelector.java"
 PROXY_AUTH = ROOT / "catvod/src/main/java/com/github/catvod/net/OkAuthenticator.java"
 PROXY_REDIRECT = ROOT / "catvod/src/main/java/com/github/catvod/net/ProxyRedirectInterceptor.java"
 PROXY_TEST = ROOT / "catvod/src/test/java/com/github/catvod/net/OkProxySelectorTest.java"
 
-for path in (LIFECYCLE, COORDINATOR, HOME, GLIDE, IMG, LEANBACK_MANIFEST, REFERENCE, OKHTTP, PROXY_SELECTOR, PROXY_AUTH, PROXY_REDIRECT, PROXY_TEST):
+for path in (LIFECYCLE, COORDINATOR, HOME, GLIDE, IMG, LEANBACK_MANIFEST, REFERENCE, OKHTTP, OKDNS, PROXY_SELECTOR, PROXY_AUTH, PROXY_REDIRECT, PROXY_TEST):
     if not path.is_file():
         raise SystemExit(f"missing TV network recovery source: {path.relative_to(ROOT)}")
 
@@ -108,6 +109,7 @@ for needle in (
         raise SystemExit(f"OkGlideModule missing recovered-client handoff: {needle}")
 
 okhttp = OKHTTP.read_text(encoding="utf-8")
+okdns = OKDNS.read_text(encoding="utf-8")
 selector = PROXY_SELECTOR.read_text(encoding="utf-8")
 proxy_auth = PROXY_AUTH.read_text(encoding="utf-8")
 proxy_redirect = PROXY_REDIRECT.read_text(encoding="utf-8")
@@ -129,6 +131,16 @@ if "get().player = null" in reset_body:
     raise SystemExit("TV network recovery must not destroy the dedicated playback client")
 if "selector().clear()" in reset_body:
     raise SystemExit("TV network recovery must not erase configured proxy rules; stale redirect policies die with the retired API client")
+
+for needle in (
+    "Dns resolver;",
+    "resolver = doh != null ? doh : Dns.SYSTEM;",
+    "return resolver.lookup(get(hostname));",
+):
+    if needle not in okdns:
+        raise SystemExit(f"OkDns missing network-generation resolver snapshot contract: {needle}")
+if "return (doh != null ? doh : Dns.SYSTEM).lookup(get(hostname));" in okdns:
+    raise SystemExit("OkDns lookup must not re-read volatile DoH after leaving the reset lock")
 
 for needle in (
     "generation++;",
