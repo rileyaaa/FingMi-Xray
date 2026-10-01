@@ -6,7 +6,7 @@ from __future__ import annotations
 import argparse
 from pathlib import Path
 
-OVERLAY_ID = "fongmi-tv-5.6.8-mpv-bridge-v1"
+OVERLAY_ID = "fongmi-tv-5.6.8-mpv-bridge-v2"
 
 
 def replace_once(text: str, old: str, new: str, label: str) -> str:
@@ -525,6 +525,625 @@ def patch_subtitle_test(path: Path) -> None:
     path.write_text(text, encoding="utf-8")
 
 
+
+def patch_build_gradle(path: Path) -> None:
+    text = path.read_text(encoding="utf-8")
+    text = replace_once(
+        text,
+        '  implementation(project(":lib-exoplayer"))\n',
+        '  implementation(project(":lib-exoplayer"))\n'
+        '  implementation(project(":lib-datasource"))\n',
+        "MPV datasource dependency",
+    )
+    path.write_text(text, encoding="utf-8")
+
+
+def patch_player_config(path: Path) -> None:
+    text = path.read_text(encoding="utf-8")
+    text = replace_once(
+        text,
+        "import androidx.media3.common.DolbyVisionOutputPolicy;\n",
+        "import androidx.media3.common.DolbyVisionOutputPolicy;\n"
+        "import androidx.media3.datasource.DataSource;\n",
+        "MpvPlayerConfig datasource import",
+    )
+    text = replace_once(
+        text,
+        "  private final boolean videoSharpnessSupported;\n",
+        "  private final boolean videoSharpnessSupported;\n"
+        "  @Nullable private final DataSource.Factory dataSourceFactory;\n",
+        "MpvPlayerConfig datasource field",
+    )
+    text = replace_once(
+        text,
+        "    this.videoSharpnessSupported = builder.videoSharpnessSupported;\n",
+        "    this.videoSharpnessSupported = builder.videoSharpnessSupported;\n"
+        "    this.dataSourceFactory = builder.dataSourceFactory;\n",
+        "MpvPlayerConfig datasource assignment",
+    )
+    text = replace_once(
+        text,
+        "  @Nullable\n"
+        "  @RestrictTo(LIBRARY_GROUP)\n"
+        "  public String getRequestedPassthroughCodecs() {\n"
+        "    return requestedPassthroughCodecs;\n"
+        "  }\n",
+        "  @Nullable\n"
+        "  @RestrictTo(LIBRARY_GROUP)\n"
+        "  public String getRequestedPassthroughCodecs() {\n"
+        "    return requestedPassthroughCodecs;\n"
+        "  }\n\n"
+        "  @Nullable\n"
+        "  @RestrictTo(LIBRARY_GROUP)\n"
+        "  public DataSource.Factory getDataSourceFactory() {\n"
+        "    return dataSourceFactory;\n"
+        "  }\n",
+        "MpvPlayerConfig datasource getter",
+    )
+    text = replace_once(
+        text,
+        "    private boolean videoSharpnessSupported = true;\n"
+        "    private boolean buildCalled;\n",
+        "    private boolean videoSharpnessSupported = true;\n"
+        "    @Nullable private DataSource.Factory dataSourceFactory;\n"
+        "    private boolean buildCalled;\n",
+        "MpvPlayerConfig builder datasource field",
+    )
+    text = replace_once(
+        text,
+        "    @CanIgnoreReturnValue\n"
+        "    @RestrictTo(LIBRARY_GROUP)\n"
+        "    public Builder setVideoSharpnessSupported(boolean videoSharpnessSupported) {\n"
+        "      checkState(!buildCalled);\n"
+        "      this.videoSharpnessSupported = videoSharpnessSupported;\n"
+        "      return this;\n"
+        "    }\n",
+        "    @CanIgnoreReturnValue\n"
+        "    @RestrictTo(LIBRARY_GROUP)\n"
+        "    public Builder setVideoSharpnessSupported(boolean videoSharpnessSupported) {\n"
+        "      checkState(!buildCalled);\n"
+        "      this.videoSharpnessSupported = videoSharpnessSupported;\n"
+        "      return this;\n"
+        "    }\n\n"
+        "    @CanIgnoreReturnValue\n"
+        "    @RestrictTo(LIBRARY_GROUP)\n"
+        "    public Builder setDataSourceFactory(@Nullable DataSource.Factory dataSourceFactory) {\n"
+        "      checkState(!buildCalled);\n"
+        "      this.dataSourceFactory = dataSourceFactory;\n"
+        "      return this;\n"
+        "    }\n",
+        "MpvPlayerConfig datasource setter",
+    )
+    path.write_text(text, encoding="utf-8")
+
+
+def patch_request_headers(path: Path) -> None:
+    text = path.read_text(encoding="utf-8")
+    text = replace_once(
+        text,
+        "    String mpvHeaderFields() {\n",
+        "    Map<String, String> dataSourceHeaders() {\n"
+        "      Map<String, String> headers = new LinkedHashMap<>(headerFields);\n"
+        "      if (userAgent != null) {\n"
+        "        headers.put(HttpHeaders.USER_AGENT, userAgent);\n"
+        "      }\n"
+        "      if (referrer != null) {\n"
+        "        headers.put(HttpHeaders.REFERER, referrer);\n"
+        "      }\n"
+        "      return headers;\n"
+        "    }\n\n"
+        "    String mpvHeaderFields() {\n",
+        "MpvRequestHeaders datasource headers",
+    )
+    path.write_text(text, encoding="utf-8")
+
+
+def write_iso_stream_files(root: Path) -> None:
+    media_dir = (
+        root
+        / "libraries/mpvplayer/src/main/java/androidx/media3/mpvplayer/media"
+    )
+    tests_dir = (
+        root
+        / "libraries/mpvplayer/src/test/java/androidx/media3/mpvplayer/media"
+    )
+    tests_dir.mkdir(parents=True, exist_ok=True)
+
+    (media_dir / "MpvIsoStream.java").write_text(
+        r'''/*
+ * Copyright (C) 2026 The Android Open Source Project
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ */
+package androidx.media3.mpvplayer.media;
+
+import android.net.Uri;
+import androidx.annotation.Nullable;
+import androidx.media3.common.C;
+import androidx.media3.datasource.DataSource;
+import androidx.media3.datasource.DataSpec;
+import is.xyz.mpv.MPVLib;
+import java.io.IOException;
+import java.nio.ByteBuffer;
+import java.util.Map;
+
+/** Random-access Media3 DataSource bridge used by the MPV media3iso protocol. */
+final class MpvIsoStream implements MPVLib.Stream {
+
+  private static final int READ_BUFFER_SIZE = 64 * 1024;
+
+  private final DataSource.Factory dataSourceFactory;
+  private final Uri uri;
+  private final Map<String, String> requestHeaders;
+  private final byte[] scratch;
+
+  @Nullable private DataSource dataSource;
+  private long resolvedLength;
+  private volatile boolean canceled;
+
+  MpvIsoStream(
+      DataSource.Factory dataSourceFactory, Uri uri, Map<String, String> requestHeaders) {
+    this.dataSourceFactory = dataSourceFactory;
+    this.uri = uri;
+    this.requestHeaders = requestHeaders;
+    this.scratch = new byte[READ_BUFFER_SIZE];
+    this.resolvedLength = C.LENGTH_UNSET;
+    openAt(/* position= */ 0L);
+  }
+
+  @Override
+  public synchronized int read(ByteBuffer buffer) {
+    ensureActive();
+    if (!buffer.hasRemaining()) {
+      return 0;
+    }
+    int length = Math.min(scratch.length, buffer.remaining());
+    try {
+      int read = requireDataSource().read(scratch, 0, length);
+      if (read == C.RESULT_END_OF_INPUT) {
+        return 0;
+      }
+      buffer.put(scratch, 0, read);
+      return read;
+    } catch (IOException e) {
+      throw new IllegalStateException("ISO stream read failed", e);
+    }
+  }
+
+  @Override
+  public synchronized long seek(long position) {
+    ensureActive();
+    if (position < 0) {
+      return 0L;
+    }
+    openAt(position);
+    return position;
+  }
+
+  @Override
+  public synchronized long size() {
+    ensureActive();
+    return resolvedLength;
+  }
+
+  @Override
+  public void cancel() {
+    canceled = true;
+    synchronized (this) {
+      closeDataSource();
+    }
+  }
+
+  @Override
+  public void close() {
+    cancel();
+  }
+
+  private void openAt(long position) {
+    ensureActive();
+    closeDataSource();
+    DataSource next = dataSourceFactory.createDataSource();
+    DataSpec spec =
+        new DataSpec.Builder()
+            .setUri(uri)
+            .setHttpRequestHeaders(requestHeaders)
+            .setPosition(position)
+            .build();
+    try {
+      long remaining = next.open(spec);
+      dataSource = next;
+      if (remaining != C.LENGTH_UNSET) {
+        long total = position + remaining;
+        if (resolvedLength == C.LENGTH_UNSET || total > resolvedLength) {
+          resolvedLength = total;
+        }
+      }
+    } catch (IOException e) {
+      try {
+        next.close();
+      } catch (IOException ignored) {
+        // Preserve the open failure.
+      }
+      throw new IllegalStateException("ISO stream open failed", e);
+    }
+  }
+
+  private void ensureActive() {
+    if (canceled) {
+      throw new IllegalStateException("ISO stream canceled");
+    }
+  }
+
+  private DataSource requireDataSource() {
+    DataSource current = dataSource;
+    if (current == null) {
+      throw new IllegalStateException("ISO stream is closed");
+    }
+    return current;
+  }
+
+  private void closeDataSource() {
+    DataSource current = dataSource;
+    dataSource = null;
+    if (current != null) {
+      try {
+        current.close();
+      } catch (IOException ignored) {
+        // Closing is best-effort; the stream is no longer reusable after cancellation/reseek.
+      }
+    }
+  }
+}
+''',
+        encoding="utf-8",
+    )
+
+    (media_dir / "MpvIsoStreamManager.java").write_text(
+        r'''/*
+ * Copyright (C) 2026 The Android Open Source Project
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ */
+package androidx.media3.mpvplayer.media;
+
+import static androidx.annotation.RestrictTo.Scope.LIBRARY_GROUP;
+
+import android.net.Uri;
+import androidx.annotation.Nullable;
+import androidx.annotation.RestrictTo;
+import androidx.media3.common.MediaItem;
+import androidx.media3.datasource.DataSource;
+import is.xyz.mpv.MPVLib;
+import java.util.List;
+import java.util.Locale;
+import java.util.UUID;
+import java.util.concurrent.CopyOnWriteArrayList;
+
+/** Owns the temporary MPV media3iso stream registration for the active MediaItem. */
+public final class MpvIsoStreamManager {
+
+  private static final String STREAM_SCHEME = "media3iso";
+
+  private final DataSource.Factory dataSourceFactory;
+  private final List<MpvIsoStream> activeStreams;
+
+  @Nullable private String streamName;
+
+  @RestrictTo(LIBRARY_GROUP)
+  public MpvIsoStreamManager(DataSource.Factory dataSourceFactory) {
+    this.dataSourceFactory = dataSourceFactory;
+    this.activeStreams = new CopyOnWriteArrayList<>();
+  }
+
+  public Uri prepare(MediaItem item, Uri uri) {
+    close();
+    if (!isIso(item, uri)) {
+      return uri;
+    }
+
+    Uri sourceUri = uri.getFragment() == null ? uri : uri.buildUpon().fragment(null).build();
+    String scheme = sourceUri.getScheme();
+    if (!"http".equalsIgnoreCase(scheme) && !"https".equalsIgnoreCase(scheme)) {
+      return sourceUri;
+    }
+
+    String registered = STREAM_SCHEME + "://" + UUID.randomUUID() + "/disc.iso";
+    streamName = registered;
+    MPVLib.registerStream(
+        registered,
+        () -> {
+          MpvIsoStream stream =
+              new MpvIsoStream(
+                  dataSourceFactory,
+                  sourceUri,
+                  MpvRequestHeaders.from(item).dataSourceHeaders());
+          activeStreams.add(stream);
+          return stream;
+        });
+    return Uri.parse(registered);
+  }
+
+  public void close() {
+    String registered = streamName;
+    streamName = null;
+    if (registered != null) {
+      MPVLib.unregisterStream(registered);
+    }
+    for (MpvIsoStream stream : activeStreams) {
+      stream.cancel();
+    }
+    activeStreams.clear();
+  }
+
+  static boolean isIso(MediaItem item, Uri uri) {
+    if (MpvMediaItems.isIsoMimeType(item)) {
+      return true;
+    }
+    String path = uri.getPath();
+    return path != null
+        && path.length() >= 4
+        && path.toLowerCase(Locale.US).endsWith(".iso");
+  }
+}
+''',
+        encoding="utf-8",
+    )
+
+    (tests_dir / "MpvIsoStreamTest.java").write_text(
+        r'''/*
+ * Copyright (C) 2026 The Android Open Source Project
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ */
+package androidx.media3.mpvplayer.media;
+
+import static com.google.common.truth.Truth.assertThat;
+
+import android.net.Uri;
+import androidx.media3.common.MediaItem;
+import androidx.media3.common.MimeTypes;
+import androidx.media3.datasource.ByteArrayDataSource;
+import androidx.media3.datasource.DataSource;
+import is.xyz.mpv.MPVLib;
+import java.nio.ByteBuffer;
+import java.util.Collections;
+import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.robolectric.RobolectricTestRunner;
+
+@RunWith(RobolectricTestRunner.class)
+public final class MpvIsoStreamTest {
+
+  private static final byte[] DATA = new byte[] {10, 20, 30, 40, 50, 60};
+
+  @Test
+  public void stream_readsSeeksAndReportsSize() {
+    DataSource.Factory factory = () -> new ByteArrayDataSource(DATA);
+    MpvIsoStream stream =
+        new MpvIsoStream(
+            factory, Uri.parse("https://example.test/disc.iso"), Collections.emptyMap());
+
+    assertThat(stream.size()).isEqualTo(DATA.length);
+
+    ByteBuffer first = ByteBuffer.allocate(2);
+    assertThat(stream.read(first)).isEqualTo(2);
+    assertThat(first.array()).isEqualTo(new byte[] {10, 20});
+
+    assertThat(stream.seek(3)).isEqualTo(3);
+    ByteBuffer second = ByteBuffer.allocate(3);
+    assertThat(stream.read(second)).isEqualTo(3);
+    assertThat(second.array()).isEqualTo(new byte[] {40, 50, 60});
+    assertThat(stream.read(ByteBuffer.allocate(1))).isEqualTo(0);
+
+    stream.close();
+  }
+
+  @Test
+  public void stream_cancelRejectsFurtherReads() {
+    MpvIsoStream stream =
+        new MpvIsoStream(
+            () -> new ByteArrayDataSource(DATA),
+            Uri.parse("https://example.test/disc.iso"),
+            Collections.emptyMap());
+
+    stream.cancel();
+
+    boolean failed = false;
+    try {
+      stream.read(ByteBuffer.allocate(1));
+    } catch (IllegalStateException expected) {
+      failed = true;
+    }
+    assertThat(failed).isTrue();
+  }
+
+  @Test
+  public void manager_httpIsoRegistersMedia3StreamAndUnregistersOnClose() {
+    MpvIsoStreamManager manager =
+        new MpvIsoStreamManager(() -> new ByteArrayDataSource(DATA));
+    Uri source = Uri.parse("https://example.test/disc.ISO#title");
+    MediaItem item =
+        new MediaItem.Builder().setUri(source).setMimeType(MimeTypes.VIDEO_ISO).build();
+
+    Uri rewritten = manager.prepare(item, source);
+
+    assertThat(rewritten.getScheme()).isEqualTo("media3iso");
+    MPVLib.Stream stream = MPVLib.openStream(rewritten.toString());
+    assertThat(stream).isNotNull();
+    assertThat(stream.size()).isEqualTo(DATA.length);
+
+    manager.close();
+
+    assertThat(MPVLib.openStream(rewritten.toString())).isNull();
+  }
+
+  @Test
+  public void manager_localIsoOnlyStripsFragment() {
+    MpvIsoStreamManager manager =
+        new MpvIsoStreamManager(() -> new ByteArrayDataSource(DATA));
+    Uri source = Uri.parse("file:///sdcard/disc.iso#title");
+    MediaItem item = new MediaItem.Builder().setUri(source).build();
+
+    Uri rewritten = manager.prepare(item, source);
+
+    assertThat(rewritten.toString()).isEqualTo("file:///sdcard/disc.iso");
+    manager.close();
+  }
+
+  @Test
+  public void manager_nonIsoHttpIsUnchanged() {
+    MpvIsoStreamManager manager =
+        new MpvIsoStreamManager(() -> new ByteArrayDataSource(DATA));
+    Uri source = Uri.parse("https://example.test/video.mkv#chapter");
+    MediaItem item = new MediaItem.Builder().setUri(source).build();
+
+    assertThat(manager.prepare(item, source)).isEqualTo(source);
+
+    manager.close();
+  }
+}
+''',
+        encoding="utf-8",
+    )
+
+
+def patch_player_components(path: Path) -> None:
+    text = path.read_text(encoding="utf-8")
+    text = replace_once(
+        text,
+        "import android.os.Handler;\n",
+        "import android.os.Handler;\n"
+        "import androidx.media3.datasource.DataSource;\n"
+        "import androidx.media3.datasource.DefaultDataSource;\n",
+        "MpvPlayerComponents datasource imports",
+    )
+    text = replace_once(
+        text,
+        "import androidx.media3.mpvplayer.media.MpvMediaLoader;\n",
+        "import androidx.media3.mpvplayer.media.MpvIsoStreamManager;\n"
+        "import androidx.media3.mpvplayer.media.MpvMediaLoader;\n",
+        "MpvPlayerComponents ISO manager import",
+    )
+    text = replace_once(
+        text,
+        "    this.mediaLoader =\n"
+        "        new MpvMediaLoader(\n",
+        "    DataSource.Factory isoDataSourceFactory = config.getDataSourceFactory();\n"
+        "    if (isoDataSourceFactory == null) {\n"
+        "      isoDataSourceFactory = new DefaultDataSource.Factory(applicationContext);\n"
+        "    }\n"
+        "    this.mediaLoader =\n"
+        "        new MpvMediaLoader(\n",
+        "MpvPlayerComponents ISO datasource factory",
+    )
+    text = replace_once(
+        text,
+        "            loadGeneration,\n"
+        "            perFileOptionsComposer,\n"
+        "            MpvPlayerHosts.mediaLoaderHost(player, playerInfo));\n",
+        "            loadGeneration,\n"
+        "            perFileOptionsComposer,\n"
+        "            new MpvIsoStreamManager(isoDataSourceFactory),\n"
+        "            MpvPlayerHosts.mediaLoaderHost(player, playerInfo));\n",
+        "MpvPlayerComponents ISO manager wiring",
+    )
+    path.write_text(text, encoding="utf-8")
+
+
+def patch_media_loader(path: Path) -> None:
+    text = path.read_text(encoding="utf-8")
+    text = replace_once(
+        text,
+        "  private final MpvLoadOptionsFactory loadOptionsFactory;\n"
+        "  private final Host host;\n",
+        "  private final MpvLoadOptionsFactory loadOptionsFactory;\n"
+        "  private final MpvIsoStreamManager isoStreamManager;\n"
+        "  private final Host host;\n",
+        "MpvMediaLoader ISO field",
+    )
+    text = replace_once(
+        text,
+        "      MpvLoadGeneration loadGeneration,\n"
+        "      PerFileOptionsProvider perFileOptionsProvider,\n"
+        "      Host host) {\n",
+        "      MpvLoadGeneration loadGeneration,\n"
+        "      PerFileOptionsProvider perFileOptionsProvider,\n"
+        "      MpvIsoStreamManager isoStreamManager,\n"
+        "      Host host) {\n",
+        "MpvMediaLoader constructor signature",
+    )
+    text = replace_once(
+        text,
+        "    this.loadOptionsFactory = new MpvLoadOptionsFactory(perFileOptionsProvider);\n"
+        "    this.host = host;\n",
+        "    this.loadOptionsFactory = new MpvLoadOptionsFactory(perFileOptionsProvider);\n"
+        "    this.isoStreamManager = isoStreamManager;\n"
+        "    this.host = host;\n",
+        "MpvMediaLoader ISO assignment",
+    )
+    text = replace_once(
+        text,
+        "    MpvLoadOptions loadOptions = loadOptionsFactory.create(item, uri, startPositionMs);\n"
+        "    playbackState.startLoading(\n",
+        "    MpvLoadOptions loadOptions = loadOptionsFactory.create(item, uri, startPositionMs);\n"
+        "    Uri loadUri = isoStreamManager.prepare(item, uri);\n"
+        "    playbackState.startLoading(\n",
+        "MpvMediaLoader ISO prepare",
+    )
+    text = replace_once(
+        text,
+        "    if (!commandDispatcher.loadFile(uri, loadOptions.perFileOptions())) {\n"
+        "      host.fail(errorFactory.createLoadFailure(uri));\n"
+        "      return;\n"
+        "    }\n",
+        "    if (!commandDispatcher.loadFile(loadUri, loadOptions.perFileOptions())) {\n"
+        "      isoStreamManager.close();\n"
+        "      host.fail(errorFactory.createLoadFailure(uri));\n"
+        "      return;\n"
+        "    }\n",
+        "MpvMediaLoader rewritten URI",
+    )
+    text = replace_once(
+        text,
+        "    host.invalidatePlayerState();\n"
+        "  }\n\n"
+        "  public interface Host {\n",
+        "    host.invalidatePlayerState();\n"
+        "  }\n\n"
+        "  public void closeIsoStream() {\n"
+        "    isoStreamManager.close();\n"
+        "  }\n\n"
+        "  public interface Host {\n",
+        "MpvMediaLoader close ISO",
+    )
+    path.write_text(text, encoding="utf-8")
+
+
+def patch_player(path: Path) -> None:
+    text = path.read_text(encoding="utf-8")
+    text = replace_once(
+        text,
+        "          releaseAudioFocus();\n"
+        "          surfaceController.release();\n"
+        "          nativeLifecycle.release();\n",
+        "          releaseAudioFocus();\n"
+        "          mediaLoader.closeIsoStream();\n"
+        "          surfaceController.release();\n"
+        "          nativeLifecycle.release();\n",
+        "MpvPlayer release ISO cleanup",
+    )
+    text = replace_once(
+        text,
+        "    playbackState.stopActiveFile();\n"
+        "    seekController.reset();\n",
+        "    mediaLoader.closeIsoStream();\n"
+        "    playbackState.stopActiveFile();\n"
+        "    seekController.reset();\n",
+        "MpvPlayer stop ISO cleanup",
+    )
+    path.write_text(text, encoding="utf-8")
+
+
 def patch_proguard(path: Path) -> None:
     text = path.read_text(encoding="utf-8")
     anchor = """-keep class is.xyz.mpv.MPVLib {
@@ -550,7 +1169,24 @@ def main() -> None:
     args = parser.parse_args()
     root = args.source.resolve()
     try:
+        patch_build_gradle(root / "libraries/mpvplayer/build.gradle.kts")
         patch_mpv_lib(root / "libraries/mpvplayer/src/main/java/is/xyz/mpv/MPVLib.java")
+        patch_player_config(
+            root / "libraries/mpvplayer/src/main/java/androidx/media3/mpvplayer/MpvPlayerConfig.java"
+        )
+        patch_request_headers(
+            root / "libraries/mpvplayer/src/main/java/androidx/media3/mpvplayer/media/MpvRequestHeaders.java"
+        )
+        write_iso_stream_files(root)
+        patch_player_components(
+            root / "libraries/mpvplayer/src/main/java/androidx/media3/mpvplayer/MpvPlayerComponents.java"
+        )
+        patch_media_loader(
+            root / "libraries/mpvplayer/src/main/java/androidx/media3/mpvplayer/media/MpvMediaLoader.java"
+        )
+        patch_player(
+            root / "libraries/mpvplayer/src/main/java/androidx/media3/mpvplayer/MpvPlayer.java"
+        )
         patch_mpv_client(
             root
             / "libraries/mpvplayer/src/main/java/androidx/media3/mpvplayer/nativebridge/MpvClient.java"

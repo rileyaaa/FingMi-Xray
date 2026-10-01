@@ -3,7 +3,7 @@ set -euo pipefail
 
 SOURCE_COMMIT="3c2cbe8ac742c2fe15eff52f03eeb3b1b648848d"
 DOLBY_OVERLAY_ID="fongmi-tv-5.6.8-dolby-release-overlay-v1"
-MPV_OVERLAY_ID="fongmi-tv-5.6.8-mpv-bridge-v1"
+MPV_OVERLAY_ID="fongmi-tv-5.6.8-mpv-bridge-v2"
 WORKDIR=""
 OUTPUT=""
 
@@ -93,6 +93,8 @@ mpv_overlay_id = sys.argv[6]
 required = {
     "androidx/media3/mpvplayer/MpvPlayer.class",
     "androidx/media3/mpvplayer/nativebridge/MpvClient$LongResultCallback.class",
+    "androidx/media3/mpvplayer/media/MpvIsoStream.class",
+    "androidx/media3/mpvplayer/media/MpvIsoStreamManager.class",
     "is/xyz/mpv/MPVLib$Stream.class",
     "is/xyz/mpv/MPVLib$StreamProvider.class",
     "androidx/media3/exoplayer/trackselection/DecodeTrackSelector.class",

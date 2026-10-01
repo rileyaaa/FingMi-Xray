@@ -37,7 +37,7 @@ for required in (
     "scripts/build/apply-media3-dolby568-overlay.py",
     "scripts/build/apply-media3-mpv568-overlay.py",
     'DOLBY_OVERLAY_ID="fongmi-tv-5.6.8-dolby-release-overlay-v1"',
-    'MPV_OVERLAY_ID="fongmi-tv-5.6.8-mpv-bridge-v1"',
+    'MPV_OVERLAY_ID="fongmi-tv-5.6.8-mpv-bridge-v2"',
     ":lib-mpvplayer:testDebugUnitTest",
     '"androidx/media3/decoder/ffmpeg/FfmpegDolbyVisionP5Renderer.class"',
     '"androidx/media3/decoder/ffmpeg/FfmpegDolbyVisionP7Converter.class"',
@@ -53,9 +53,11 @@ for required in (
     'EXPECTED_AAR_COUNT = 17',
     '"androidx/media3/decoder/mpegh/MpeghAudioRenderer.class"',
     'DOLBY_OVERLAY_ID = "fongmi-tv-5.6.8-dolby-release-overlay-v1"',
-    'MPV_OVERLAY_ID = "fongmi-tv-5.6.8-mpv-bridge-v1"',
+    'MPV_OVERLAY_ID = "fongmi-tv-5.6.8-mpv-bridge-v2"',
     '"is/xyz/mpv/MPVLib$Stream.class"',
     '"androidx/media3/mpvplayer/nativebridge/MpvClient$LongResultCallback.class"',
+    '"androidx/media3/mpvplayer/media/MpvIsoStream.class"',
+    '"androidx/media3/mpvplayer/media/MpvIsoStreamManager.class"',
     "candidate manifest is missing the pinned MPV release overlay",
     '"androidx/media3/decoder/ffmpeg/FfmpegDolbyVisionP5Renderer.class"',
     '"androidx/media3/decoder/ffmpeg/FfmpegDolbyVisionP7Converter$Factory.class"',
@@ -96,6 +98,10 @@ for required in (
     "unload-script",
     "secondary-sub-scale",
     "MPVLib$Stream",
+    "media3iso://",
+    "MpvIsoStreamManager",
+    "setDataSourceFactory",
+    "secondary-sub-scale",
 ):
     if required not in mpv_overlay:
         errors.append(f"MPV 5.6.8 overlay lost release bridge contract: {required}")
