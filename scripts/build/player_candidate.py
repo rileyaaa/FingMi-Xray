@@ -12,6 +12,7 @@ from zipfile import BadZipFile, ZipFile
 SOURCE_COMMIT = "3c2cbe8ac742c2fe15eff52f03eeb3b1b648848d"
 DOLBY_OVERLAY_ID = "fongmi-tv-5.6.8-dolby-release-overlay-v1"
 MPV_OVERLAY_ID = "fongmi-tv-5.6.8-mpv-bridge-v2"
+ISO_OVERLAY_ID = "fongmi-tv-5.6.8-iso-native-udf-overlay-v1"
 EXPECTED_AAR_COUNT = 17
 REQUIRED_AARS = {
     "lib-common-release.aar",
@@ -25,6 +26,7 @@ REQUIRED_CLASSES = {
     "androidx/media3/mpvplayer/nativebridge/MpvClient$LongResultCallback.class",
     "androidx/media3/mpvplayer/media/MpvIsoStream.class",
     "androidx/media3/mpvplayer/media/MpvIsoStreamManager.class",
+    "androidx/media3/extractor/iso/udf/NativeUdfFileSystem.class",
     "is/xyz/mpv/MPVLib$Stream.class",
     "is/xyz/mpv/MPVLib$StreamProvider.class",
     "androidx/media3/exoplayer/trackselection/DecodeTrackSelector.class",
@@ -84,6 +86,9 @@ def read_verified_candidate(path: Path) -> dict[str, bytes]:
             third = manifest_lines[2] if len(manifest_lines) > 2 else ""
             if third != f"MPV overlay: {MPV_OVERLAY_ID}":
                 raise ValueError("candidate manifest is missing the pinned MPV release overlay")
+            fourth = manifest_lines[3] if len(manifest_lines) > 3 else ""
+            if fourth != f"ISO overlay: {ISO_OVERLAY_ID}":
+                raise ValueError("candidate manifest is missing the pinned native ISO overlay")
 
             expected: dict[str, str] = {}
             for line in manifest.splitlines():
