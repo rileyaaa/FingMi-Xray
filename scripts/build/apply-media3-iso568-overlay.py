@@ -720,6 +720,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.Closeable;
 import java.io.IOException;
 import java.io.InterruptedIOException;
+import java.util.ArrayDeque;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -740,28 +741,39 @@ public final class IsoNavigationDataSource extends BaseDataSource {
   private static final int RESULT_SEGMENT_END = -5;
 
   private final Factory factory;
+  private final int requestedReplaySegmentId;
+  @Nullable private final byte[] requestedReplay;
 
   @Nullable private IsoNavigationSession session;
   @Nullable private Uri uri;
   @Nullable private byte[] replay;
   private int replayPosition;
   private long bytesRemaining;
+  private long virtualPosition;
   private int segmentId;
+  private int lastPlayItemIndex;
   private boolean opened;
 
-  private IsoNavigationDataSource(Factory factory) {
+  private IsoNavigationDataSource(
+      Factory factory, int requestedReplaySegmentId, @Nullable byte[] requestedReplay) {
     super(false);
     this.factory = factory;
+    this.requestedReplaySegmentId = requestedReplaySegmentId;
+    this.requestedReplay = requestedReplay;
+    lastPlayItemIndex = C.INDEX_UNSET;
   }
 
   @Override
   public long open(DataSpec dataSpec) throws IOException {
     transferInitializing(dataSpec);
-    Factory.Binding binding = factory.bind(dataSpec.uri);
+    Factory.Binding binding =
+        factory.bind(dataSpec.uri, requestedReplaySegmentId, requestedReplay);
     session = binding.session;
     segmentId = binding.segmentId;
     uri = dataSpec.uri;
     replay = binding.replay;
+    virtualPosition = dataSpec.position;
+    lastPlayItemIndex = C.INDEX_UNSET;
 
     if (replay != null) {
       if (dataSpec.position > replay.length) {
@@ -771,6 +783,7 @@ public final class IsoNavigationDataSource extends BaseDataSource {
       long available = replay.length - replayPosition;
       bytesRemaining =
           dataSpec.length == C.LENGTH_UNSET ? available : Math.min(dataSpec.length, available);
+      factory.clearTimestampTransitions();
     } else {
       if (dataSpec.position != 0) {
         throw new DataSourceException(PlaybackException.ERROR_CODE_IO_READ_POSITION_OUT_OF_RANGE);
@@ -779,7 +792,9 @@ public final class IsoNavigationDataSource extends BaseDataSource {
       bytesRemaining = dataSpec.length;
     }
 
-    opened = true;
+    synchronized (this) {
+      opened = true;
+    }
     transferStarted(dataSpec);
     return bytesRemaining;
   }
@@ -806,6 +821,7 @@ public final class IsoNavigationDataSource extends BaseDataSource {
       }
       System.arraycopy(completedReplay, replayPosition, buffer, offset, toRead);
       replayPosition += toRead;
+      virtualPosition += toRead;
       if (bytesRemaining != C.LENGTH_UNSET) {
         bytesRemaining -= toRead;
       }
@@ -825,14 +841,14 @@ public final class IsoNavigationDataSource extends BaseDataSource {
                 bytesRemaining == C.LENGTH_UNSET ? (long) length : bytesRemaining);
     while (true) {
       boolean established = factory.isSegmentEstablished();
-      if (established && active.getDiscontinuityId() != segmentId) {
-        throw new SegmentChangedException(segmentId, active.getDiscontinuityId());
+      int currentBeforeRead = active.getDiscontinuityId();
+      if (established && currentBeforeRead != segmentId) {
+        awaitReplacementAndThrow(currentBeforeRead);
       }
 
       long observedGeneration = active.getStateGeneration();
       int expectedDiscontinuityId = established ? segmentId : C.INDEX_UNSET;
-      int result =
-          active.read(buffer, offset, requested, expectedDiscontinuityId);
+      int result = active.read(buffer, offset, requested, expectedDiscontinuityId);
       int currentSegmentId = active.getDiscontinuityId();
       boolean menuActive = active.isMenuActive();
 
@@ -849,7 +865,7 @@ public final class IsoNavigationDataSource extends BaseDataSource {
         continue;
       }
       if (result == RESULT_SEGMENT_REPLACED) {
-        throw new SegmentChangedException(segmentId, currentSegmentId);
+        awaitReplacementAndThrow(currentSegmentId);
       }
       if (result == RESULT_SEGMENT_END || result == C.RESULT_END_OF_INPUT) {
         factory.finishSegment(segmentId, menuActive);
@@ -862,13 +878,48 @@ public final class IsoNavigationDataSource extends BaseDataSource {
         throw new IOException("Disc navigation native reader made no progress");
       }
 
+      recordPlayItemTransition(active);
       factory.capture(segmentId, menuActive, buffer, offset, result);
+      virtualPosition += result;
       if (bytesRemaining != C.LENGTH_UNSET) {
         bytesRemaining -= result;
       }
       bytesTransferred(result);
       return result;
     }
+  }
+
+  private void recordPlayItemTransition(IsoNavigationSession active) throws IOException {
+    int currentPlayItemIndex = active.getReadPlayItemIndex();
+    if (currentPlayItemIndex == C.INDEX_UNSET) {
+      return;
+    }
+    if (lastPlayItemIndex != C.INDEX_UNSET && currentPlayItemIndex != lastPlayItemIndex) {
+      long playItemStartTimeUs = active.getReadPlayItemStartTimeUs();
+      if (playItemStartTimeUs != C.TIME_UNSET) {
+        long segmentStartTimeUs = active.getSegmentStartTimeUs();
+        long relativeStartTimeUs =
+            segmentStartTimeUs == C.TIME_UNSET
+                ? playItemStartTimeUs
+                : Math.max(0L, playItemStartTimeUs - segmentStartTimeUs);
+        factory.addTimestampTransition(virtualPosition, relativeStartTimeUs);
+      }
+    }
+    lastPlayItemIndex = currentPlayItemIndex;
+  }
+
+  private void awaitReplacementAndThrow(int actualDiscontinuityId) throws IOException {
+    synchronized (this) {
+      while (opened && !factory.isClosed()) {
+        try {
+          wait(100L);
+        } catch (InterruptedException error) {
+          Thread.currentThread().interrupt();
+          throw new InterruptedIOException("Disc navigation read interrupted");
+        }
+      }
+    }
+    throw new SegmentChangedException(segmentId, actualDiscontinuityId);
   }
 
   @Nullable
@@ -884,13 +935,20 @@ public final class IsoNavigationDataSource extends BaseDataSource {
 
   @Override
   public void close() {
-    session = null;
-    uri = null;
-    replay = null;
-    replayPosition = 0;
-    bytesRemaining = 0;
-    if (opened) {
+    boolean endTransfer;
+    synchronized (this) {
+      session = null;
+      uri = null;
+      replay = null;
+      replayPosition = 0;
+      bytesRemaining = 0;
+      virtualPosition = 0;
+      lastPlayItemIndex = C.INDEX_UNSET;
+      endTransfer = opened;
       opened = false;
+      notifyAll();
+    }
+    if (endTransfer) {
       transferEnded();
     }
   }
@@ -910,13 +968,14 @@ public final class IsoNavigationDataSource extends BaseDataSource {
     }
   }
 
-  /** Shared owner for all DataSource instances of one navigation MediaSource. */
+  /** Shared owner for all DataSource instances across one disc-navigation session. */
   public static final class Factory implements DataSource.Factory, Closeable {
 
     private static final int MAX_MENU_REPLAY_BYTES = 64 * 1024 * 1024;
 
     private final DataSource.Factory upstreamFactory;
     private final int initialMenuAction;
+    private final ArrayDeque<TimestampTransition> timestampTransitions = new ArrayDeque<>();
 
     @Nullable private IsoDataReader reader;
     @Nullable private IsoNavigationSession session;
@@ -942,7 +1001,13 @@ public final class IsoNavigationDataSource extends BaseDataSource {
 
     @Override
     public DataSource createDataSource() {
-      return new IsoNavigationDataSource(this);
+      return new IsoNavigationDataSource(this, C.INDEX_UNSET, null);
+    }
+
+    /** Returns a DataSource factory that replays one completed/current menu segment. */
+    public DataSource.Factory createReplayDataSourceFactory(int replaySegmentId, byte[] replay) {
+      byte[] immutableReplay = Arrays.copyOf(replay, replay.length);
+      return () -> new IsoNavigationDataSource(this, replaySegmentId, immutableReplay);
     }
 
     @Nullable
@@ -954,7 +1019,41 @@ public final class IsoNavigationDataSource extends BaseDataSource {
       return segmentEstablished;
     }
 
-    private synchronized Binding bind(Uri requestedUri) throws IOException {
+    public synchronized int getSegmentId() {
+      return segmentId;
+    }
+
+    public synchronized boolean isClosed() {
+      return closed;
+    }
+
+    @Nullable
+    public synchronized byte[] getReplayForCurrentSegment(boolean includeInProgress) {
+      if (replay != null && replaySegmentId == segmentId) {
+        return Arrays.copyOf(replay, replay.length);
+      }
+      if (includeInProgress
+          && captureSegmentId == segmentId
+          && !captureDisabled
+          && capture != null
+          && capture.size() > 0) {
+        return capture.toByteArray();
+      }
+      return null;
+    }
+
+    public synchronized long pollTimestampOffsetUs(long packetPosition) {
+      long timestampOffsetUs = C.TIME_UNSET;
+      while (!timestampTransitions.isEmpty()
+          && timestampTransitions.getFirst().bytePosition <= packetPosition) {
+        timestampOffsetUs = timestampTransitions.removeFirst().timestampOffsetUs;
+      }
+      return timestampOffsetUs;
+    }
+
+    private synchronized Binding bind(
+        Uri requestedUri, int requestedReplaySegmentId, @Nullable byte[] requestedReplay)
+        throws IOException {
       if (closed) {
         throw new IOException("Disc navigation source is closed");
       }
@@ -995,16 +1094,22 @@ public final class IsoNavigationDataSource extends BaseDataSource {
         throw new IOException("Disc navigation source is closed");
       }
       int current = active.getDiscontinuityId();
+      if (requestedReplay != null) {
+        if (current != requestedReplaySegmentId) {
+          throw new InterruptedIOException("Disc navigation segment changed before replay");
+        }
+        segmentId = requestedReplaySegmentId;
+        timestampTransitions.clear();
+        return new Binding(
+            active, requestedReplaySegmentId, Arrays.copyOf(requestedReplay, requestedReplay.length));
+      }
+
       if (segmentEstablished && current != segmentId) {
         resetForSegment(current);
       } else if (!segmentEstablished) {
         segmentId = current;
       }
-      byte[] completedReplay =
-          replay != null && replaySegmentId == segmentId
-              ? Arrays.copyOf(replay, replay.length)
-              : null;
-      return new Binding(active, segmentId, completedReplay);
+      return new Binding(active, segmentId, null);
     }
 
     private synchronized void establishSegment(int id) {
@@ -1012,6 +1117,18 @@ public final class IsoNavigationDataSource extends BaseDataSource {
         resetForSegment(id);
       }
       segmentEstablished = true;
+    }
+
+    private synchronized void addTimestampTransition(long bytePosition, long timestampOffsetUs) {
+      timestampTransitions.addLast(new TimestampTransition(bytePosition, timestampOffsetUs));
+      capture = null;
+      replay = null;
+      captureDisabled = false;
+      replaySegmentId = C.INDEX_UNSET;
+    }
+
+    private synchronized void clearTimestampTransitions() {
+      timestampTransitions.clear();
     }
 
     private synchronized void capture(
@@ -1048,7 +1165,6 @@ public final class IsoNavigationDataSource extends BaseDataSource {
         replaySegmentId = id;
       }
       capture = null;
-      captureDisabled = false;
     }
 
     private void resetForSegment(int id) {
@@ -1059,6 +1175,7 @@ public final class IsoNavigationDataSource extends BaseDataSource {
       capture = null;
       replay = null;
       captureDisabled = false;
+      timestampTransitions.clear();
     }
 
     @Override
@@ -1070,11 +1187,22 @@ public final class IsoNavigationDataSource extends BaseDataSource {
       reader = null;
       isoUri = null;
       resetForSegment(C.INDEX_UNSET);
+      notifyAll();
       if (oldSession != null) {
         oldSession.close();
       }
       if (oldReader != null) {
         oldReader.close();
+      }
+    }
+
+    private static final class TimestampTransition {
+      public final long bytePosition;
+      public final long timestampOffsetUs;
+
+      TimestampTransition(long bytePosition, long timestampOffsetUs) {
+        this.bytePosition = bytePosition;
+        this.timestampOffsetUs = timestampOffsetUs;
       }
     }
 
