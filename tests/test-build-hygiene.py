@@ -115,9 +115,14 @@ for required in (
 for required in (
     "from libass_build_contract import LIBASS_CANDIDATE_AAR_SHA256",
     "AAR_SHA256 = LIBASS_CANDIDATE_AAR_SHA256",
+    "from published_568_iso_contract import NATIVE_SHA256 as ISO_NATIVE_SHA256",
+    "merge_pinned_iso_native",
+    "check_combined_iso_contract",
+    "Current extractor lacks pinned ISO native entries",
+    "check-published-568-iso.py",
 ):
     if required not in libass_importer:
-        errors.append(f"Libass importer lost shared candidate contract: {required}")
+        errors.append(f"Libass importer lost shared candidate/native-ISO contract: {required}")
 if "2318eb904a016d0160aed2a4b7de8501578cd0f223c65e5c61086f7a9a80f573" in libass_importer:
     errors.append("Libass importer still contains superseded candidate SHA")
 
