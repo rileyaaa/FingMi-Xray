@@ -249,13 +249,13 @@ AI 与用户共同开发时的固定操作限制独立维护在 [AI_COLLABORATIO
 
 1. 准备 JDK / Android SDK；
 2. 从固定公开 FongMi/media commit 重建 17-AAR player candidate，并下载 / 校验当前 compatibility 与黄金 Xray 输入；
-3. 准备固定 decoder compatibility，同时从黄金 APK重建与 Go JNI 配套的 libXray Java bindings；
+3. 直接导入固定公开 FongMi/media 重建出的 player candidate；黄金旧 APK只用于重建与 Go JNI 配套的 libXray Java bindings 与 Xray 动态 parity；
 4. 重建并导入最小 Libass compatibility AAR；
 5. 执行 current Java → 黄金 v7 / arm64 native 动态 Xray chain parity（统一以 v7 发布行为为黄金 oracle，包含 KCP golden cases 与发布版 `testXray` runtime validation）；
 6. 只编译 Android TV / Leanback Java；
 7. 只 assemble Android TV / Leanback 两个 ABI 的 Debug APK；
 8. 对最终 APK执行 MPEG-H class/native、Xray/FFmpeg/MPEG-H/Libass runtime PT_LOAD provenance 与 merged Manifest security contract；
-9. 上传短期 TV debug artifact（保留 2 天）供临时验证；上传成功后自动删除同名旧 debug，只保留最新一份。失败报告只保留 1 天。历史 recovery workflow 的 JADX/DEX、faithful APK、native dependency、player AAR 和 upstream snapshot artifacts 也只作临时复核，统一最多保留 3 天；长期可重建输入只保留源码 commit、脚本、fixture 与 hash，不再占用 Release。Gradle 命令继续使用 `--warning-mode all`；当前剩余会在 Gradle 10 失败的 deprecation 已确认全部来自固定上游同样使用的 Chaquopy Gradle plugin 17.0.0（multi-string dependency notation 与 execution-time `Task.project`），不是本仓库 Gradle 脚本。当前保持 FongMi/TV 5.6.3 的 17.0.0 pin，待上游或 Chaquopy 升级时再单独验证 Python runtime 与双 ABI assets，不在本 fork 中为消 warning 私自升级。自定义 `com.fongmi.chaquo.Platform` 在 FongMi/TV 5.6.3 基础上补了 process-bitness 修复：先用 `Process.is64Bit()` 选择 `SUPPORTED_64_BIT_ABIS` 或 `SUPPORTED_32_BIT_ABIS`，再在同位数列表中挑选 Python ABI；选中的 ABI 仍必须同步到 Chaquopy 17 的 `AndroidPlatform.ABI`，因为其 `java.android.importer` 会读取这个内部字段来装载 ABI-specific requirements ZIP。
+9. 上传短期 TV debug artifact（保留 2 天）供临时验证；上传成功后自动删除同名旧 debug，只保留最新一份。失败报告只保留 1 天。历史 recovery workflow 的 JADX/DEX、faithful APK、native dependency、player AAR 和 upstream snapshot artifacts 也只作临时复核，统一最多保留 3 天；长期可重建输入只保留源码 commit、脚本、fixture 与 hash，不再占用 Release。Gradle 命令继续使用 `--warning-mode all`；当前剩余会在 Gradle 10 失败的 deprecation 已确认全部来自固定上游同样使用的 Chaquopy Gradle plugin 17.0.0（multi-string dependency notation 与 execution-time `Task.project`），不是本仓库 Gradle 脚本。当前保持 FongMi/TV 5.6.3 的 17.0.0 pin，并让 `com.fongmi.chaquo.Platform` 继续跟随固定上游实现，不在本 fork 中为一般兼容或 warning 主动改写 Python ABI 选择逻辑。
 
 测试发布器：
 
@@ -278,7 +278,7 @@ Release 只承载发布版本：长期保留 `v5.6.0-xray.5` 黄金参考和一�
 - `tests/test-xray-service-client-lifecycle.py`：直接编译真实 Service client，锁住 bind timeout、cancel/unbind、Binder death 与 stale callback / connection generation；
 - `tests/test-xray-normalizer-parity.py`：把 current share-link normalizer 与 display helper 对发布版 readable reference 做纯 JVM differential parity；
 - `tests/test-upstream-update-disabled.py`：防止 FongMi 上游自更新入口、直接 release endpoint 调用或 APK 安装权限重新进入当前 fork；
-- `tests/test-build-hygiene.py`：防止错误 XLIFF namespace、非 positional 多参数 string、Chaquopy ABI handoff 丢失、Release-backed build input 回流，以及仍基于 Node 20 的旧 Actions major 再进入构建。
+- `tests/test-build-hygiene.py`：防止错误 XLIFF namespace、非 positional 多参数 string、FongMi/Chaquopy 上游边界再次被 fork-only 改写、Release-only media restore 回流，以及仍基于 Node 20 的旧 Actions major 再进入构建。
 - `tests/test-tv-network-recovery.py`：锁住正式 `gn3` 的前后台 / SCREEN generation 来源，并用纯 JVM harness 验证 recovery 顺序、连续稳定检查和跨 generation 串行清理。
 
 `tests/` 是 current-main 的统一回归入口，不再另维护目录 README。除上述 workflow guard 外：
@@ -419,11 +419,11 @@ Glide 原先在初始化时固定保存 `OkHttp.client()`，普通 API client �
 
 网络恢复仍保留 generation、`recoveredGeneration`、stale callback / task-id 拒绝、Spider 串行 clear、API 与 playback/Xray client 隔离等 current 改进。Leanback Manifest 已取消 BootReceiver 与 `RECEIVE_BOOT_COMPLETED`，避免在 Home / `TvNetworkLifecycle` 之外形成第二个独立网络入口。约 6 秒稳定检查之后网络才恢复的慢唤醒场景仍属于真机验证项；没有证据前不增加永久轮询或默认网络 callback。
 
-### 2026-09-29 — 升级兼容补上字幕偏好与 Chaquopy process ABI
+### 2026-10-01 — 再次收紧 FongMi 上游边界
 
-字幕设置迁移会按 legacy caption 状态 → `subtitle_style_source` → `subtitle_style` 的顺序读取，避免升级用户丢失已有样式偏好。
+复核相对 `FongMi/TV@c616c0aa...` 的全部现存业务源码差异后，确认字幕偏好迁移与 Chaquopy process-bitness 改写都不属于 Xray、TV 网络恢复或不可避免的构建 compatibility，现已恢复为公开上游实现；只服务该字幕迁移的测试也一并删除。
 
-Chaquopy 资产选择不再直接按设备 `Build.SUPPORTED_ABIS` 的跨位数顺序挑选；先用 `Process.is64Bit()` 确定实际 App process bitness，再从对应的 32/64-bit ABI 列表中选择 Python native requirements。这个边界特别针对支持 64-bit 的电视上安装 32-bit Leanback APK 的场景。
+正式 current / publish 构建同时停止把历史 `v5.6.0-xray.5` 的 `libffmpegJNI.so` 注入公开 FongMi/media candidate。player/FFmpeg 现在直接使用固定公开 `FongMi/media@3c2cbe8...` 现场重建结果；黄金旧 APK只继续服务 Xray Java/native provenance 与 Xray 动态 parity。历史 FFmpeg restore/check 脚本保留在 recovery 流程，不再属于 current-main 维护面。
 
 ### 2026-09-30 — MPEG-H、gomobile runtime 与冷启动 LiveConfig 重新收口
 

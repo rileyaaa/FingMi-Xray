@@ -210,20 +210,16 @@ Live 的会话边界包括切频道、换线路 / 源、直播配置变化和播
 - 历史 recovery artifact 曾得到 candidate ZIP SHA-256 `0ed42581af11ac7163ebde148b318807c244e2a318f40c41d33f50b70bf967ee`；它只作为当时取证记录，不再是 current / recovery workflow 的长期存储依赖。
 - 现行流程统一由 `scripts/build/build-player-aar-candidate.sh` 从上述固定 commit 重建 17 个 AAR（包含 `lib-decoder-mpegh`），并由 `scripts/build/player_candidate.py` 校验文件集合、每个 AAR 的 manifest SHA 与关键播放器 class。外层 ZIP 本身不再作为长期 pin。
 
-与发布 APK 对照时，相关播放器 native 中唯一明确需要从发布 APK 恢复的是 `libffmpegJNI.so`。
+历史 faithful recovery 曾确认发布 APK 中的 `libffmpegJNI.so` 与固定公开 media candidate 不同，并建立了对应恢复工具。这项能力**只保留为旧 APK / faithful recovery 证据**；current-main 与 current publish 已不再注入发布版 FFmpeg JNI，而是直接使用固定公开 FongMi/media 现场重建出的 decoder AAR。
 
-发布版 FFmpeg JNI：
+历史发布版 FFmpeg JNI 证据：
 
 | ABI | SHA-256 |
 | --- | --- |
 | armeabi-v7a | `3af1fcaa21f28071994fc51936889e2441edec57d5009e7a4043bf9f06435d42` |
 | arm64-v8a | `26594d573765fc86a3d242c81e11369ced639d76cb4465cdf4b31a7c2d9da91c` |
 
-恢复后的 decoder AAR 固定 SHA-256：
-
-`31a1db2570416147cc6889643d25345477977205d60a61a6df525ffa5a623a13`
-
-恢复脚本只替换 v7 / arm64 两个 `libffmpegJNI.so`，其余 ZIP entry 保持候选 AAR 内容。
+faithful recovery 生成的 decoder AAR SHA-256 为 `31a1db2570416147cc6889643d25345477977205d60a61a6df525ffa5a623a13`。恢复脚本只替换 v7 / arm64 两个 `libffmpegJNI.so`，其余 ZIP entry 保持候选 AAR 内容；不要把这套 recovery 逻辑重新接回 current-main。
 
 相关工具：
 
