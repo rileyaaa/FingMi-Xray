@@ -231,6 +231,15 @@ for required in (
     "period.positionInWindowUs += segmentStartUs",
     "getDvdMenuHighlightSnapshot",
     "getHdmvMenuOverlay(int lastVersion)",
+    "DvdPrivateStreamReader",
+    "buildDvdPrivateStreamReader",
+    "fillDvdTrackLanguages",
+    "buildCurrentBdmvClipInfo",
+    "new StreamInfo(",
+    "new EpMapEntry(",
+    "decodeIso639",
+    "import androidx.annotation.Nullable;",
+    "import androidx.media3.common.C;",
     "new PsExtractor()",
 ):
     if required not in iso_overlay:
