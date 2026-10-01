@@ -141,8 +141,19 @@ public final class gn3 implements Application.ActivityLifecycleCallbacks {
         m3799a();
     }
 
-    @Override public final void onActivityDestroyed(Activity activity) {}
-    @Override public final void onActivityPaused(Activity activity) {}
-    @Override public final void onActivityCreated(Activity activity, Bundle bundle) {}
-    @Override public final void onActivitySaveInstanceState(Activity activity, Bundle bundle) {}
+    @Override
+    public final void onActivityDestroyed(Activity activity) {
+    }
+
+    @Override
+    public final void onActivityPaused(Activity activity) {
+    }
+
+    @Override
+    public final void onActivityCreated(Activity activity, Bundle bundle) {
+    }
+
+    @Override
+    public final void onActivitySaveInstanceState(Activity activity, Bundle bundle) {
+    }
 }
