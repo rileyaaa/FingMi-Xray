@@ -187,6 +187,42 @@ Live 的会话边界包括切频道、换线路 / 源、直播配置变化和播
 - 非默认 TLS / HY2 信任通过首次 pin 与后续变更拒绝实现；
 - 错误展示前会隐藏链接、UUID、密码、token、secret、key、short id、seed 等敏感内容。
 
+### current 模块与 v7 证据映射账本
+
+当前 `:xray` 的类名和旧 APK 混合架构不同，不能用“有没有同名类”判断是否还原。2026-10-01 干净分支复核后的映射如下：
+
+| current | v7 / readable evidence | 说明 |
+| --- | --- | --- |
+| `XrayConfigFactory` | `LegacyXrayRuntimeConfigFactory` + 发布 native converter | JSON 生成语义由 differential/native parity 锁定 |
+| `XrayDisplay` | `LegacyXrayDisplay` | 去包名/类名后行为镜像 |
+| `XrayPreferences` | `LegacyXrayConfigStore` | secure prefs / Keystore 逻辑源码镜像 guard |
+| `XrayShareLinkNormalizer` | `LegacyXrayShareLinkNormalizer` + `a04` + v7 native cases | VLESS/VMess/Trojan/SS/HY2/KCP 等 differential/native parity |
+| `LibXrayBridge` | `LegacyLibXrayApi` + `LegacyXrayProbeApi` + `s11` | 正常调用面一致；current 只额外收口 `LinkageError` |
+| `PublicPlaybackDestinationInterceptor` | `LegacyPublicPlaybackDestinationInterceptor` | 公开/私网 destination policy 镜像 |
+| `XrayHttpClient` | `LegacyXrayHttpResources` + `th2/pz3/yd0` | 独立 Dispatcher/Pool/SOCKS 与 cleanup 顺序一致 |
+| `XrayProxySocketFactory` | `LegacyXrayProxySocketFactory` | RTSP unresolved SOCKS 语义镜像 |
+| `XrayCertificatePins` | `LegacyXrayCertificateStore` + `j81` | pin store / alias / migration 源码镜像 guard |
+| `XrayShareLinkSecurity` | `LegacyXrayTransportSecurity` | TLS/HY2 TOFU、identity、pin change differential |
+| `XrayGenerationGate` | `LegacyXrayGenerationGate` | generation 算法一致；current 仅收紧可见性 |
+| `XrayOperation` | `LegacyXrayOperation` | operation 1~5 保持一致 |
+| `XrayService` | `recovery/legacy-src/.../xray/XrayService.java` + `sz3/tz3/uz3` | VALIDATE/TEST/START/STOP/RESET_SECURITY、cleanup/process reset |
+| `PlaybackIdentityGate` | 旧 VOD/Live Activity、Controller、`th2` 调用链 | 新架构抽出的逻辑身份状态机，没有旧同名类 |
+| `XrayOperationIds` | `LegacyXrayOperationIds` | operation id 递增语义镜像 |
+| `XrayPlaybackAddress` | `LegacyXrayPlaybackAddress` | public HTTP(S)/RTSP/RTSPT 与 Live direct-source 边界一致 |
+| `XrayPlaybackSession` | 旧 Activity + PlayerManager + session controller 融合行为 | 新架构独立会话对象；换身份、resolved URL、preserve/error cleanup 由 playback/race guard 锁定 |
+| `XrayResult` | `LegacyXrayOperationResult` | callback result carrier |
+| `XrayServiceClient` | `LegacyXrayServiceClient` + `ez3/hz3` | bind/death/null/disconnect/5s timeout |
+| `XraySessionController` | `LegacyXraySessionController` + `yz3` | 1.5s cleanup、30s startup、stale callback/race |
+| `XraySessionListener` | `LegacyXraySessionListener` | 仅状态/方法命名模块化，状态值保持一致 |
+| `XraySettingsController` | `LegacyXraySettingsController` + 设置页 DEX | 45s timeout、delete/reset 顺序、phone-import abandon |
+| `XrayErrorSanitizer` | `LegacyXrayErrorSanitizer` | 文本去敏主体镜像；current 额外支持 Throwable/LinkageError 收口 |
+
+另外两段旧 helper 因为属于 FongMi 播放器接口而留在 `:app`：`XrayArtworkBitmapLoader` 对应 `LegacyXrayBitmapLoader/rf2`，`ExoMediaSourceFactory.GuardedPlaybackDataSource` 对应 `LegacyXraySchemeGuardDataSource/or2`。两者的 local-scheme / Unicode whitespace 判定已重新按 v7 对齐。
+
+旧 `PlayerEngine` 曾暴露 Xray getter，但 5.6.3 新播放器架构不再需要污染该上游接口；clean 分支用 blob guard 要求 `PlayerEngine.java` 与 `FongMi/TV@c616c0aa3613e87529791587a9f71b78c278c991` 完全一致，原 getter 语义迁入 `PlayerManager`、`ExoPlayerEngine.proxy()` 与 `PlayerEngineFactory(proxy)`。因此“PlayerEngine 不含 Xray”是架构迁移结果，不是漏迁。
+
+这张账本只说明**已取证的行为映射**，不是声称已经拿到旧 APK 的原始未混淆源码。任何未来发现的新 full-JADX / DEX caller 都应先补到本表及 parity guard，再修改 current 实现。
+
 ### Android TV 网络恢复
 
 发布版同时包含与 Xray 无关的 TV 网络恢复逻辑：
