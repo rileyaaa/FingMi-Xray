@@ -127,13 +127,16 @@ Xray 是**当前播放会话的可选网络通道**，不是设备级代理。
 
 一次启用 Xray 的播放应拥有独立网络资源。
 
-HTTP / HTTPS、DRM license 和 RTSP 等与当前媒体播放直接相关的连接，需要遵守同一个播放网络身份；不能出现主视频走 Xray、DRM 或旁路请求悄悄回到不匹配网络身份的情况。
+HTTP / HTTPS、DRM license、RTSP / RTSPT，以及字幕、弹幕、EPG/XML 等与当前播放网络身份绑定的远程请求，需要遵守同一个播放网络身份；不能出现主视频走 Xray、DRM 或媒体旁路请求悄悄回到不匹配网络身份的情况。
 
 同时要保持以下隔离：
 
 - Xray 播放不复用普通直连预加载身份；
 - 不让普通直连缓存把旧网络身份带进 Xray 会话；
-- Xray SOCKS 使用独立连接资源；
+- Xray active 时播放器使用能够注入该会话网络资源的 Exo engine；真正切换播放器属于播放身份变化，先结束旧 Xray 会话，再按普通 FongMi 规则选择新 engine；
+- HTTP / HTTPS 使用当前 Xray client，RTSP / RTSPT 使用会话 SOCKS SocketFactory，DRM license 复用同一 proxied DataSource；
+- Android 本地资源 scheme（`file`、`asset`、`content`、`data`、`rawresource`、`android.resource`）仍保持本地读取，不被伪装成代理流量；其它无法保证网络身份的泛用 scheme 在 Xray active 时 fail-closed；
+- Xray SOCKS client 从普通 player client 的配置派生，但拥有独立 Dispatcher、ConnectionPool 与 SOCKS 资源；
 - 会话结束后关闭对应 Dispatcher、连接池、executor 和 Service 状态；
 - 旧异步回调不能覆盖更新的播放会话。
 
@@ -148,7 +151,8 @@ HTTP / HTTPS、DRM license 和 RTSP 等与当前媒体播放直接相关的连�
 - 分享链接使用 Android Keystore 保护；
 - 敏感错误内容在展示前去敏；
 - TLS / HY2 非默认信任场景通过证书 pin 管理；
-- Xray 播放拒绝明显的本机、私网和保留目标，避免把代理通道当成内部网络访问入口；
+- Xray runtime config 把当前会话 DNS 解析路由到代理 outbound，并在 Core routing 层直接 blackhole localhost、私网和保留网段；
+- HTTP(S) 播放请求另有 destination interceptor 再次拒绝本机、私网和保留目标，形成 Core routing + HTTP destination 的双层保护；
 - Binder Service 不对其他应用导出；
 - Service 运行在应用私有 `:xray` 进程。
 
@@ -212,5 +216,6 @@ FingMi-Xray 应尽可能继续跟随 FongMi/TV，而不是复制整个上游长�
 | `docs/apk-reference/` | 可直接进 Git 的反编译文本证据 |
 | `scripts/build/` | 当前依赖与 compatibility 构建工具 |
 | `scripts/recovery/` | 历史 faithful / native 恢复与来源提取工具 |
+| `website/` | 随固定 FongMi/TV 上游保留的静态文档站源码；本 fork 不启用 Pages 自动部署，也不单独维护目录 README |
 
 当前工程代码与历史 faithful 恢复代码是两种不同用途的材料。当前 `main` 决定现行架构与实现；历史 v7 证据回答“发布版 Xray 的外部行为是什么、当前复用二进制从哪里来”。目标是把黄金行为映射到当前模块化架构，而不是把 `main` 回退成旧源码结构。
