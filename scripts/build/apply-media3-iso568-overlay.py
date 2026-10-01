@@ -25,8 +25,6 @@ def write_native_udf(path: Path) -> None:
  */
 package androidx.media3.extractor.iso.udf;
 
-import androidx.annotation.Nullable;
-import androidx.media3.common.C;
 import androidx.media3.common.CacheDataReader;
 import androidx.media3.extractor.iso.IsoFileEntry;
 import java.io.Closeable;
@@ -116,6 +114,8 @@ def write_navigation_session(path: Path) -> None:
  */
 package androidx.media3.exoplayer.iso;
 
+import androidx.annotation.Nullable;
+import androidx.media3.common.C;
 import androidx.media3.common.CacheDataReader;
 import java.io.Closeable;
 import java.io.IOException;
