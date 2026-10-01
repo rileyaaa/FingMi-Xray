@@ -490,5 +490,7 @@ Android build-tools 37 的 plain `dexdump` 会把 class 边界打印成带填充
 
 项目只交付 Leanback，因此 5 个 mobile-only 文件、根 `build.gradle` 与 `catvod/build.gradle` 也恢复公开上游；fork 的自更新/XLIFF guard 只扫描真正交付的 `main/leanback` source set。mobile 不作为本 fork 的构建或安全策略承载面。这样避免为了 TV fork 目标去长期维护一套额外 mobile 差异。
 
-run `36826613772`（source `ac39d9c6b60a64721ec04f5549f681ce82ff24b0`）在上述核心纠偏后完整成功：公开 17-AAR player rebuild、公开 FFmpeg candidate 导入、Xray v7/arm64 动态 parity、Libass rebuild/import、Leanback Java compile、双 ABI APK、MPEG-H、最终 native provenance 与 Manifest security gate 全部通过。随后只做了上述 non-TV 上游文件恢复，因此还需再跑一次 final current-main 作为最终闭环。
+run `36826613772`（source `ac39d9c6b60a64721ec04f5549f681ce82ff24b0`）在核心纠偏后完整成功。随后继续把 5 个 mobile-only 文件、根 `build.gradle` 与 `catvod/build.gradle` 恢复公开上游，并把相关 guard 收窄到真正交付的 `main/leanback` source set。
+
+最终 run `36830085051`（source `492ef103187c080f05ec2d17f089b3dcd7def8ee`）再次完整成功：fork source guards、公开 17-AAR player rebuild、公开 FFmpeg candidate 导入、Xray v7/arm64 动态 parity、Libass rebuild/import、Leanback Java compile、双 ABI TV Debug APK assemble、MPEG-H、最终 Xray/FFmpeg/MPEG-H/Libass native provenance 与 merged Manifest security contract 全部通过。临时 current-main push trigger 与 marker 已在成功后用原子提交 `f3b4d39898796f6609bee6d4ce2d81ec8a1e8efe` 清理，仓库恢复 pure `workflow_dispatch`。
 
