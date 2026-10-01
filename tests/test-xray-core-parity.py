@@ -34,6 +34,43 @@ def normalized_java_mirror(path: str, package_name: str, class_name: str) -> str
     return " ".join(text.split())
 
 
+def normalized_legacy_mirror(path: str, package_name: str, class_name: str) -> str:
+    text = read(path)
+    text = re.sub(r"/\\*.*?\\*/", "", text, flags=re.S)
+    text = re.sub(r"//[^\\n]*", "", text)
+    text = re.sub(r"^package .*?$", "", text, flags=re.M)
+    text = re.sub(r"^import .*?$", "", text, flags=re.M)
+    text = text.replace(class_name, "Mirror")
+    text = text.replace("Legacy", "")
+    return "".join(text.split())
+
+
+for current_path, current_package, current_class, legacy_path, legacy_package, legacy_class in (
+    (
+        "xray/src/main/java/com/fingmi/xray/config/XrayPreferences.java",
+        "com.fingmi.xray.config",
+        "XrayPreferences",
+        "recovery/legacy-src/com/fongmi/android/tv/xray/legacy/LegacyXrayConfigStore.java",
+        "com.fongmi.android.tv.xray.legacy",
+        "LegacyXrayConfigStore",
+    ),
+    (
+        "xray/src/main/java/com/fingmi/xray/security/XrayCertificatePins.java",
+        "com.fingmi.xray.security",
+        "XrayCertificatePins",
+        "recovery/legacy-src/com/fongmi/android/tv/xray/legacy/LegacyXrayCertificateStore.java",
+        "com.fongmi.android.tv.xray.legacy",
+        "LegacyXrayCertificateStore",
+    ),
+):
+    current_mirror = normalized_legacy_mirror(current_path, current_package, current_class)
+    legacy_mirror = normalized_legacy_mirror(legacy_path, legacy_package, legacy_class)
+    if current_mirror != legacy_mirror:
+        raise SystemExit(
+            f"{current_class} diverged from the released v5.6.0-xray.5 behavioral mirror"
+        )
+
+
 current_destination = normalized_java_mirror(
     "xray/src/main/java/com/fingmi/xray/network/PublicPlaybackDestinationInterceptor.java",
     "com.fingmi.xray.network",

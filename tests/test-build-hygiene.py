@@ -10,6 +10,8 @@ errors = []
 player_builder = (ROOT / "scripts/build/build-player-aar-candidate.sh").read_text(encoding="utf-8")
 player_verifier = (ROOT / "scripts/build/player_candidate.py").read_text(encoding="utf-8")
 libass_builder = (ROOT / "scripts/build/build-libass-candidate.py").read_text(encoding="utf-8")
+libass_extractor = (ROOT / "scripts/build/build-libass-extractor.py").read_text(encoding="utf-8")
+player_importer = (ROOT / "scripts/build/import-player-aar-candidate.py").read_text(encoding="utf-8")
 libass_contract = (ROOT / "scripts/build/check-libass-contract.py").read_text(encoding="utf-8")
 libass_native_contract = (ROOT / "compat/media3-libass/tests/published-568-native-contract.json").read_text(encoding="utf-8")
 for required in (
@@ -39,6 +41,19 @@ for required in (
 ):
     if required not in libass_contract:
         errors.append(f"Libass contract checker lost current native contract: {required}")
+
+for required in (
+    "SOURCE_COMMIT='9dae39e9689ee305c83f94bd11cf3bcecb9d6171'",
+    "historical_matroska_source_commit",
+    "exact public FongMi/media@",
+):
+    if required not in libass_extractor:
+        errors.append(f"Libass extractor lost public historical Matroska provenance: {required}")
+if (ROOT / "compat/media3-libass/patches/matroska-libass-hooks.patch").exists():
+    errors.append("Libass extractor must use the public historical Matroska source directly, not rebuild hooks with matroska-libass-hooks.patch")
+for forbidden in ("--restored-decoder", "PUBLISHED_JNI", "verified_decoder_replacement"):
+    if forbidden in player_importer:
+        errors.append(f"active player importer must not restore historical decoder JNI: {forbidden}")
 for required in (
     '"version": "5.6.8"',
     "58bc83730285c9a4ba40bf71d4deeea8be7e69dfb7d1a053f6a77aea006ad6ee",
