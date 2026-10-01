@@ -525,6 +525,7 @@ public final class IsoNavigationSession implements Closeable {
             ? nativeResumeDvdWait(nativeHandle, expectedDiscontinuityId)
             : nativeResumeBlurayPlaylist(nativeHandle, expectedDiscontinuityId);
     refreshStateLocked();
+    signalStateChangeLocked();
     if (resumed && hasPendingActions()) {
       schedulePump();
     }
@@ -538,6 +539,7 @@ public final class IsoNavigationSession implements Closeable {
     }
     boolean skipped = nativeSkipFiniteStill(nativeHandle, discontinuityId, finiteStillId);
     refreshStateLocked();
+    signalStateChangeLocked();
     return skipped;
   }
 
@@ -607,6 +609,7 @@ public final class IsoNavigationSession implements Closeable {
           activeAction = null;
           result = pumpNativeLocked();
           refreshStateLocked();
+          signalStateChangeLocked();
           completed = activeAction;
           activeAction = null;
         }
@@ -644,9 +647,13 @@ public final class IsoNavigationSession implements Closeable {
     long currentVersion = stateVersion;
     if (observedStateVersion != currentVersion) {
       observedStateVersion = currentVersion;
-      stateGeneration++;
-      notifyAll();
+      signalStateChangeLocked();
     }
+  }
+
+  private void signalStateChangeLocked() {
+    stateGeneration++;
+    notifyAll();
   }
 
   private void ensureOpenLocked() throws IOException {
