@@ -4,7 +4,7 @@ set -euo pipefail
 SOURCE_COMMIT="3c2cbe8ac742c2fe15eff52f03eeb3b1b648848d"
 DOLBY_OVERLAY_ID="fongmi-tv-5.6.8-dolby-release-overlay-v1"
 MPV_OVERLAY_ID="fongmi-tv-5.6.8-mpv-bridge-v2"
-ISO_OVERLAY_ID="fongmi-tv-5.6.8-iso-navigation-stream-overlay-v3"
+ISO_OVERLAY_ID="fongmi-tv-5.6.8-iso-navigation-stream-overlay-v4"
 WORKDIR=""
 OUTPUT=""
 
@@ -104,6 +104,9 @@ required = {
     "androidx/media3/exoplayer/source/iso/IsoNavigationDataSource$Factory.class",
     "androidx/media3/exoplayer/source/iso/IsoNavigationMediaSource.class",
     "androidx/media3/exoplayer/source/iso/IsoNavigationMediaSource$Factory.class",
+    "androidx/media3/exoplayer/source/iso/IsoNavigationMediaSource$NavigationTimeline.class",
+    "androidx/media3/exoplayer/iso/IsoNavigationSession$DvdMenuHighlight.class",
+    "androidx/media3/exoplayer/iso/IsoNavigationSession$HdmvMenuOverlay.class",
     "is/xyz/mpv/MPVLib$Stream.class",
     "is/xyz/mpv/MPVLib$StreamProvider.class",
     "androidx/media3/exoplayer/trackselection/DecodeTrackSelector.class",
@@ -120,6 +123,7 @@ required = {
 }
 found = set()
 navigation_keep_found = False
+navigation_timestamp_hook_found = False
 aars = sorted(set(
     source.glob("libraries/*/buildout/outputs/aar/*-release.aar")
 ) | set(
@@ -151,11 +155,21 @@ for path in aars:
             )
     with ZipFile(BytesIO(classes)) as jar:
         found.update(required.intersection(jar.namelist()))
+        if target.name == "lib-extractor-release.aar":
+            ts_class = jar.read("androidx/media3/extractor/ts/TsExtractor.class")
+            bdmv_class = jar.read("androidx/media3/extractor/iso/bdmv/BdmvTsExtractor.class")
+            navigation_timestamp_hook_found = (
+                b"TimestampDiscontinuityProvider" in ts_class
+                and b"pollTimestampOffsetUs" in ts_class
+                and b"setTimestampDiscontinuityProvider" in bdmv_class
+            )
     lines.append(f"{hashlib.sha256(data).hexdigest()}  {target.name}")
 
 missing = required - found
 if not navigation_keep_found:
     raise SystemExit("lib-exoplayer-release.aar lost IsoNavigationSession consumer keep rule")
+if not navigation_timestamp_hook_found:
+    raise SystemExit("lib-extractor-release.aar lost packet-level ISO navigation timestamp hook")
 lines += ["", "Required classes found:"] + sorted(found)
 lines += ["", "Required classes missing:"] + sorted(missing)
 manifest = ("\n".join(lines) + "\n").encode()
