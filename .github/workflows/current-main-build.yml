@@ -2,6 +2,11 @@ name: Current main Android build
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - clean-upstream-xray-tv
+    paths:
+      - .github/.trigger-current-main-build
 
 permissions:
   contents: read
