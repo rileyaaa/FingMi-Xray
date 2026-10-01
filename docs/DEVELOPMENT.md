@@ -564,3 +564,11 @@ current overlay 已升级为 `fongmi-tv-5.6.8-mpv-bridge-v2`，新增：
 
 证据边界：Release 内部还有一层约 4 MiB page、3 worker 的并行 Range 预取/cache；当前第二阶段先恢复 URI/header/seek/read/size/cancel 生命周期与 JNI 可观察行为，没有把该内部性能优化冒充成已逐实现等价。随后 run `36796521437` 在 marker source `4c3cc9dd...` 上完整成功：source guards、17-AAR rebuild、MPV bridge/ISO overlay unit tests、5.6.8 MPV native restore/check、Xray parity、Libass、Leanback Java compile、双 ABI APK assemble、MPEG-H、最终 Xray/FFmpeg/MPV/MPEG-H/Libass PT_LOAD 与 merged Manifest security contract 全部通过。`libisoJNI.so`、`IsoNavigationSession` / native UDF、disc-menu 以及 `libnodebridge.so` 仍未迁移；remote ISO 真机 Range/seek/cancel 行为仍属于运行时验收层。
 
+### 2026-10-01 — native ISO UDF bridge 第三阶段接入，等待 full current-main
+
+继续复用 5.6.7 / 5.6.8 Release 取证后确认：双 ABI `libisoJNI.so` 在 5.6.7 → 5.6.8 间字节不变，因此这是从 5.6.7 起存在并由 5.6.8 继续携带的 Release-only native ISO 单元，而不是 5.6.8 才出现的独立变化。5.6.8 JADX 同时确认 `androidx.media3.extractor.iso.udf.NativeUdfFileSystem` 通过 `System.loadLibrary("isoJNI")` 提供 `nativeOpen/nativeClose/nativeFindFile/nativeListFiles`，并在不支持的 image 上回退到公开 Java `UdfFileSystem`。
+
+current 已新增 `fongmi-tv-5.6.8-iso-native-udf-overlay-v1`：在固定 public media source 上 clean 恢复 `NativeUdfFileSystem`、让 `UdfFileSystem` 采用 native-first / Java-fallback，并在 `IsoParsedMedia.close()` 关闭 native UDF handle。双 ABI `libisoJNI.so` 由独立 `published_568_iso_contract.py` 固定 SHA，只允许从 SHA 固定的 5.6.8 Leanback APK 添加到 rebuilt `lib-extractor-release.aar`；current/publish restorer/checker、importer immutable mutation、build hygiene 和 final APK PT_LOAD provenance gate 已接入。
+
+当前边界仍然明确：这一阶段只恢复 native UDF filesystem bridge，不把大型 Release `IsoNavigationSession` 状态机/光碟菜单行为冒充成已完成。该状态机包含 disc type/menu、title/chapter/clip、track selection、seek、overlay/still/resume 等大量 JNI surface，后续应按 clean implementation + native provenance 单独闭环。此第三阶段当前尚未完成 full current-main，因此只能描述为 source/build-chain integration；Android TV 真机 ISO/UDF 与菜单行为仍需最终运行时验收。
+
