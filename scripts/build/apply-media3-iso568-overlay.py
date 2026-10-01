@@ -1243,6 +1243,7 @@ import androidx.media3.datasource.DataSource;
 import androidx.media3.exoplayer.drm.DrmSessionManagerProvider;
 import androidx.media3.exoplayer.iso.IsoNavigationSession;
 import androidx.media3.exoplayer.source.CompositeMediaSource;
+import androidx.media3.exoplayer.source.ForwardingTimeline;
 import androidx.media3.exoplayer.source.MediaPeriod;
 import androidx.media3.exoplayer.source.MediaSource;
 import androidx.media3.exoplayer.source.ProgressiveMediaSource;
@@ -1253,15 +1254,15 @@ import androidx.media3.extractor.Extractor;
 import androidx.media3.extractor.ExtractorsFactory;
 import androidx.media3.extractor.iso.bdmv.BdmvTsExtractor;
 import androidx.media3.extractor.ts.PsExtractor;
+import java.io.Closeable;
 import java.io.IOException;
 
 /**
  * One navigation segment backed by {@link IsoNavigationDataSource}.
  *
- * <p>The controller is intentionally separate: when the shared session advances its
- * discontinuity id, the controller replaces this source with a new instance while keeping the
- * same {@link IsoNavigationDataSource.Factory}. That matches the 5.6.8 segmented navigation
- * model without folding player policy into the JNI transport.
+ * <p>All segment instances created by one {@link Factory} share the same native session/ISO
+ * reader. When the native discontinuity id changes, the controller replaces only this segment
+ * source while the factory remains alive.
  */
 public final class IsoNavigationMediaSource extends CompositeMediaSource<Void> {
 
@@ -1269,13 +1270,21 @@ public final class IsoNavigationMediaSource extends CompositeMediaSource<Void> {
   private final IsoNavigationDataSource.Factory navigationFactory;
   private final MediaSource childSource;
 
+  @Nullable private IOException sourceError;
+
   private IsoNavigationMediaSource(
       MediaItem mediaItem,
-      DataSource.Factory upstreamFactory,
-      int initialMenuAction,
-      LoadErrorHandlingPolicy loadErrorHandlingPolicy) {
+      IsoNavigationDataSource.Factory navigationFactory,
+      LoadErrorHandlingPolicy loadErrorHandlingPolicy,
+      int replaySegmentId,
+      @Nullable byte[] replay) {
     this.mediaItem = mediaItem;
-    navigationFactory = new IsoNavigationDataSource.Factory(upstreamFactory, initialMenuAction);
+    this.navigationFactory = navigationFactory;
+
+    DataSource.Factory streamFactory =
+        replay == null
+            ? navigationFactory
+            : navigationFactory.createReplayDataSourceFactory(replaySegmentId, replay);
     ExtractorsFactory extractorsFactory =
         () -> {
           IsoNavigationSession session = navigationFactory.getSession();
@@ -1289,7 +1298,8 @@ public final class IsoNavigationMediaSource extends CompositeMediaSource<Void> {
                     /* clipInfo= */ null,
                     /* startM2ts= */ 0L,
                     /* inTimeTicks= */ 0L,
-                    C.TIME_UNSET)
+                    C.TIME_UNSET,
+                    navigationFactory::pollTimestampOffsetUs)
               };
             }
           }
@@ -1299,11 +1309,12 @@ public final class IsoNavigationMediaSource extends CompositeMediaSource<Void> {
                 /* clipInfo= */ null,
                 /* startM2ts= */ 0L,
                 /* inTimeTicks= */ 0L,
-                C.TIME_UNSET)
+                C.TIME_UNSET,
+                navigationFactory::pollTimestampOffsetUs)
           };
         };
     ProgressiveMediaSource.Factory progressiveFactory =
-        new ProgressiveMediaSource.Factory(navigationFactory, extractorsFactory);
+        new ProgressiveMediaSource.Factory(streamFactory, extractorsFactory);
     progressiveFactory.setLoadErrorHandlingPolicy(loadErrorHandlingPolicy);
     childSource = progressiveFactory.createMediaSource(mediaItem);
   }
@@ -1325,15 +1336,46 @@ public final class IsoNavigationMediaSource extends CompositeMediaSource<Void> {
   }
 
   @Override
-  protected void prepareSourceInternal(@Nullable androidx.media3.datasource.TransferListener listener) {
+  protected void prepareSourceInternal(
+      @Nullable androidx.media3.datasource.TransferListener listener) {
     super.prepareSourceInternal(listener);
     prepareChildSource(null, childSource);
   }
 
   @Override
+  public void maybeThrowSourceInfoRefreshError() throws IOException {
+    if (sourceError != null) {
+      throw sourceError;
+    }
+    super.maybeThrowSourceInfoRefreshError();
+  }
+
+  @Override
   protected void onChildSourceInfoRefreshed(
       Void id, @NonNull MediaSource mediaSource, @NonNull Timeline timeline) {
-    refreshSourceInfo(timeline);
+    IsoNavigationSession session = navigationFactory.getSession();
+    if (session == null) {
+      refreshSourceInfo(timeline);
+      return;
+    }
+    try {
+      int titleIndex = session.getCurrentTitleIndex();
+      long segmentStartUs = session.getSegmentStartTimeUs();
+      long[] titleInfo = titleIndex == C.INDEX_UNSET ? null : session.getTitleInfo(titleIndex);
+      long titleDurationUs =
+          titleInfo != null && titleInfo.length > 0 ? titleInfo[0] : C.TIME_UNSET;
+      if (titleDurationUs > 0 && segmentStartUs != C.TIME_UNSET) {
+        sourceError = null;
+        long clampedStartUs = Math.min(Math.max(0L, segmentStartUs), titleDurationUs);
+        refreshSourceInfo(new NavigationTimeline(timeline, titleDurationUs, clampedStartUs));
+      } else {
+        sourceError = null;
+        refreshSourceInfo(timeline);
+      }
+    } catch (IOException error) {
+      sourceError = error;
+      refreshSourceInfo(timeline);
+    }
   }
 
   @NonNull
@@ -1351,26 +1393,98 @@ public final class IsoNavigationMediaSource extends CompositeMediaSource<Void> {
   @Override
   protected void releaseSourceInternal() {
     super.releaseSourceInternal();
-    navigationFactory.close();
+    sourceError = null;
   }
 
-  public static final class Factory implements MediaSource.Factory {
+  private static final class NavigationTimeline extends ForwardingTimeline {
 
-    private final DataSource.Factory upstreamFactory;
-    private final int initialMenuAction;
+    private final long titleDurationUs;
+    private final long segmentStartUs;
+
+    NavigationTimeline(Timeline timeline, long titleDurationUs, long segmentStartUs) {
+      super(timeline);
+      this.titleDurationUs = titleDurationUs;
+      this.segmentStartUs = segmentStartUs;
+    }
+
+    @Override
+    public Timeline.Window getWindow(
+        int windowIndex, Timeline.Window window, long defaultPositionProjectionUs) {
+      super.getWindow(windowIndex, window, defaultPositionProjectionUs);
+      window.durationUs = titleDurationUs;
+      window.isSeekable = true;
+      window.defaultPositionUs = segmentStartUs;
+      window.positionInFirstPeriodUs = -segmentStartUs;
+      return window;
+    }
+
+    @Override
+    public Timeline.Period getPeriod(
+        int periodIndex, Timeline.Period period, boolean setIds) {
+      super.getPeriod(periodIndex, period, setIds);
+      long remainingDurationUs = Math.max(0L, titleDurationUs - segmentStartUs);
+      period.durationUs =
+          period.durationUs == C.TIME_UNSET
+              ? remainingDurationUs
+              : Math.min(period.durationUs, remainingDurationUs);
+      period.positionInWindowUs += segmentStartUs;
+      return period;
+    }
+  }
+
+  public static final class Factory implements MediaSource.Factory, Closeable {
+
+    private final IsoNavigationDataSource.Factory navigationFactory;
     private LoadErrorHandlingPolicy loadErrorHandlingPolicy;
+    private boolean closed;
 
     public Factory(DataSource.Factory upstreamFactory, int initialMenuAction) {
-      this.upstreamFactory = upstreamFactory;
-      this.initialMenuAction = initialMenuAction;
+      navigationFactory =
+          new IsoNavigationDataSource.Factory(upstreamFactory, initialMenuAction);
       loadErrorHandlingPolicy = new DefaultLoadErrorHandlingPolicy();
+    }
+
+    @Nullable
+    public IsoNavigationSession getNavigationSession() {
+      return navigationFactory.getSession();
+    }
+
+    public int getSegmentId() {
+      return navigationFactory.getSegmentId();
+    }
+
+    public boolean dispatchMenuAction(int action) {
+      IsoNavigationSession session = navigationFactory.getSession();
+      return session != null && session.dispatchAction(action);
+    }
+
+    @Nullable
+    public MediaSource createReplayMediaSource(
+        @NonNull MediaItem mediaItem, boolean includeInProgress) {
+      byte[] replay = navigationFactory.getReplayForCurrentSegment(includeInProgress);
+      if (replay == null) {
+        return null;
+      }
+      return new IsoNavigationMediaSource(
+          mediaItem,
+          navigationFactory,
+          loadErrorHandlingPolicy,
+          navigationFactory.getSegmentId(),
+          replay);
     }
 
     @NonNull
     @Override
     public MediaSource createMediaSource(@NonNull MediaItem mediaItem) {
+      if (closed) {
+        throw new IllegalStateException("Disc navigation factory is closed");
+      }
       return new IsoNavigationMediaSource(
-          mediaItem, upstreamFactory, initialMenuAction, loadErrorHandlingPolicy);
+          mediaItem,
+          navigationFactory,
+          loadErrorHandlingPolicy,
+          C.INDEX_UNSET,
+          null);
     }
 
     @NonNull
@@ -1393,12 +1507,19 @@ public final class IsoNavigationMediaSource extends CompositeMediaSource<Void> {
     public @C.ContentType int[] getSupportedTypes() {
       return new int[] {C.CONTENT_TYPE_OTHER};
     }
+
+    @Override
+    public void close() {
+      if (!closed) {
+        closed = true;
+        navigationFactory.close();
+      }
+    }
   }
 }
 """,
         encoding="utf-8",
     )
-
 
 
 
