@@ -407,6 +407,12 @@ TV 网络恢复则以 v7 已确认的后台 / SCREEN_OFF generation、普通 API
 
 干净分支完整验证 run `36844344680`（source `8433b2627c5cfa38093e9a9ce18c6e0e527835e9`）已成功通过：fork source guards、v7/arm64 Xray native 动态 parity、公开 player/native 依赖重建、Libass compatibility 重建、5.6.3 Leanback 编译、双 ABI TV APK assemble、最终 native provenance 与 merged Manifest gate 全部成功。随后把 Matroska / ASS hook 从“当前源码 + 重建 patch”收敛为直接使用公开历史 `FongMi/media@9dae39e9689ee305c83f94bd11cf3bcecb9d6171` 的真实 `MatroskaExtractor.java`，验证 run `36855759802`（source `329f9e0437293ad91ade6de7a6798ef7929d088c`）再次完整成功。最终又加入公开 Matroska provenance、active decoder-restore 禁止、Xray secure prefs / certificate pin legacy mirror guard，run `36867969971`（source `e82b0940606328ab50afabff72421a7b6f9f42fa`）第三次完整成功；source guards、公开 player/native 重建、v7/arm64 native parity、Libass compatibility、Leanback compile、双 ABI assemble、最终 native provenance 与 merged Manifest gate 全部通过。这些自动验证仍不能替代 Android TV 真机 Xray 与待机唤醒行为回归。
 
+### 2026-10-02 — clean 分支最终 CI 验证与 DoH race 收口
+
+TV 待机网络恢复的最终静态审计发现 `OkDns.lookup()` 在离开 reset/rebuild 同步边界后会再次读取 volatile `doh`，与网络 generation 恢复并发时存在 resolver 被置空的 TOCTOU 窗口。current 已改为在同一同步边界内快照本次 lookup 使用的 `Dns resolver`，再在锁外执行实际 DNS 请求；`tests/test-tv-network-recovery.py` 同时锁住这一 resolver snapshot 约束。
+
+最终 current build run `36892238506`（source `c41524a974feed097659e37130bd6e8ab2817fda`）完整成功：fork source guards、固定公开 player/native 重建、v7/arm64 Xray native parity、Libass compatibility、5.6.3 Leanback compile、双 ABI TV APK assemble、MPEG-H、最终 native provenance 与 merged Manifest security gate 均通过。该结果仍不替代 Android TV 真机上的 Xray、待机唤醒与长后台网络恢复回归。
+
 ### 2026-09-27 — libXray Java/native ABI 必须成套恢复
 
 `v5.6.3-xray.test.3` 暴露出官方 v26.7.28 Java bindings 与历史 API v2 `libgojni.so` 混搭会在 JNI 初始化阶段查找缺失模型类并杀死 `:xray` 进程。current-main 因此固定使用 `scripts/build/build-published-libxray-aar.py`：从固定发布 APK 恢复匹配的 `libXray/**` API v2 bindings 与 v7 / arm64 JNI，同时保留官方 AAR 中未经过 App R8 混淆的通用 `go/**` runtime。后续升级 libXray 必须整套替换 Java bindings + JNI，不能只换其中一侧。
