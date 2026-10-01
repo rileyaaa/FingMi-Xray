@@ -67,11 +67,12 @@ def main() -> None:
                 raise ValueError("candidate extractor AAR contains duplicate ZIP entries")
             if any(name in names for name in replacement):
                 raise ValueError("candidate extractor AAR unexpectedly already contains libisoJNI.so")
+            original_entries = {name: source.read(name) for name in names}
 
             output = BytesIO()
             with ZipFile(output, "w") as target:
                 for info in source.infolist():
-                    target.writestr(copy(info), source.read(info.filename))
+                    target.writestr(copy(info), original_entries[info.filename])
                 for name, data in sorted(replacement.items()):
                     info = ZipInfo(name, (1980, 1, 1, 0, 0, 0))
                     info.compress_type = ZIP_DEFLATED
@@ -86,7 +87,7 @@ def main() -> None:
             if set(restored_names) != set(names) | set(replacement):
                 raise ValueError("restored extractor AAR changed archive inventory unexpectedly")
             for name in names:
-                if restored.read(name) != ZipFile(BytesIO(aar_bytes)).read(name):
+                if restored.read(name) != original_entries[name]:
                     raise ValueError(f"restored extractor AAR changed candidate entry: {name}")
             for name, wanted in replacement.items():
                 if restored.read(name) != wanted:
