@@ -274,7 +274,12 @@ require(
 require(
     "app/src/main/java/com/fongmi/android/tv/ui/dialog/PlayerEngineDialog.java",
     "Runnable onEngineChanged",
-    "onEngineChanged.run()",
+    "if (engine != previous && onEngineChanged != null) onEngineChanged.run();",
+)
+require_order(
+    "app/src/main/java/com/fongmi/android/tv/ui/dialog/PlayerEngineDialog.java",
+    "if (engine != previous && onEngineChanged != null) onEngineChanged.run();",
+    "else player.setEngine(engine);",
 )
 
 require(
