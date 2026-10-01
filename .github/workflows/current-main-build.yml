@@ -256,7 +256,11 @@ jobs:
           sdk_root="${ANDROID_HOME:-/usr/local/lib/android/sdk}"
           apkanalyzer="$sdk_root/cmdline-tools/latest/bin/apkanalyzer"
           test -x "$apkanalyzer"
-          for apk in app/build/outputs/apk/leanback/app-leanback-*-debug.apk; do
+          mapfile -t apks < <(
+            find app/build/outputs/apk/leanback -type f -name 'app-leanback-*-debug.apk' -print | sort
+          )
+          test "${#apks[@]}" -eq 2
+          for apk in "${apks[@]}"; do
             test -s "$apk"
             python3 scripts/build/check-final-apk-manifest.py \
               --apkanalyzer "$apkanalyzer" \
