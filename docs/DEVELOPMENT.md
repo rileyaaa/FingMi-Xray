@@ -177,7 +177,7 @@ FongMi/TV 业务、UI 与播放器行为以公开上游为准。本仓库不再�
 
 ### Media3 / Libass
 
-当前构建从固定公开 `FongMi/media@3c2cbe8ac742c2fe15eff52f03eeb3b1b648848d` 重建 player candidate，再通过仓库中的源码和补丁补齐 FongMi/TV 5.6.3 调用面所需的 Libass compatibility。
+当前构建从固定公开 `FongMi/media@3c2cbe8ac742c2fe15eff52f03eeb3b1b648848d` 重建 player candidate。Libass extractor 的 Matroska / ASS hook 不再由本仓库从当前源码反向打补丁重建，而是直接使用公开历史 `FongMi/media@9dae39e9689ee305c83f94bd11cf3bcecb9d6171` 的真实 `MatroskaExtractor.java`；仓库只保留当前 5.6.3 接线所需的最小 copy-constructor patch，以及公开历史中不存在、只能从发布行为恢复的 subtitle sample timestamp overload/call。
 
 主要材料：
 

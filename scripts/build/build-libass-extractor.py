@@ -11,8 +11,8 @@ ROOT=Path(__file__).resolve().parents[2]
 sys.path.insert(0,str(Path(__file__).resolve().parent))
 from player_candidate import read_verified_candidate
 SOURCE='libraries/extractor/src/main/java/androidx/media3/extractor/mkv/MatroskaExtractor.java'
-SOURCE_SHA='84e01966733fec404de062fce4aa5c221af432c570afcef9eb1ad0cab07f495f'
-RESTORED_SHA='203c3ef5626afa3bc0401befc07a347a3e32e6e2b835b0164b0c05eeba1560db'
+SOURCE_COMMIT='9dae39e9689ee305c83f94bd11cf3bcecb9d6171'
+SOURCE_SHA='203c3ef5626afa3bc0401befc07a347a3e32e6e2b835b0164b0c05eeba1560db'
 COPY_SHA='4acaaa255e7a8b2a33fa1978c655d83cb9cb47d0ce3999b25838e07088b205da'
 CONTAINER_SHA='930fca2f018f06f1d08c12599f8c97f31eddbd728edee5de06eb53a882f8fc54'
 TIMED_SOURCES={
@@ -40,14 +40,11 @@ def main():
  aar=payload['lib-extractor-release.aar']
  for name in ['common','extractor']:
   with ZipFile(io.BytesIO(payload['lib-'+name+'-release.aar'])) as z:(work/'jars'/('lib-'+name+'-release.jar')).write_bytes(z.read('classes.jar'))
- if a.source_root:source=(a.source_root/SOURCE).read_bytes()
- elif a.source:source=a.source.read_bytes()
+ if a.source:source=a.source.read_bytes()
  else:
-  with urllib.request.urlopen('https://raw.githubusercontent.com/FongMi/media/3c2cbe8ac742c2fe15eff52f03eeb3b1b648848d/'+SOURCE) as r:source=r.read()
- assert sha(source)==SOURCE_SHA,'Wrong fixed source'
+  with urllib.request.urlopen('https://raw.githubusercontent.com/FongMi/media/'+SOURCE_COMMIT+'/'+SOURCE) as r:source=r.read()
+ assert sha(source)==SOURCE_SHA,'Wrong fixed historical Matroska source'
  target=work/'source'/SOURCE;target.parent.mkdir(parents=True,exist_ok=True);target.write_bytes(source)
- subprocess.run(['patch','--batch','--fuzz=0','-p1','-i',str(ROOT/'compat/media3-libass/patches/matroska-libass-hooks.patch')],cwd=work/'source',check=True)
- assert sha(target.read_bytes())==RESTORED_SHA,'Restored source must be byte-identical to real upstream9dae39e9'
  subprocess.run(['patch','--batch','--fuzz=0','-p1','-i',str(ROOT/'compat/media3-libass/patches/matroska-libass-copy.patch')],cwd=work/'source',check=True)
  assert sha(target.read_bytes())==COPY_SHA
  for name,(before,after) in TIMED_SOURCES.items():
@@ -86,6 +83,6 @@ def main():
  classes.update(produced)
  assert all(classes[n]==b for n,b in original.items() if not selected(n))
  entries['classes.jar']=write_zip(classes);out=work/'lib-extractor-libass-release.aar';out.write_bytes(write_zip(entries))
- report={'candidate_zip_sha256':sha(a.candidate.read_bytes()),'original_source_sha256':SOURCE_SHA,'restored_source_sha256':RESTORED_SHA,'integration_source_sha256':COPY_SHA,'source_provenance':'Matroska: real FongMi/media@9dae39e9689ee305c83f94bd11cf3bcecb9d6171 source plus reconstructed configuration-preserving constructor; timed parser: reconstructed published5.6.5 behavior','reconstructed_timed_parser_source_sha256':TIMED_SOURCES,'official_container_aar_sha256':CONTAINER_SHA,'original_extractor_aar_sha256':sha(aar),'output_aar_sha256':sha(out.read_bytes()),'replaced_classes':sorted(produced),'other_class_contents_unchanged':True,'tests':'5 synthetic public extractor read-path tests plus4 timed-parser propagation/compatibility tests and1 flags-copy test','limitation':'restores Matroska callbacks and parser timestamps; not a complete newer Libass API/AAR'}
+ report={'candidate_zip_sha256':sha(a.candidate.read_bytes()),'historical_matroska_source_commit':SOURCE_COMMIT,'historical_matroska_source_sha256':SOURCE_SHA,'integration_source_sha256':COPY_SHA,'source_provenance':'Matroska: exact public FongMi/media@'+SOURCE_COMMIT+' source plus the minimal configuration-preserving copy constructor; timed parser: reconstructed published5.6.5 behavior','reconstructed_timed_parser_source_sha256':TIMED_SOURCES,'official_container_aar_sha256':CONTAINER_SHA,'original_extractor_aar_sha256':sha(aar),'output_aar_sha256':sha(out.read_bytes()),'replaced_classes':sorted(produced),'other_class_contents_unchanged':True,'tests':'5 synthetic public extractor read-path tests plus4 timed-parser propagation/compatibility tests and1 flags-copy test','limitation':'Matroska hooks are public historical source; only parser timestamp overload/call and copy-constructor compatibility remain reconstructed'}
  (work/'extractor-evidence.json').write_text(json.dumps(report,indent=2)+'\n');print(json.dumps(report,indent=2))
 if __name__=='__main__':main()
