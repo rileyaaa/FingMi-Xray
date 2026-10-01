@@ -1,8 +1,8 @@
 # FingMi-Xray 开发与维护
 
-本文面向继续维护当前 `main` 的开发者，说明**当前工程基线、模块接线、构建依赖、上游同步方式和验证规则**。
+本文面向继续维护当前重构线的开发者，说明**当前工程基线、模块接线、构建依赖、上游同步方式和验证规则**。2026-10-01 起，用户明确指定 `clean-upstream-xray-tv` 为干净重建/验收分支；`main` 暂留上一可发布基线，完成真机验收前不要把两者混用。
 
-长期架构边界见 [PROJECT.md](PROJECT.md)。`v5.6.0-xray.5` 的恢复、native provenance 与 v7 Xray 黄金行为证据见 [RECOVERY.md](RECOVERY.md)。当前 `main` 负责架构与构建，v7 黄金参考负责约束 Xray 外部行为；两者不能混为旧 faithful 架构重建。
+长期架构边界见 [PROJECT.md](PROJECT.md)。`v5.6.0-xray.5` 的恢复、native provenance 与 v7 Xray 黄金行为证据见 [RECOVERY.md](RECOVERY.md)。当前 `clean-upstream-xray-tv` 重构线负责架构与构建验证，v7 黄金参考负责约束 Xray 外部行为；两者不能混为旧 faithful 架构重建。
 
 ## 1. 当前工程基线
 
@@ -19,7 +19,7 @@
 - `compileSdk` / `targetSdk`：37
 - `minSdk`：24
 
-当前 `main` 是现行源码、架构、上游同步和发布构建基线。Xray 外部行为则以用户长期验证稳定的 `v5.6.0-xray.5` armeabi-v7a 正式 APK 为黄金参考，并由 readable reference、source guard、JVM lifecycle test 与真实发布 native 动态 parity 映射到当前模块。正常发布不要求重新构建旧 faithful APK。
+当前 `clean-upstream-xray-tv` 是正在验收的源码、架构和上游同步候选基线；`main` 暂留旧发布基线。Xray 外部行为则以用户长期验证稳定的 `v5.6.0-xray.5` armeabi-v7a 正式 APK 为黄金参考，并由 readable reference、source guard、JVM lifecycle test 与真实发布 native 动态 parity 映射到当前模块。正常发布不要求重新构建旧 faithful APK。
 
 ### 维护范围
 
@@ -401,7 +401,7 @@ FingMi-Xray 当前**不使用 FongMi/Release 的应用内自更新**。原因是
 
 TV 网络恢复则以 v7 已确认的后台 / SCREEN_OFF generation、普通 API / DNS / DoH / Spider 重建和网络稳定等待为基础，同时保留后续已验证的完善点：`recoveredGeneration` 防 Home 重建漏恢复、generation 串行恢复、普通 API client 与播放器 client 隔离、Glide 动态取得新 client，以及恢复时清除瞬时图片失败缓存。以上增强仍只服务待机 / 长后台恢复，不引入默认网络 callback 或新的普通业务行为。
 
-干净分支完整验证 run `36844344680`（source `8433b2627c5cfa38093e9a9ce18c6e0e527835e9`）已成功通过：fork source guards、v7/arm64 Xray native 动态 parity、公开 player/native 依赖重建、Libass compatibility 重建、5.6.3 Leanback 编译、双 ABI TV APK assemble、最终 native provenance 与 merged Manifest gate 全部成功。该验证只证明源码/构建/自动 parity 基线成立，Android TV 真机 Xray 与待机唤醒行为仍需继续实机回归。
+干净分支完整验证 run `36844344680`（source `8433b2627c5cfa38093e9a9ce18c6e0e527835e9`）已成功通过：fork source guards、v7/arm64 Xray native 动态 parity、公开 player/native 依赖重建、Libass compatibility 重建、5.6.3 Leanback 编译、双 ABI TV APK assemble、最终 native provenance 与 merged Manifest gate 全部成功。随后把 Matroska / ASS hook 从“当前源码 + 重建 patch”收敛为直接使用公开历史 `FongMi/media@9dae39e9689ee305c83f94bd11cf3bcecb9d6171` 的真实 `MatroskaExtractor.java`，验证 run `36855759802`（source `329f9e0437293ad91ade6de7a6798ef7929d088c`）再次完整成功。两次验证都只证明源码/构建/自动 parity 基线成立，Android TV 真机 Xray 与待机唤醒行为仍需继续实机回归。
 
 ### 2026-09-27 — libXray Java/native ABI 必须成套恢复
 
@@ -447,7 +447,7 @@ Leanback Manifest 已不再注册 BootReceiver，但冷启动 LiveConfig 仍有�
 
 ### 2026-09-30 — 最终 APK provenance / Manifest 验收提升为发布硬门槛
 
-此前 current build 对 MPEG-H 已有最终 APK packaging gate，但 Xray、FFmpeg、Libass 与最终 merged Manifest 仍主要依赖构建输入 / 源码层证据。现在 current build 与 publish 都会在 assemble 后直接验证最终产物：双 ABI APK 中的 Xray `libgojni.so`、FFmpeg、MPEG-H、Libass 必须与已验证 AAR 的 ELF runtime `PT_LOAD` image 一致；Manifest 必须保留 Xray 私有进程与非 exported 约束，并拒绝 boot、电话、安装包和 VPN 相关敏感权限/组件回流。
+此前 current build 对 MPEG-H 已有最终 APK packaging gate，但 Xray、FFmpeg、Libass 与最终 merged Manifest 仍主要依赖构建输入 / 源码层证据。现在 current build 与 publish 都会在 assemble 后直接验证最终产物：双 ABI APK 中的 Xray `libgojni.so`、FFmpeg、MPEG-H、Libass 必须与已验证 AAR 的 ELF runtime `PT_LOAD` image 一致；Manifest 必须保留 Xray 私有进程与非 exported 约束，并拒绝 BootReceiver / `RECEIVE_BOOT_COMPLETED`、`REQUEST_INSTALL_PACKAGES` 和 VPN service permission 回流；普通 FongMi 权限（包括上游自身声明的电话权限）不因本 fork 的一般性安全偏好额外改写。
 
 native 比较刻意不使用最终 APK 内 SO 的 whole-file SHA。Android Gradle strip 会改 ELF section metadata，因此整文件 SHA 不同并不代表运行时代码被替换；验证器只归一化 strip-only section-table header 字段，真正的 runtime load segment、flags、地址和内容仍必须一致。这个 gate 证明的是最终 APK packaging provenance，不替代 Android TV 真机上的 ART/JNI/网络行为验证。
 

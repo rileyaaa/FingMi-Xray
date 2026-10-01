@@ -4,6 +4,8 @@
 
 它不记录构建结果、Actions run、发布状态或调试过程。当前工程维护与验收规则见 [DEVELOPMENT.md](DEVELOPMENT.md)；AI 协作与文档记录边界见 [AI_COLLABORATION.md](AI_COLLABORATION.md)；[RECOVERY.md](RECOVERY.md) 保存旧发布版的恢复、二进制 provenance 与 Xray 黄金行为证据。
 
+> 当前过渡状态：`clean-upstream-xray-tv` 是 2026-10-01 经用户明确授权的干净重建/验收分支；`main` 暂留旧基线。长期产品边界不因分支变化而改变，最终仍只维护 Xray 与 Android TV 网络恢复两项自有能力。
+
 ## 1. 项目为什么存在
 
 FingMi-Xray 基于 FongMi/TV。项目保留 FongMi 原有的点播、直播和播放器能力，只针对 Android TV 使用中的两个场景增加自己的逻辑：
@@ -178,7 +180,7 @@ FingMi-Xray 不允许应用内从 FongMi/Release 下载并安装上游 APK。上
 - Manifest 不申请 `REQUEST_INSTALL_PACKAGES`；
 - 测试包和正式包只由本仓库明确构建、发布并由用户主动安装。
 
-从 5.6.3 重构线开始，**当前 `main` 是源码、架构、构建和发布基线；`v5.6.0-xray.5` v7 正式 APK 是 Xray 外部行为黄金参考。** current-main 不要求重新通过 faithful APK 重建才能发布，但涉及 Xray 行为的修改必须通过冻结证据、自动 parity 或真机证据证明没有无意偏离。
+从 5.6.3 重构线开始，**现行重构分支负责源码、架构、构建和上游同步；`v5.6.0-xray.5` v7 正式 APK 是 Xray 外部行为黄金参考。** current-main 不要求重新通过 faithful APK 重建才能发布，但涉及 Xray 行为的修改必须通过冻结证据、自动 parity 或真机证据证明没有无意偏离。
 
 ## 9. 上游升级原则
 
@@ -211,4 +213,4 @@ FingMi-Xray 应尽可能继续跟随 FongMi/TV，而不是复制整个上游长�
 | `scripts/build/` | 当前依赖与 compatibility 构建工具 |
 | `scripts/recovery/` | 历史 faithful / native 恢复与来源提取工具 |
 
-当前工程代码与历史 faithful 恢复代码是两种不同用途的材料。当前 `main` 决定现行架构与实现；历史 v7 证据回答“发布版 Xray 的外部行为是什么、当前复用二进制从哪里来”。目标是把黄金行为映射到当前模块化架构，而不是把 current-main 回退成旧源码结构。
+当前工程代码与历史 faithful 恢复代码是两种不同用途的材料。当前重构线决定现行架构与实现；历史 v7 证据回答“发布版 Xray 的外部行为是什么、当前复用二进制从哪里来”。目标是把黄金行为映射到当前模块化架构，而不是把 current-main 回退成旧源码结构。

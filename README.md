@@ -8,7 +8,7 @@ FingMi-Xray 将 Xray 集成到播放器内部。遇到这类内容时，可以�
 
 ## 项目版本
 
-当前 `main` 基于 FongMi/TV 5.6.3。**当前 `main` 是架构、源码和发布构建基线；`v5.6.0-xray.5` armeabi-v7a 正式 APK 是 Xray 外部行为的黄金参考。** 后续维护保留当前模块化 `:xray` 架构，但节点解析、VALIDATE / TEST / START / STOP、Binder / Service、播放代理、切换、失败恢复和资源释放等 Xray 行为应与黄金参考保持等价。历史 faithful APK 重建本身不是 current-main 发布前置条件。
+FongMi/TV 上游基线为 5.6.3（`c616c0aa3613e87529791587a9f71b78c278c991`）。2026-10-01 起，`clean-upstream-xray-tv` 是当前“完整上游树 → 重新应用 Xray / TV 网络恢复”的重建与验收分支；`main` 暂时保留上一可发布基线，待新分支完成真机验收后再决定替换/合回。**`v5.6.0-xray.5` armeabi-v7a 正式 APK 仍是 Xray 外部行为的黄金参考。** 新架构继续保留独立 `:xray` 模块，但节点解析、VALIDATE / TEST / START / STOP、Binder / Service、播放代理、切换、失败恢复和资源释放等可观察行为应与黄金参考保持等价。历史 faithful APK 重建本身不是当前重构线的发布前置条件。
 
 当前可上 Android TV 真机测试的 pre-release 为 `v5.6.3-xray.test.6`。该版本来自最终上游边界收口后的 TV-only 构建，自动构建与最终 APK provenance / Manifest gate 已通过；Android TV 真机行为回归仍需继续。
 

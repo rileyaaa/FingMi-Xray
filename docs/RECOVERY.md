@@ -2,9 +2,9 @@
 
 本文记录 `v5.6.0-xray.5` 的**历史证据对象、证据来源、faithful 源码结构、二进制来源和可重复恢复方法**。
 
-> **定位**：当前 `main` 决定现行源码、模块架构、上游版本与发布构建；本文件固定 `v5.6.0-xray.5` 的历史事实、native provenance 和 Xray 黄金行为证据。current-main 不回退到旧 faithful 架构，但 Xray 外部行为应在已取证范围内与 v7 黄金参考等价。
+> **定位**：当前重构线决定现行源码、模块架构与上游版本；2026-10-01 起该角色由经用户授权的 `clean-upstream-xray-tv` 承担，`main` 暂留旧基线。本文件固定 `v5.6.0-xray.5` 的历史事实、native provenance 和 Xray 黄金行为证据。当前重构线不回退到旧 faithful 架构，但 Xray 外部行为应在已取证范围内与 v7 黄金参考等价。
 
-它不是开发日志，也不记录当前 main 的上游升级过程。当前工程见 [DEVELOPMENT.md](DEVELOPMENT.md)，AI 协作与非流水账文档维护规则见 [AI_COLLABORATION.md](AI_COLLABORATION.md)，原发布时的用户说明见 [ORIGINAL_README.md](ORIGINAL_README.md)。
+它不是开发日志，也不记录当前开发分支的上游升级过程。当前工程见 [DEVELOPMENT.md](DEVELOPMENT.md)，AI 协作与非流水账文档维护规则见 [AI_COLLABORATION.md](AI_COLLABORATION.md)，原发布时的用户说明见 [ORIGINAL_README.md](ORIGINAL_README.md)。
 
 ## 1. 历史恢复对象
 
