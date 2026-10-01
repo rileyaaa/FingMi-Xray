@@ -21,9 +21,12 @@ player_builder = (ROOT / "scripts/build/build-player-aar-candidate.sh").read_tex
 player_verifier = (ROOT / "scripts/build/player_candidate.py").read_text(encoding="utf-8")
 dolby_overlay = (ROOT / "scripts/build/apply-media3-dolby568-overlay.py").read_text(encoding="utf-8")
 mpv_overlay = (ROOT / "scripts/build/apply-media3-mpv568-overlay.py").read_text(encoding="utf-8")
+iso_overlay = (ROOT / "scripts/build/apply-media3-iso568-overlay.py").read_text(encoding="utf-8")
 player_importer = (ROOT / "scripts/build/import-player-aar-candidate.py").read_text(encoding="utf-8")
 mpv_contract = (ROOT / "scripts/recovery/published_568_mpv_contract.py").read_text(encoding="utf-8")
 mpv_restorer = (ROOT / "scripts/recovery/restore-published-568-mpv.py").read_text(encoding="utf-8")
+iso_contract = (ROOT / "scripts/recovery/published_568_iso_contract.py").read_text(encoding="utf-8")
+iso_restorer = (ROOT / "scripts/recovery/restore-published-568-iso.py").read_text(encoding="utf-8")
 libass_importer = (ROOT / "scripts/build/import-libass-candidate.py").read_text(encoding="utf-8")
 libass_builder = (ROOT / "scripts/build/build-libass-candidate.py").read_text(encoding="utf-8")
 libass_contract = (ROOT / "scripts/build/check-libass-contract.py").read_text(encoding="utf-8")
@@ -36,11 +39,14 @@ for required in (
     ":lib-mpvplayer:assembleRelease",
     "scripts/build/apply-media3-dolby568-overlay.py",
     "scripts/build/apply-media3-mpv568-overlay.py",
+    "scripts/build/apply-media3-iso568-overlay.py",
     'DOLBY_OVERLAY_ID="fongmi-tv-5.6.8-dolby-release-overlay-v1"',
     'MPV_OVERLAY_ID="fongmi-tv-5.6.8-mpv-bridge-v2"',
+    'ISO_OVERLAY_ID="fongmi-tv-5.6.8-iso-native-udf-overlay-v1"',
     ":lib-mpvplayer:testDebugUnitTest",
     '"androidx/media3/decoder/ffmpeg/FfmpegDolbyVisionP5Renderer.class"',
     '"androidx/media3/decoder/ffmpeg/FfmpegDolbyVisionP7Converter.class"',
+    '"androidx/media3/extractor/iso/udf/NativeUdfFileSystem.class"',
     'rm -rf "$SOURCE_DIR" "$STAGE"',
 ):
     if required not in player_builder:
@@ -54,11 +60,14 @@ for required in (
     '"androidx/media3/decoder/mpegh/MpeghAudioRenderer.class"',
     'DOLBY_OVERLAY_ID = "fongmi-tv-5.6.8-dolby-release-overlay-v1"',
     'MPV_OVERLAY_ID = "fongmi-tv-5.6.8-mpv-bridge-v2"',
+    'ISO_OVERLAY_ID = "fongmi-tv-5.6.8-iso-native-udf-overlay-v1"',
     '"is/xyz/mpv/MPVLib$Stream.class"',
     '"androidx/media3/mpvplayer/nativebridge/MpvClient$LongResultCallback.class"',
     '"androidx/media3/mpvplayer/media/MpvIsoStream.class"',
     '"androidx/media3/mpvplayer/media/MpvIsoStreamManager.class"',
+    '"androidx/media3/extractor/iso/udf/NativeUdfFileSystem.class"',
     "candidate manifest is missing the pinned MPV release overlay",
+    "candidate manifest is missing the pinned native ISO overlay",
     '"androidx/media3/decoder/ffmpeg/FfmpegDolbyVisionP5Renderer.class"',
     '"androidx/media3/decoder/ffmpeg/FfmpegDolbyVisionP7Converter$Factory.class"',
     "candidate manifest points at an unexpected FongMi/media commit",
@@ -85,6 +94,20 @@ for required in (
         errors.append(f"Libass importer lost current pinned candidate contract: {required}")
 if "2318eb904a016d0160aed2a4b7de8501578cd0f223c65e5c61086f7a9a80f573" in libass_importer:
     errors.append("Libass importer still contains superseded candidate SHA")
+
+for required in (
+    'OVERLAY_ID = "fongmi-tv-5.6.8-iso-native-udf-overlay-v1"',
+    "NativeUdfFileSystem",
+    'System.loadLibrary("isoJNI")',
+    "nativeOpen(CacheDataReader reader)",
+    "nativeFindFile(long handle, String path)",
+    "nativeListFiles(long handle, String path)",
+    "disableNativeAndOpenJava",
+    "openJavaFallback",
+    "udf.close()",
+):
+    if required not in iso_overlay:
+        errors.append(f"ISO 5.6.8 native UDF overlay lost release contract: {required}")
 
 for required in (
     "enqueueCommandLongResult",
@@ -124,10 +147,28 @@ for required in (
         errors.append(f"MPV 5.6.8 restorer lost immutable mutation contract: {required}")
 
 for required in (
+    "e7fb4d37797b761414194a5d76b89ea4c53fe8c3a628bf8e824a54e501c15dfc",
+    "8ea04aeaf831a254f4fe73face64f0c2c7dd560e604503b6e3ed4375ba267267",
+    "libisoJNI.so",
+):
+    if required not in iso_contract:
+        errors.append(f"ISO 5.6.8 native contract lost pinned provenance: {required}")
+for required in (
+    "lib-extractor-release.aar",
+    "read_published_native",
+    "candidate extractor AAR unexpectedly already contains libisoJNI.so",
+):
+    if required not in iso_restorer:
+        errors.append(f"ISO 5.6.8 restorer lost immutable mutation contract: {required}")
+
+for required in (
     "published_568_ffmpeg_contract",
     "NATIVE_SHA256",
     "PUBLISHED_CLOSURE",
     "libffmpegDoviJNI.so",
+    "published_568_iso_contract",
+    "PUBLISHED_ISO",
+    "--restored-iso",
 ):
     if required not in player_importer:
         errors.append(f"player importer lost 5.6.8 FFmpeg closure contract: {required}")
@@ -171,10 +212,14 @@ for required in (
     "lib-exoplayer-libass-reconstructed.aar",
     "published_568_ffmpeg_contract.py",
     "published_568_mpv_contract.py",
+    "published_568_iso_contract.py",
     "FFMPEG_SONAMES",
     "MPV_SONAMES",
+    "ISO_SONAMES",
     "libplayer.so",
     "libmpv.so",
+    "libisoJNI.so",
+    "lib-extractor-release.aar",
     "libffmpegDoviJNI.so",
     'rglob(f"app-leanback-{abi}-debug.apk")',
     "recursive APK discovery failed",
@@ -330,11 +375,14 @@ for name, text in (
         "bash scripts/build/build-player-aar-candidate.sh",
         "scripts/recovery/restore-published-568-ffmpeg.py",
         "scripts/recovery/restore-published-568-mpv.py",
+        "scripts/recovery/restore-published-568-iso.py",
         "--v7-apk build/work/current-main/input/published-v568-v7.apk",
         "--v8-apk build/work/current-main/input/published-v568-v8.apk",
         "--restored-mpv build/work/current-main/restored/lib-mpvplayer-release.aar",
+        "--restored-iso build/work/current-main/restored/lib-extractor-release.aar",
         "scripts/recovery/check-published-568-ffmpeg.py --aar app/libs/lib-decoder-ffmpeg-release.aar",
         "scripts/recovery/check-published-568-mpv.py --aar app/libs/lib-mpvplayer-release.aar",
+        "scripts/recovery/check-published-568-iso.py --aar app/libs/lib-extractor-release.aar",
         "'platforms;android-36'",
         ":app:compileLeanbackDebugJavaWithJavac",
         ":app:assembleLeanbackDebug",
