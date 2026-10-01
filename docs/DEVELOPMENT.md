@@ -217,6 +217,8 @@ current player candidate 使用固定公开 FongMi/media 的 MPV 源码。curren
 
 Libass 的 5.6.8 native contract 只用于证明所取 `libmedia3ass.so` 与当前 reconstructed Java/JNI 调用面兼容。它不能被解释为“current-main 跟随 5.6.8 Release”，更不能据此继续恢复 Dolby、MPV、ISO 或其他 Release-only 行为。
 
+公开历史 `FongMi/media@9dae39e9689ee305c83f94bd11cf3bcecb9d6171` 曾完整包含一版 `libraries/exoplayer_libass/`、`media3ass.c`、CMake 和固定 `libass-cmake@d3f00a43ca66e42a2c34de964b1a7dbbfa9dbc8b`。该历史 native 只有早期 JNI 表，和 5.6.8 发布版当前需要的 17-method ABI 不兼容：后者额外包含 `nativeCreateLibrary`、`nativeProcessTimedData`、`nativeSetStyleOverride`、扩展 `nativeRenderFrame(...ZZ)` 等接口。当前公开仓库搜索也没有发现这套后期 JNI 的源码，因此不能用 `9dae` 的早期 `libmedia3ass.so` 冒充替换 5.6.8 native；在找到可验证的后期公开源码之前，固定官方 APK 中的 `libmedia3ass.so` 仍是唯一允许的最小 compatibility 二进制例外。
+
 `libXray/**` generated bindings 与 `libgojni.so` 必须作为同一 JNI ABI 单元恢复；不能把官方旧 bindings 与黄金 API v2 JNI 单独拼接。当前 `scripts/build/build-published-libxray-aar.py` 从固定黄金 APK恢复匹配的 `libXray/**` bindings 与双 ABI JNI，同时保留官方 v26.7.28 AAR 中未经过 App R8 混淆的通用 `go/**` runtime。
 
 最终 APK native 验证使用 ELF `PT_LOAD` runtime image，而不是 whole-file SHA：Android Gradle strip 可以改变 section metadata，但不能改变运行时 load segments。当前最终门槛核对 Xray、公开 FongMi/media 重建得到的 FFmpeg、MPEG-H 与 Libass 四类 native，并单独检查 merged Manifest：XrayService 必须 `exported=false` / `process=:xray`，同时拒绝 BootReceiver、`RECEIVE_BOOT_COMPLETED`、`REQUEST_INSTALL_PACKAGES` 与 VPN service permission 回流。普通 FongMi 权限不因为本 fork 的一般性安全偏好而额外改写；只有 Xray、TV 网络恢复或防止上游 APK 自更新覆盖 fork 所必需的 Manifest 差异可以长期保留。

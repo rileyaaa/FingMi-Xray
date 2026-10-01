@@ -2,6 +2,7 @@
 """Guard released-APK Xray playback behaviors that current-main intentionally preserves."""
 
 from pathlib import Path
+import hashlib
 import subprocess
 import tempfile
 
@@ -11,6 +12,12 @@ ROOT = Path(__file__).resolve().parents[1]
 
 def read(path: str) -> str:
     return (ROOT / path).read_text(encoding="utf-8")
+
+
+def git_blob_sha(path: str) -> str:
+    data = (ROOT / path).read_bytes()
+    header = f"blob {len(data)}\0".encode("ascii")
+    return hashlib.sha1(header + data).hexdigest()
 
 
 def require(path: str, *needles: str) -> None:
@@ -61,6 +68,19 @@ forbid(
     "service.isRunning() && !supports(url)",
     "if (!playback.hasIdentity() || !supports(playback.mediaUrl())) {\n                service.stop();",
 )
+
+if git_blob_sha("app/src/main/java/com/fongmi/android/tv/player/engine/PlayerEngine.java") != "b245171a5a99c05f4f0630468793d947ad65d0c7":
+    raise SystemExit(
+        "PlayerEngine.java must remain byte-identical to FongMi/TV@c616c0aa; "
+        "Xray proxy state belongs in PlayerManager/ExoPlayerEngine/PlayerEngineFactory"
+    )
+forbid(
+    "app/src/main/java/com/fongmi/android/tv/player/engine/PlayerEngine.java",
+    "getXrayPort",
+    "getXrayHttpClient",
+    "XrayHttpClient",
+)
+
 
 require(
     "app/src/main/java/com/fongmi/android/tv/ui/activity/PlaybackActivity.java",
