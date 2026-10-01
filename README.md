@@ -98,7 +98,7 @@ GitHub Releases 目前仍保留 `v5.6.3-xray.test.6` 作为上一测试版；它
 - **按需开启**：只有用户在当前播放中手动开启 Xray，当前媒体连接才进入 Xray。
 - **会话隔离**：切集、切频道、换线路、换源、换播放器等逻辑播放身份变化后，新播放默认重新直连；同一身份内的 parser / redirect / CDN 实际 URL 变化不重置 Xray。
 - **媒体旁路一致性**：Xray active 时，DRM、RTSP / RTSPT、字幕、弹幕、EPG/XML 等与当前播放绑定的远程请求遵守同一播放网络身份；远程 artwork / logo 在无法安全复用该身份时按黄金行为阻断或抑制普通直连加载。
-- **本地资源保持本地**：`file`、`content`、`asset`、`data`、`rawresource`、`android.resource` 等 Android 本地资源不会为了 Xray 被改成网络代理请求；其它无法完整保证播放网络身份的泛用协议会 fail-closed。
+- **本地资源保持本地**：无 scheme 的本地路径以及 `file`、`content`、`asset`、`data`、`rawresource`、`android.resource` 等 Android 本地资源不会为了 Xray 被改成网络代理请求；其它无法完整保证播放网络身份的泛用协议会 fail-closed。
 - **非全局代理**：不使用 Android `VpnService`，不接管其他应用或整台设备的网络。
 - **独立进程**：Xray Core 运行在应用自己的 `:xray` 私有进程中，会话结束后收口相关网络与运行资源。
 - **电视网络恢复**：另外保留针对部分 Android TV 长后台、待机或 Fast Start 后旧连接失效的网络恢复逻辑；这项能力与 Xray 播放代理彼此独立。
