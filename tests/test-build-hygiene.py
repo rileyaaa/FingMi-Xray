@@ -71,6 +71,7 @@ for required in (
 elf_runtime_guard = (ROOT / "scripts/build/check-elf-runtime.py").read_text(encoding="utf-8")
 final_native_guard = (ROOT / "scripts/build/check-final-apk-native.py").read_text(encoding="utf-8")
 final_manifest_guard = (ROOT / "scripts/build/check-final-apk-manifest.py").read_text(encoding="utf-8")
+app_manifest = (ROOT / "app/src/main/AndroidManifest.xml").read_text(encoding="utf-8")
 for required in ("PT_LOAD", "section_metadata", "--self-test"):
     if required not in elf_runtime_guard:
         errors.append(f"ELF runtime guard lost strip-aware contract: {required}")
@@ -79,6 +80,8 @@ for required in (
     "lib-decoder-ffmpeg-release.aar",
     "lib-decoder-mpegh-release.aar",
     "lib-exoplayer-libass-reconstructed.aar",
+    'rglob(f"app-leanback-{abi}-debug.apk")',
+    "recursive APK discovery failed",
     "armeabi-v7a",
     "arm64-v8a",
 ):
@@ -96,13 +99,37 @@ for required in (
     if required not in final_manifest_guard:
         errors.append(f"final APK manifest guard lost security contract: {required}")
 
+if '<uses-permission android:name="android.permission.READ_PHONE_STATE" tools:node="remove" />' not in app_manifest:
+    errors.append("app manifest must explicitly remove transitive READ_PHONE_STATE from final APK")
+
 audio_setting = (ROOT / "app/src/main/java/com/fongmi/android/tv/setting/AudioSetting.java").read_text(encoding="utf-8")
 for required in (
-    "public static final int MAX_BOOST = 2000;",
+    "public static final int MAX_BOOST = 1200;",
     'Math.clamp(Prefers.getInt("audio_boost"), MIN_BOOST, MAX_BOOST)',
 ):
     if required not in audio_setting:
-        errors.append(f"AudioSetting lost FongMi 5.6.8 20 dB boost contract: {required}")
+        errors.append(f"AudioSetting must follow the pinned FongMi/TV upstream contract: {required}")
+if "public static final int MAX_BOOST = 2000;" in audio_setting:
+    errors.append("AudioSetting must not carry the Release-only 5.6.8 20 dB boost override")
+
+release_only_paths = (
+    "compat/media3-dolby568",
+    "scripts/build/apply-media3-dolby568-overlay.py",
+    "scripts/build/apply-media3-mpv568-overlay.py",
+    "scripts/build/apply-media3-iso568-overlay.py",
+    "scripts/recovery/restore-published-568-ffmpeg.py",
+    "scripts/recovery/restore-published-568-mpv.py",
+    "scripts/recovery/restore-published-568-iso.py",
+    "scripts/recovery/check-published-568-ffmpeg.py",
+    "scripts/recovery/check-published-568-mpv.py",
+    "scripts/recovery/check-published-568-iso.py",
+    "scripts/recovery/published_568_ffmpeg_contract.py",
+    "scripts/recovery/published_568_mpv_contract.py",
+    "scripts/recovery/published_568_iso_contract.py",
+)
+for relative in release_only_paths:
+    if (ROOT / relative).exists():
+        errors.append(f"current-main must not restore Release-only FongMi media behavior: {relative}")
 
 platform = (ROOT / "chaquo/src/main/java/com/fongmi/chaquo/Platform.java").read_text(encoding="utf-8")
 for required in (
@@ -238,9 +265,26 @@ for name, text in (
         "Verify final Leanback manifest security contract",
         "python3 scripts/build/check-final-apk-manifest.py",
         'apkanalyzer="$sdk_root/cmdline-tools/latest/bin/apkanalyzer"',
+        "find app/build/outputs/apk/leanback -type f -name 'app-leanback-*-debug.apk'",
+        'test "${#apks[@]}" -eq 2',
+        'for apk in "${apks[@]}"; do',
     ):
         if required not in text:
             errors.append(f"{name} is missing pinned TV build contract: {required}")
+
+    for forbidden in (
+        "scripts/build/apply-media3-dolby568-overlay.py",
+        "scripts/build/apply-media3-mpv568-overlay.py",
+        "scripts/build/apply-media3-iso568-overlay.py",
+        "scripts/recovery/restore-published-568-ffmpeg.py",
+        "scripts/recovery/restore-published-568-mpv.py",
+        "scripts/recovery/restore-published-568-iso.py",
+        "scripts/recovery/check-published-568-ffmpeg.py",
+        "scripts/recovery/check-published-568-mpv.py",
+        "scripts/recovery/check-published-568-iso.py",
+    ):
+        if forbidden in text:
+            errors.append(f"{name} must follow public FongMi media instead of Release-only recovery: {forbidden}")
 
     for retired in ("5.6.5", "5.6.6"):
         if f"releases/download/{retired}/" in text:
