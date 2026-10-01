@@ -345,10 +345,10 @@ for required in (
 if "fingmi-xray-5.6.3-current-main-debug" in publish_workflow:
     errors.append("publish workflow must not duplicate successful APKs into Actions artifacts")
 
-if 'PREVIOUS_RELEASE_TAG: "v5.6.3-xray.test.4"' not in publish_workflow:
-    errors.append("publish workflow must retire the current test.4 release only after replacement verification")
-if 'RELEASE_TAG: "v5.6.3-xray.test.5"' not in publish_workflow:
-    errors.append("publish workflow must target the next v5.6.3-xray.test.5 pre-release")
+if 'PREVIOUS_RELEASE_TAG: "v5.6.3-xray.test.5"' not in publish_workflow:
+    errors.append("publish workflow must retire the current test.5 release only after replacement verification")
+if 'RELEASE_TAG: "v5.6.3-xray.test.6"' not in publish_workflow:
+    errors.append("publish workflow must target the next v5.6.3-xray.test.6 pre-release")
 for required in (
     'for stale_tag in "$PREVIOUS_RELEASE_TAG" "build-inputs-5.6.3"; do',
     "'v5.6.0-xray.5'",
