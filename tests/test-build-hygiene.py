@@ -98,10 +98,12 @@ for required in (
     "unload-script",
     "secondary-sub-scale",
     "MPVLib$Stream",
-    "media3iso://",
+    'STREAM_SCHEME = "media3iso"',
+    '"/disc.iso"',
+    "registerStream",
+    "unregisterStream",
     "MpvIsoStreamManager",
     "setDataSourceFactory",
-    "secondary-sub-scale",
 ):
     if required not in mpv_overlay:
         errors.append(f"MPV 5.6.8 overlay lost release bridge contract: {required}")
