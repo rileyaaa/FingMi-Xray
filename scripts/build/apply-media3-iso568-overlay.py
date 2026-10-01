@@ -7,7 +7,7 @@ import argparse
 from pathlib import Path
 
 
-OVERLAY_ID = "fongmi-tv-5.6.8-iso-navigation-stream-overlay-v3"
+OVERLAY_ID = "fongmi-tv-5.6.8-iso-navigation-stream-overlay-v4"
 
 
 def replace_once(text: str, old: str, new: str, label: str) -> str:
@@ -1273,6 +1273,108 @@ public final class IsoNavigationMediaSource extends CompositeMediaSource<Void> {
 
 
 
+
+def patch_ts_extractor_navigation_timestamp_hook(path: Path) -> None:
+    text = path.read_text(encoding="utf-8")
+    text = replace_once(
+        text,
+        "  private final TsDurationReader durationReader;\n\n"
+        "  // Accessed only by the loading thread.\n",
+        "  private final TsDurationReader durationReader;\n"
+        "  @Nullable private TimestampDiscontinuityProvider timestampDiscontinuityProvider;\n\n"
+        "  /** Supplies timestamp offsets for native disc-navigation play-item boundaries. */\n"
+        "  public interface TimestampDiscontinuityProvider {\n"
+        "    long pollTimestampOffsetUs(long packetPosition);\n"
+        "  }\n\n"
+        "  /** Installs the optional disc-navigation timestamp discontinuity provider. */\n"
+        "  public void setTimestampDiscontinuityProvider(\n"
+        "      @Nullable TimestampDiscontinuityProvider timestampDiscontinuityProvider) {\n"
+        "    this.timestampDiscontinuityProvider = timestampDiscontinuityProvider;\n"
+        "  }\n\n"
+        "  // Accessed only by the loading thread.\n",
+        "TsExtractor navigation timestamp provider",
+    )
+    text = replace_once(
+        text,
+        "    int endOfPacket = findEndOfFirstTsPacketInBuffer();\n"
+        "    int limit = tsPacketBuffer.limit();\n"
+        "    if (endOfPacket > limit) {\n"
+        "      return RESULT_CONTINUE;\n"
+        "    }\n\n"
+        "    @TsPayloadReader.Flags int packetHeaderFlags = 0;\n",
+        "    int endOfPacket = findEndOfFirstTsPacketInBuffer();\n"
+        "    int limit = tsPacketBuffer.limit();\n"
+        "    if (endOfPacket > limit) {\n"
+        "      return RESULT_CONTINUE;\n"
+        "    }\n\n"
+        "    TimestampDiscontinuityProvider discontinuityProvider = timestampDiscontinuityProvider;\n"
+        "    if (discontinuityProvider != null) {\n"
+        "      long packetPosition = input.getPosition() - tsPacketBuffer.bytesLeft();\n"
+        "      long timestampOffsetUs = discontinuityProvider.pollTimestampOffsetUs(packetPosition);\n"
+        "      if (timestampOffsetUs != C.TIME_UNSET) {\n"
+        "        for (int i = 0; i < timestampAdjusters.size(); i++) {\n"
+        "          timestampAdjusters.get(i).reset(timestampOffsetUs);\n"
+        "        }\n"
+        "        for (int i = 0; i < tsPayloadReaders.size(); i++) {\n"
+        "          tsPayloadReaders.valueAt(i).seek();\n"
+        "        }\n"
+        "        continuityCounters.clear();\n"
+        "      }\n"
+        "    }\n\n"
+        "    @TsPayloadReader.Flags int packetHeaderFlags = 0;\n",
+        "TsExtractor packet-position navigation timestamp hook",
+    )
+    path.write_text(text, encoding="utf-8")
+
+
+def patch_bdmv_navigation_timestamp_hook(path: Path) -> None:
+    text = path.read_text(encoding="utf-8")
+    old = """  public BdmvTsExtractor(
+      @Nullable ClpiInfo clipInfo, long startM2ts, long inTimeTicks, long durationUs) {
+    payloadReaderFactory = new BdmvTsPayloadReaderFactory(clipInfo);
+    delegate =
+        new TsExtractor(
+            TsExtractor.MODE_SINGLE_PMT,
+            TsExtractor.FLAG_EMIT_RAW_SUBTITLE_DATA | TsExtractor.FLAG_IGNORE_SECTION_CRC,
+            SubtitleParser.Factory.UNSUPPORTED,
+            new TimestampAdjuster(0),
+            payloadReaderFactory,
+            TsExtractor.DEFAULT_TIMESTAMP_SEARCH_BYTES);
+    epSeekMap = buildEpSeekMap(clipInfo, startM2ts, inTimeTicks, durationUs);
+"""
+    new = """  public BdmvTsExtractor(
+      @Nullable ClpiInfo clipInfo, long startM2ts, long inTimeTicks, long durationUs) {
+    this(
+        clipInfo,
+        startM2ts,
+        inTimeTicks,
+        durationUs,
+        /* timestampDiscontinuityProvider= */ null);
+  }
+
+  public BdmvTsExtractor(
+      @Nullable ClpiInfo clipInfo,
+      long startM2ts,
+      long inTimeTicks,
+      long durationUs,
+      @Nullable TsExtractor.TimestampDiscontinuityProvider timestampDiscontinuityProvider) {
+    payloadReaderFactory = new BdmvTsPayloadReaderFactory(clipInfo);
+    delegate =
+        new TsExtractor(
+            TsExtractor.MODE_SINGLE_PMT,
+            TsExtractor.FLAG_EMIT_RAW_SUBTITLE_DATA | TsExtractor.FLAG_IGNORE_SECTION_CRC,
+            SubtitleParser.Factory.UNSUPPORTED,
+            new TimestampAdjuster(0),
+            payloadReaderFactory,
+            TsExtractor.DEFAULT_TIMESTAMP_SEARCH_BYTES);
+    delegate.setTimestampDiscontinuityProvider(timestampDiscontinuityProvider);
+    epSeekMap = buildEpSeekMap(clipInfo, startM2ts, inTimeTicks, durationUs);
+"""
+    text = replace_once(text, old, new, "BdmvTsExtractor navigation timestamp hook")
+    path.write_text(text, encoding="utf-8")
+
+
+
 def patch_udf(path: Path) -> None:
     text = path.read_text(encoding="utf-8")
     text = replace_once(
@@ -1415,9 +1517,23 @@ def main() -> None:
         root
         / "libraries/exoplayer/src/main/java/androidx/media3/exoplayer/source/iso/IsoNavigationMediaSource.java"
     )
+    ts_extractor_path = (
+        root
+        / "libraries/extractor/src/main/java/androidx/media3/extractor/ts/TsExtractor.java"
+    )
+    bdmv_ts_extractor_path = (
+        root
+        / "libraries/extractor/src/main/java/androidx/media3/extractor/iso/bdmv/BdmvTsExtractor.java"
+    )
     exoplayer_proguard = root / "libraries/exoplayer/proguard-rules.txt"
 
-    for required in (udf_path, parsed_path, exoplayer_proguard):
+    for required in (
+        udf_path,
+        parsed_path,
+        ts_extractor_path,
+        bdmv_ts_extractor_path,
+        exoplayer_proguard,
+    ):
       if not required.is_file():
         raise SystemExit(f"missing pinned media source file: {required}")
 
@@ -1425,6 +1541,8 @@ def main() -> None:
     write_navigation_session(navigation_path)
     write_navigation_data_source(navigation_data_source_path)
     write_navigation_media_source(navigation_media_source_path)
+    patch_ts_extractor_navigation_timestamp_hook(ts_extractor_path)
+    patch_bdmv_navigation_timestamp_hook(bdmv_ts_extractor_path)
     patch_udf(udf_path)
     patch_iso_parsed_media(parsed_path)
     patch_navigation_keep_rules(exoplayer_proguard)
