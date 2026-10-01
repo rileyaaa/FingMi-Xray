@@ -73,6 +73,12 @@ Manifest 中的 `XrayService`：
 
 - `android:exported="false"`
 - `android:process=":xray"`
+当前 runtime config 还固定以下网络边界：
+
+- session SOCKS inbound 只监听 `127.0.0.1`；
+- proxy outbound 使用 `ForceIP`，当前会话 DNS 请求通过 Xray DNS inbound 路由到 proxy outbound；
+- Core routing 直接 blackhole localhost、RFC1918、link-local、ULA 等本机/私网/保留 IPv4/IPv6 范围；
+- HTTP(S) 层再由 `PublicPlaybackDestinationInterceptor` 对最终目标做一次 destination guard；RTSP / RTSPT 则通过 SOCKS SocketFactory 使用 unresolved target，让目标解析留在代理侧。
 
 
 ### Android 运行时兼容与 native 边界
@@ -135,13 +141,14 @@ RESET_SECURITY 保持发布版顺序：先占有 reset generation 并替换 Bind
 启用 Xray 后：
 
 - 预加载不会复用普通直连身份；
-- Exo engine 按当前 proxy 边界重建；
+- active proxy 强制使用能够注入该会话网络资源的 Exo engine，不让 MPV 或其它普通 engine 静默继承一个无法完整表达的代理状态；
 - `ExoMediaSourceFactory` 的 HTTP / HTTPS 使用 Xray client；
 - DRM license 跟随相同 DataSource；
-- RTSP / RTSPT 使用 Xray SocketFactory；
-- Xray 播放 DataSource 不允许用本地 / 非 HTTP(S) scheme 静默绕过当前会话。
+- RTSP / RTSPT 使用 Xray SocketFactory，并以 unresolved target 交给 SOCKS 侧解析；
+- `file` / `asset` / `content` / `data` / `rawresource` / `android.resource` 等 Android 本地资源 scheme 仍按本地资源处理；除 HTTP(S) 与这些明确本地 scheme 外，其它泛用 DataSource scheme 在 Xray active 时 fail-closed；
+- 字幕、弹幕、EPG/XML 等已经与播放身份绑定的远程旁路通过 `PlayerManager.getPlaybackHttpClient()` / `withHttpClient()` 获取当前 client；远程 MediaSession artwork 在 Xray active 时直接阻断，VOD/Live artwork/logo 也按黄金行为抑制普通远程加载。
 
-关闭或切换身份后，播放器重新回到普通 FongMi 网络资源。
+关闭或切换身份后，播放器重新回到普通 FongMi 网络资源。真正切换播放器属于播放身份变化：Activity 先结束当前 Xray generation，再按上游规则选择新的普通 engine；不是在同一 Xray 会话中把 proxy 直接塞给 MPV。
 
 ## 4. TV 网络恢复
 
@@ -152,7 +159,7 @@ TV 网络恢复没有放进 `:xray`。
 - `app/src/main/java/com/fongmi/android/tv/network/TvNetworkLifecycle.java`
 - `app/src/main/java/com/fongmi/android/tv/network/NetworkRecoveryCoordinator.java`
 
-`TvNetworkLifecycle` 负责生成前后台 / screen 网络代际；`NetworkRecoveryCoordinator` 每个需要恢复的 generation 执行一次普通网络重建。
+`TvNetworkLifecycle` 由 Leanback `HomeActivity.initView()` 首次安装，随后注册 Application 级 Activity lifecycle 与 SCREEN_ON / SCREEN_OFF receiver 来生成前后台 / screen 网络代际；它不是 Application 冷启动时无条件创建的第二套网络服务。`NetworkRecoveryCoordinator` 仍由 Home 持有，并只在 Home 的 `onResume()` / 窗口重新获得焦点时检查并执行每个待恢复 generation 的普通网络重建。
 
 发布版 generation **只**由真实后台 / SCREEN_OFF 后重新进入前台 / SCREEN_ON 推进；前台 Wi-Fi、VPN 或默认网络切换本身不额外创建 generation。Home 也只在自身 `onResume()` / 重新获得窗口焦点时检查是否需要恢复，隐藏在其他播放页面后的 Home 不主动执行恢复。`recoveredGeneration` 只用于防止 Home 重建时漏掉尚未完成的 generation，不增加新的触发来源。
 
@@ -267,21 +274,24 @@ on:
 
 Release 只承载发布版本：长期保留 `v5.6.0-xray.5` 黄金参考和一个当前可上真机测试的 pre-release。构建输入、恢复材料、临时归档和旧测试版不得长期堆在 Releases；新测试版验证成功后发布器会清理上一测试版和历史 `build-inputs-5.6.3`，并校验 Release 集合只剩黄金版 + 当前测试版。
 
-GitHub Releases 当前仍保留 `v5.6.3-xray.test.6` 作为上一测试版，并与黄金 `v5.6.0-xray.5` 构成现有 Release 集合。`test.6` 的 target 早于 2026-10-02 完整重建后的 `main`，因此不能作为当前 `main` 的最终二进制验收。当前 `main` 已通过主构建 workflow 的源码 guard、双 ABI Xray parity、Leanback compile / assemble、最终 APK native provenance 与 Manifest gate；发布下一测试版前仍需 Android TV 真机行为回归。
+GitHub Releases 当前仍保留 `v5.6.3-xray.test.6` 作为上一测试版，并与黄金 `v5.6.0-xray.5` 构成现有 Release 集合。`test.6` 的 target 早于 2026-10-02 完整重建后的 `main`，因此不能作为当前 `main` 的最终二进制验收。当前 `main` 已通过主构建 workflow 的源码 guard、双 ABI Xray parity、Leanback compile / assemble、最终 APK native provenance 与 Manifest gate；发布新的真机测试包之前仍需按实际目标决定是否继续沿用/替换 `test.6` 或推进新的测试 tag。
 
-发布 workflow 以 `BUILD_SOURCE_SHA` 作为唯一构建与发布源码，重新准备固定依赖、执行源码 guard、执行 current Java → 发布版 native 动态 Xray chain parity、只编译/assemble Android TV / Leanback 两个 ABI，并在发布前重复执行最终 APK MPEG-H、四类 native runtime provenance 与 merged Manifest security contract。正常手动触发时 `BUILD_SOURCE_SHA = github.sha`；发布 job 保持最小权限 `contents: write + actions: read`。临时触发、轮询与清理规则只以冻结的 [AI_COLLABORATION.md](AI_COLLABORATION.md) 为准，本文不重复保存一次性操作历史。
+发布 workflow 以 `BUILD_SOURCE_SHA` 作为唯一构建与发布源码，重新准备固定依赖、执行源码 guard、执行当前 Java → 发布版 native 动态 Xray chain parity、只编译/assemble Android TV / Leanback 两个 ABI，并在发布前重复执行最终 APK MPEG-H、四类 native runtime provenance 与 merged Manifest security contract。**当前 YAML 仍显式配置 `RELEASE_TAG=v5.6.3-xray.test.6`、`PREVIOUS_RELEASE_TAG=v5.6.3-xray.test.5`；它不会自动递增版本号。** 因此按现状手动触发会以当前 `BUILD_SOURCE_SHA` 重新发布/替换 `test.6`，若要发布 `test.7` 或其它 tag，必须同时更新 workflow 与 `tests/test-build-hygiene.py` 中对应的 release-set guard。正常手动触发时 `BUILD_SOURCE_SHA = github.sha`；发布 job 保持最小权限 `contents: write + actions: read`。临时触发、轮询与清理规则只以冻结的 [AI_COLLABORATION.md](AI_COLLABORATION.md) 为准，本文不重复保存一次性操作历史。
 
 当前 build 与 publish workflow 都必须先执行：
 
 - `tests/test-xray-android-runtime-compat.py`：防止 Java 21 可编译、但旧 Android ART 运行时不存在的 API 再进入 `:xray`，并防止 `main` 构建重新退回“官方旧 Java bindings + 单独替换发布版 Go JNI”的不匹配组合；
 - `tests/test-xray-core-parity.py`：守住配置生成、存储 / TOFU、Service 重试清理、Settings 核心语义、手机导入的 EventBus / operation 中断边界与发布版错误去敏链，并要求 current public destination guard 与发布 `qz3` readable mirror 保持逐行为等价；
-- `tests/test-xray-playback-parity.py`：守住 VOD / Live、播放器代理切换、媒体旁路和资源释放语义；
+- `tests/test-xray-playback-parity.py`：守住 VOD / Live、播放器代理切换、媒体旁路、本地 scheme、artwork/logo 与资源释放语义；
+- `tests/test-xray-playback-address-parity.py`：把 public HTTP(S)/RTSP/RTSPT、私网/保留目标、Unicode whitespace，以及 Live pending `.strm` / YouTube indirection 边界与冻结发布证据做 differential parity；
 - `tests/test-xray-session-races.py`：锁住发布版 STOP / timeout / callback 的竞态顺序；
 - `tests/test-xray-service-client-lifecycle.py`：直接编译真实 Service client，锁住 bind timeout、cancel/unbind、Binder death 与 stale callback / connection generation；
-- `tests/test-xray-normalizer-parity.py`：把 current share-link normalizer 与 display helper 对发布版 readable reference 做纯 JVM differential parity；
+- `tests/test-xray-normalizer-parity.py`：把当前 share-link normalizer 与 display helper 对发布版 readable reference 做纯 JVM differential parity；
+- `tests/test-xray-transport-security-parity.py`：把 TLS / HY2 TOFU identity、首次信任、证书变化拒绝、已有 pin 与大小写/migration 边界对发布 reference 做 differential parity；
 - `tests/test-upstream-update-disabled.py`：防止 FongMi 上游自更新入口、直接 release endpoint 调用或 APK 安装权限重新进入当前 fork；
-- `tests/test-build-hygiene.py`：防止错误 XLIFF namespace、非 positional 多参数 string、FongMi/Chaquopy 上游边界再次被 fork-only 改写、Release-only media restore 回流，以及仍基于 Node 20 的旧 Actions major 再进入构建。
-- `tests/test-tv-network-recovery.py`：锁住正式 `gn3` 的前后台 / SCREEN generation 来源，并用纯 JVM harness 验证 recovery 顺序、连续稳定检查和跨 generation 串行清理。
+- `scripts/build/check-elf-runtime.py --self-test`、`check-final-apk-native.py --self-test`、`check-final-apk-manifest.py --self-test`：先验证最终 ELF/Manifest gate 自身的判定逻辑；
+- `tests/test-build-hygiene.py`：防止错误 XLIFF namespace、非 positional 多参数 string、FongMi/Chaquopy 上游边界再次被 fork-only 改写、Release-only media restore 回流，以及仍基于 Node 20 的旧 Actions major 再进入构建；
+- `tests/test-tv-network-recovery.py`：锁住正式 `gn3` 的前后台 / SCREEN generation 来源，并用纯 JVM harness 验证 recovery 顺序、连续稳定检查、DoH resolver snapshot 与跨 generation 串行清理。
 
 `tests/` 是 `main` 的统一回归入口，不再另维护目录 README。除上述 workflow guard 外：
 
@@ -317,6 +327,8 @@ FingMi-Xray 当前**不使用 FongMi/Release 的应用内自更新**。原因是
 ## 8. 跟随 FongMi/TV 上游
 
 升级上游时只以当前 `main` 和目标 FongMi/TV 上游为架构开发输入，不从历史 recovery faithful tree 继续开发；但 `:xray` 的外部行为仍必须保持与 `v5.6.0-xray.5` v7 黄金参考一致。
+
+固定上游树中的 `website/` 静态站源码可以随上游保留，但它不属于本 fork 的产品功能维护面；本仓库不迁入上游自动 Pages workflow，并按项目文档规则不维护 `website/README.md`。
 
 建议流程：
 
@@ -422,3 +434,5 @@ FingMi-Xray 当前**不使用 FongMi/Release 的应用内自更新**。原因是
 TV 待机网络审计发现 `OkDns.lookup()` 在 reset/rebuild 并发时存在离锁后重复读取 volatile `doh` 的 TOCTOU 窗口。当前实现改为在同步边界内快照本次 lookup 使用的 `Dns resolver`，再在锁外执行实际 DNS 请求，并由 `tests/test-tv-network-recovery.py` 锁定该约束。
 
 完成源码、Xray/TV 网络、上游差异与最终构建验证后，干净重建结果成为唯一 `main` 基线。当前 `main` 已通过自动源码/native/assemble/Manifest 门槛；尚未发布新的测试 Release，Android TV 真机 Xray 与待机/长后台网络恢复仍是下一层验收。
+
+随后以当前 `main` 代码反向核对长期文档，确认全部上游同路径差异仍只落在 Xray、TV 网络恢复、禁用上游自更新、构建/测试基础设施与最小 compatibility 范围；同时修正文档中对 Xray 本地 DataSource scheme 的错误描述，并补齐 Core DNS/私网保护、Exo-only proxy 注入、Home-owned 网络恢复与实际 CI guard 清单。
