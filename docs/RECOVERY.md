@@ -2,7 +2,7 @@
 
 本文记录 `v5.6.0-xray.5` 的**历史证据对象、证据来源、faithful 源码结构、二进制来源和可重复恢复方法**。
 
-> **定位**：当前重构线决定现行源码、模块架构与上游版本；2026-10-01 起该角色由经用户授权的 `clean-upstream-xray-tv` 承担，`main` 暂留旧基线。本文件固定 `v5.6.0-xray.5` 的历史事实、native provenance 和 Xray 黄金行为证据。当前重构线不回退到旧 faithful 架构，但 Xray 外部行为应在已取证范围内与 v7 黄金参考等价。
+> **定位**：当前 `main` 决定现行源码、模块架构与上游版本。本文件固定 `v5.6.0-xray.5` 的历史事实、native provenance 和 Xray 黄金行为证据。`main` 不回退到旧 faithful 架构，但 Xray 外部行为应在已取证范围内与 v7 黄金参考等价。
 
 它不是开发日志，也不记录当前开发分支的上游升级过程。当前工程见 [DEVELOPMENT.md](DEVELOPMENT.md)，AI 协作与非流水账文档维护规则见 [AI_COLLABORATION.md](AI_COLLABORATION.md)，原发布时的用户说明见 [ORIGINAL_README.md](ORIGINAL_README.md)。
 
@@ -33,7 +33,7 @@
 - Android ZIP SHA-256：`28b7dc9d6cc8455fcca5cbd56e387003a7bfb558128651a64899dc3a8ccff666`
 - 官方 `libXray.aar` SHA-256：`4708a361a74f7e955635dbe3661cefb459bdc867423c3b1826a2c5a6ea4ac77d`
 
-本归档中的 faithful 结论都以这些固定输入为前提。v7 正式 APK 的 Xray 行为可作为 current parity 的黄金 oracle；旧版 FongMi 架构、混淆结构和 faithful APK 重建流程本身不是 current-main 的发布要求。
+本归档中的 faithful 结论都以这些固定输入为前提。v7 正式 APK 的 Xray 行为可作为 current parity 的黄金 oracle；旧版 FongMi 架构、混淆结构和 faithful APK 重建流程本身不是 `main` 的发布要求。
 
 ## 2. 证据优先级
 
@@ -54,7 +54,7 @@ JADX 中出现不可能分支、R8 合并控制流或自相矛盾时，必须继
 
 ## 3. recovery 与 faithful 材料结构
 
-`recovery/` 是发布旧版本的历史取证区，不是 current-main 的源码树：
+`recovery/` 是发布旧版本的历史取证区，不是 `main` 的源码树：
 
 - `legacy-src/`：`v5.6.0-xray.5` faithful 可读恢复源码；其中 `upstream/` 是固定 FongMi 5.6.0 overlay，`com/fongmi/android/tv/xray/` 与 `legacy/` 保存 Service、会话、网络、设置和安全 helper，`aidl/` 保存发布 Binder contract；
 - `legacy-tests/`：faithful 恢复工具和源码测试；
@@ -65,7 +65,7 @@ JADX 中出现不可能分支、R8 合并控制流或自相矛盾时，必须继
 
 `scripts/recovery/prepare-legacy-faithful.sh` 从固定上游组装临时 faithful tree，避免把完整上游副本永久复制进仓库。`recovery/work/` 与 `recovery/evidence/` 是 workflow / 本地临时目录，由 `.gitignore` 排除，不属于固定证据。
 
-当前直接参与构建的 Media3 / Libass compatibility 已迁到 `compat/`；current 源码回归入口在 `tests/`。faithful 源码负责解释发布行为，current `:xray` 负责可维护实现，两者不能混成一套源码。
+当前直接参与构建的 Media3 / Libass compatibility 已迁到 `compat/`；当前 `main` 的源码回归入口在 `tests/`。faithful 源码负责解释发布行为，当前 `:xray` 负责可维护实现，两者不能混成一套源码。
 
 ## 4. APK 文本证据索引
 
@@ -112,7 +112,7 @@ JADX 中出现不可能分支、R8 合并控制流或自相矛盾时，必须继
 
 ### Service 与会话
 
-以下内容描述 `v5.6.0-xray.5` 的已取证发布行为。current-main 保留模块化实现，但涉及同一 Xray 外部语义时以这些证据作为 parity 参考。
+以下内容描述 `v5.6.0-xray.5` 的已取证发布行为。`main` 保留模块化实现，但涉及同一 Xray 外部语义时以这些证据作为 parity 参考。
 
 发布版使用独立 `:xray` 私有进程。
 
@@ -187,9 +187,9 @@ Live 的会话边界包括切频道、换线路 / 源、直播配置变化和播
 - 非默认 TLS / HY2 信任通过首次 pin 与后续变更拒绝实现；
 - 错误展示前会隐藏链接、UUID、密码、token、secret、key、short id、seed 等敏感内容。
 
-### current 模块与 v7 证据映射账本
+### 当前模块与 v7 证据映射账本
 
-当前 `:xray` 的类名和旧 APK 混合架构不同，不能用“有没有同名类”判断是否还原。2026-10-01 干净分支复核后的映射如下：
+当前 `:xray` 的类名和旧 APK 混合架构不同，不能用“有没有同名类”判断是否还原。2026-10-02 完整重建并统一到 `main` 后的映射如下：
 
 | current | v7 / readable evidence | 说明 |
 | --- | --- | --- |
@@ -219,9 +219,9 @@ Live 的会话边界包括切频道、换线路 / 源、直播配置变化和播
 
 另外两段旧 helper 因为属于 FongMi 播放器接口而留在 `:app`：`XrayArtworkBitmapLoader` 对应 `LegacyXrayBitmapLoader/rf2`，`ExoMediaSourceFactory.GuardedPlaybackDataSource` 对应 `LegacyXraySchemeGuardDataSource/or2`。两者的 local-scheme / Unicode whitespace 判定已重新按 v7 对齐。
 
-旧 `PlayerEngine` 曾暴露 Xray getter，但 5.6.3 新播放器架构不再需要污染该上游接口；clean 分支用 blob guard 要求 `PlayerEngine.java` 与 `FongMi/TV@c616c0aa3613e87529791587a9f71b78c278c991` 完全一致，原 getter 语义迁入 `PlayerManager`、`ExoPlayerEngine.proxy()` 与 `PlayerEngineFactory(proxy)`。因此“PlayerEngine 不含 Xray”是架构迁移结果，不是漏迁。
+旧 `PlayerEngine` 曾暴露 Xray getter，但 5.6.3 新播放器架构不再需要污染该上游接口；`main` 的 blob guard 要求 `PlayerEngine.java` 与 `FongMi/TV@c616c0aa3613e87529791587a9f71b78c278c991` 完全一致，原 getter 语义迁入 `PlayerManager`、`ExoPlayerEngine.proxy()` 与 `PlayerEngineFactory(proxy)`。因此“PlayerEngine 不含 Xray”是架构迁移结果，不是漏迁。
 
-这张账本只说明**已取证的行为映射**，不是声称已经拿到旧 APK 的原始未混淆源码。任何未来发现的新 full-JADX / DEX caller 都应先补到本表及 parity guard，再修改 current 实现。
+这张账本只说明**已取证的行为映射**，不是声称已经拿到旧 APK 的原始未混淆源码。任何未来发现的新 full-JADX / DEX caller 都应先补到本表及 parity guard，再修改当前实现。
 
 ### Android TV 网络恢复
 
@@ -243,10 +243,10 @@ Live 的会话边界包括切频道、换线路 / 源、直播配置变化和播
 固定 Media3 player candidate 来源：
 
 - FongMi/media commit：`3c2cbe8ac742c2fe15eff52f03eeb3b1b648848d`
-- 历史 recovery artifact 曾得到 candidate ZIP SHA-256 `0ed42581af11ac7163ebde148b318807c244e2a318f40c41d33f50b70bf967ee`；它只作为当时取证记录，不再是 current / recovery workflow 的长期存储依赖。
+- 历史 recovery artifact 曾得到 candidate ZIP SHA-256 `0ed42581af11ac7163ebde148b318807c244e2a318f40c41d33f50b70bf967ee`；它只作为当时取证记录，不再是 当前 / recovery workflow 的长期存储依赖。
 - 现行流程统一由 `scripts/build/build-player-aar-candidate.sh` 从上述固定 commit 重建 17 个 AAR（包含 `lib-decoder-mpegh`），并由 `scripts/build/player_candidate.py` 校验文件集合、每个 AAR 的 manifest SHA 与关键播放器 class。外层 ZIP 本身不再作为长期 pin。
 
-历史 faithful recovery 曾确认发布 APK 中的 `libffmpegJNI.so` 与固定公开 media candidate 不同，并建立了对应恢复工具。这项能力**只保留为旧 APK / faithful recovery 证据**；current-main 与 current publish 已不再注入发布版 FFmpeg JNI，而是直接使用固定公开 FongMi/media 现场重建出的 decoder AAR。
+历史 faithful recovery 曾确认发布 APK 中的 `libffmpegJNI.so` 与固定公开 media candidate 不同，并建立了对应恢复工具。这项能力**只保留为旧 APK / faithful recovery 证据**；`main` 与 当前 publish 已不再注入发布版 FFmpeg JNI，而是直接使用固定公开 FongMi/media 现场重建出的 decoder AAR。
 
 历史发布版 FFmpeg JNI 证据：
 
@@ -255,7 +255,7 @@ Live 的会话边界包括切频道、换线路 / 源、直播配置变化和播
 | armeabi-v7a | `3af1fcaa21f28071994fc51936889e2441edec57d5009e7a4043bf9f06435d42` |
 | arm64-v8a | `26594d573765fc86a3d242c81e11369ced639d76cb4465cdf4b31a7c2d9da91c` |
 
-faithful recovery 生成的 decoder AAR SHA-256 为 `31a1db2570416147cc6889643d25345477977205d60a61a6df525ffa5a623a13`。恢复脚本只替换 v7 / arm64 两个 `libffmpegJNI.so`，其余 ZIP entry 保持候选 AAR 内容；不要把这套 recovery 逻辑重新接回 current-main。
+faithful recovery 生成的 decoder AAR SHA-256 为 `31a1db2570416147cc6889643d25345477977205d60a61a6df525ffa5a623a13`。恢复脚本只替换 v7 / arm64 两个 `libffmpegJNI.so`，其余 ZIP entry 保持候选 AAR 内容；不要把这套 recovery 逻辑重新接回 `main`。
 
 相关工具：
 
@@ -286,7 +286,7 @@ faithful recovery 生成的 decoder AAR SHA-256 为 `31a1db2570416147cc6889643d2
 
 `f531a138e82fa08848e47cf22537c69df29227b07eba7d19c2ad3740af657365`
 
-它以官方 AAR 为容器，只替换正式 APK 中的 v7 / arm64 `libgojni.so`；Java API、x86 / x86_64 JNI 和其他 entry 保留官方内容。current-main 的重建路径进一步把发布 APK 中匹配 JNI 的 `libXray/**` generated bindings 一并恢复，同时保留官方 AAR 的通用 `go/**` runtime。官方 v26.7.28 `go.mod` 固定 `golang.org/x/mobile v0.0.0-20260709172247-6129f5bee9d5`，与发布 JNI BuildID 指向的 x/mobile commit 相同，因此当前没有发现通用 gomobile runtime 跨 ABI 世代混用的证据。
+它以官方 AAR 为容器，只替换正式 APK 中的 v7 / arm64 `libgojni.so`；Java API、x86 / x86_64 JNI 和其他 entry 保留官方内容。`main` 的重建路径进一步把发布 APK 中匹配 JNI 的 `libXray/**` generated bindings 一并恢复，同时保留官方 AAR 的通用 `go/**` runtime。官方 v26.7.28 `go.mod` 固定 `golang.org/x/mobile v0.0.0-20260709172247-6129f5bee9d5`，与发布 JNI BuildID 指向的 x/mobile commit 相同，因此当前没有发现通用 gomobile runtime 跨 ABI 世代混用的证据。
 
 相关工具：
 
@@ -315,11 +315,11 @@ faithful recovery 生成的 decoder AAR SHA-256 为 `31a1db2570416147cc6889643d2
 - `tests/test-v2rayn-share-chain.py`
 - `tests/test-v2rayn-reference-chain.py`
 
-发布 JNI 已建立 converter、API v2、lifecycle、TLS / HY2 probe、age、v2rayN-shaped 输入、IPv6 / DNS dial 等定向执行证据。faithful 重建使用发布 JNI 字节，不用可读重建补丁冒充原始 Go 源码。current-main 继续复用固定 SHA 的 native 字节，并用双 ABI current-chain 动态 parity 将 current Java 配置链与 v7 黄金 oracle 对齐；faithful APK 能否重新 assemble 仍不是 current 发布条件。
+发布 JNI 已建立 converter、API v2、lifecycle、TLS / HY2 probe、age、v2rayN-shaped 输入、IPv6 / DNS dial 等定向执行证据。faithful 重建使用发布 JNI 字节，不用可读重建补丁冒充原始 Go 源码。`main` 继续复用固定 SHA 的 native 字节，并用双 ABI current-chain 动态 parity 将 当前 Java 配置链与 v7 黄金 oracle 对齐；faithful APK 能否重新 assemble 仍不是 current 发布条件。
 
 ## 9. 归档 faithful 构建工具（非 current 构建链）
 
-这一节保留的是历史重建工具。它们只在需要复核旧发布版、重新提取历史 native 来源或研究旧行为时使用；正常 current-main 开发和发布**不要求执行本节流程**。
+这一节保留的是历史重建工具。它们只在需要复核旧发布版、重新提取历史 native 来源或研究旧行为时使用；正常 `main` 开发和发布**不要求执行本节流程**。
 
 本地入口：
 
@@ -367,7 +367,7 @@ GitHub Actions 对应两段手动流程：
 - 组装固定 5.6.0 faithful tree；
 - 执行 faithful Gradle 构建。
 
-这些 workflow 只允许手动 `workflow_dispatch`，并视为历史归档工具。它们的成功或失败不再决定当前 5.6.3+ 架构能否发布；current-main 的构建、源码 guard、当前回归与 Android 运行测试才决定当前版本验收。
+这些 workflow 只允许手动 `workflow_dispatch`，并视为历史归档工具。它们的成功或失败不再决定当前 5.6.3+ 架构能否发布；`main` 的构建、源码 guard、当前回归与 Android 运行测试才决定当前版本验收。
 
 ## 10. 历史证据与 current parity 原则
 
