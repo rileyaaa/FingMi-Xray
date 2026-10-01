@@ -485,3 +485,10 @@ Android build-tools 37 的 plain `dexdump` 会把 class 边界打印成带填充
 
 `tests/test-build-hygiene.py` 现在显式拒绝这些 Release-only media 路径重新进入 current-main，并继续锁住最终 APK 递归发现、Manifest `READ_PHONE_STATE` 剔除和 TV-only 构建规则。今后发现 FongMi Release 与公开源码存在差异时，默认跟随公开上游；只有 Xray、TV 网络恢复或不可避免的构建兼容问题才允许在 fork 中形成差异。
 
+
+同日继续做完整上游差异收口：`SubtitleSetting` 与 Chaquopy `Platform` 已恢复为 `FongMi/TV@c616c0aa3613e87529791587a9f71b78c278c991`；正式 current / publish 不再注入历史 APK 的 `libffmpegJNI.so`，而是直接使用 `FongMi/media@3c2cbe8ac742c2fe15eff52f03eeb3b1b648848d` 现场重建的 decoder AAR。历史 FFmpeg restore/check 只保留在 faithful recovery。
+
+项目只交付 Leanback，因此 5 个 mobile-only 文件、根 `build.gradle` 与 `catvod/build.gradle` 也恢复公开上游；fork 的自更新/XLIFF guard 只扫描真正交付的 `main/leanback` source set。mobile 不作为本 fork 的构建或安全策略承载面。这样避免为了 TV fork 目标去长期维护一套额外 mobile 差异。
+
+run `36826613772`（source `ac39d9c6b60a64721ec04f5549f681ce82ff24b0`）在上述核心纠偏后完整成功：公开 17-AAR player rebuild、公开 FFmpeg candidate 导入、Xray v7/arm64 动态 parity、Libass rebuild/import、Leanback Java compile、双 ABI APK、MPEG-H、最终 native provenance 与 Manifest security gate 全部通过。随后只做了上述 non-TV 上游文件恢复，因此还需再跑一次 final current-main 作为最终闭环。
+
