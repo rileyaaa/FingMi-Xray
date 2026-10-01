@@ -4,7 +4,7 @@
 
 它不记录构建结果、Actions run、发布状态或调试过程。当前工程维护与验收规则见 [DEVELOPMENT.md](DEVELOPMENT.md)；AI 协作与文档记录边界见 [AI_COLLABORATION.md](AI_COLLABORATION.md)；[RECOVERY.md](RECOVERY.md) 保存旧发布版的恢复、二进制 provenance 与 Xray 黄金行为证据。
 
-> 当前过渡状态：`clean-upstream-xray-tv` 是 2026-10-01 经用户明确授权的干净重建/验收分支；`main` 暂留旧基线。长期产品边界不因分支变化而改变，最终仍只维护 Xray 与 Android TV 网络恢复两项自有能力。
+> 当前开发基线为 `main`；长期只维护 Xray 与 Android TV 网络恢复两项自有能力。
 
 ## 1. 项目为什么存在
 

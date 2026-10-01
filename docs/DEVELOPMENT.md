@@ -1,8 +1,8 @@
 # FingMi-Xray 开发与维护
 
-本文面向继续维护当前重构线的开发者，说明**当前工程基线、模块接线、构建依赖、上游同步方式和验证规则**。2026-10-01 起，用户明确指定 `clean-upstream-xray-tv` 为干净重建/验收分支；`main` 暂留上一可发布基线，完成真机验收前不要把两者混用。
+本文面向继续维护当前重构线的开发者，说明**当前工程基线、模块接线、构建依赖、上游同步方式和验证规则**。当前开发、上游同步与后续验收基线统一为 `main`。
 
-长期架构边界见 [PROJECT.md](PROJECT.md)。`v5.6.0-xray.5` 的恢复、native provenance 与 v7 Xray 黄金行为证据见 [RECOVERY.md](RECOVERY.md)。当前 `clean-upstream-xray-tv` 重构线负责架构与构建验证，v7 黄金参考负责约束 Xray 外部行为；两者不能混为旧 faithful 架构重建。
+长期架构边界见 [PROJECT.md](PROJECT.md)。`v5.6.0-xray.5` 的恢复、native provenance 与 v7 Xray 黄金行为证据见 [RECOVERY.md](RECOVERY.md)。当前 `main` 重构线负责架构与构建验证，v7 黄金参考负责约束 Xray 外部行为；两者不能混为旧 faithful 架构重建。
 
 ## 1. 当前工程基线
 
@@ -19,7 +19,7 @@
 - `compileSdk` / `targetSdk`：37
 - `minSdk`：24
 
-当前 `clean-upstream-xray-tv` 是正在验收的源码、架构和上游同步候选基线；`main` 暂留旧发布基线。Xray 外部行为则以用户长期验证稳定的 `v5.6.0-xray.5` armeabi-v7a 正式 APK 为黄金参考，并由 readable reference、source guard、JVM lifecycle test 与真实发布 native 动态 parity 映射到当前模块。正常发布不要求重新构建旧 faithful APK。
+当前 `main` 是源码、架构和上游同步基线。Xray 外部行为则以用户长期验证稳定的 `v5.6.0-xray.5` armeabi-v7a 正式 APK 为黄金参考，并由 readable reference、source guard、JVM lifecycle test 与真实发布 native 动态 parity 映射到当前模块。正常发布不要求重新构建旧 faithful APK。
 
 ### 维护范围
 
@@ -412,6 +412,8 @@ TV 网络恢复则以 v7 已确认的后台 / SCREEN_OFF generation、普通 API
 TV 待机网络恢复的最终静态审计发现 `OkDns.lookup()` 在离开 reset/rebuild 同步边界后会再次读取 volatile `doh`，与网络 generation 恢复并发时存在 resolver 被置空的 TOCTOU 窗口。current 已改为在同一同步边界内快照本次 lookup 使用的 `Dns resolver`，再在锁外执行实际 DNS 请求；`tests/test-tv-network-recovery.py` 同时锁住这一 resolver snapshot 约束。
 
 最终 current build run `36892238506`（source `c41524a974feed097659e37130bd6e8ab2817fda`）完整成功：fork source guards、固定公开 player/native 重建、v7/arm64 Xray native parity、Libass compatibility、5.6.3 Leanback compile、双 ABI TV APK assemble、MPEG-H、最终 native provenance 与 merged Manifest security gate 均通过。该结果仍不替代 Android TV 真机上的 Xray、待机唤醒与长后台网络恢复回归。
+
+随后对分支 ancestry 与树状态做最终静态复核：旧 `main` 是干净重建线的直接祖先且不存在独立提交，因此采用 fast-forward 将重建结果收回默认 `main`，不保留并行产品分支。
 
 ### 2026-09-27 — libXray Java/native ABI 必须成套恢复
 
