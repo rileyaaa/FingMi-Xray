@@ -1,0 +1,96 @@
+name: Temporary FongMi 5.6.8 ISO native audit
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - ".github/.trigger-iso-568-audit"
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 2
+
+      - name: Verify marker-only push source
+        if: github.event_name == 'push'
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -t changed < <(git diff-tree --no-commit-id --name-only -r "$GITHUB_SHA")
+          test "${#changed[@]}" -eq 1
+          test "${changed[0]}" = ".github/.trigger-iso-568-audit"
+
+      - name: Audit FongMi 5.6.8 libisoJNI ABI
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p audit/input audit/native audit/report
+
+          curl --fail --location --retry 3 \
+            https://github.com/FongMi/Release/releases/download/5.6.8/leanback-armeabi_v7a.apk \
+            -o audit/input/v7.apk
+          curl --fail --location --retry 3 \
+            https://github.com/FongMi/Release/releases/download/5.6.8/leanback-arm64_v8a.apk \
+            -o audit/input/v8.apk
+
+          printf '%s  %s\n%s  %s\n' \
+            '2859ebef12bf0fa0dfec023d410df478ac5e5a82a72ef2be48f6e4fa09a24761' audit/input/v7.apk \
+            '948df594843e304c332476a380163dc1cc74f964be5ea1539ff0465a9dd936eb' audit/input/v8.apk \
+            | sha256sum -c -
+
+          unzip -p audit/input/v7.apk lib/armeabi-v7a/libisoJNI.so > audit/native/armeabi-v7a-libisoJNI.so
+          unzip -p audit/input/v8.apk lib/arm64-v8a/libisoJNI.so > audit/native/arm64-v8a-libisoJNI.so
+          test -s audit/native/armeabi-v7a-libisoJNI.so
+          test -s audit/native/arm64-v8a-libisoJNI.so
+
+          {
+            echo '# FongMi 5.6.8 libisoJNI audit'
+            echo
+            echo '## APK provenance'
+            sha256sum audit/input/v7.apk audit/input/v8.apk
+            echo
+            echo '## Native inventory in release APKs'
+            for apk in audit/input/v7.apk audit/input/v8.apk; do
+              echo "### $apk"
+              unzip -Z1 "$apk" | grep '^lib/[^/]\+/.*\.so$' | sort
+              echo
+            done
+
+            for so in audit/native/*-libisoJNI.so; do
+              echo "## $so"
+              sha256sum "$so"
+              wc -c "$so"
+              file "$so"
+              echo
+              echo '### Dynamic dependencies'
+              readelf -d "$so" | grep -E 'NEEDED|SONAME' || true
+              echo
+              echo '### Dynamic symbols'
+              readelf -Ws "$so" | grep -E 'JNI_OnLoad|Java_|IsoNavigation|NativeUdf|native(Open|Close|FindFile|ListFiles|Pump|Read|HasMenu|IsBdj|Get|Seek|Select|Resume|Skip|Copy|Disable)' || true
+              echo
+              echo '### Relevant native strings'
+              strings -a "$so" | grep -Ei \
+                'IsoNavigationSession|NativeUdfFileSystem|native(Open|Close|FindFile|ListFiles|Pump|Read|HasMenu|IsBdj|Get|Seek|Select|Resume|Skip|Copy|Disable)|libbluray|libdvd(nav|read)?|udf|bdj|menu|overlay|still|chapter|playlist|title|track' \
+                | sort -u || true
+              echo
+            done
+          } > audit/report/iso-native-audit.txt
+
+          cat audit/report/iso-native-audit.txt
+
+      - name: Upload text audit
+        uses: actions/upload-artifact@v7
+        with:
+          name: fongmi-568-iso-native-audit
+          path: audit/report/iso-native-audit.txt
+          if-no-files-found: error
+          retention-days: 1
