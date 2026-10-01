@@ -2,11 +2,6 @@ name: Build and replace 5.6.3 test pre-release
 
 on:
   workflow_dispatch:
-  push:
-    branches:
-      - main
-    paths:
-      - ".github/.trigger-publish-current-main-test"
 
 permissions:
   contents: write
