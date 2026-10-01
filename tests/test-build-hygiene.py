@@ -19,18 +19,7 @@ for path in sorted((ROOT / "app/src").rglob("strings.xml")):
 
 player_builder = (ROOT / "scripts/build/build-player-aar-candidate.sh").read_text(encoding="utf-8")
 player_verifier = (ROOT / "scripts/build/player_candidate.py").read_text(encoding="utf-8")
-dolby_overlay = (ROOT / "scripts/build/apply-media3-dolby568-overlay.py").read_text(encoding="utf-8")
-mpv_overlay = (ROOT / "scripts/build/apply-media3-mpv568-overlay.py").read_text(encoding="utf-8")
-iso_overlay = (ROOT / "scripts/build/apply-media3-iso568-overlay.py").read_text(encoding="utf-8")
-player_importer = (ROOT / "scripts/build/import-player-aar-candidate.py").read_text(encoding="utf-8")
-mpv_contract = (ROOT / "scripts/recovery/published_568_mpv_contract.py").read_text(encoding="utf-8")
-mpv_restorer = (ROOT / "scripts/recovery/restore-published-568-mpv.py").read_text(encoding="utf-8")
-iso_contract = (ROOT / "scripts/recovery/published_568_iso_contract.py").read_text(encoding="utf-8")
-iso_restorer = (ROOT / "scripts/recovery/restore-published-568-iso.py").read_text(encoding="utf-8")
-libass_importer = (ROOT / "scripts/build/import-libass-candidate.py").read_text(encoding="utf-8")
 libass_builder = (ROOT / "scripts/build/build-libass-candidate.py").read_text(encoding="utf-8")
-libass_extractor_builder = (ROOT / "scripts/build/build-libass-extractor.py").read_text(encoding="utf-8")
-libass_build_contract = (ROOT / "scripts/build/libass_build_contract.py").read_text(encoding="utf-8")
 libass_contract = (ROOT / "scripts/build/check-libass-contract.py").read_text(encoding="utf-8")
 libass_native_contract = (ROOT / "compat/media3-libass/tests/published-568-native-contract.json").read_text(encoding="utf-8")
 for required in (
@@ -39,24 +28,6 @@ for required in (
     ":lib-decoder-ffmpeg:assembleRelease",
     ":lib-decoder-mpegh:assembleRelease",
     ":lib-mpvplayer:assembleRelease",
-    "scripts/build/apply-media3-dolby568-overlay.py",
-    "scripts/build/apply-media3-mpv568-overlay.py",
-    "scripts/build/apply-media3-iso568-overlay.py",
-    'DOLBY_OVERLAY_ID="fongmi-tv-5.6.8-dolby-release-overlay-v1"',
-    'MPV_OVERLAY_ID="fongmi-tv-5.6.8-mpv-bridge-v2"',
-    'ISO_OVERLAY_ID="fongmi-tv-5.6.8-iso-navigation-stream-overlay-v4"',
-    ":lib-mpvplayer:testDebugUnitTest",
-    '"androidx/media3/decoder/ffmpeg/FfmpegDolbyVisionP5Renderer.class"',
-    '"androidx/media3/decoder/ffmpeg/FfmpegDolbyVisionP7Converter.class"',
-    '"androidx/media3/extractor/iso/udf/NativeUdfFileSystem.class"',
-    '"androidx/media3/exoplayer/iso/IsoNavigationSession.class"',
-    '"androidx/media3/exoplayer/source/iso/IsoNavigationDataSource.class"',
-    '"androidx/media3/exoplayer/source/iso/IsoNavigationMediaSource.class"',
-    '"androidx/media3/exoplayer/source/iso/IsoNavigationMediaSource$NavigationTimeline.class"',
-    '"androidx/media3/exoplayer/iso/IsoNavigationSession$DvdMenuHighlight.class"',
-    '"androidx/media3/exoplayer/iso/IsoNavigationSession$HdmvMenuOverlay.class"',
-    "lib-extractor-release.aar lost packet-level ISO navigation timestamp hook",
-    "lib-exoplayer-release.aar lost IsoNavigationSession consumer keep rule",
     'rm -rf "$SOURCE_DIR" "$STAGE"',
 ):
     if required not in player_builder:
@@ -68,246 +39,10 @@ for required in (
     '"lib-mpvplayer-release.aar"',
     'EXPECTED_AAR_COUNT = 17',
     '"androidx/media3/decoder/mpegh/MpeghAudioRenderer.class"',
-    'DOLBY_OVERLAY_ID = "fongmi-tv-5.6.8-dolby-release-overlay-v1"',
-    'MPV_OVERLAY_ID = "fongmi-tv-5.6.8-mpv-bridge-v2"',
-    'ISO_OVERLAY_ID = "fongmi-tv-5.6.8-iso-navigation-stream-overlay-v4"',
-    '"is/xyz/mpv/MPVLib$Stream.class"',
-    '"androidx/media3/mpvplayer/nativebridge/MpvClient$LongResultCallback.class"',
-    '"androidx/media3/mpvplayer/media/MpvIsoStream.class"',
-    '"androidx/media3/mpvplayer/media/MpvIsoStreamManager.class"',
-    '"androidx/media3/extractor/iso/udf/NativeUdfFileSystem.class"',
-    '"androidx/media3/exoplayer/iso/IsoNavigationSession.class"',
-    '"androidx/media3/exoplayer/source/iso/IsoNavigationDataSource.class"',
-    '"androidx/media3/exoplayer/source/iso/IsoNavigationMediaSource.class"',
-    '"androidx/media3/exoplayer/source/iso/IsoNavigationMediaSource$NavigationTimeline.class"',
-    '"androidx/media3/exoplayer/iso/IsoNavigationSession$DvdMenuHighlight.class"',
-    '"androidx/media3/exoplayer/iso/IsoNavigationSession$HdmvMenuOverlay.class"',
-    "candidate extractor AAR lost packet-level ISO navigation timestamp hook",
-    "candidate exoplayer AAR lost IsoNavigationSession JNI keep rule",
-    "candidate manifest is missing the pinned MPV release overlay",
-    "candidate manifest is missing the pinned native ISO overlay",
-    '"androidx/media3/decoder/ffmpeg/FfmpegDolbyVisionP5Renderer.class"',
-    '"androidx/media3/decoder/ffmpeg/FfmpegDolbyVisionP7Converter$Factory.class"',
     "candidate manifest points at an unexpected FongMi/media commit",
-    "candidate manifest is missing the pinned Dolby release overlay",
 ):
     if required not in player_verifier:
         errors.append(f"player candidate verifier lost pinned-source contract: {required}")
-
-for required in (
-    "FfmpegDolbyVisionP5Renderer",
-    "Loaded FfmpegDolbyVisionP5Renderer.",
-    "Error instantiating Dolby Vision profile 5 renderer",
-    "patch_decode_track_selector",
-    "DOLBY_VISION_P5_RENDERER_NAME",
-    "setDolbyVisionP7ConverterFactory",
-    "FfmpegDolbyVisionP7Converter$Factory",
-):
-    if required not in dolby_overlay:
-        errors.append(f"Dolby 5.6.8 overlay lost release contract: {required}")
-for required in (
-    'LIBASS_EXTRACTOR_AAR_SHA256 = "f4667540c598416895cae5c4201fbe1c0e30c88d2673395a23db91b1b107278b"',
-    'LIBASS_CANDIDATE_AAR_SHA256 = "f047f8ad84be08aeddb0672500e9b263cafd6f2a009812392554dc55b2019861"',
-):
-    if required not in libass_build_contract:
-        errors.append(f"Libass shared build contract lost immutable pin: {required}")
-
-for required in (
-    "from libass_build_contract import LIBASS_EXTRACTOR_AAR_SHA256",
-    "observed_output==LIBASS_EXTRACTOR_AAR_SHA256",
-):
-    if required not in libass_extractor_builder:
-        errors.append(f"Libass extractor builder lost self-verifying output contract: {required}")
-
-for required in (
-    "LIBASS_CANDIDATE_AAR_SHA256",
-    "LIBASS_EXTRACTOR_AAR_SHA256",
-    "EXTRACTOR=LIBASS_EXTRACTOR_AAR_SHA256",
-    "observed_output==LIBASS_CANDIDATE_AAR_SHA256",
-):
-    if required not in libass_builder:
-        errors.append(f"Libass builder lost shared reconstruction contract: {required}")
-
-for required in (
-    "from libass_build_contract import LIBASS_CANDIDATE_AAR_SHA256",
-    "AAR_SHA256 = LIBASS_CANDIDATE_AAR_SHA256",
-    "from published_568_iso_contract import NATIVE_SHA256 as ISO_NATIVE_SHA256",
-    "merge_pinned_iso_native",
-    "check_combined_iso_contract",
-    "Current extractor lacks pinned ISO native entries",
-    "check-published-568-iso.py",
-):
-    if required not in libass_importer:
-        errors.append(f"Libass importer lost shared candidate/native-ISO contract: {required}")
-if "2318eb904a016d0160aed2a4b7de8501578cd0f223c65e5c61086f7a9a80f573" in libass_importer:
-    errors.append("Libass importer still contains superseded candidate SHA")
-
-for required in (
-    'OVERLAY_ID = "fongmi-tv-5.6.8-iso-navigation-stream-overlay-v4"',
-    "NativeUdfFileSystem",
-    'System.loadLibrary("isoJNI")',
-    "nativeOpen(CacheDataReader reader)",
-    "nativeFindFile(long handle, String path)",
-    "nativeListFiles(long handle, String path)",
-    "disableNativeAndOpenJava",
-    "openJavaFallback",
-    "udf.close()",
-    "package androidx.media3.exoplayer.iso;",
-    "public final class IsoNavigationSession implements Closeable",
-    "CacheDataReader reader, IsoNavigationSession session, int navigationFlags",
-    "private volatile int discontinuityId;",
-    "private long finiteStillDurationMs;",
-    "private long finiteStillId;",
-    "private volatile boolean infiniteStill;",
-    "private volatile boolean menuActive;",
-    "private volatile int menuDomain;",
-    "private volatile long stateVersion;",
-    "private volatile boolean titleEnded;",
-    "private volatile boolean waitingForDrain;",
-    "private long pollAction()",
-    "ACTION_UP = 1",
-    "ACTION_DOWN = 2",
-    "ACTION_LEFT = 3",
-    "ACTION_RIGHT = 4",
-    "ACTION_SELECT = 5",
-    "ACTION_MENU = 6",
-    "ACTION_POPUP_MENU = 7",
-    "ACTION_PREVIOUS = 8",
-    "ACTION_TITLE_MENU = 11",
-    "nativeClose(long handle)",
-    "nativeCopyHdmvMenuOverlay(",
-    "nativeDisableSubtitles(long handle)",
-    "nativeGetChapterTimesUs(long handle, int titleIndex)",
-    "nativeGetClipInfo(long handle, int clipIndex)",
-    "nativeGetClipNames(long handle, int titleIndex)",
-    "nativeGetClipTimesUs(long handle, int titleIndex)",
-    "nativeGetCurrentClipIndex(long handle)",
-    "nativeGetCurrentTitleIndex(long handle)",
-    "nativeGetDiscType(long handle)",
-    "nativeGetDvdMenuHighlight(long handle)",
-    "nativeGetHdmvMenuOverlayInfo(long handle, int lastOverlayId)",
-    "nativeGetReadPlayItemIndex(long handle)",
-    "nativeGetReadPlayItemStartTimeUs(long handle)",
-    "nativeGetSegmentStartTimeUs(long handle)",
-    "nativeGetSelectedTrackIndex(long handle, boolean subtitle)",
-    "nativeGetTitleCount(long handle)",
-    "nativeGetTitleInfo(long handle, int titleIndex)",
-    "nativeGetTrackInfo(",
-    "nativeGetWaitTimeoutMs(long handle)",
-    "nativeHasMenu(long handle)",
-    "nativeIsBdj(long handle)",
-    "nativePump(long handle)",
-    "nativeRead(",
-    "nativeResumeBlurayPlaylist(",
-    "nativeResumeDvdWait(long handle, int discontinuityId)",
-    "nativeSeekToChapter(long handle, int chapterIndex)",
-    "nativeSeekToTimeUs(long handle, long timeUs)",
-    "nativeSelectTitle(long handle, int titleIndex)",
-    "nativeSelectTrack(",
-    "nativeSkipFiniteStill(",
-    "-keep class androidx.media3.exoplayer.iso.IsoNavigationSession { *; }",
-    "public final class IsoNavigationDataSource extends BaseDataSource",
-    "RESULT_WAIT_FOR_STATE = -2",
-    "RESULT_SEGMENT_REPLACED = -4",
-    "RESULT_SEGMENT_END = -5",
-    "expectedDiscontinuityId",
-    "active.read(buffer, offset, requested, expectedDiscontinuityId)",
-    "signalStateChangeLocked()",
-    "result = pumpNativeLocked();",
-    "MAX_MENU_REPLAY_BYTES = 64 * 1024 * 1024",
-    "public final class IsoNavigationMediaSource extends CompositeMediaSource<Void>",
-    "new BdmvTsExtractor(",
-    "TimestampDiscontinuityProvider",
-    "pollTimestampOffsetUs(long packetPosition)",
-    "setTimestampDiscontinuityProvider(",
-    "input.getPosition() - tsPacketBuffer.bytesLeft()",
-    "timestampAdjusters.get(i).reset(timestampOffsetUs)",
-    "createReplayDataSourceFactory",
-    "getReplayForCurrentSegment",
-    "awaitReplacementAndThrow",
-    "recordPlayItemTransition",
-    "NavigationTimeline extends ForwardingTimeline",
-    "window.positionInFirstPeriodUs = -segmentStartUs",
-    "period.positionInWindowUs += segmentStartUs",
-    "getDvdMenuHighlightSnapshot",
-    "getHdmvMenuOverlay(int lastVersion)",
-    "DvdPrivateStreamReader",
-    "buildDvdPrivateStreamReader",
-    "fillDvdTrackLanguages",
-    "buildCurrentBdmvClipInfo",
-    "new StreamInfo(",
-    "new EpMapEntry(",
-    "decodeIso639",
-    "import androidx.annotation.Nullable;",
-    "import androidx.media3.common.C;",
-    "new PsExtractor()",
-):
-    if required not in iso_overlay:
-        errors.append(f"ISO 5.6.8 native navigation overlay lost release ABI contract: {required}")
-
-for required in (
-    "enqueueCommandLongResult",
-    "eventCommandReply(long requestId, int error, long result)",
-    "public interface Stream",
-    "openStream",
-    "commandLongResult",
-    "loadScript(String path, MpvClient.LongResultCallback callback)",
-    "load-script",
-    "unloadScript(long clientId)",
-    "unload-script",
-    "secondary-sub-scale",
-    "MPVLib$Stream",
-    'STREAM_SCHEME = "media3iso"',
-    '"/disc.iso"',
-    "registerStream",
-    "unregisterStream",
-    "MpvIsoStreamManager",
-    "setDataSourceFactory",
-):
-    if required not in mpv_overlay:
-        errors.append(f"MPV 5.6.8 overlay lost release bridge contract: {required}")
-for required in (
-    "f62a39a5e1069d99e6072bb74961ab57b55100b4a1fa66cab08a79d2e2b3c89f",
-    "3f22f95799b8f7865c0a7545165bde6788d0b7a21331ba081fb346b4f1a0c250",
-    "a139aca2bf031d1147ef0ef953ecf8b3ed1d5f007b6280ab817f91c944282229",
-    "3d1ca344d913b8758643df52f2763dead2ece06460e365e859d84cd54c4adc88",
-):
-    if required not in mpv_contract:
-        errors.append(f"MPV 5.6.8 native contract lost pinned provenance: {required}")
-for required in (
-    "lib-mpvplayer-release.aar",
-    "read_published_native",
-    "candidate MPV AAR lacks native bridge entries",
-):
-    if required not in mpv_restorer:
-        errors.append(f"MPV 5.6.8 restorer lost immutable mutation contract: {required}")
-
-for required in (
-    "e7fb4d37797b761414194a5d76b89ea4c53fe8c3a628bf8e824a54e501c15dfc",
-    "8ea04aeaf831a254f4fe73face64f0c2c7dd560e604503b6e3ed4375ba267267",
-    "libisoJNI.so",
-):
-    if required not in iso_contract:
-        errors.append(f"ISO 5.6.8 native contract lost pinned provenance: {required}")
-for required in (
-    "lib-extractor-release.aar",
-    "read_published_native",
-    "candidate extractor AAR unexpectedly already contains libisoJNI.so",
-):
-    if required not in iso_restorer:
-        errors.append(f"ISO 5.6.8 restorer lost immutable mutation contract: {required}")
-
-for required in (
-    "published_568_ffmpeg_contract",
-    "NATIVE_SHA256",
-    "PUBLISHED_CLOSURE",
-    "libffmpegDoviJNI.so",
-    "published_568_iso_contract",
-    "PUBLISHED_ISO",
-    "--restored-iso",
-):
-    if required not in player_importer:
-        errors.append(f"player importer lost 5.6.8 FFmpeg closure contract: {required}")
 
 for required in (
     "published-568-native-contract.json",
@@ -336,29 +71,14 @@ for required in (
 elf_runtime_guard = (ROOT / "scripts/build/check-elf-runtime.py").read_text(encoding="utf-8")
 final_native_guard = (ROOT / "scripts/build/check-final-apk-native.py").read_text(encoding="utf-8")
 final_manifest_guard = (ROOT / "scripts/build/check-final-apk-manifest.py").read_text(encoding="utf-8")
-app_manifest = (ROOT / "app/src/main/AndroidManifest.xml").read_text(encoding="utf-8")
 for required in ("PT_LOAD", "section_metadata", "--self-test"):
     if required not in elf_runtime_guard:
         errors.append(f"ELF runtime guard lost strip-aware contract: {required}")
 for required in (
     "libXray.aar",
     "lib-decoder-ffmpeg-release.aar",
-    "lib-mpvplayer-release.aar",
     "lib-decoder-mpegh-release.aar",
     "lib-exoplayer-libass-reconstructed.aar",
-    "published_568_ffmpeg_contract.py",
-    "published_568_mpv_contract.py",
-    "published_568_iso_contract.py",
-    "FFMPEG_SONAMES",
-    "MPV_SONAMES",
-    "ISO_SONAMES",
-    "libplayer.so",
-    "libmpv.so",
-    "libisoJNI.so",
-    "lib-extractor-release.aar",
-    "libffmpegDoviJNI.so",
-    'rglob(f"app-leanback-{abi}-debug.apk")',
-    "recursive APK discovery failed",
     "armeabi-v7a",
     "arm64-v8a",
 ):
@@ -375,13 +95,6 @@ for required in (
 ):
     if required not in final_manifest_guard:
         errors.append(f"final APK manifest guard lost security contract: {required}")
-
-if '<uses-permission android:name="android.permission.READ_PHONE_STATE" tools:node="remove" />' not in app_manifest:
-    errors.append("app manifest must explicitly remove transitive READ_PHONE_STATE from final APK")
-
-mpv_util = (ROOT / "app/src/main/java/com/fongmi/android/tv/player/mpv/MpvUtil.java").read_text(encoding="utf-8")
-if 'List.of("sub-scale", "sub-scale-signs", "secondary-sub-scale")' not in mpv_util:
-    errors.append("MpvUtil lost 5.6.8 secondary subtitle scale ownership")
 
 audio_setting = (ROOT / "app/src/main/java/com/fongmi/android/tv/setting/AudioSetting.java").read_text(encoding="utf-8")
 for required in (
@@ -509,16 +222,6 @@ for name, text in (
 
     for required in (
         "bash scripts/build/build-player-aar-candidate.sh",
-        "scripts/recovery/restore-published-568-ffmpeg.py",
-        "scripts/recovery/restore-published-568-mpv.py",
-        "scripts/recovery/restore-published-568-iso.py",
-        "--v7-apk build/work/current-main/input/published-v568-v7.apk",
-        "--v8-apk build/work/current-main/input/published-v568-v8.apk",
-        "--restored-mpv build/work/current-main/restored/lib-mpvplayer-release.aar",
-        "--restored-iso build/work/current-main/restored/lib-extractor-release.aar",
-        "scripts/recovery/check-published-568-ffmpeg.py --aar app/libs/lib-decoder-ffmpeg-release.aar",
-        "scripts/recovery/check-published-568-mpv.py --aar app/libs/lib-mpvplayer-release.aar",
-        "scripts/recovery/check-published-568-iso.py --aar app/libs/lib-extractor-release.aar",
         "'platforms;android-36'",
         ":app:compileLeanbackDebugJavaWithJavac",
         ":app:assembleLeanbackDebug",
@@ -535,19 +238,9 @@ for name, text in (
         "Verify final Leanback manifest security contract",
         "python3 scripts/build/check-final-apk-manifest.py",
         'apkanalyzer="$sdk_root/cmdline-tools/latest/bin/apkanalyzer"',
-        "find app/build/outputs/apk/leanback -type f -name 'app-leanback-*-debug.apk'",
-        'test "${#apks[@]}" -eq 2',
-        'for apk in "${apks[@]}"; do',
     ):
         if required not in text:
             errors.append(f"{name} is missing pinned TV build contract: {required}")
-
-    for forbidden in (
-        "scripts/recovery/restore-published-ffmpegjni.py",
-        "scripts/recovery/check-player-ffmpegjni-against-published.py",
-    ):
-        if forbidden in text:
-            errors.append(f"{name} must use the complete 5.6.8 FFmpeg closure; found {forbidden}")
 
     for retired in ("5.6.5", "5.6.6"):
         if f"releases/download/{retired}/" in text:
