@@ -397,6 +397,8 @@ FingMi-Xray 当前**不使用 FongMi/Release 的应用内自更新**。原因是
 
 ### 2026-10-01 — 以完整 FongMi 上游树重新建立干净开发基线
 
+最终验证 run `36876483711`（source `d4293f08719969204081312e52217722ba50599a`）在 URI Unicode-whitespace 对齐、PlayerEngine 上游-clean guard、Xray→v7 证据映射和 engine-switch ordering guard 全部落地后再次完整成功；这轮之后不再为纯文档/静态 guard 小改动频繁触发 AC，只有会影响编译或运行产物的实质改动才进行完整 Actions 验证。
+
 为消除多轮 AI 维护在旧 `main` 上累积的不可追溯差异，本轮不再继续原地清理，而是先以 `FongMi/TV@c616c0aa3613e87529791587a9f71b78c278c991` 完整仓库树作为基线，再重新应用 FingMi-Xray 自有内容。上游 Android / Java / XML / Gradle / website 源码与资源先按上游 blob 恢复；上游 `.github/workflows/pages.yml` 不迁入，因为本项目所有可执行 workflow 必须保持手动触发，网站自动部署不属于产品代码。
 
 重新应用后的同路径源码差异必须逐项归类到 Xray、Android TV 待机网络恢复、禁用上游 APK 自更新 / 构建发布基础设施，或公开 FongMi/TV 与公开 FongMi/media 无法直接闭合时的最小 compatibility。无法归类的差异必须删除而不是解释成“历史兼容”。Xray 继续以 `v5.6.0-xray.5` armeabi-v7a 正式 APK 为黄金行为参考；新模块结构可以不同，但 normalize / display、VALIDATE / TEST / START / STOP、Binder / generation / timeout、TLS / HY2 pin、VOD / Live identity、DRM / RTSP / subtitle / danmaku / EPG / artwork / preload、失败恢复与资源释放等可观察语义必须逐项映射到发布证据。
