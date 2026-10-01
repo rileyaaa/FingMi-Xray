@@ -272,7 +272,7 @@ on:
 
 `.github/workflows/publish-current-main-test-release.yml`
 
-Release 只承载发布版本：长期保留 `v5.6.0-xray.5` 黄金参考和一个当前可上真机测试的 pre-release。构建输入、恢复材料、临时归档和旧测试版不得长期堆在 Releases；新测试版验证成功后发布器会清理上一测试版和历史 `build-inputs-5.6.3`，并校验 Release 集合只剩黄金版 + 当前测试版。
+Release 的 APK 发布集合长期保留 `v5.6.0-xray.5` 黄金参考和一个当前可上真机测试的 pre-release。构建输入、恢复材料、临时归档和旧测试版不得长期堆在 APK 发布集合中；用户明确要求的完整源码备份可使用 `source-backup-*` 独立 Release，APK 发布器在校验“黄金版 + 当前测试版”时忽略这类源码备份，不会自动删除它们。
 
 GitHub Releases 当前仍保留 `v5.6.3-xray.test.6` 作为上一测试版，并与黄金 `v5.6.0-xray.5` 构成现有 Release 集合。`test.6` 的 target 早于 2026-10-02 完整重建后的 `main`，因此不能作为当前 `main` 的最终二进制验收。当前 `main` 的运行代码基线已通过主构建 workflow 的源码 guard、双 ABI Xray parity、Leanback compile / assemble、最终 APK native provenance 与 Manifest gate；随后只有文档与文本证据说明整理，没有为纯文档变化重复触发 Actions。发布新的真机测试包之前仍需按实际目标决定是否继续沿用/替换 `test.6` 或推进新的测试 tag。
 
