@@ -15,6 +15,7 @@ import java.util.function.Consumer;
 
 import okhttp3.Call;
 import okhttp3.Response;
+import okhttp3.OkHttpClient;
 import okhttp3.ResponseBody;
 
 public class Download {
@@ -32,6 +33,7 @@ public class Download {
     private int lastProgress;
     private long maxBytes;
     private String tag;
+    private OkHttpClient client;
 
     public static Download create(String url, File file) {
         return new Download(url, file);
@@ -42,6 +44,11 @@ public class Download {
         this.tag = url;
         this.url = url;
         this.file = file;
+    }
+
+    public Download client(OkHttpClient client) {
+        this.client = client;
+        return this;
     }
 
     public Download tag(String tag) {
@@ -71,7 +78,8 @@ public class Download {
         if (future != null) future.cancel(true);
         Call request = call;
         if (request != null) request.cancel();
-        OkHttp.cancel(tag);
+        if (client == null) OkHttp.cancel(tag);
+        else OkHttp.cancel(client, tag);
         future = null;
         return this;
     }
@@ -90,7 +98,7 @@ public class Download {
     }
 
     private Call createCall() {
-        Call request = OkHttp.newCall(url, tag);
+        Call request = client == null ? OkHttp.newCall(url, tag) : OkHttp.newCall(client, url, tag);
         call = request;
         return request;
     }

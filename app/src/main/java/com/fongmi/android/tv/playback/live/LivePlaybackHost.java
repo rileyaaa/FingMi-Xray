@@ -34,6 +34,8 @@ public interface LivePlaybackHost {
 
     void stopPlaybackForRefresh();
 
+    default void resetXrayForPlaybackChange() { }
+
     void startPlayback(Result result, long position, MediaMetadata metadata);
 
     void resetPlaybackForError(String msg);

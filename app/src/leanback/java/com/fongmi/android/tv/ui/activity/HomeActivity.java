@@ -3,6 +3,9 @@ package com.fongmi.android.tv.ui.activity;
 import android.annotation.SuppressLint;
 import android.app.SearchManager;
 import android.content.Intent;
+import android.net.ConnectivityManager;
+import android.net.Network;
+import android.net.NetworkCapabilities;
 import android.os.Bundle;
 import android.text.TextUtils;
 import android.view.KeyEvent;
@@ -24,8 +27,8 @@ import androidx.viewbinding.ViewBinding;
 import com.fongmi.android.tv.App;
 import com.fongmi.android.tv.Product;
 import com.fongmi.android.tv.R;
-import com.fongmi.android.tv.Updater;
 import com.fongmi.android.tv.api.config.LiveConfig;
+import com.fongmi.android.tv.api.loader.BaseLoader;
 import com.fongmi.android.tv.api.config.VodConfig;
 import com.fongmi.android.tv.api.config.WallConfig;
 import com.fongmi.android.tv.bean.Cache;
@@ -44,9 +47,10 @@ import com.fongmi.android.tv.event.RefreshEvent;
 import com.fongmi.android.tv.event.ServerEvent;
 import com.fongmi.android.tv.impl.Callback;
 import com.fongmi.android.tv.model.SiteViewModel;
+import com.fongmi.android.tv.network.TvNetworkLifecycle;
+import com.fongmi.android.tv.network.NetworkRecoveryCoordinator;
 import com.fongmi.android.tv.player.extractor.Source;
 import com.fongmi.android.tv.server.Server;
-import com.fongmi.android.tv.service.DLNARendererService;
 import com.fongmi.android.tv.service.PlaybackService;
 import com.fongmi.android.tv.ui.adapter.BaseDiffCallback;
 import com.fongmi.android.tv.ui.base.BaseActivity;
@@ -90,6 +94,8 @@ public class HomeActivity extends BaseActivity implements CustomTitleView.Listen
     private Result mResult;
     private Clock mClock;
 
+    private NetworkRecoveryCoordinator mNetworkRecovery;
+
     private Site getHome() {
         return VodConfig.get().getHome();
     }
@@ -117,12 +123,31 @@ public class HomeActivity extends BaseActivity implements CustomTitleView.Listen
 
     @Override
     protected void initView(Bundle savedInstanceState) {
+        TvNetworkLifecycle.get(getApplication());
+        mNetworkRecovery = new NetworkRecoveryCoordinator(TvNetworkLifecycle.recoveredGeneration(), new NetworkRecoveryCoordinator.Hooks() {
+            @Override public long generation() { return TvNetworkLifecycle.generation(); }
+            @Override public void cancelRequests() { if (mViewModel != null) mViewModel.cancelResultRequest(); }
+            @Override public void resetApiAndDns() {
+                OkHttp.resetApiNetworkForResume();
+                ImgUtil.resetNetworkFailures();
+            }
+            @Override public void clearSpiders(Runnable after) { BaseLoader.get().clear(after); }
+            @Override public boolean networkReady() { return hasInternetCapability(); }
+            @Override public void schedule(Runnable action, long delay) { App.post(action, delay); }
+            @Override public void unschedule(Runnable action) { App.removeCallbacks(action); }
+            @Override public void showProgress() { mBinding.progressLayout.showProgress(); }
+            @Override public void refreshHome() {
+                if (isFinishing() || isDestroyed()) return;
+                TvNetworkLifecycle.markRecovered(TvNetworkLifecycle.generation());
+                showContent();
+                getVideo();
+            }
+        });
+
         mResult = Result.empty();
         mClock = Clock.create(mBinding.clock);
         mBinding.progressLayout.showProgress();
         PermissionUtil.requestNotify(this);
-        DLNARendererService.start(this);
-        Updater.create().start(this);
         setRecyclerView();
         setViewModel();
         setAdapter();
@@ -452,10 +477,41 @@ public class HomeActivity extends BaseActivity implements CustomTitleView.Listen
         return super.dispatchKeyEvent(event);
     }
 
+    private void checkNetworkGeneration() {
+        if (mNetworkRecovery != null) mNetworkRecovery.check();
+    }
+
+    private boolean hasInternetCapability() {
+        try {
+            ConnectivityManager connectivity =
+                    (ConnectivityManager)
+                            getSystemService(CONNECTIVITY_SERVICE);
+            if (connectivity == null) return false;
+
+            Network network = connectivity.getActiveNetwork();
+            if (network == null) return false;
+
+            NetworkCapabilities capabilities =
+                    connectivity.getNetworkCapabilities(network);
+            return capabilities != null
+                    && capabilities.hasCapability(
+                            NetworkCapabilities.NET_CAPABILITY_INTERNET);
+        } catch (RuntimeException ignored) {
+            return false;
+        }
+    }
+
     @Override
     protected void onResume() {
         super.onResume();
         mClock.start();
+        checkNetworkGeneration();
+    }
+
+    @Override
+    public void onWindowFocusChanged(boolean hasFocus) {
+        super.onWindowFocusChanged(hasFocus);
+        if (hasFocus) checkNetworkGeneration();
     }
 
     @Override
@@ -480,7 +536,7 @@ public class HomeActivity extends BaseActivity implements CustomTitleView.Listen
 
     @Override
     protected void onDestroy() {
-        DLNARendererService.stop(this);
+        if (mNetworkRecovery != null) mNetworkRecovery.close();
         LiveConfig.get().clear();
         VodConfig.get().clear();
         BackupManager.backup();

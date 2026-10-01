@@ -1,10 +1,13 @@
 .idea
 .vscode
 .gradle
+.github
 .settings
 *build
 *.jks
 *.properties
 lib-*.aar
 /Release
-/docs
+/recovery/work/
+/libxray/libs/libXray.aar
+/recovery/evidence/

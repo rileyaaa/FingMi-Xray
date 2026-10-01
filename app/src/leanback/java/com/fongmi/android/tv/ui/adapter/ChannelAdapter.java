@@ -17,10 +17,29 @@ public class ChannelAdapter extends RecyclerView.Adapter<ChannelAdapter.ViewHold
 
     private final OnClickListener mListener;
     private final List<Channel> mItems;
+    private RecyclerView mRecyclerView;
+    private boolean xrayLogoSuppressed;
 
     public ChannelAdapter(OnClickListener listener) {
         mListener = listener;
         mItems = new ArrayList<>();
+    }
+
+    public void setXrayLogoSuppressed(boolean suppressed) {
+        if (xrayLogoSuppressed == suppressed) return;
+        xrayLogoSuppressed = suppressed;
+
+        if (suppressed && mRecyclerView != null) {
+            for (int index = 0; index < mRecyclerView.getChildCount(); index++) {
+                RecyclerView.ViewHolder holder =
+                        mRecyclerView.getChildViewHolder(mRecyclerView.getChildAt(index));
+                if (holder instanceof ViewHolder channelHolder) {
+                    Glide.with(channelHolder.binding.logo).clear(channelHolder.binding.logo);
+                    channelHolder.binding.logo.setImageDrawable(null);
+                }
+            }
+        }
+        notifyDataSetChanged();
     }
 
     public void addAll(List<Channel> items) {
@@ -64,7 +83,12 @@ public class ChannelAdapter extends RecyclerView.Adapter<ChannelAdapter.ViewHold
     @Override
     public void onBindViewHolder(@NonNull ViewHolder holder, int position) {
         Channel item = mItems.get(position);
-        item.loadLogo(holder.binding.logo);
+        if (xrayLogoSuppressed) {
+            Glide.with(holder.binding.logo).clear(holder.binding.logo);
+            holder.binding.logo.setImageDrawable(null);
+        } else {
+            item.loadLogo(holder.binding.logo);
+        }
         holder.binding.name.setText(item.getShow());
         holder.binding.number.setText(item.getNumber());
         holder.binding.getRoot().setSelected(item.isSelected());
@@ -74,8 +98,21 @@ public class ChannelAdapter extends RecyclerView.Adapter<ChannelAdapter.ViewHold
     }
 
     @Override
+    public void onAttachedToRecyclerView(@NonNull RecyclerView recyclerView) {
+        super.onAttachedToRecyclerView(recyclerView);
+        mRecyclerView = recyclerView;
+    }
+
+    @Override
+    public void onDetachedFromRecyclerView(@NonNull RecyclerView recyclerView) {
+        if (mRecyclerView == recyclerView) mRecyclerView = null;
+        super.onDetachedFromRecyclerView(recyclerView);
+    }
+
+    @Override
     public void onViewRecycled(@NonNull ViewHolder holder) {
         Glide.with(holder.binding.logo).clear(holder.binding.logo);
+        holder.binding.logo.setImageDrawable(null);
     }
 
     public interface OnClickListener {

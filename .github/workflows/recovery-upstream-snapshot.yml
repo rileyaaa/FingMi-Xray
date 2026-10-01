@@ -1,0 +1,33 @@
+name: Recovery upstream snapshot
+
+on:
+  workflow_dispatch:
+
+jobs:
+  snapshot:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout recovery branch
+        uses: actions/checkout@v7
+
+      - name: Fetch exact FongMi 5.6.0 baseline
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p recovery/work/fongmi-upstream
+          cd recovery/work/fongmi-upstream
+          git init
+          git remote add origin https://github.com/FongMi/TV.git
+          git fetch --depth=1 origin 1a19fee278fa2234da725d61a53bf59b69fe9127
+          git checkout --detach FETCH_HEAD
+          rm -rf .git
+
+      - name: Upload upstream source
+        uses: actions/upload-artifact@v7
+        with:
+          name: fongmi-tv-5.6.0-baseline
+          path: recovery/work/fongmi-upstream
+          retention-days: 3
+          compression-level: 6

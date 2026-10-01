@@ -1,0 +1,202 @@
+{
+  "jni_sha256": "052c81b548649a0a3d697f034640f8c4b00530b6572662b16cc6ca3f6efb1f26",
+  "font_sha256": "ae7b7855e115a5966d8b1b3f80f254ccc117ec86f9965e202ee2940453837280",
+  "runtime": "QEMU ARM/API24 Bionic, fake JNI objects, no EGL context; GPU-request case only verifies CPU fallback",
+  "frames": [
+    {
+      "id": "first-cpu",
+      "changed": 1,
+      "images": [
+        {
+          "x": 200,
+          "y": 311,
+          "width": 256,
+          "height": 38,
+          "color": 128,
+          "bytes": 9728,
+          "fnv1a": 2855182417,
+          "textureId": 0
+        },
+        {
+          "x": 199,
+          "y": 310,
+          "width": 256,
+          "height": 38,
+          "color": 0,
+          "bytes": 9728,
+          "fnv1a": 2855182417,
+          "textureId": 0
+        },
+        {
+          "x": 201,
+          "y": 312,
+          "width": 240,
+          "height": 38,
+          "color": 4294967040,
+          "bytes": 9120,
+          "fnv1a": 3239518199,
+          "textureId": 0
+        }
+      ]
+    },
+    {
+      "id": "unchanged",
+      "changed": 0,
+      "images": []
+    },
+    {
+      "id": "forced-cpu",
+      "changed": 1,
+      "images": [
+        {
+          "x": 200,
+          "y": 311,
+          "width": 256,
+          "height": 38,
+          "color": 128,
+          "bytes": 9728,
+          "fnv1a": 2855182417,
+          "textureId": 0
+        },
+        {
+          "x": 199,
+          "y": 310,
+          "width": 256,
+          "height": 38,
+          "color": 0,
+          "bytes": 9728,
+          "fnv1a": 2855182417,
+          "textureId": 0
+        },
+        {
+          "x": 201,
+          "y": 312,
+          "width": 240,
+          "height": 38,
+          "color": 4294967040,
+          "bytes": 9120,
+          "fnv1a": 3239518199,
+          "textureId": 0
+        }
+      ]
+    },
+    {
+      "id": "gpu-request-without-context",
+      "changed": 1,
+      "images": [
+        {
+          "x": 200,
+          "y": 311,
+          "width": 256,
+          "height": 38,
+          "color": 128,
+          "bytes": 9728,
+          "fnv1a": 2855182417,
+          "textureId": 0
+        },
+        {
+          "x": 199,
+          "y": 310,
+          "width": 256,
+          "height": 38,
+          "color": 0,
+          "bytes": 9728,
+          "fnv1a": 2855182417,
+          "textureId": 0
+        },
+        {
+          "x": 201,
+          "y": 312,
+          "width": 240,
+          "height": 38,
+          "color": 4294967040,
+          "bytes": 9120,
+          "fnv1a": 3239518199,
+          "textureId": 0
+        }
+      ]
+    },
+    {
+      "id": "scaled",
+      "changed": 1,
+      "images": [
+        {
+          "x": 139,
+          "y": 296,
+          "width": 368,
+          "height": 57,
+          "color": 128,
+          "bytes": 20976,
+          "fnv1a": 283610171,
+          "textureId": 0
+        },
+        {
+          "x": 138,
+          "y": 295,
+          "width": 368,
+          "height": 57,
+          "color": 0,
+          "bytes": 20976,
+          "fnv1a": 1966430121,
+          "textureId": 0
+        },
+        {
+          "x": 141,
+          "y": 298,
+          "width": 368,
+          "height": 57,
+          "color": 4294967040,
+          "bytes": 20976,
+          "fnv1a": 452018550,
+          "textureId": 0
+        }
+      ]
+    },
+    {
+      "id": "positioned",
+      "changed": 1,
+      "images": [
+        {
+          "x": 139,
+          "y": 126,
+          "width": 368,
+          "height": 57,
+          "color": 128,
+          "bytes": 20976,
+          "fnv1a": 283610171,
+          "textureId": 0
+        },
+        {
+          "x": 138,
+          "y": 125,
+          "width": 368,
+          "height": 57,
+          "color": 0,
+          "bytes": 20976,
+          "fnv1a": 1966430121,
+          "textureId": 0
+        },
+        {
+          "x": 141,
+          "y": 128,
+          "width": 368,
+          "height": 57,
+          "color": 4294967040,
+          "bytes": 20976,
+          "fnv1a": 452018550,
+          "textureId": 0
+        }
+      ]
+    },
+    {
+      "id": "after-event",
+      "changed": 1,
+      "images": []
+    },
+    {
+      "id": "after-event-unchanged",
+      "changed": 0,
+      "images": []
+    }
+  ]
+}

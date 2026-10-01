@@ -39,16 +39,32 @@ public class LivePlaybackController {
     }
 
     public void selectChannel(Channel channel) {
+        selectChannel(channel, true);
+    }
+
+    public void selectChannel(Channel channel, boolean resetXray) {
         if (channel == null) return;
         LivePlayRequest activeRequest = state.getActiveRequest();
         boolean restore = activeRequest != null && activeRequest.matches(channel);
         state.setChannel(channel);
         host.renderChannelSelection(channel);
-        if (restore) restorePlaybackIfNeeded();
-        else {
+        if (restore) {
+            restorePlaybackIfNeeded();
+        } else {
             state.clearPlayback();
-            requestLive();
+            requestLive(resetXray);
         }
+    }
+
+    public void resumeChannelAfterXrayStart() {
+        Channel channel = state.getChannel();
+        if (channel == null) return;
+
+        LivePlayRequest request = state.getActiveRequest();
+        if (request == null || !request.matches(channel)) {
+            request = LivePlayRequest.live(channel, C.TIME_UNSET);
+        }
+        requestPlayback(request, true, false);
     }
 
     public boolean selectEpg(EpgData data) {
@@ -107,7 +123,10 @@ public class LivePlaybackController {
         LivePlayRequest request = state.getActiveRequest();
         if (request != null && request.isCatchup() && request.matches(channel)) {
             long startPositionMs = host.hasPlaybackSession() ? host.getPlayerPosition() : request.getPosition();
-            requestPlayback(LivePlayRequest.catchup(channel, request.getCatchupData(), startPositionMs), true);
+            requestPlayback(
+                    LivePlayRequest.catchup(channel, request.getCatchupData(), startPositionMs),
+                    true,
+                    true);
         } else {
             requestLive();
         }
@@ -153,7 +172,7 @@ public class LivePlaybackController {
         if (channel == null || channel.isOnly()) return;
         channel.switchLine(next);
         host.renderLineSelection(channel, show);
-        requestLive();
+        requestLive(true);
     }
 
     private void moveChannel(int delta) {
@@ -207,21 +226,35 @@ public class LivePlaybackController {
     }
 
     private void requestLive() {
+        requestLive(true);
+    }
+
+    private void requestLive(boolean resetXray) {
         Channel channel = state.getChannel();
         if (channel == null) return;
         LiveConfig.get().setKeep(channel);
-        requestPlayback(LivePlayRequest.live(channel, C.TIME_UNSET), true);
+        requestPlayback(
+                LivePlayRequest.live(channel, C.TIME_UNSET),
+                true,
+                resetXray);
     }
 
     private boolean requestCatchup(EpgData data, long startPositionMs) {
         Channel channel = state.getChannel();
         if (channel == null) return false;
-        requestPlayback(LivePlayRequest.catchup(channel, data, startPositionMs), false);
+        requestPlayback(
+                LivePlayRequest.catchup(channel, data, startPositionMs),
+                false,
+                true);
         return true;
     }
 
-    private void requestPlayback(LivePlayRequest request, boolean showProgress) {
+    private void requestPlayback(
+            LivePlayRequest request,
+            boolean showProgress,
+            boolean resetXray) {
         if (!host.isPlaybackServiceReady()) return;
+        if (resetXray) host.resetXrayForPlaybackChange();
         state.setPendingRequest(request);
         host.stopPlaybackForRefresh();
         publishPlaybackMetadata(getEpgData(request));

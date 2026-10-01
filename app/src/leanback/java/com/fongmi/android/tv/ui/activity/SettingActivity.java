@@ -7,9 +7,10 @@ import android.view.View;
 
 import androidx.viewbinding.ViewBinding;
 
+import com.fingmi.xray.config.XrayDisplay;
+import com.fingmi.xray.config.XrayPreferences;
 import com.fongmi.android.tv.BuildConfig;
 import com.fongmi.android.tv.R;
-import com.fongmi.android.tv.Updater;
 import com.fongmi.android.tv.api.config.LiveConfig;
 import com.fongmi.android.tv.api.config.VodConfig;
 import com.fongmi.android.tv.api.config.WallConfig;
@@ -79,6 +80,7 @@ public class SettingActivity extends BaseActivity implements ConfigListener, Sit
         mBinding.versionText.setText(BuildConfig.VERSION_NAME);
         setCacheText();
         setOtherText();
+        setXrayText();
     }
 
     private void setOtherText() {
@@ -107,8 +109,8 @@ public class SettingActivity extends BaseActivity implements ConfigListener, Sit
         mBinding.backup.setOnClickListener(this::onBackup);
         mBinding.player.setOnClickListener(this::onPlayer);
         mBinding.danmaku.setOnClickListener(this::onDanmaku);
+        mBinding.xray.setOnClickListener(this::onXray);
         mBinding.restore.setOnClickListener(this::onRestore);
-        mBinding.version.setOnClickListener(this::onVersion);
         mBinding.vod.setOnLongClickListener(this::onVodEdit);
         mBinding.vodHome.setOnClickListener(this::onVodHome);
         mBinding.live.setOnLongClickListener(this::onLiveEdit);
@@ -228,8 +230,27 @@ public class SettingActivity extends BaseActivity implements ConfigListener, Sit
         SettingDanmakuActivity.start(this);
     }
 
-    private void onVersion(View view) {
-        Updater.create().force().start(this);
+    private void onXray(View view) {
+        SettingXrayActivity.start(this);
+    }
+
+    private void setXrayText() {
+        try {
+            XrayPreferences preferences = new XrayPreferences(this);
+            if (!preferences.isConfigured()) {
+                mBinding.xrayText.setText(R.string.xray_not_configured);
+                return;
+            }
+            mBinding.xrayText.setText(XrayDisplay.describe(preferences.getShareLink()));
+        } catch (Exception ignored) {
+            mBinding.xrayText.setText(R.string.xray_not_configured);
+        }
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        if (mBinding != null) setXrayText();
     }
 
     private void setWallDefault(View view) {

@@ -1,0 +1,36 @@
+--- a/libraries/extractor/src/main/java/androidx/media3/extractor/text/SubtitleParser.java
++++ b/libraries/extractor/src/main/java/androidx/media3/extractor/text/SubtitleParser.java
+@@ -184,6 +184,23 @@
+       Consumer<CuesWithTiming> output);
+ 
+   /**
++   * Receives the container sample timestamp without changing cue timestamp interpretation.
++   *
++   * <p>Reconstructed published5.6.5 API (ek3.f). Existing parsers retain their original
++   * implementation through this default forwarding method; libass can override it to feed
++   * timestamped ASS samples. No clock or subsample offset adjustment occurs here.
++   */
++  default void parse(
++      byte[] data,
++      int offset,
++      int length,
++      long sampleTimeUs,
++      OutputOptions outputOptions,
++      Consumer<CuesWithTiming> output) {
++    parse(data, offset, length, outputOptions, output);
++  }
++
++  /**
+    * Parses {@code data} to a legacy {@link Subtitle} instance.
+    *
+    * <p>This method only exists temporarily to support the transition away from {@link
+--- a/libraries/extractor/src/main/java/androidx/media3/extractor/text/SubtitleTranscodingTrackOutput.java
++++ b/libraries/extractor/src/main/java/androidx/media3/extractor/text/SubtitleTranscodingTrackOutput.java
+@@ -161,6 +161,7 @@
+           sampleData,
+           sampleStart,
+           size,
++          timeUs,
+           SubtitleParser.OutputOptions.allCues(),
+           cuesWithTiming -> outputSample(cuesWithTiming, timeUs, flags));
+     } catch (RuntimeException e) {

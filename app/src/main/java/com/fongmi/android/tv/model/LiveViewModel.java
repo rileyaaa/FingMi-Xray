@@ -20,6 +20,7 @@ import com.fongmi.android.tv.playback.live.LivePlaybackHost;
 import com.fongmi.android.tv.playback.live.LivePlaybackState;
 
 import java.time.ZoneId;
+import okhttp3.OkHttpClient;
 import java.util.concurrent.Callable;
 import java.util.function.Consumer;
 
@@ -85,12 +86,21 @@ public class LiveViewModel extends ViewModel implements LiveDataSource {
         }, this::handleParseError);
     }
 
-    public void parseXml(Live item) {
-        execute(TaskType.XML, () -> LiveApi.parseXml(item), xml::postValue, error -> xml.postValue(false));
+    public void parseXml(Live item) { parseXml(item, null); }
+
+    public void parseXml(Live item, OkHttpClient client) {
+        execute(TaskType.XML, () -> LiveApi.parseXml(item, client), xml::postValue, error -> xml.postValue(false));
     }
 
-    public void getEpg(Channel item) {
-        execute(TaskType.EPG, () -> LiveApi.getEpg(item, zoneId), epg::postValue, error -> epg.postValue(new Epg()));
+    public void getEpg(Channel item) { getEpg(item, null); }
+
+    public void getEpg(Channel item, OkHttpClient client) {
+        execute(TaskType.EPG, () -> LiveApi.getEpg(item, zoneId, client), epg::postValue, error -> epg.postValue(new Epg()));
+    }
+
+    public void cancelPlaybackMetadata() {
+        tasks.cancel(TaskType.EPG);
+        tasks.cancel(TaskType.XML);
     }
 
     @Override
