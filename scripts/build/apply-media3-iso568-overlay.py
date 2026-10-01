@@ -25,6 +25,8 @@ def write_native_udf(path: Path) -> None:
  */
 package androidx.media3.extractor.iso.udf;
 
+import androidx.annotation.Nullable;
+import androidx.media3.common.C;
 import androidx.media3.common.CacheDataReader;
 import androidx.media3.extractor.iso.IsoFileEntry;
 import java.io.Closeable;
@@ -141,6 +143,44 @@ public final class IsoNavigationSession implements Closeable {
   public static final int ACTION_POPUP_MENU = 7;
   public static final int ACTION_PREVIOUS = 8;
   public static final int ACTION_TITLE_MENU = 11;
+
+  /** DVD menu highlight returned by the published libisoJNI navigation ABI. */
+  public static final class DvdMenuHighlight {
+    public final int id;
+    public final int left;
+    public final int top;
+    public final int right;
+    public final int bottom;
+    public final int flags;
+    public final int videoWidth;
+    public final int videoHeight;
+
+    DvdMenuHighlight(int[] values) {
+      id = values[0];
+      left = values[1];
+      top = values[2];
+      right = values[3];
+      bottom = values[4];
+      flags = values[5];
+      videoWidth = values[6];
+      videoHeight = values[7];
+    }
+  }
+
+  /** Blu-ray HDMV menu overlay version/dimensions and optional ARGB pixels. */
+  public static final class HdmvMenuOverlay {
+    public final int version;
+    public final int width;
+    public final int height;
+    @Nullable public final int[] pixels;
+
+    HdmvMenuOverlay(int version, int width, int height, @Nullable int[] pixels) {
+      this.version = version;
+      this.width = width;
+      this.height = height;
+      this.pixels = pixels;
+    }
+  }
 
   private static final int MAX_PUMP_ITERATIONS = 16;
   private static final boolean NATIVE_AVAILABLE;
@@ -284,7 +324,7 @@ public final class IsoNavigationSession implements Closeable {
   private static native int nativePump(long handle);
 
   private static native int nativeRead(
-      long handle, byte[] buffer, int offset, int length, int readFlags);
+      long handle, byte[] buffer, int offset, int length, int expectedDiscontinuityId);
 
   private static native boolean nativeResumeBlurayPlaylist(
       long handle, int discontinuityId);
@@ -413,7 +453,8 @@ public final class IsoNavigationSession implements Closeable {
 
   public synchronized long getSegmentStartTimeUs() throws IOException {
     ensureHealthyLocked();
-    return nativeGetSegmentStartTimeUs(nativeHandle);
+    long value = nativeGetSegmentStartTimeUs(nativeHandle);
+    return value >= 0L ? value : C.TIME_UNSET;
   }
 
   public synchronized int getReadPlayItemIndex() throws IOException {
@@ -423,7 +464,8 @@ public final class IsoNavigationSession implements Closeable {
 
   public synchronized long getReadPlayItemStartTimeUs() throws IOException {
     ensureHealthyLocked();
-    return nativeGetReadPlayItemStartTimeUs(nativeHandle);
+    long value = nativeGetReadPlayItemStartTimeUs(nativeHandle);
+    return value >= 0L ? value : C.TIME_UNSET;
   }
 
   public synchronized int getTitleCount() throws IOException {
@@ -481,6 +523,49 @@ public final class IsoNavigationSession implements Closeable {
       throws IOException {
     ensureHealthyLocked();
     return nativeCopyHdmvMenuOverlay(nativeHandle, overlayId, pixels);
+  }
+
+  @Nullable
+  public synchronized DvdMenuHighlight getDvdMenuHighlightSnapshot() throws IOException {
+    ensureHealthyLocked();
+    if (discType != DISC_TYPE_DVD || !menuActive) {
+      return null;
+    }
+    int[] values = nativeGetDvdMenuHighlight(nativeHandle);
+    return values != null && values.length >= 8 ? new DvdMenuHighlight(values) : null;
+  }
+
+  @Nullable
+  public synchronized HdmvMenuOverlay getHdmvMenuOverlay(int lastVersion) throws IOException {
+    ensureHealthyLocked();
+    if (discType != DISC_TYPE_BLURAY) {
+      return null;
+    }
+    int[] info = nativeGetHdmvMenuOverlayInfo(nativeHandle, lastVersion);
+    if (info == null || info.length < 4) {
+      return null;
+    }
+    int[] pixels = null;
+    if (info[3] != 0) {
+      if (info[1] <= 0 || info[2] <= 0 || (long) info[1] * info[2] > Integer.MAX_VALUE) {
+        throw new IOException("Invalid HDMV overlay dimensions");
+      }
+      pixels = new int[info[1] * info[2]];
+      if (!nativeCopyHdmvMenuOverlay(nativeHandle, info[0], pixels)) {
+        return null;
+      }
+    }
+    return new HdmvMenuOverlay(info[0], info[1], info[2], pixels);
+  }
+
+  public synchronized long getCurrentTitleDurationUs() throws IOException {
+    ensureHealthyLocked();
+    int titleIndex = nativeGetCurrentTitleIndex(nativeHandle);
+    if (titleIndex == C.INDEX_UNSET) {
+      return C.TIME_UNSET;
+    }
+    long[] info = nativeGetTitleInfo(nativeHandle, titleIndex);
+    return info != null && info.length > 0 && info[0] > 0L ? info[0] : C.TIME_UNSET;
   }
 
   public synchronized boolean selectTitle(int titleIndex) throws IOException {
