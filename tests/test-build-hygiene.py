@@ -29,6 +29,8 @@ iso_contract = (ROOT / "scripts/recovery/published_568_iso_contract.py").read_te
 iso_restorer = (ROOT / "scripts/recovery/restore-published-568-iso.py").read_text(encoding="utf-8")
 libass_importer = (ROOT / "scripts/build/import-libass-candidate.py").read_text(encoding="utf-8")
 libass_builder = (ROOT / "scripts/build/build-libass-candidate.py").read_text(encoding="utf-8")
+libass_extractor_builder = (ROOT / "scripts/build/build-libass-extractor.py").read_text(encoding="utf-8")
+libass_build_contract = (ROOT / "scripts/build/libass_build_contract.py").read_text(encoding="utf-8")
 libass_contract = (ROOT / "scripts/build/check-libass-contract.py").read_text(encoding="utf-8")
 libass_native_contract = (ROOT / "compat/media3-libass/tests/published-568-native-contract.json").read_text(encoding="utf-8")
 for required in (
@@ -88,10 +90,34 @@ for required in (
     if required not in dolby_overlay:
         errors.append(f"Dolby 5.6.8 overlay lost release contract: {required}")
 for required in (
-    "AAR_SHA256 = 'f047f8ad84be08aeddb0672500e9b263cafd6f2a009812392554dc55b2019861'",
+    'LIBASS_EXTRACTOR_AAR_SHA256 = "f4667540c598416895cae5c4201fbe1c0e30c88d2673395a23db91b1b107278b"',
+    'LIBASS_CANDIDATE_AAR_SHA256 = "f047f8ad84be08aeddb0672500e9b263cafd6f2a009812392554dc55b2019861"',
+):
+    if required not in libass_build_contract:
+        errors.append(f"Libass shared build contract lost immutable pin: {required}")
+
+for required in (
+    "from libass_build_contract import LIBASS_EXTRACTOR_AAR_SHA256",
+    "observed_output==LIBASS_EXTRACTOR_AAR_SHA256",
+):
+    if required not in libass_extractor_builder:
+        errors.append(f"Libass extractor builder lost self-verifying output contract: {required}")
+
+for required in (
+    "LIBASS_CANDIDATE_AAR_SHA256",
+    "LIBASS_EXTRACTOR_AAR_SHA256",
+    "EXTRACTOR=LIBASS_EXTRACTOR_AAR_SHA256",
+    "observed_output==LIBASS_CANDIDATE_AAR_SHA256",
+):
+    if required not in libass_builder:
+        errors.append(f"Libass builder lost shared reconstruction contract: {required}")
+
+for required in (
+    "from libass_build_contract import LIBASS_CANDIDATE_AAR_SHA256",
+    "AAR_SHA256 = LIBASS_CANDIDATE_AAR_SHA256",
 ):
     if required not in libass_importer:
-        errors.append(f"Libass importer lost current pinned candidate contract: {required}")
+        errors.append(f"Libass importer lost shared candidate contract: {required}")
 if "2318eb904a016d0160aed2a4b7de8501578cd0f223c65e5c61086f7a9a80f573" in libass_importer:
     errors.append("Libass importer still contains superseded candidate SHA")
 
