@@ -10,7 +10,7 @@ FingMi-Xray 将 Xray 集成到播放器内部。遇到这类内容时，可以�
 
 当前 `main` 以 FongMi/TV 5.6.3（`c616c0aa3613e87529791587a9f71b78c278c991`）为公开上游基线，只长期维护 **Xray 播放代理**与 **Android TV 网络恢复**两项自有能力。**`v5.6.0-xray.5` armeabi-v7a 正式 APK 仍是 Xray 外部行为的黄金参考。** 当前模块结构可以不同，但节点解析、VALIDATE / TEST / START / STOP、Binder / Service、播放代理、切换、失败恢复和资源释放等可观察语义必须在已取证范围内与黄金参考保持等价。
 
-GitHub Releases 目前仍保留 `v5.6.3-xray.test.6` 作为上一测试版；它早于 2026-10-02 完成的 `main` 全量重建，因此**不能当作当前 `main` 的最终二进制**。当前 `main` 的运行代码基线已通过完整源码 guard、双 ABI Xray parity、Leanback 编译/组装、native provenance 与 Manifest gate；此后只有文档与文本证据说明整理，没有再为纯文档变化重复触发 Actions。尚未发布对应重建基线的新测试 Release，Android TV 真机 Xray 与待机网络恢复回归仍是下一层验收。
+GitHub Releases 目前仍保留 `v5.6.3-xray.test.6` 作为上一测试版；它早于 2026-10-02 完成的 `main` 全量重建，因此**不能当作当前 `main` 的最终二进制**。上一运行代码基线已通过完整源码 guard、双 ABI Xray parity、Leanback 编译/组装、native provenance 与 Manifest gate；2026-10-02 fresh 黄金 TV 网络恢复对比随后修正了 Jar/JS/Python Spider cleanup 的单项异常隔离，这个小型运行代码变化尚未为了单独验证而再次触发完整 Actions。尚未发布对应当前 `main` 的新测试 Release，Android TV 真机 Xray 与待机网络恢复回归仍是下一层验收。
 
 主要组件版本如下：
 
