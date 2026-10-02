@@ -242,6 +242,20 @@ Live 的会话边界包括切频道、换线路 / 源、直播配置变化和播
 
 这一能力在重构后仍属于 `:app` / `:catvod`，不属于 `:xray`。
 
+#### 当前实现相对黄金版的有意差异
+
+2026-10-02 fresh v7 full-JADX 对 TV 网络恢复链再次逐项核对后，当前实现与黄金版的核心时序保持一致：generation 只来自真实前后台 / SCREEN_OFF→ON，Home 只在 `onResume()` / 重新获得焦点时检查，恢复顺序仍是取消旧 Home 请求 → 只淘汰普通 API client 并重建 DNS/DoH → 异步清 Spider → 约 500 ms 稳定性轮询 → 连续两次具备 Internet capability 后刷新 Home；独立 player client 不在恢复时销毁，DLNA 的 TV 生命周期也保持一致。
+
+当前相对黄金版有以下明确、刻意保留的增强：
+
+- `TvNetworkLifecycle` / `NetworkRecoveryCoordinator` 只是把旧 `gn3 + HomeActivity + l61` 的状态拆成可维护类，并额外记录 `recoveredGeneration`，避免 Home 被重建时把尚未真正恢复的 generation 误当成已应用；
+- 黄金 `OkGlideModule` 在 Glide 注册时固定持有当时的 API `OkHttpClient`；当前改为每个图片请求动态取得 `OkHttp.client()`，使网络 generation 恢复后不会继续复用被淘汰的 client；
+- 黄金图片失败集合 `ha1.f7011a` 在网络恢复时不会清空；当前 `ImgUtil.resetNetworkFailures()` 会清掉这类瞬时失败，允许网络恢复后重新加载图片；
+- 黄金 `ha2.lookup()` 在离开同步块后会再次读取 volatile DoH resolver；当前在锁内快照 `Dns resolver` 后再执行 lookup，修复 reset/rebuild 并发窗口；
+- fresh 对比还发现当前三个 loader 曾用 `forEach(Spider::destroy)`，单个 Spider 抛异常会中断后续清理；黄金版对每个 `destroy()` 单独吞掉异常并继续清空全部 Jar/Python/JS 状态。当前已恢复成黄金版的逐 Spider 容错语义，并由 `tests/test-tv-network-recovery.py` 锁定。
+
+FongMi/TV 当前公开仓库 `c616c0aa...` 新增的 redirect-aware proxy selection / authentication 属于上游普通网络栈演进，不是黄金待机恢复模块的一部分；本 fork 的恢复逻辑只保证它与 generation reset 能共存，不把 Release/APK 反编译行为当成新的上游功能。
+
 ## 6. 播放器与 FFmpeg JNI
 
 固定 Media3 player candidate 来源：

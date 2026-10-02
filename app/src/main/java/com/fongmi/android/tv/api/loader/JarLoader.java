@@ -39,7 +39,12 @@ public class JarLoader {
     }
 
     public void clear() {
-        spiders.values().forEach(Spider::destroy);
+        for (Spider spider : spiders.values()) {
+            try {
+                spider.destroy();
+            } catch (Throwable ignored) {
+            }
+        }
         loaders.clear();
         methods.clear();
         spiders.clear();

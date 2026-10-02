@@ -21,8 +21,16 @@ public class JsLoader {
     }
 
     public void clear() {
-        spiders.values().forEach(Spider::destroy);
-        Module.get().clear();
+        for (Spider spider : spiders.values()) {
+            try {
+                spider.destroy();
+            } catch (Throwable ignored) {
+            }
+        }
+        try {
+            Module.get().clear();
+        } catch (Throwable ignored) {
+        }
         spiders.clear();
         recent = null;
     }

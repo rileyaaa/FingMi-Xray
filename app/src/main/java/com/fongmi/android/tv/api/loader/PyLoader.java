@@ -20,7 +20,12 @@ public class PyLoader {
     }
 
     public void clear() {
-        spiders.values().forEach(Spider::destroy);
+        for (Spider spider : spiders.values()) {
+            try {
+                spider.destroy();
+            } catch (Throwable ignored) {
+            }
+        }
         spiders.clear();
         recent = null;
     }

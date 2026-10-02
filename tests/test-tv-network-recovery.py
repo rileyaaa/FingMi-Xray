@@ -10,6 +10,9 @@ COORDINATOR = ROOT / "app/src/main/java/com/fongmi/android/tv/network/NetworkRec
 HOME = ROOT / "app/src/leanback/java/com/fongmi/android/tv/ui/activity/HomeActivity.java"
 GLIDE = ROOT / "app/src/main/java/com/fongmi/android/tv/utils/OkGlideModule.java"
 IMG = ROOT / "app/src/main/java/com/fongmi/android/tv/utils/ImgUtil.java"
+JAR_LOADER = ROOT / "app/src/main/java/com/fongmi/android/tv/api/loader/JarLoader.java"
+JS_LOADER = ROOT / "app/src/main/java/com/fongmi/android/tv/api/loader/JsLoader.java"
+PY_LOADER = ROOT / "app/src/main/java/com/fongmi/android/tv/api/loader/PyLoader.java"
 LEANBACK_MANIFEST = ROOT / "app/src/leanback/AndroidManifest.xml"
 REFERENCE = ROOT / "docs/apk-reference/shared/sources/p000/gn3.java"
 OKHTTP = ROOT / "catvod/src/main/java/com/github/catvod/net/OkHttp.java"
@@ -19,7 +22,7 @@ PROXY_AUTH = ROOT / "catvod/src/main/java/com/github/catvod/net/OkAuthenticator.
 PROXY_REDIRECT = ROOT / "catvod/src/main/java/com/github/catvod/net/ProxyRedirectInterceptor.java"
 PROXY_TEST = ROOT / "catvod/src/test/java/com/github/catvod/net/OkProxySelectorTest.java"
 
-for path in (LIFECYCLE, COORDINATOR, HOME, GLIDE, IMG, LEANBACK_MANIFEST, REFERENCE, OKHTTP, OKDNS, PROXY_SELECTOR, PROXY_AUTH, PROXY_REDIRECT, PROXY_TEST):
+for path in (LIFECYCLE, COORDINATOR, HOME, GLIDE, IMG, JAR_LOADER, JS_LOADER, PY_LOADER, LEANBACK_MANIFEST, REFERENCE, OKHTTP, OKDNS, PROXY_SELECTOR, PROXY_AUTH, PROXY_REDIRECT, PROXY_TEST):
     if not path.is_file():
         raise SystemExit(f"missing TV network recovery source: {path.relative_to(ROOT)}")
 
@@ -107,6 +110,26 @@ for needle in (
 ):
     if needle not in glide:
         raise SystemExit(f"OkGlideModule missing recovered-client handoff: {needle}")
+
+for loader_path in (JAR_LOADER, JS_LOADER, PY_LOADER):
+    loader = loader_path.read_text(encoding="utf-8")
+    if "spiders.values().forEach(Spider::destroy)" in loader:
+        raise SystemExit(
+            f"{loader_path.name} must isolate each Spider.destroy failure like released cleanup"
+        )
+    for needle in (
+        "for (Spider spider : spiders.values()) {",
+        "spider.destroy();",
+        "} catch (Throwable ignored) {",
+    ):
+        if needle not in loader:
+            raise SystemExit(
+                f"{loader_path.name} missing released per-Spider cleanup tolerance: {needle}"
+            )
+
+js_loader = JS_LOADER.read_text(encoding="utf-8")
+if "try {\n            Module.get().clear();\n        } catch (Throwable ignored) {" not in js_loader:
+    raise SystemExit("JsLoader must tolerate QuickJS module-cache cleanup failure")
 
 okhttp = OKHTTP.read_text(encoding="utf-8")
 okdns = OKDNS.read_text(encoding="utf-8")
