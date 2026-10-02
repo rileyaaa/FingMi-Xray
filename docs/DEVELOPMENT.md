@@ -274,7 +274,7 @@ on:
 
 Release 的 APK 发布集合长期保留 `v5.6.0-xray.5` 黄金参考和一个当前可上真机测试的 pre-release。构建输入、恢复材料、临时归档和旧测试版不得长期堆在 APK 发布集合中；用户明确要求的完整源码备份可使用 `source-backup-*` 独立 Release，APK 发布器在校验“黄金版 + 当前测试版”时忽略这类源码备份，不会自动删除它们。
 
-GitHub Releases 当前仍保留 `v5.6.3-xray.test.6` 作为上一测试版，并与黄金 `v5.6.0-xray.5` 构成现有 Release 集合。`test.6` 的 target 早于 2026-10-02 完整重建后的 `main`，因此不能作为当前 `main` 的最终二进制验收。当前 `main` 的运行代码基线已通过主构建 workflow 的源码 guard、双 ABI Xray parity、Leanback compile / assemble、最终 APK native provenance 与 Manifest gate；随后只有文档与文本证据说明整理，没有为纯文档变化重复触发 Actions。发布新的真机测试包之前仍需按实际目标决定是否继续沿用/替换 `test.6` 或推进新的测试 tag。
+GitHub Releases 当前仍保留 `v5.6.3-xray.test.6` 作为上一测试版，并与黄金 `v5.6.0-xray.5` 构成现有 Release 集合。`test.6` 的 target 早于 2026-10-02 完整重建后的 `main`，因此不能作为当前 `main` 的最终二进制验收。上一运行代码基线已通过主构建 workflow 的源码 guard、双 ABI Xray parity、Leanback compile / assemble、最终 APK native provenance 与 Manifest gate；fresh 黄金 TV 网络恢复对比随后修正了 Jar/JS/Python Spider cleanup 的单项异常隔离，因此当前 HEAD 相比该成功构建基线已有这一个小型运行代码变化，尚未重复触发完整 Actions。发布新的真机测试包之前仍需按实际目标决定是否继续沿用/替换 `test.6` 或推进新的测试 tag。
 
 发布 workflow 以 `BUILD_SOURCE_SHA` 作为唯一构建与发布源码，重新准备固定依赖、执行源码 guard、执行当前 Java → 发布版 native 动态 Xray chain parity、只编译/assemble Android TV / Leanback 两个 ABI，并在发布前重复执行最终 APK MPEG-H、四类 native runtime provenance 与 merged Manifest security contract。**当前 YAML 仍显式配置 `RELEASE_TAG=v5.6.3-xray.test.6`、`PREVIOUS_RELEASE_TAG=v5.6.3-xray.test.5`；它不会自动递增版本号。** 因此按现状手动触发会以当前 `BUILD_SOURCE_SHA` 重新发布/替换 `test.6`，若要发布 `test.7` 或其它 tag，必须同时更新 workflow 与 `tests/test-build-hygiene.py` 中对应的 release-set guard。正常手动触发时 `BUILD_SOURCE_SHA = github.sha`；发布 job 保持最小权限 `contents: write + actions: read`。临时触发、轮询与清理规则只以冻结的 [AI_COLLABORATION.md](AI_COLLABORATION.md) 为准，本文不重复保存一次性操作历史。
 
@@ -433,7 +433,7 @@ FingMi-Xray 当前**不使用 FongMi/Release 的应用内自更新**。原因是
 
 TV 待机网络审计发现 `OkDns.lookup()` 在 reset/rebuild 并发时存在离锁后重复读取 volatile `doh` 的 TOCTOU 窗口。当前实现改为在同步边界内快照本次 lookup 使用的 `Dns resolver`，再在锁外执行实际 DNS 请求，并由 `tests/test-tv-network-recovery.py` 锁定该约束。
 
-完成源码、Xray/TV 网络、上游差异与最终构建验证后，干净重建结果成为唯一 `main` 基线。当前 `main` 已通过自动源码/native/assemble/Manifest 门槛；尚未发布新的测试 Release，Android TV 真机 Xray 与待机/长后台网络恢复仍是下一层验收。
+完成源码、Xray/TV 网络、上游差异与最终构建验证后，干净重建结果成为唯一 `main` 基线。该运行代码基线已通过自动源码/native/assemble/Manifest 门槛；此后 fresh 黄金网络恢复对比只新增了 Spider cleanup 异常隔离修正，当前 HEAD 尚未为这一小修重复跑完整构建。尚未发布新的测试 Release，Android TV 真机 Xray 与待机/长后台网络恢复仍是下一层验收。
 
 随后以当前 `main` 代码反向核对长期文档，确认全部上游同路径差异仍只落在 Xray、TV 网络恢复、禁用上游自更新、构建/测试基础设施与最小 compatibility 范围；同时修正文档中对 Xray 本地 DataSource scheme 的错误描述，并补齐 Core DNS/私网保护、Exo-only proxy 注入、Home-owned 网络恢复与实际 CI guard 清单。
 
