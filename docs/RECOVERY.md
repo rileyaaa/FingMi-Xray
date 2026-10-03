@@ -129,7 +129,7 @@ JADX 中出现不可能分支、R8 合并控制流或自相矛盾时，必须继
 - previous STOP cleanup timeout 为 1500 ms；
 - settings test / security reset timeout 为 45 秒；
 - Binder death、binding died、null binding 与 disconnect 都有明确收口；
-- 旧 STOP 或旧 callback 不能破坏更新的 START；
+- operation id / generation 的设计目标是让旧 STOP / callback 不影响更新的 START；后续 fresh audit 仍确认黄金实现存在少数可重入 cleanup / pending-owner 竞态，具体缺口与 current 的有意修复见本节后面的映射账本；
 - 无法可信清理的 Service 路径会结束私有 Xray 进程。
 
 发布 Binder descriptor：
@@ -160,6 +160,9 @@ Live 的会话边界包括切频道、换线路 / 源、直播配置变化和播
 
 直播解析过程中允许等待 Xray START；Xray 启动失败不能破坏原本可用的直连播放。EPG、XML metadata、logo / artwork 等旁路也需要遵守当前播放网络身份。
 
+冻结 `ORIGINAL_README.md` 中“换地址”“离开播放页面”“对应的应用后台状态变化”等写法是面向用户的概括。后续 APK/JADX/DEX 与 faithful source 反查给出了更精确的边界：**逻辑播放身份变化**（切集/切频道/换线路/换源/真正换播放器）结束旧 Xray；同一 identity 内 parser 结果、HTTP redirect 或 CDN resolved URL 变化只更新地址，不单独重置 Xray。VOD / Live 的 `onStop()` 会停止 Xray Core；若 FongMi 自身允许后台播放，`preservePlayback` 只用于保留媒体播放并回到普通网络，不代表 Xray 在后台继续运行。因此冻结 README 的用户承诺“后台/离页后不让旧 Xray 长期占用网络”仍成立，同时不应误读成“任何 resolved URL 变化都必须重启会话”或“媒体播放本身必须被强制停止”。
+
+
 ### 分享链接、设置与安全
 
 主要输入格式：
@@ -169,6 +172,8 @@ Live 的会话边界包括切频道、换线路 / 源、直播配置变化和播
 - Trojan
 - Shadowsocks
 - Hysteria2 / hy2
+
+冻结原发布说明明确把 **v2rayN 导出的标准单节点分享链接**作为主要兼容与测试来源；v2rayN 本身不是依赖。当前 `recovery/v2rayn-tests/` 与 current native/reference chain 继续对这一来源形状做回归。
 
 恢复证据覆盖的兼容边界包括：
 
@@ -211,14 +216,13 @@ fresh 安全复核确认黄金 v7 的 Java destination guard 会拒绝标准 IPv
 | `XrayShareLinkSecurity` | `LegacyXrayTransportSecurity` | TLS/HY2 TOFU、identity、pin change differential |
 | `XrayGenerationGate` | `LegacyXrayGenerationGate` | generation 算法一致；current 仅收紧可见性 |
 | `XrayOperation` | `LegacyXrayOperation` | operation 1~5 保持一致 |
-| `XrayServiceClient` | `LegacyXrayServiceClient` + lifecycle harness | Binder generation / timeout / death 语义镜像；current 额外收口 bind/asInterface/link/unlink/unbind 的 Runtime/Linkage framework failure |
 | `XrayService` | `recovery/legacy-src/.../xray/XrayService.java` + `sz3/tz3/uz3` | VALIDATE/TEST/START/STOP/RESET_SECURITY、cleanup/process reset |
 | `PlaybackIdentityGate` | 旧 VOD/Live Activity、Controller、`th2` 调用链 | 新架构抽出的逻辑身份状态机，没有旧同名类 |
 | `XrayOperationIds` | `LegacyXrayOperationIds` | operation id 递增语义镜像 |
 | `XrayPlaybackAddress` | `LegacyXrayPlaybackAddress` | public HTTP(S)/RTSP/RTSPT 与 Live direct-source 边界一致 |
 | `XrayPlaybackSession` | 旧 Activity + PlayerManager + session controller 融合行为 | 新架构独立会话对象；换身份、resolved URL、preserve/error cleanup 由 playback/race guard 锁定 |
 | `XrayResult` | `LegacyXrayOperationResult` | callback result carrier |
-| `XrayServiceClient` | `LegacyXrayServiceClient` + `ez3/hz3` | bind/death/null/disconnect/5s timeout；current 额外收口 bind/asInterface/link/unlink/unbind/cancel 的异常与 `LinkageError`，确保失败连接仍完成 generation 失效；Service callback delivery 也把 Exception/LinkageError 收口为发送失败，避免坏 callback 打穿 worker |
+| `XrayServiceClient` | `LegacyXrayServiceClient` + lifecycle harness + `ez3/hz3` | Binder generation、bind/death/null/disconnect/5s timeout 与 pending 语义；current 额外收口 bind/asInterface/link/unlink/unbind/cancel 的异常与 `LinkageError`，确保失败连接仍完成 generation 失效；Service callback delivery 也把 Exception/LinkageError 收口为发送失败，避免坏 callback 打穿 worker |
 | `XraySessionController` | `LegacyXraySessionController` + `yz3` | 1.5s cleanup、30s startup、stale callback/race；current 额外把 playback preference/Keystore LinkageError 收口为 ERROR→IDLE |
 | `XraySessionListener` | `LegacyXraySessionListener` | 仅状态/方法命名模块化，状态值保持一致 |
 | `XraySettingsController` | `LegacyXraySettingsController` + 设置页 DEX | 45s timeout、delete/reset 顺序、phone-import abandon；current 额外保护 result/failure/timeout listener 内同步 replacement owner，并在 share-link prefs 已实际删除但后续 Keystore clear 失败时同步 local-cleared UI 状态 |
