@@ -5,6 +5,7 @@ import android.os.Looper;
 
 import com.fingmi.xray.network.PublicPlaybackDestinationInterceptor;
 import com.fingmi.xray.network.XrayHttpClient;
+import com.fingmi.xray.util.XrayErrorSanitizer;
 
 import java.util.Objects;
 
@@ -81,7 +82,7 @@ public final class XrayPlaybackSession implements XraySessionListener, AutoClose
         assertMain();
         preserveOnStop = preservePlayback;
         if (service.isRunning() || service.getState() == STARTING) service.stop();
-        else clearResources(preservePlayback);
+        else retryProxyRollback(clearResources(preservePlayback));
     }
 
     public void end() {
@@ -114,31 +115,100 @@ public final class XrayPlaybackSession implements XraySessionListener, AutoClose
                 service.stop();
                 return;
             }
-            clearResources(false);
-            resources = new XrayHttpClient(socksPort, baseClient);
-            listener.onProxyChanged(resources, preserveOnStart);
+
+            Throwable clearFailure = clearResources(false);
+            if (clearFailure != null) {
+                failRunningTransition(clearFailure);
+                return;
+            }
+
+            try {
+                resources = new XrayHttpClient(socksPort, baseClient);
+                listener.onProxyChanged(resources, preserveOnStart);
+            } catch (Exception | LinkageError error) {
+                failRunningTransition(error);
+                return;
+            }
         } else if (state == ERROR) {
-            clearResourcesAfterError();
+            retryProxyRollback(clearResourcesAfterError());
         } else if (state == IDLE) {
-            clearResources(preserveOnStop);
+            retryProxyRollback(clearResources(preserveOnStop));
         }
-        listener.onStateChanged(state, message);
+        notifyState(state, message);
     }
 
-    private void clearResources(boolean preservePlayback) {
-        if (resources == null) return;
+    private Throwable clearResources(boolean preservePlayback) {
+        if (resources == null) return null;
         XrayHttpClient old = resources;
         resources = null;
-        listener.onProxyChanged(null, preservePlayback);
-        old.close();
+        Throwable failure = null;
+        try {
+            listener.onProxyChanged(null, preservePlayback);
+        } catch (Exception | LinkageError error) {
+            failure = error;
+        } finally {
+            closeQuietly(old);
+        }
+        return failure;
     }
 
-    private void clearResourcesAfterError() {
-        if (resources == null) return;
+    private Throwable clearResourcesAfterError() {
+        if (resources == null) return null;
         XrayHttpClient old = resources;
         resources = null;
-        listener.onProxyError();
-        old.close();
+        Throwable failure = null;
+        try {
+            listener.onProxyError();
+        } catch (Exception | LinkageError error) {
+            failure = error;
+        } finally {
+            closeQuietly(old);
+        }
+        return failure;
+    }
+
+    private void retryProxyRollback(Throwable failure) {
+        if (failure == null) return;
+        try {
+            // Resource cleanup already closed the old client in finally. Retry
+            // only the player-side detach in case the first callback failed
+            // after partially mutating the playback engine.
+            listener.onProxyError();
+        } catch (Exception | LinkageError ignored) {
+        }
+    }
+
+    private void failRunningTransition(Throwable error) {
+        XrayHttpClient failed = resources;
+        resources = null;
+        try {
+            // Retry player detachment even when the failure came from clearing
+            // the previous proxy and resources is already null. In that case
+            // the player may still hold an engine backed by the client that
+            // clearResources() just closed.
+            listener.onProxyError();
+        } catch (Exception | LinkageError ignored) {
+        } finally {
+            closeQuietly(failed);
+        }
+
+        notifyState(ERROR, XrayErrorSanitizer.sanitize(error));
+        service.stop();
+    }
+
+    private void notifyState(int state, String message) {
+        try {
+            listener.onStateChanged(state, message == null ? "" : message);
+        } catch (Exception | LinkageError ignored) {
+        }
+    }
+
+    private static void closeQuietly(XrayHttpClient client) {
+        if (client == null) return;
+        try {
+            client.close();
+        } catch (Exception | LinkageError ignored) {
+        }
     }
 
     @Override
