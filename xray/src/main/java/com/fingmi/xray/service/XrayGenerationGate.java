@@ -4,9 +4,13 @@ import java.util.concurrent.atomic.AtomicLong;
 
 final class XrayGenerationGate {
 
+    interface ThrowingAction {
+        void run() throws Exception;
+    }
+
     private final AtomicLong current = new AtomicLong(Long.MIN_VALUE);
 
-    void begin(long operationId) {
+    synchronized void begin(long operationId) {
         current.accumulateAndGet(operationId, Math::max);
     }
 
@@ -14,11 +18,18 @@ final class XrayGenerationGate {
         return current.get() == operationId;
     }
 
-    boolean cancel(long operationId) {
+    synchronized boolean cancel(long operationId) {
         return current.compareAndSet(operationId, Long.MAX_VALUE);
     }
 
-    void invalidateAll() {
+    synchronized void invalidateAll() {
         current.set(Long.MAX_VALUE);
+    }
+
+    synchronized boolean runIfCurrent(long operationId, ThrowingAction action)
+            throws Exception {
+        if (current.get() != operationId) return false;
+        action.run();
+        return current.get() == operationId;
     }
 }
