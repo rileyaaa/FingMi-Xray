@@ -454,13 +454,13 @@ TV 待机网络审计发现 `OkDns.lookup()` 在 reset/rebuild 并发时存在�
 该结论仍限定为**已取证行为/调用链完整映射**：旧 APK 的原始未混淆 Java 源码和 libXray 原始 Go 源码并未找回。native 继续使用正式 APK 固定 SHA 的 `libgojni.so` 与匹配 generated bindings，并由此前成功的双 ABI current-chain parity 验证；最终 Android TV 真机仍是更高层级验收。
 
 
-### 2026-10-03 — Xray owner 销毁同步释放 playback proxy 资源
+### 2026-10-03 — 第二轮审计纠正 Xray close 误报
 
-在只审计 Xray / TV recovery 的 post-release fresh pass 中确认一条 Xray 生命周期缺口：Video/Live 正常销毁会先在 `onStop()` 发异步 STOP，随后 `onDestroy()` 调 `XrayPlaybackSession.close()`。旧 close 只执行 `end() -> closed = true -> service.close()`；而 `XraySessionController` 在 disposed 状态收到最终 STOP 成功后会直接 disconnect，不再向 `XrayPlaybackSession` 发送 IDLE。因此 RUNNING 会话持有的 `XrayHttpClient` / Dispatcher / ConnectionPool 可能失去唯一 cleanup callback，只能等进程回收。
+第二轮只读反查重新沿真实同步调用顺序核对 `XrayPlaybackSession.close()`，确认上一轮把 owner 销毁误判成资源泄漏。实际顺序是 `close() -> end() -> stop(false) -> XraySessionController.stopSession()`；`stopSession()` 在提交 Binder STOP 后会**立即同步** `notifyState(IDLE)`，而此时 `XrayPlaybackSession.closed` 尚未置位，所以既有 `onXrayStateChanged(IDLE)` 已经同步执行 `clearResources(false)` 并关闭 `XrayHttpClient`。如果 controller 原本已是 IDLE，`XrayPlaybackSession.stop(false)` 本身也会直接清理 resources。因此 published/test.6 的原实现没有这条泄漏。
 
-current 现在在 owner close 时先 seal `closed`，再同步执行 `clearResources(false)` + rollback retry，确保播放器先 detach Xray proxy、旧 `XrayHttpClient.close()` 必定执行，然后才 dispose Binder controller。该修复只落在 `:xray` 会话资源边界，不修改普通 FongMi 播放业务；`tests/test-xray-playback-parity.py` 增加 close 顺序 guard。
+为保持纯净基线，上一轮追加到 `XrayPlaybackSession.close()` 的重复 cleanup 与对应 parity guard 已全部撤回，运行代码重新回到已发布验证状态。该纠错再次确认：后续 Xray/TV-recovery 修复必须沿完整同步/异步调用链证明问题，不能只看最终 callback 分支推断资源泄漏。
 
-同轮重新检查 TV network recovery generation / DNS-DoH reset / Spider clear / Glide epoch / Home stability poll，没有发现新的确定 current-only Bug。黄金 `l61` 本身在约 6 秒稳定性轮询上限后会结束该 generation，即使 INTERNET capability 尚未连续稳定两次；这保留为黄金行为/真机风险观察项，没有凭静态推演扩张 recovery 状态机。
+同轮继续复查 TV recovery generation / DNS-DoH reset / Spider clear / Glide epoch / Home stability poll。黄金 `l61` 本身在约 6 秒稳定性轮询上限后会结束该 generation，即使 INTERNET capability 尚未连续稳定两次；这仍保留为黄金行为/真机风险观察项，没有凭静态推演扩张 recovery 状态机。
 
 ### 2026-10-03 — 纯净基线发布验证通过并替换测试 Release
 
