@@ -454,6 +454,16 @@ TV 待机网络审计发现 `OkDns.lookup()` 在 reset/rebuild 并发时存在�
 该结论仍限定为**已取证行为/调用链完整映射**：旧 APK 的原始未混淆 Java 源码和 libXray 原始 Go 源码并未找回。native 继续使用正式 APK 固定 SHA 的 `libgojni.so` 与匹配 generated bindings，并由此前成功的双 ABI current-chain parity 验证；最终 Android TV 真机仍是更高层级验收。
 
 
+### 2026-10-03 — 纯净基线发布验证通过并替换测试 Release
+
+修正 native 未接受的 mapped-IPv6 runtime 增强后，重新触发 publish run `37100464365`，build source 为 `1b7976f7ddd742e65392819c4cd5013407e23545`。该 run 全部步骤通过：fork source guards、Android SDK 36/37、固定 player/native 输入重建、双 ABI 黄金 Xray native/runtime parity、reconstructed Libass candidate、Leanback compile、双 ABI assemble、MPEG-H/native provenance、最终 Manifest security contract 与 Release 发布均为 success。
+
+发布结果为 `v5.6.3-xray.test.6` pre-release，tag target 精确指向上述 build source；资产仅有两个 Android TV APK：
+- armeabi-v7a：`sha256:af4e725c59a9b92e49ce1c4391219c788c3c2d67f37e958881d70ae0cd121f39`
+- arm64-v8a：`sha256:2d482e2d71de00ae7bd75186a80387acc6a2a5896a7db8a2e4453eb1a9c59168`
+
+发布成功后已先恢复 publish workflow 为 `workflow_dispatch` only，再删除临时 marker，避免清理提交再次触发 Actions。随后只同步 README/DEVELOPMENT 文档，没有修改运行代码。当前 Release 集合只保留黄金 `v5.6.0-xray.5`、当前测试 `v5.6.3-xray.test.6` 与用户明确要求的 `source-backup-2026-10-02-main-6a4117c8` 源码备份；旧测试/临时发布已不在集合中。自动构建已验证，但 Android TV 真机 Xray 与待机/长后台恢复仍需实际设备验收。
+
 ### 2026-10-03 — 发布 native parity 淘汰未验证 mapped-IPv6 runtime 增强
 
 发布 run `37097786995` 在 source guards、Android SDK 准备、player/native 输入重建和 libXray AAR 准备均通过后，首次在真实黄金 `libgojni.so -> testXray` runtime validation 阶段失败；第一条 `vless-kcp-srtp-seed` 即返回与冻结 v7 oracle 不同的 response。该 case 只是 26 条 runtime validation 的第一条，current 与黄金 runtime request 唯一被测试归一化允许的结构差异是此前静态审计加入的 `::ffff:0:0/96` reserved prefix，因此这次 native 证据证明该“IPv4-mapped IPv6 私网防护”并未满足实际 Core 配置合同。
@@ -464,7 +474,7 @@ TV 待机网络审计发现 `OkDns.lookup()` 在 reset/rebuild 并发时存在�
 
 重新检查仓库 7 份 Markdown（6 份项目文档 + `LICENSE.md`），并完整读取冻结的 `ORIGINAL_README.md` 后，以其用户级产品合同反查 current 源码与长期文档。确认 no-VPN、当前播放会话手动启用、VOD/Live identity 边界、节点测试/手机导入、独立 `:xray` 进程、资源释放与 TV 长后台网络恢复仍有 current 实现；v2rayN 标准单节点重新明确为主要分享链接兼容/测试目标。
 
-同时修正文档自身漂移：只有 `ORIGINAL_README.md` 冻结，`AI_COLLABORATION.md` 必须随用户开发限制更新；当前 Releases 已无 `v5.6.3-xray.test.6`，只有黄金版与用户要求的 source-backup；README 的 CI SDK 列表同步为 workflow 实际安装的 Android 36 + 37.0 / Build Tools 36.0.0 + 37.0.0。RECOVERY 另修正黄金 STOP/callback 竞态的前后矛盾，并明确冻结 README 的“换地址/后台状态”是用户级概括，DEX/JADX 证据对 logical identity / resolved URL / 后台保留播放给出更精确语义。
+同时修正文档自身漂移：只有 `ORIGINAL_README.md` 冻结，`AI_COLLABORATION.md` 必须随用户开发限制更新；**该次审计当时** Releases 尚无 `v5.6.3-xray.test.6`，只有黄金版与用户要求的 source-backup；README 的 CI SDK 列表同步为 workflow 实际安装的 Android 36 + 37.0 / Build Tools 36.0.0 + 37.0.0。RECOVERY 另修正黄金 STOP/callback 竞态的前后矛盾，并明确冻结 README 的“换地址/后台状态”是用户级概括，DEX/JADX 证据对 logical identity / resolved URL / 后台保留播放给出更精确语义。
 
 ### 2026-10-03 — 纠正 5.6.8 文档与构建边界
 
@@ -483,4 +493,4 @@ TV 待机网络审计发现 `OkDns.lookup()` 在 reset/rebuild 并发时存在�
 
 与上述修复直接对应的 current-native/share、core/playback、ServiceClient、session/settings、transport-security 与 TV recovery source/JVM guards 一并重放。TV recovery guard 额外锁定普通 `KeepActivity/SiteApi/BaseConfig/VodConfig/LiveConfig/WallConfig/LiveParser/ConfigEvent/Notify` 必须保持固定上游 Git blob，防止后续再把恢复状态机扩散进普通业务层。
 
-这次重放没有触发 GitHub Actions/AC，也没有把旧 run 冒充为新 HEAD 验证。source-backup 之前已有的构建/native/Manifest 证据仍只证明当时对应代码；当前重放后的 HEAD 尚未重新完成 Gradle compile、Leanback assemble 或 Android TV 真机回归，后续如需消耗 AC 应在静态审计收敛后一次性集中验证。
+这次重放完成时尚未触发 GitHub Actions/AC，也没有把旧 run 冒充为新 HEAD 验证。source-backup 之前已有的构建/native/Manifest 证据仍只证明当时对应代码；该状态随后由 2026-10-03 的 publish run `37100464365` 完成自动验证，见后续记录。
