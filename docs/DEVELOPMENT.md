@@ -454,6 +454,14 @@ TV 待机网络审计发现 `OkDns.lookup()` 在 reset/rebuild 并发时存在�
 该结论仍限定为**已取证行为/调用链完整映射**：旧 APK 的原始未混淆 Java 源码和 libXray 原始 Go 源码并未找回。native 继续使用正式 APK 固定 SHA 的 `libgojni.so` 与匹配 generated bindings，并由此前成功的双 ABI current-chain parity 验证；最终 Android TV 真机仍是更高层级验收。
 
 
+### 2026-10-03 — Xray owner 销毁同步释放 playback proxy 资源
+
+在只审计 Xray / TV recovery 的 post-release fresh pass 中确认一条 Xray 生命周期缺口：Video/Live 正常销毁会先在 `onStop()` 发异步 STOP，随后 `onDestroy()` 调 `XrayPlaybackSession.close()`。旧 close 只执行 `end() -> closed = true -> service.close()`；而 `XraySessionController` 在 disposed 状态收到最终 STOP 成功后会直接 disconnect，不再向 `XrayPlaybackSession` 发送 IDLE。因此 RUNNING 会话持有的 `XrayHttpClient` / Dispatcher / ConnectionPool 可能失去唯一 cleanup callback，只能等进程回收。
+
+current 现在在 owner close 时先 seal `closed`，再同步执行 `clearResources(false)` + rollback retry，确保播放器先 detach Xray proxy、旧 `XrayHttpClient.close()` 必定执行，然后才 dispose Binder controller。该修复只落在 `:xray` 会话资源边界，不修改普通 FongMi 播放业务；`tests/test-xray-playback-parity.py` 增加 close 顺序 guard。
+
+同轮重新检查 TV network recovery generation / DNS-DoH reset / Spider clear / Glide epoch / Home stability poll，没有发现新的确定 current-only Bug。黄金 `l61` 本身在约 6 秒稳定性轮询上限后会结束该 generation，即使 INTERNET capability 尚未连续稳定两次；这保留为黄金行为/真机风险观察项，没有凭静态推演扩张 recovery 状态机。
+
 ### 2026-10-03 — 纯净基线发布验证通过并替换测试 Release
 
 修正 native 未接受的 mapped-IPv6 runtime 增强后，重新触发 publish run `37100464365`，build source 为 `1b7976f7ddd742e65392819c4cd5013407e23545`。该 run 全部步骤通过：fork source guards、Android SDK 36/37、固定 player/native 输入重建、双 ABI 黄金 Xray native/runtime parity、reconstructed Libass candidate、Leanback compile、双 ABI assemble、MPEG-H/native provenance、最终 Manifest security contract 与 Release 发布均为 success。
