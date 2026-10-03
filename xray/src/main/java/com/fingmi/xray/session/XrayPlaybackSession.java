@@ -217,12 +217,6 @@ public final class XrayPlaybackSession implements XraySessionListener, AutoClose
         if (closed) return;
         end();
         closed = true;
-
-        // stop() is asynchronous. Once the controller is disposed its final
-        // STOP result intentionally does not emit another IDLE callback, so
-        // owner destruction must detach and close playback proxy resources
-        // synchronously instead of waiting for that callback.
-        retryProxyRollback(clearResources(false));
         service.close();
     }
 
