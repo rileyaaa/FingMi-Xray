@@ -10,7 +10,7 @@ FingMi-Xray 将 Xray 集成到播放器内部。遇到这类内容时，可以�
 
 当前 `main` 以 FongMi/TV 5.6.3（`c616c0aa3613e87529791587a9f71b78c278c991`）为公开上游基线，只长期维护 **Xray 播放代理**与 **Android TV 网络恢复**两项自有能力。历史 `v5.6.0-xray.5` armeabi-v7a 正式 APK 是源码丢失后的 Xray 恢复基线：它经过实际使用、相对稳定，适合在缺少源码时先还原行为，但并不代表完全没有未知 Bug。当前模块化重构已经完成；后续若在这两项自有能力中确认真实问题，可以基于证据修复并登记与黄金版的有意差异，其余 FongMi 功能继续直接跟随公开上游。
 
-GitHub Releases 目前仍保留 `v5.6.3-xray.test.6` 作为上一测试版；它早于当前源码，因此**不能当作当前 `main` 的最终二进制**。2026-10-03 已将 `main` 精确恢复到 `source-backup-2026-10-02-main-6a4117c8`，再只重放审计确认的 Xray / TV 网络恢复 Bug 修复与对应 guards。source-backup 之前的成功构建/native/Manifest 证据只证明当时对应代码；本次重放后的新 HEAD 尚未重新执行 Gradle compile、Leanback assemble 或真机回归，也没有为此触发新的 Actions/AC。
+GitHub Releases 当前保留 `v5.6.0-xray.5` 黄金参考和 `source-backup-2026-10-02-main-6a4117c8` 源码备份，**目前没有对应当前 `main` 的可上真机测试 pre-release**。2026-10-03 已将 `main` 精确恢复到该 source-backup，再只重放审计确认的 Xray / TV 网络恢复 Bug 修复与对应 guards。source-backup 之前的成功构建/native/Manifest 证据只证明当时对应代码；本次重放后的新 HEAD 尚未重新执行 Gradle compile、Leanback assemble 或真机回归，也没有为此触发新的 Actions/AC。
 
 主要组件版本如下：
 
@@ -34,7 +34,7 @@ GitHub Releases 目前仍保留 `v5.6.3-xray.test.6` 作为上一测试版；它
 | Glide | **5.0.9** |
 | Material Components | **1.14.0** |
 
-当前播放器 AAR 统一来自固定的 FongMi/media 1.11.0 候选。MPV、FFmpeg 等 native 组件没有在当前工程中维护独立、可直接声明的 semver，因此不另外虚构版本号；当前构建规则见 [DEVELOPMENT.md](docs/DEVELOPMENT.md)，历史二进制来源和 v7 Xray 黄金行为证据见 [RECOVERY.md](docs/RECOVERY.md)。
+当前 17-AAR player candidate 从固定公开 FongMi/media 1.11.0 源码重建；Libass compatibility 仍有一项单独登记的 native 构建债，不能据此把更高版本 Release 当作上游。MPV、FFmpeg 等 native 组件没有在当前工程中维护独立、可直接声明的 semver，因此不另外虚构版本号；当前构建规则与该构建债见 [DEVELOPMENT.md](docs/DEVELOPMENT.md)，历史二进制来源和 v7 Xray 黄金行为证据见 [RECOVERY.md](docs/RECOVERY.md)。
 
 ### 构建环境
 
@@ -46,8 +46,8 @@ GitHub Releases 目前仍保留 `v5.6.3-xray.test.6` 作为上一测试版；它
 | compileSdk | **37** |
 | targetSdk | **37** |
 | minSdk | **24** |
-| Android SDK Platform（CI） | **37.0** |
-| Android Build Tools（CI） | **37.0.0** |
+| Android SDK Platform（CI） | **36 + 37.0** |
+| Android Build Tools（CI） | **36.0.0 + 37.0.0** |
 | desugar_jdk_libs_nio | **2.1.5** |
 
 <details>
@@ -119,7 +119,7 @@ GitHub Releases 目前仍保留 `v5.6.3-xray.test.6` 作为上一测试版；它
 - Shadowsocks
 - Hysteria2 / hy2
 
-兼容目标以常见单节点分享格式为主。不同客户端生成的非标准链接可能存在差异。
+兼容目标沿用冻结发布说明：**以 v2rayN 导出的标准单节点分享链接作为主要兼容与测试目标**。v2rayN 只是格式来源，不是项目依赖；其它客户端生成的非标准链接可能存在差异。
 
 ## 当前结构
 
@@ -141,7 +141,7 @@ GitHub Releases 目前仍保留 `v5.6.3-xray.test.6` 作为上一测试版；它
 
 - [PROJECT.md](docs/PROJECT.md)：项目设计、职责边界与长期架构约束。
 - [DEVELOPMENT.md](docs/DEVELOPMENT.md)：当前源码结构、构建方式、上游同步和开发维护说明。
-- [AI_COLLABORATION.md](docs/AI_COLLABORATION.md)：**冻结**的 AI 协作执行限制；除非用户明确解除冻结，不再修改。
+- [AI_COLLABORATION.md](docs/AI_COLLABORATION.md)：AI 协作执行限制；用户调整开发规则时同步维护。
 - [RECOVERY.md](docs/RECOVERY.md)：`v5.6.0-xray.5` 的 faithful 恢复、APK/JADX/DEX/native 证据、二进制 provenance 与 Xray 黄金行为索引。
 - [ORIGINAL_README.md](docs/ORIGINAL_README.md)：**冻结**保存的原 `v5.6.0-xray.5` 发布说明；除非用户明确解除冻结，不再修改。
 
