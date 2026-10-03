@@ -79,19 +79,28 @@ final class XrayServiceClient {
         main.postDelayed(next.timeout, BIND_TIMEOUT_MS);
 
         Intent intent = new Intent(context, XrayService.class);
-        if (!context.bindService(intent, next, Context.BIND_AUTO_CREATE)) {
-            failLocked(next, "Xray service bind failed");
+        try {
+            if (!context.bindService(intent, next, Context.BIND_AUTO_CREATE)) {
+                failLocked(next, "Xray service bind failed");
+            }
+        } catch (Exception error) {
+            failLocked(next, XrayErrorSanitizer.fromException(error));
+        } catch (LinkageError error) {
+            failLocked(next, XrayErrorSanitizer.sanitize(error));
         }
     }
 
     synchronized void cancel(int operation, long operationId) {
-        if (service != null) {
-            try {
-                service.cancel(operation, operationId);
-            } catch (Exception ignored) {
+        try {
+            if (service != null) {
+                try {
+                    service.cancel(operation, operationId);
+                } catch (Exception | LinkageError ignored) {
+                }
             }
+        } finally {
+            disconnectLocked();
         }
-        disconnectLocked();
     }
 
     synchronized void disconnect() {
@@ -159,7 +168,7 @@ final class XrayServiceClient {
             expected.detach();
             try {
                 context.unbindService(expected);
-            } catch (IllegalArgumentException ignored) {
+            } catch (RuntimeException | LinkageError ignored) {
             }
             return;
         }
@@ -197,7 +206,7 @@ final class XrayServiceClient {
             old.detach();
             try {
                 context.unbindService(old);
-            } catch (IllegalArgumentException ignored) {
+            } catch (RuntimeException | LinkageError ignored) {
             }
         }
     }
@@ -218,7 +227,7 @@ final class XrayServiceClient {
                 if (this != connection || generation != connectionGeneration) {
                     try {
                         context.unbindService(this);
-                    } catch (IllegalArgumentException ignored) {
+                    } catch (RuntimeException | LinkageError ignored) {
                     }
                     return;
                 }
@@ -226,12 +235,16 @@ final class XrayServiceClient {
                 main.removeCallbacks(timeout);
                 binding = false;
                 this.binder = binder;
-                service = IXrayService.Stub.asInterface(binder);
                 try {
+                    service = IXrayService.Stub.asInterface(binder);
                     binder.linkToDeath(this, 0);
                     dispatchLocked();
                 } catch (RemoteException error) {
                     failLocked(this, "Xray service connection died");
+                } catch (RuntimeException error) {
+                    failLocked(this, XrayErrorSanitizer.fromException(error));
+                } catch (LinkageError error) {
+                    failLocked(this, XrayErrorSanitizer.sanitize(error));
                 }
             }
         }
@@ -269,7 +282,7 @@ final class XrayServiceClient {
             if (binder != null) {
                 try {
                     binder.unlinkToDeath(this, 0);
-                } catch (Exception ignored) {
+                } catch (Exception | LinkageError ignored) {
                 }
                 binder = null;
             }
