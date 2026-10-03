@@ -278,7 +278,7 @@ public class VideoActivity extends PlaybackActivity implements VodPlaybackHost, 
         super.onNewIntent(intent);
         if (TextUtils.isEmpty(intent.getStringExtra("id")) || isSameVideo(intent)) return;
         saveHistory(true);
-        if (mXray != null) mXray.end();
+        resetXrayForPlaybackChange();
         mVod.reset();
         setIntent(intent);
         updateNavigationKey();
