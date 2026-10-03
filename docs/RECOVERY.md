@@ -431,6 +431,6 @@ GitHub Actions 对应两段手动流程：
 
 ### 2026-10-03 TV recovery 范围纠偏
 
-对 source-backup 之后的 258 个维护提交重新按文件与固定上游逐项审计后，确认 TV recovery 曾被静态竞态分析推动成过宽的 Config/UI 状态机。当前已把这些实验性扩散整体回退：普通 Config、Keep、SiteApi、LiveParser、ConfigEvent、Notify 恢复固定 FongMi/TV 上游 blob；SettingActivity 也移除 recovery deferred UI，仅保留 Xray 自身的接线与 LinkageError 边界。Home / coordinator / lifecycle / API-DNS reset / async Spider clear / Glide 与 DoH 等 source-backup 已有恢复能力继续保留。
+对 source-backup 之后的维护提交重新按文件与固定上游逐项审计后，确认 TV recovery 曾被静态竞态分析推动成过宽的 Config/UI 状态机。当前已把这些实验性扩散整体回退：普通 Config、Keep、SiteApi、LiveParser、ConfigEvent、Notify 恢复固定 FongMi/TV 上游 blob；SettingActivity 也移除 recovery deferred UI，仅保留 Xray 自身的接线与 LinkageError 边界。Home / coordinator / lifecycle / API-DNS reset / async Spider clear / Glide 与 DoH 等 source-backup 已有恢复能力继续保留。
 
 后续 TV recovery 的默认策略是**先保持这条小边界**。没有真机或明确黄金证据时，不再通过 BaseConfig taskId、Config replay、Spider operation lease、deferred navigation owner 等手段把恢复状态扩散到普通业务代码。若普通上游在没有本 fork recovery 时也可能出现同类并发问题，则视为上游行为，不在本项目修复。
