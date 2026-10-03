@@ -37,6 +37,7 @@ public final class XrayConfigFactory {
             "240.0.0.0/4",
             "::/96",
             "::ffff:0:0:0/96",
+            "::ffff:0:0/96",
             "64:ff9b:1::/48",
             "100::/64",
             "100:0:0:1::/64",
@@ -63,6 +64,24 @@ public final class XrayConfigFactory {
         String normalized = XrayShareLinkNormalizer.normalize(shareLink);
         normalized = security.secure(normalized);
         normalized = XrayShareLinkNormalizer.normalize(normalized);
+        return createFromSecuredLink(socksPort, normalized, udp);
+    }
+
+    public PreparedConfig prepare(int socksPort, String shareLink, boolean udp) throws Exception {
+        if (socksPort <= 0) throw new IllegalArgumentException("A positive SOCKS port is required");
+
+        String normalized = XrayShareLinkNormalizer.normalize(shareLink);
+        XrayShareLinkSecurity.PreparedLink preparedLink = security.prepare(normalized);
+        normalized = XrayShareLinkNormalizer.normalize(preparedLink.value());
+        return new PreparedConfig(
+                createFromSecuredLink(socksPort, normalized, udp),
+                preparedLink);
+    }
+
+    private JSONObject createFromSecuredLink(
+            int socksPort,
+            String normalized,
+            boolean udp) throws Exception {
         JSONObject converted = bridge.convertShareLink(normalized);
         patchLiteralPlusCredential(normalized, converted);
         JSONObject config = new JSONObject(converted.toString());
@@ -138,6 +157,26 @@ public final class XrayConfigFactory {
 
         config.put("log", new JSONObject().put("loglevel", "warning"));
         return config;
+    }
+
+    public static final class PreparedConfig {
+        private final JSONObject config;
+        private final XrayShareLinkSecurity.PreparedLink security;
+
+        private PreparedConfig(
+                JSONObject config,
+                XrayShareLinkSecurity.PreparedLink security) {
+            this.config = config;
+            this.security = security;
+        }
+
+        public JSONObject config() {
+            return config;
+        }
+
+        public void commitTrust() throws Exception {
+            security.commitTrust();
+        }
     }
 
     private static void patchLiteralPlusCredential(String shareLink, JSONObject converted)
