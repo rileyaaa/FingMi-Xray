@@ -30,8 +30,13 @@ public final class XrayProxySocketFactory extends SocketFactory {
     @Override
     public Socket createSocket(String host, int port) throws IOException {
         Socket socket = createSocket();
-        socket.connect(InetSocketAddress.createUnresolved(host, port));
-        return socket;
+        try {
+            socket.connect(InetSocketAddress.createUnresolved(host, port));
+            return socket;
+        } catch (IOException | RuntimeException error) {
+            closeQuietly(socket);
+            throw error;
+        }
     }
 
     @Override
@@ -41,9 +46,14 @@ public final class XrayProxySocketFactory extends SocketFactory {
             InetAddress localAddress,
             int localPort) throws IOException {
         Socket socket = createSocket();
-        socket.bind(new InetSocketAddress(localAddress, localPort));
-        socket.connect(InetSocketAddress.createUnresolved(host, port));
-        return socket;
+        try {
+            socket.bind(new InetSocketAddress(localAddress, localPort));
+            socket.connect(InetSocketAddress.createUnresolved(host, port));
+            return socket;
+        } catch (IOException | RuntimeException error) {
+            closeQuietly(socket);
+            throw error;
+        }
     }
 
     @Override
@@ -51,8 +61,13 @@ public final class XrayProxySocketFactory extends SocketFactory {
             InetAddress address,
             int port) throws IOException {
         Socket socket = createSocket();
-        socket.connect(new InetSocketAddress(address, port));
-        return socket;
+        try {
+            socket.connect(new InetSocketAddress(address, port));
+            return socket;
+        } catch (IOException | RuntimeException error) {
+            closeQuietly(socket);
+            throw error;
+        }
     }
 
     @Override
@@ -62,8 +77,20 @@ public final class XrayProxySocketFactory extends SocketFactory {
             InetAddress localAddress,
             int localPort) throws IOException {
         Socket socket = createSocket();
-        socket.bind(new InetSocketAddress(localAddress, localPort));
-        socket.connect(new InetSocketAddress(address, port));
-        return socket;
+        try {
+            socket.bind(new InetSocketAddress(localAddress, localPort));
+            socket.connect(new InetSocketAddress(address, port));
+            return socket;
+        } catch (IOException | RuntimeException error) {
+            closeQuietly(socket);
+            throw error;
+        }
     }
+    private static void closeQuietly(Socket socket) {
+        try {
+            socket.close();
+        } catch (IOException | RuntimeException ignored) {
+        }
+    }
+
 }
