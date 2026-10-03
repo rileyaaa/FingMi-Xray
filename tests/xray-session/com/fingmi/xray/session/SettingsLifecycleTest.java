@@ -24,6 +24,9 @@ public final class SettingsLifecycleTest {
     private static XraySettingsController fresh(XraySettingsController.Listener listener) {
         Handler.reset();
         Trace.reset();
+        com.fingmi.xray.config.XrayPreferences.configured = true;
+        com.fingmi.xray.config.XrayPreferences.throwClearAfterRemoval = false;
+        com.fingmi.xray.config.XrayPreferences.throwShareLinkLinkage = false;
         XraySettingsController controller =
                 new XraySettingsController(new Context(), listener);
         Trace.reset();
@@ -46,6 +49,120 @@ public final class SettingsLifecycleTest {
         controller.save("trojan://replacement@example.invalid:443", false);
         check(!Trace.events().contains("preferences:save"),
                 "Save was allowed during RESET_SECURITY");
+    }
+
+    private static void partialLocalDeleteStillClearsUi() {
+        XraySettingsController controller = fresh((id, op, ok, latency, message) -> {});
+        com.fingmi.xray.config.XrayPreferences.throwClearAfterRemoval = true;
+        boolean[] cleared = {false};
+        try {
+            controller.delete(() -> {
+                cleared[0] = true;
+                Trace.add("ui:clear");
+            });
+            throw new AssertionError("partial local delete failure was not surfaced");
+        } catch (Exception expected) {
+        }
+        check(cleared[0], "UI was not cleared after local preferences were already removed");
+        check(!com.fingmi.xray.config.XrayPreferences.configured,
+                "partial local delete test did not remove stored node");
+        check(!controller.hasActiveOperation(),
+                "partial local delete failure left RESET_SECURITY active");
+    }
+
+    private static void localClearCallbackFailureStillDispatchesReset() throws Exception {
+        XraySettingsController controller = fresh((id, op, ok, latency, message) -> {});
+        int[] calls = {0};
+        long operationId = controller.delete(() -> {
+            calls[0]++;
+            throw new IllegalStateException("synthetic UI clear failure");
+        });
+        XrayServiceClient.Request request = XrayServiceClient.last.latest();
+        check(calls[0] == 1,
+                "local-clear UI callback must be isolated without duplicate delivery");
+        check(!com.fingmi.xray.config.XrayPreferences.configured,
+                "local-clear callback failure did not keep storage cleared");
+        check(controller.hasActiveOperation(),
+                "local-clear callback failure aborted RESET_SECURITY");
+        check(request.operationId == operationId,
+                "local-clear callback failure changed RESET_SECURITY owner");
+        check(request.operation == XrayOperation.RESET_SECURITY,
+                "local-clear callback failure skipped RESET_SECURITY dispatch");
+    }
+
+    private static void localClearCancelDoesNotRedispatchReset() throws Exception {
+        XraySettingsController[] holder = new XraySettingsController[1];
+        XrayServiceClient[] deleteOwner = new XrayServiceClient[1];
+        holder[0] = fresh((id, op, ok, latency, message) -> {});
+        holder[0].delete(() -> {
+            deleteOwner[0] = XrayServiceClient.last;
+            holder[0].cancel();
+        });
+        check(deleteOwner[0] != null, "delete owner client was not captured");
+        check(deleteOwner[0].requests.isEmpty(),
+                "cancelled delete redispatched RESET_SECURITY after local-clear callback");
+        check(deleteOwner[0].cancellations == 1,
+                "local-clear cancel did not cancel the pending RESET owner");
+        check(!holder[0].hasActiveOperation(),
+                "local-clear cancel left delete active");
+    }
+
+    private static void localClearAbandonDoesNotRedispatchReset() throws Exception {
+        XraySettingsController[] holder = new XraySettingsController[1];
+        XrayServiceClient[] deleteOwner = new XrayServiceClient[1];
+        holder[0] = fresh((id, op, ok, latency, message) -> {});
+        holder[0].delete(() -> {
+            deleteOwner[0] = XrayServiceClient.last;
+            holder[0].abandon();
+        });
+        check(deleteOwner[0] != null, "delete owner client was not captured");
+        check(deleteOwner[0].requests.isEmpty(),
+                "abandoned delete redispatched RESET_SECURITY after local-clear callback");
+        check(deleteOwner[0].cancellations == 0,
+                "local-clear abandon unexpectedly sent remote RESET cancel");
+        check(!holder[0].hasActiveOperation(),
+                "local-clear abandon left delete active");
+    }
+
+    private static void localClearCloseDoesNotRedispatchReset() throws Exception {
+        XraySettingsController[] holder = new XraySettingsController[1];
+        XrayServiceClient[] deleteOwner = new XrayServiceClient[1];
+        holder[0] = fresh((id, op, ok, latency, message) -> {});
+        holder[0].delete(() -> {
+            deleteOwner[0] = XrayServiceClient.last;
+            holder[0].close();
+        });
+        check(deleteOwner[0] != null, "delete owner client was not captured");
+        check(deleteOwner[0].requests.isEmpty(),
+                "closed delete redispatched RESET_SECURITY after local-clear callback");
+        check(!holder[0].hasActiveOperation(),
+                "local-clear close left delete active");
+    }
+
+    private static void partialDeleteCallbackCanCreateReplacement() {
+        XraySettingsController[] holder = new XraySettingsController[1];
+        XrayServiceClient[] replacementClient = new XrayServiceClient[1];
+        holder[0] = fresh((id, op, ok, latency, message) -> {});
+        com.fingmi.xray.config.XrayPreferences.throwClearAfterRemoval = true;
+        try {
+            holder[0].delete(() -> {
+                holder[0].abandon();
+                holder[0].test("trojan://replacement@example.invalid:443", false);
+                replacementClient[0] = XrayServiceClient.last;
+            });
+            throw new AssertionError("partial delete failure was not surfaced");
+        } catch (Exception expected) {
+        }
+        check(replacementClient[0] != null,
+                "partial-delete recovery callback did not create replacement client");
+        check(holder[0].hasActiveOperation(),
+                "partial-delete outer cleanup destroyed replacement operation");
+        check(XrayServiceClient.last == replacementClient[0],
+                "partial-delete outer cleanup replaced the newer settings client");
+        check(replacementClient[0].requests.size() == 1,
+                "partial-delete replacement TEST request was not preserved");
+        check(replacementClient[0].disconnects == 0,
+                "partial-delete outer cleanup disconnected replacement client");
     }
 
     private static void phoneAbandonDoesNotRemoteCancel() {
@@ -85,11 +202,137 @@ public final class SettingsLifecycleTest {
         before("client:disconnect", "client:create");
     }
 
+    private static void throwingTimeoutListenerStillCleansOldOwner() {
+        XraySettingsController controller = fresh((id, op, ok, latency, message) -> {
+            throw new IllegalStateException("synthetic listener failure");
+        });
+        controller.test("trojan://synthetic@example.invalid:443", false);
+        XrayServiceClient client = XrayServiceClient.last;
+        Handler.advance(45_000L);
+        check(!controller.hasActiveOperation(), "throwing timeout listener left operation active");
+        check(client.cancellations == 1, "throwing timeout listener skipped remote cancel");
+        check(client.disconnects >= 1, "throwing timeout listener skipped old client disconnect");
+        check(XrayServiceClient.last != client, "throwing timeout listener skipped client replacement");
+    }
+
+    private static void throwingResultListenerStillReplacesOldClient() {
+        XraySettingsController controller = fresh((id, op, ok, latency, message) -> {
+            throw new IllegalStateException("synthetic listener failure");
+        });
+        controller.test("trojan://synthetic@example.invalid:443", false);
+        XrayServiceClient client = XrayServiceClient.last;
+        XrayServiceClient.Request request = client.latest();
+        controller.onResult(new XrayResult(
+                request.operationId,
+                request.operation,
+                true,
+                0,
+                12L,
+                ""));
+        check(!controller.hasActiveOperation(), "throwing result listener left operation active");
+        check(client.disconnects == 1, "throwing result listener skipped old client disconnect");
+        check(XrayServiceClient.last != client, "throwing result listener skipped client replacement");
+    }
+
+    private static void resultCallbackCanStartReplacement() {
+        XraySettingsController[] holder = new XraySettingsController[1];
+        boolean[] retry = {true};
+        holder[0] = fresh((id, op, ok, latency, message) -> {
+            if (retry[0]) {
+                retry[0] = false;
+                holder[0].test("trojan://replacement@example.invalid:443", false);
+            }
+        });
+        XrayServiceClient client = XrayServiceClient.last;
+        holder[0].test("trojan://synthetic@example.invalid:443", false);
+        XrayServiceClient.Request first = client.latest();
+        holder[0].onResult(new XrayResult(first.operationId, first.operation, true, 0, 12L, ""));
+        check(holder[0].hasActiveOperation(), "result callback replacement lost active owner");
+        check(XrayServiceClient.last == client, "result callback replacement client was discarded");
+        check(client.requests.size() == 2, "result callback replacement request was not preserved");
+        check(client.disconnects == 0, "old result disconnected replacement operation");
+    }
+
+    private static void timeoutCallbackCanStartReplacement() {
+        XraySettingsController[] holder = new XraySettingsController[1];
+        boolean[] retry = {true};
+        holder[0] = fresh((id, op, ok, latency, message) -> {
+            if (retry[0]) {
+                retry[0] = false;
+                holder[0].test("trojan://replacement@example.invalid:443", false);
+            }
+        });
+        XrayServiceClient client = XrayServiceClient.last;
+        holder[0].test("trojan://synthetic@example.invalid:443", false);
+        Handler.advance(45_000L);
+        check(holder[0].hasActiveOperation(), "timeout callback replacement lost active owner");
+        check(XrayServiceClient.last == client, "timeout callback replacement client was discarded");
+        check(client.requests.size() == 2, "timeout callback replacement request was not preserved");
+        check(client.cancellations == 0, "old timeout cancelled replacement operation");
+        check(client.disconnects == 0, "old timeout disconnected replacement operation");
+    }
+
+    private static void throwingTimeoutListenerCanStillStartReplacement() {
+        XraySettingsController[] holder = new XraySettingsController[1];
+        boolean[] retry = {true};
+        holder[0] = fresh((id, op, ok, latency, message) -> {
+            if (retry[0]) {
+                retry[0] = false;
+                holder[0].test("trojan://replacement@example.invalid:443", false);
+            }
+            throw new IllegalStateException("synthetic listener failure after replacement");
+        });
+        XrayServiceClient client = XrayServiceClient.last;
+        holder[0].test("trojan://synthetic@example.invalid:443", false);
+        Handler.advance(45_000L);
+        check(holder[0].hasActiveOperation(),
+                "throwing timeout listener displaced its replacement owner");
+        check(XrayServiceClient.last == client,
+                "throwing timeout listener replaced the replacement client");
+        check(client.requests.size() == 2,
+                "throwing timeout listener lost replacement request");
+        check(client.cancellations == 0,
+                "old timeout cancelled replacement after listener threw");
+        check(client.disconnects == 0,
+                "old timeout disconnected replacement after listener threw");
+    }
+
+    private static void connectionFailureCallbackCanStartReplacement() {
+        XraySettingsController[] holder = new XraySettingsController[1];
+        boolean[] retry = {true};
+        holder[0] = fresh((id, op, ok, latency, message) -> {
+            if (retry[0]) {
+                retry[0] = false;
+                holder[0].test("trojan://replacement@example.invalid:443", false);
+            }
+        });
+        XrayServiceClient client = XrayServiceClient.last;
+        holder[0].test("trojan://synthetic@example.invalid:443", false);
+        XrayServiceClient.Request first = client.latest();
+        holder[0].onConnectionFailure(first.operationId, "synthetic Binder death");
+        check(holder[0].hasActiveOperation(), "connection failure replacement lost active owner");
+        check(XrayServiceClient.last == client, "connection failure replacement client was discarded");
+        check(client.requests.size() == 2, "connection failure replacement request was not preserved");
+        check(client.disconnects == 0, "old connection failure disconnected replacement operation");
+    }
+
     public static void main(String[] args) throws Exception {
         deleteOrderMatchesReleased();
+        partialLocalDeleteStillClearsUi();
+        localClearCallbackFailureStillDispatchesReset();
+        localClearCancelDoesNotRedispatchReset();
+        localClearAbandonDoesNotRedispatchReset();
+        localClearCloseDoesNotRedispatchReset();
+        partialDeleteCallbackCanCreateReplacement();
         phoneAbandonDoesNotRemoteCancel();
         timeoutNotifiesBeforeCancel();
         resultNotifiesBeforeClientReplacement();
+        throwingTimeoutListenerStillCleansOldOwner();
+        throwingResultListenerStillReplacesOldClient();
+        resultCallbackCanStartReplacement();
+        timeoutCallbackCanStartReplacement();
+        throwingTimeoutListenerCanStillStartReplacement();
+        connectionFailureCallbackCanStartReplacement();
         System.out.println("PASS released settings lifecycle");
     }
 }
