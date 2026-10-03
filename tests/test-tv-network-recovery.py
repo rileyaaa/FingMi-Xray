@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Guard the released Android TV network-recovery generation boundary."""
 from pathlib import Path
+import hashlib
 import subprocess
 import tempfile
 
@@ -21,6 +22,62 @@ PROXY_SELECTOR = ROOT / "catvod/src/main/java/com/github/catvod/net/OkProxySelec
 PROXY_AUTH = ROOT / "catvod/src/main/java/com/github/catvod/net/OkAuthenticator.java"
 PROXY_REDIRECT = ROOT / "catvod/src/main/java/com/github/catvod/net/ProxyRedirectInterceptor.java"
 PROXY_TEST = ROOT / "catvod/src/test/java/com/github/catvod/net/OkProxySelectorTest.java"
+SETTING = ROOT / "app/src/leanback/java/com/fongmi/android/tv/ui/activity/SettingActivity.java"
+
+# These are ordinary FongMi business/config/UI files. The fixed upstream
+# baseline is FongMi/TV@c616c0aa3613e87529791587a9f71b78c278c991.
+# TV recovery must stay in its own lifecycle/network boundary and may not
+# quietly grow a second config/UI state machine inside these files.
+UPSTREAM_EXACT_BLOBS = {
+    "app/src/leanback/java/com/fongmi/android/tv/ui/activity/KeepActivity.java":
+        "bcf1a307d3aecc3118023fe0dcb4bfb617ca251f",
+    "app/src/main/java/com/fongmi/android/tv/api/SiteApi.java":
+        "3ec904af4ae0f65ee4d6dfe12216138eb9da1d41",
+    "app/src/main/java/com/fongmi/android/tv/api/config/BaseConfig.java":
+        "f3af7bafc7173abbf98ce81bd85f17db4a359120",
+    "app/src/main/java/com/fongmi/android/tv/api/config/VodConfig.java":
+        "d0948453838b237520be27952d0122410ea50b9d",
+    "app/src/main/java/com/fongmi/android/tv/api/config/LiveConfig.java":
+        "403c34d6b2ff416545abda204ec3af10ec38d020",
+    "app/src/main/java/com/fongmi/android/tv/api/config/WallConfig.java":
+        "841de7fa6c4853db1cb32d0bffa59854086704ee",
+    "app/src/main/java/com/fongmi/android/tv/api/parser/LiveParser.java":
+        "69aa742e7ee0b5778c6de2ef1e38198ee229d3ff",
+    "app/src/main/java/com/fongmi/android/tv/event/ConfigEvent.java":
+        "688fe40e6e9044fa5e83f75eebfa9072fcf501ca",
+    "app/src/main/java/com/fongmi/android/tv/utils/Notify.java":
+        "5df37107be415ee8039a71d32b00170c20ac47ea",
+}
+
+
+def git_blob_sha(path: Path) -> str:
+    data = path.read_bytes()
+    payload = f"blob {len(data)}\0".encode() + data
+    return hashlib.sha1(payload).hexdigest()
+
+
+for relative, expected in UPSTREAM_EXACT_BLOBS.items():
+    source = ROOT / relative
+    if not source.is_file():
+        raise SystemExit(f"missing fixed-upstream source: {relative}")
+    actual = git_blob_sha(source)
+    if actual != expected:
+        raise SystemExit(
+            "TV recovery scope drifted into ordinary FongMi source: "
+            f"{relative} expected={expected} actual={actual}"
+        )
+
+setting_source = SETTING.read_text(encoding="utf-8")
+for forbidden in (
+    "mDeferredConfigUiAction",
+    "runDeferredConfigUi",
+    "runConfigUi(",
+    "Notify.dismiss(SettingActivity.this)",
+):
+    if forbidden in setting_source:
+        raise SystemExit(
+            f"SettingActivity must not carry TV-recovery callback state: {forbidden}"
+        )
 
 for path in (LIFECYCLE, COORDINATOR, HOME, GLIDE, IMG, JAR_LOADER, JS_LOADER, PY_LOADER, LEANBACK_MANIFEST, REFERENCE, OKHTTP, OKDNS, PROXY_SELECTOR, PROXY_AUTH, PROXY_REDIRECT, PROXY_TEST):
     if not path.is_file():
@@ -99,6 +156,14 @@ for forbidden in ("ConnectivityManager", "NetworkCallback", "registerDefaultNetw
 img = IMG.read_text(encoding="utf-8")
 if "public static void resetNetworkFailures()" not in img or "failed.clear();" not in img:
     raise SystemExit("ImgUtil must forget transient image failures on network generation recovery")
+for needle in (
+    "private static final AtomicLong networkFailureEpoch = new AtomicLong();",
+    "networkFailureEpoch.incrementAndGet();",
+    "long requestEpoch = networkFailureEpoch.get();",
+    "if (requestEpoch != networkFailureEpoch.get()) return true;",
+):
+    if needle not in img:
+        raise SystemExit(f"ImgUtil missing stale Glide failure generation guard: {needle}")
 if "ImgUtil.resetNetworkFailures();" not in home:
     raise SystemExit("HomeActivity network recovery must reset transient image failures")
 
