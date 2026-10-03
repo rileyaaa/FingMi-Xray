@@ -254,6 +254,20 @@ require(
     "XrayPlaybackAddress.supportsDirectLiveSource(url)",
     "onProxyError()",
     "clearResourcesAfterError()",
+    "Throwable clearFailure = clearResources(false);",
+    "failRunningTransition(clearFailure);",
+    "catch (Exception | LinkageError error)",
+    "failRunningTransition(error);",
+    "listener.onProxyError();",
+    "finally {\n            closeQuietly(failed);\n        }",
+    "notifyState(ERROR, XrayErrorSanitizer.sanitize(error));",
+    "service.stop();",
+    "finally {\n            closeQuietly(old);\n        }",
+    "private static void closeQuietly(XrayHttpClient client)",
+    "else retryProxyRollback(clearResources(preservePlayback));",
+    "retryProxyRollback(clearResourcesAfterError());",
+    "retryProxyRollback(clearResources(preserveOnStop));",
+    "private void retryProxyRollback(Throwable failure)",
 )
 
 
@@ -282,6 +296,20 @@ require_order(
     "else player.setEngine(engine);",
 )
 
+video_activity = read("app/src/leanback/java/com/fongmi/android/tv/ui/activity/VideoActivity.java")
+new_intent = video_activity.split("protected void onNewIntent(Intent intent)", 1)[1].split(
+    "protected void initView(Bundle savedInstanceState)", 1
+)[0]
+if "resetXrayForPlaybackChange();" not in new_intent:
+    raise SystemExit(
+        "VideoActivity new-intent must invalidate READY state and begin a fresh Xray playback identity"
+    )
+if 'mXray.begin("vod:" + ++mPlaybackEpoch);' in new_intent or "mXray.end();" in new_intent:
+    raise SystemExit(
+        "VideoActivity new-intent must use the shared playback-change reset instead of bypassing its READY-state guard"
+    )
+
+
 require(
     "app/src/leanback/java/com/fongmi/android/tv/ui/activity/VideoActivity.java",
     "xrayPlaybackReady",
@@ -306,7 +334,13 @@ require(
     "player().clearPlaybackProxyPreservingState()",
     "mXrayPendingChannelResume",
     "mXrayStartedFromExistingPlayback",
+    "mXrayRefreshMetadataOnDetach",
     "mLive.resumeChannelAfterXrayStart()",
+    "private OkHttpClient xrayMetadataClient()",
+    "private void refreshXrayAwareMetadata()",
+    "!getHome().getEpgXml().isEmpty() && mChannel.getDataList().isEmpty()",
+    "mViewModel.parseXml(getHome(), client);",
+    "mViewModel.getEpg(mChannel, client);",
     "boolean startedFromExisting = mXrayStartedFromExistingPlayback;",
     "if (!startedFromExisting && !message.isEmpty()) showError(message);",
     "XrayPlaybackSession.supportsDirectLiveSource(mChannel.getCurrent())",
@@ -320,6 +354,36 @@ forbid(
     "The previous session client may already be closing during a swap.",
     "catch (IllegalStateException ignored)",
 )
+
+live_activity = (ROOT / "app/src/leanback/java/com/fongmi/android/tv/ui/activity/LiveActivity.java").read_text(encoding="utf-8")
+live_proxy_changed = live_activity.split(
+    "@Override public void onProxyChanged(XrayHttpClient resources, boolean preserve)", 1
+)[1].split("@Override public void onProxyError()", 1)[0]
+live_proxy_error = live_activity.split(
+    "@Override public void onProxyError()", 1
+)[1].split("@Override public void onStateChanged", 1)[0]
+if "boolean refreshMetadata = resources != null || mXrayRefreshMetadataOnDetach;" not in live_proxy_changed:
+    raise SystemExit("LiveActivity must distinguish proxy install/manual stop from ordinary Xray detach")
+if "if (refreshMetadata) refreshXrayAwareMetadata();" not in live_proxy_changed:
+    raise SystemExit("LiveActivity proxy transition must restart metadata only for the allowed transition kinds")
+if "mXrayRefreshMetadataOnDetach = false;" not in live_proxy_changed:
+    raise SystemExit("LiveActivity must consume the one-shot manual-stop metadata refresh flag")
+if "refreshXrayAwareMetadata();" not in live_proxy_error:
+    raise SystemExit("LiveActivity Xray ERROR rollback must restart XML/EPG metadata on the direct client")
+
+live_on_xray = live_activity.split("private void onXray()", 1)[1].split("private void onPlayer()", 1)[0]
+if "mXrayRefreshMetadataOnDetach = mXray.state() == XraySessionListener.RUNNING;" not in live_on_xray:
+    raise SystemExit("LiveActivity manual Xray stop must arm direct metadata refresh only for an installed proxy")
+
+live_on_stop = live_activity.split("protected void onStop()", 1)[1].split("protected void onBackInvoked()", 1)[0]
+if "mXrayRefreshMetadataOnDetach = false;" not in live_on_stop:
+    raise SystemExit("LiveActivity lifecycle stop must not restart Live metadata after Xray detach")
+
+live_identity_reset = live_activity.split(
+    "public void resetXrayForPlaybackChange()", 1
+)[1].split("public void resetPlaybackForError", 1)[0]
+if "mXrayRefreshMetadataOnDetach = false;" not in live_identity_reset:
+    raise SystemExit("LiveActivity playback identity changes must clear pending manual-stop metadata refresh")
 
 require(
     "xray/src/main/java/com/fingmi/xray/session/XraySettingsController.java",
