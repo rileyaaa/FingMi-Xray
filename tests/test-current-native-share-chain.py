@@ -28,9 +28,6 @@ JARS = {
 }
 
 
-CURRENT_RUNTIME_HARDENING = '::ffff:0:0/96'
-
-
 def compare(expected, observed):
     old, new = expected['cases'], observed['cases']
     assert len(old) == len(new), 'native case count changed'
@@ -39,49 +36,6 @@ def compare(expected, observed):
             b['id'], b['request'], b['response']
         ), b['id']
 
-
-def normalized_runtime_request(request, expect_hardening):
-    normalized = {
-        'apiVersion': request['apiVersion'],
-        'method': request['method'],
-        'payload': dict(request['payload']),
-    }
-    config = json.loads(normalized['payload']['xrayJson'])
-    guarded_lists = [
-        server['unexpectedIPs']
-        for server in config['dns']['servers']
-    ]
-    ip_rules = [
-        rule['ip']
-        for rule in config['routing']['rules']
-        if 'ip' in rule
-    ]
-    assert len(ip_rules) == 1, 'runtime private-routing rule count changed'
-    guarded_lists.extend(ip_rules)
-
-    for values in guarded_lists:
-        count = values.count(CURRENT_RUNTIME_HARDENING)
-        if expect_hardening:
-            assert count == 1, 'current runtime lost IPv4-mapped IPv6 hardening'
-            values.remove(CURRENT_RUNTIME_HARDENING)
-        else:
-            assert count == 0, 'frozen v7 oracle unexpectedly contains current hardening'
-
-    normalized['payload']['xrayJson'] = config
-    return normalized
-
-
-def compare_runtime(expected, observed):
-    old, new = expected['cases'], observed['cases']
-    assert len(old) == len(new), 'native runtime case count changed'
-    for a, b in zip(old, new):
-        assert a['id'] == b['id'], b['id']
-        assert a['response'] == b['response'], b['id']
-        assert normalized_runtime_request(
-            a['request'], False
-        ) == normalized_runtime_request(
-            b['request'], True
-        ), b['id']
 
 
 def main():
@@ -191,7 +145,7 @@ def main():
             args.android_root,
             args.abi,
         )
-        compare_runtime(
+        compare(
             json.loads(
                 (FIXTURES / 'published-v7-runtime-validation.json').read_text()
             ),
