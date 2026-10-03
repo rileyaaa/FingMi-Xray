@@ -242,7 +242,7 @@ public class SettingActivity extends BaseActivity implements ConfigListener, Sit
                 return;
             }
             mBinding.xrayText.setText(XrayDisplay.describe(preferences.getShareLink()));
-        } catch (Exception ignored) {
+        } catch (Exception | LinkageError ignored) {
             mBinding.xrayText.setText(R.string.xray_not_configured);
         }
     }
