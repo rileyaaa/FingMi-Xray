@@ -323,6 +323,28 @@ public final class TransportSecurityParityTest {
         sameState(currentProbe, legacyProbe, currentPins, legacyPins, "uppercase migrated pin");
     }
 
+    private static void deferredTrustRequiresExplicitCommit() throws Exception {
+        String link = "hy2://auth@example.com:443?insecure=1&sni=Media.EXAMPLE";
+        LibXrayBridge probe = new LibXrayBridge(A);
+        XrayCertificatePins pins = new XrayCertificatePins();
+        XrayShareLinkSecurity current = new XrayShareLinkSecurity(probe, pins);
+
+        XrayShareLinkSecurity.PreparedLink prepared = current.prepare(link);
+        check(prepared.value().contains("pcs=" + A), "deferred Hy2 pin was not injected");
+        check(pins.values.isEmpty(), "prepare() persisted first trust before operation success");
+
+        prepared.commitTrust();
+        check(
+                A.equals(pins.values.get("hy2\nexample.com\n443\nmedia.example")),
+                "commitTrust() did not persist the prepared first trust");
+
+        XrayCertificatePins immediatePins = new XrayCertificatePins();
+        String immediate = new XrayShareLinkSecurity(
+                new LibXrayBridge(A), immediatePins).secure(link);
+        check(immediate.contains("pcs=" + A), "secure() lost released first-trust output");
+        check(!immediatePins.values.isEmpty(), "secure() no longer persists trust immediately");
+    }
+
     private static void secureLinksAndInvalidFingerprintsMatch() throws Exception {
         String secureLink = "trojan://secret@example.com:443?security=tls";
         LibXrayBridge currentProbe = new LibXrayBridge(A);
@@ -354,6 +376,7 @@ public final class TransportSecurityParityTest {
         uppercaseWebsocketKeysRemainCaseSensitive();
         existingPinBypassesProbeAndStripsInsecure();
         migratedUppercasePinIsNotSilentlyNormalized();
+        deferredTrustRequiresExplicitCommit();
         secureLinksAndInvalidFingerprintsMatch();
         System.out.println("PASS released Xray transport-security parity");
     }
