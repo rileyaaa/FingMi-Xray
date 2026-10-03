@@ -67,18 +67,26 @@ public final class XraySessionController implements XrayServiceClient.Listener, 
             startupOperationId = operationId;
             state = XraySessionListener.STARTING;
             socksPort = 0;
-            notifyState(XraySessionListener.STARTING, 0, "");
 
+            // Submit the Binder command before invoking the re-entrant listener.
+            // While the Service is still binding, XrayServiceClient intentionally
+            // keeps only the latest pending request. Notifying first lets a
+            // listener STOP be overwritten by this stale outer START.
             serviceClient.execute(new XrayServiceClient.Request(
                     operationId,
                     XrayOperation.START,
                     shareLink,
                     preferences.isUdpEnabled(),
                     () -> scheduleStartupTimeout(operationId)));
+            notifyState(XraySessionListener.STARTING, 0, "");
         } catch (Exception error) {
             startupOperationId = NO_OPERATION;
             main.removeCallbacks(startupTimeout);
             fail(XrayErrorSanitizer.fromException(error));
+        } catch (LinkageError error) {
+            startupOperationId = NO_OPERATION;
+            main.removeCallbacks(startupTimeout);
+            fail(XrayErrorSanitizer.sanitize(error));
         }
     }
 
@@ -96,15 +104,19 @@ public final class XraySessionController implements XrayServiceClient.Listener, 
         currentOperationId = operationId;
         state = XraySessionListener.IDLE;
         socksPort = 0;
-        notifyState(XraySessionListener.IDLE, 0, "");
 
         cleanupOperationId = operationId;
+        // Submit STOP before the re-entrant IDLE notification. If the listener
+        // immediately starts a replacement while binding is still pending, that
+        // newer START correctly becomes the client's latest pending request; its
+        // Service start path begins by stopping any old Core itself.
         serviceClient.execute(new XrayServiceClient.Request(
                 operationId,
                 XrayOperation.STOP,
                 "",
                 false,
                 () -> scheduleCleanupTimeout(operationId)));
+        notifyState(XraySessionListener.IDLE, 0, "");
     }
 
     @Override
@@ -112,11 +124,14 @@ public final class XraySessionController implements XrayServiceClient.Listener, 
         assertMainThread();
         if (disposed) return;
 
+        // Seal the controller before the IDLE notification emitted by stopSession().
+        // Otherwise a re-entrant listener can start a new session during close and
+        // leave a pending START after this owner has been disposed.
+        disposed = true;
         if (state != XraySessionListener.IDLE) {
             stopSession();
         }
 
-        disposed = true;
         if (cleanupOperationId == NO_OPERATION) {
             main.postDelayed(serviceClient::disconnect, DISPOSE_UNBIND_DELAY_MS);
         }
@@ -132,16 +147,34 @@ public final class XraySessionController implements XrayServiceClient.Listener, 
             main.removeCallbacks(cleanupTimeout);
 
             if (!result.success) {
+                String message = XrayErrorSanitizer.sanitize(result.message);
+
+                if (!disposed
+                        && result.operationId != currentOperationId
+                        && state == XraySessionListener.STARTING) {
+                    abortReplacementStartAfterCleanupFailure(message);
+                    return;
+                }
+
                 if (!disposed) {
-                    String message = XrayErrorSanitizer.sanitize(result.message);
                     if (state == XraySessionListener.IDLE) {
                         notifyState(XraySessionListener.IDLE, 0, message);
-                    } else {
+                    } else if (state != XraySessionListener.RUNNING
+                            || result.operationId == currentOperationId) {
                         fail(message);
                     }
                 }
 
-                serviceClient.cancel(XrayOperation.STOP, result.operationId);
+                // A stale STOP failure cannot clean or cancel a newer START.
+                // If that newer START is already RUNNING, its own start path
+                // has successfully executed stopCore() first, so the stale
+                // cleanup failure no longer owns the live session.
+                // Notification callbacks are re-entrant. If they synchronously
+                // started a newer session, the old STOP no longer owns this
+                // client and must not disconnect/cancel the replacement.
+                if (result.operationId == currentOperationId) {
+                    serviceClient.cancel(XrayOperation.STOP, result.operationId);
+                }
                 return;
             }
 
@@ -163,7 +196,9 @@ public final class XraySessionController implements XrayServiceClient.Listener, 
 
             if (!result.success) {
                 fail(result.message);
-                serviceClient.disconnect();
+                if (currentOperationId == result.operationId) {
+                    serviceClient.disconnect();
+                }
                 return;
             }
 
@@ -188,7 +223,9 @@ public final class XraySessionController implements XrayServiceClient.Listener, 
             } else {
                 fail(message);
             }
-            serviceClient.cancel(XrayOperation.STOP, result.operationId);
+            if (currentOperationId == result.operationId) {
+                serviceClient.cancel(XrayOperation.STOP, result.operationId);
+            }
         }
     }
 
@@ -216,7 +253,9 @@ public final class XraySessionController implements XrayServiceClient.Listener, 
                 || state == XraySessionListener.RUNNING)) {
             fail(message);
         }
-        serviceClient.disconnect();
+        if (currentOperationId == operationId) {
+            serviceClient.disconnect();
+        }
     }
 
     private void scheduleCleanupTimeout(long operationId) {
@@ -241,11 +280,38 @@ public final class XraySessionController implements XrayServiceClient.Listener, 
         if (operationId == NO_OPERATION) return;
 
         cleanupOperationId = NO_OPERATION;
-        if (state != XraySessionListener.RUNNING) {
-            if (!disposed && state == XraySessionListener.STARTING) {
-                fail("Previous Xray session cleanup timed out");
-            }
-            serviceClient.cancel(XrayOperation.STOP, operationId);
+        if (state == XraySessionListener.RUNNING) return;
+
+        if (!disposed
+                && state == XraySessionListener.STARTING
+                && currentOperationId != operationId) {
+            abortReplacementStartAfterCleanupFailure(
+                    "Previous Xray session cleanup timed out");
+            return;
+        }
+
+        serviceClient.cancel(XrayOperation.STOP, operationId);
+    }
+
+    private void abortReplacementStartAfterCleanupFailure(String message) {
+        long replacementOperationId = currentOperationId;
+        startupOperationId = NO_OPERATION;
+        main.removeCallbacks(startupTimeout);
+
+        // The released controller only cancelled the stale STOP here. Once a
+        // replacement START has already claimed the Service session generation,
+        // cancelling that old STOP is a no-op and can leave the replacement
+        // START alive after the UI has emitted ERROR -> IDLE. Invalidate the
+        // local owner and cancel the actual replacement START instead.
+        currentOperationId = NO_OPERATION;
+        fail(message);
+
+        // Listener callbacks are deliberately re-entrant. If ERROR/IDLE caused
+        // a newer START to be issued synchronously, that new Service generation
+        // supersedes the failed replacement and must keep its Binder client.
+        // Only disconnect/cancel when no newer owner appeared during notify.
+        if (currentOperationId == NO_OPERATION) {
+            serviceClient.cancel(XrayOperation.START, replacementOperationId);
         }
     }
 
@@ -260,7 +326,9 @@ public final class XraySessionController implements XrayServiceClient.Listener, 
                 && currentOperationId == operationId
                 && state == XraySessionListener.STARTING) {
             fail("Xray startup timed out");
-            serviceClient.cancel(XrayOperation.START, operationId);
+            if (currentOperationId == operationId) {
+                serviceClient.cancel(XrayOperation.START, operationId);
+            }
         }
     }
 
@@ -269,7 +337,11 @@ public final class XraySessionController implements XrayServiceClient.Listener, 
         socksPort = 0;
         String safe = XrayErrorSanitizer.sanitize(message);
         notifyState(XraySessionListener.ERROR, 0, safe);
-        notifyState(XraySessionListener.IDLE, 0, "");
+        // ERROR listeners may synchronously start a newer operation. Do not
+        // publish a stale trailing IDLE event over that replacement START.
+        if (state == XraySessionListener.IDLE) {
+            notifyState(XraySessionListener.IDLE, 0, "");
+        }
     }
 
     private void notifyState(int state, int port, String message) {
