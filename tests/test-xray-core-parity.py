@@ -164,7 +164,6 @@ require(
     '"https://8.8.8.8/dns-query"',
     '.put("network", "tcp,udp")',
     '"::ffff:0:0:0/96"',
-    '"::ffff:0:0/96"',
 )
 
 forbid(
