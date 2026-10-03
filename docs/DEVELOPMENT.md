@@ -454,6 +454,16 @@ TV 待机网络审计发现 `OkDns.lookup()` 在 reset/rebuild 并发时存在�
 该结论仍限定为**已取证行为/调用链完整映射**：旧 APK 的原始未混淆 Java 源码和 libXray 原始 Go 源码并未找回。native 继续使用正式 APK 固定 SHA 的 `libgojni.so` 与匹配 generated bindings，并由此前成功的双 ABI current-chain parity 验证；最终 Android TV 真机仍是更高层级验收。
 
 
+### 2026-10-03 — 第三轮只审 Xray / TV recovery 未发现新的确定 Bug
+
+继续严格按长期维护边界只检查 Xray 与 Android TV 待机/长后台网络恢复，不扩查普通 FongMi 业务。第三轮刻意避开前两轮已反复覆盖的 START/STOP 主路径，重点复核 XrayPreferences / XrayCertificatePins 迁移、share-link normalizer、错误去敏、Binder client/Service cancel、SOCKS/RTSP socket、播放 identity、Live metadata client，以及 TvNetworkLifecycle、NetworkRecoveryCoordinator、API/DNS/DoH reset、proxy selector/auth、BaseLoader/Spider completion、Glide failure epoch 与 Home destroy/recreate。
+
+本轮没有构造出新的确定 current-only Bug。证书 pin store 与 legacy mirror 的 prefs/字段/KeyStore alias/迁移逻辑一致；settings close/phone-import abandon 的“只 unbind、不 remote-cancel”也与冻结 legacy/DEX 行为一致，不擅自改动。VOD newIntent/换集/换源和 Live 切频道/切线路/catch-up 均确认经过 Xray identity reset；只有刚成功 START 后继续同一 pending Live channel 的恢复路径明确保留同 identity。BaseLoader.clear(after) 由 per-loader Throwable 隔离加外层 finally 保证 completion callback，不会因单个 Spider.destroy 失败永久卡住 recovery。
+
+同时把纠偏前最终审计状态 `70b720bf...` 与 current 运行 blob 逐项反查：LiveActivity、VideoActivity、SettingActivity、ImgUtil、XrayProxySocketFactory、XrayShareLinkSecurity、XrayGenerationGate、XrayService、XrayPlaybackSession、XrayServiceClient、XraySessionController、XraySettingsController 均逐 blob 一致；唯一 XrayConfigFactory 差异就是已经由真实双 ABI `testXray` 证明不兼容、并从 current 淘汰的 `::ffff:0:0/96` runtime 增强。没有发现漏重放的其它有效 Xray/TV-recovery 修复。
+
+仍保留两项只作为观察风险而不修改：黄金 TV recovery 的约 6 秒稳定性轮询上限，以及不主动退休 dedicated player client 的后台播放保留策略。二者都有黄金/现行边界依据，目前缺少真机或更强证据证明是 current Bug；不得仅凭理论推演再次扩张 recovery 状态机。
+
 ### 2026-10-03 — 第二轮审计纠正 Xray close 误报
 
 第二轮只读反查重新沿真实同步调用顺序核对 `XrayPlaybackSession.close()`，确认上一轮把 owner 销毁误判成资源泄漏。实际顺序是 `close() -> end() -> stop(false) -> XraySessionController.stopSession()`；`stopSession()` 在提交 Binder STOP 后会**立即同步** `notifyState(IDLE)`，而此时 `XrayPlaybackSession.closed` 尚未置位，所以既有 `onXrayStateChanged(IDLE)` 已经同步执行 `clearResources(false)` 并关闭 `XrayHttpClient`。如果 controller 原本已是 IDLE，`XrayPlaybackSession.stop(false)` 本身也会直接清理 resources。因此 published/test.6 的原实现没有这条泄漏。
