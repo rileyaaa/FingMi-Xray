@@ -196,7 +196,7 @@ Live 的会话边界包括切频道、换线路 / 源、直播配置变化和播
 - 非默认 TLS / HY2 信任通过首次 pin 与后续变更拒绝实现；
 - 错误展示前会隐藏链接、UUID、密码、token、secret、key、short id、seed 等敏感内容。
 
-fresh 安全复核确认黄金 v7 的 Java destination guard 会拒绝标准 IPv4-mapped IPv6，但其 runtime reserved list 只有 `::ffff:0:0:0/96`（IPv4-translatable 形式），缺少标准 mapped 前缀 `::ffff:0:0/96`。这属于黄金实现自身的安全缺口，不应通过改写 historical reference 来“伪装成从来没有”。因此 recovery reference、冻结 native fixture 继续保持原样；current `main` 作为明确安全增强额外加入 `::ffff:0:0/96`，并在 current-native parity 中只归一化这一条登记差异后继续对照 v7，其增强后配置仍由发布 JNI `testXray` 实际验证。
+fresh 安全复核曾提出黄金 v7 runtime reserved list 只有 `::ffff:0:0:0/96`、没有标准 mapped 前缀 `::ffff:0:0/96` 的潜在缺口，并一度在 current 静态代码中追加后者。2026-10-03 发布 run `37097786995` 随后用固定黄金 `libgojni.so -> testXray` 做真实 runtime validation，第一条 case 即证明增强后的配置不能维持黄金成功 response。该候选因此已从 current 与 parity 特例中撤回，runtime reserved list重新与黄金完全一致。这个安全想法只能保留为**未解决审计项**；在找到双 ABI native 明确接受的实现之前，不得再次仅凭静态 CIDR 推理写入 runtime config。
 
 ### 当前模块与 v7 证据映射账本
 
@@ -204,7 +204,7 @@ fresh 安全复核确认黄金 v7 的 Java destination guard 会拒绝标准 IPv
 
 | current | v7 / readable evidence | 说明 |
 | --- | --- | --- |
-| `XrayConfigFactory` | `LegacyXrayRuntimeConfigFactory` + 发布 native converter | 黄金 JSON 语义由 differential/native parity 锁定；current 仅额外补齐标准 `::ffff:0:0/96` mapped-IPv6 私网防护 |
+| `XrayConfigFactory` | `LegacyXrayRuntimeConfigFactory` + 发布 native converter | runtime JSON 语义继续由 differential/native parity 与真实 `testXray` 锁定；不保留 native 未接受的 current-only reserved-prefix 特例 |
 | `XrayDisplay` | `LegacyXrayDisplay` | 去包名/类名后行为镜像 |
 | `XrayPreferences` | `LegacyXrayConfigStore` | secure prefs / Keystore 逻辑源码镜像 guard；current 普通设置页摘要读取也收口 Keystore/AIDL `LinkageError` |
 | `XrayShareLinkNormalizer` | `LegacyXrayShareLinkNormalizer` + `a04` + v7 native cases | VLESS/VMess/Trojan/SS/HY2/KCP 等 differential/native parity |
