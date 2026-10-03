@@ -276,7 +276,7 @@ on:
 
 Release 的 APK 发布集合长期保留 `v5.6.0-xray.5` 黄金参考和一个当前可上真机测试的 pre-release。构建输入、恢复材料、临时归档和旧测试版不得长期堆在 APK 发布集合中；用户明确要求的完整源码备份可使用 `source-backup-*` 独立 Release，APK 发布器在校验“黄金版 + 当前测试版”时忽略这类源码备份，不会自动删除它们。
 
-GitHub Releases 当前只有 `v5.6.0-xray.5` 黄金参考与用户要求保留的 `source-backup-2026-10-02-main-6a4117c8` 源码备份，**没有当前可上真机测试的 pre-release**。过去成功的主构建、native parity、Leanback assemble 与 Manifest gate 只证明当时对应源码；2026-10-03 从 source-backup 重放确认修复后的当前 HEAD 尚未重新完成 Gradle compile / assemble 或 Android TV 真机回归。后续若发布测试包，应以当前 HEAD 为唯一 BUILD_SOURCE_SHA 重新验证。
+GitHub Releases 当前保留 `v5.6.0-xray.5` 黄金参考、`v5.6.3-xray.test.6` 当前可上真机测试的 pre-release，以及一份用户要求保留、与当前纯净 `main` 对齐的 `source-backup-*` 源码备份。`test.6` 已完成完整自动 build/native parity/assemble/Manifest 验证；Android TV 真机 Xray 与待机/长后台网络恢复仍是最终验收层。
 
 发布 workflow 以 `BUILD_SOURCE_SHA` 作为唯一构建与发布源码，重新准备固定依赖、执行源码 guard、执行当前 Java → 发布版 native 动态 Xray chain parity、只编译/assemble Android TV / Leanback 两个 ABI，并在发布前重复执行最终 APK MPEG-H、四类 native runtime provenance 与 merged Manifest security contract。**当前 YAML 仍显式配置 `RELEASE_TAG=v5.6.3-xray.test.6`、`PREVIOUS_RELEASE_TAG=v5.6.3-xray.test.5`；它不会自动递增版本号。** 因此按现状手动触发会创建/替换 `test.6`（当前该 Release 不存在），若要发布 `test.7` 或其它 tag，必须同时更新 workflow 与 `tests/test-build-hygiene.py` 中对应的 release-set guard。正常手动触发时 `BUILD_SOURCE_SHA = github.sha`；发布 job 保持最小权限 `contents: write + actions: read`。临时触发、轮询与清理规则只以 [AI_COLLABORATION.md](AI_COLLABORATION.md) 为准，本文不重复保存一次性操作历史。
 
@@ -480,7 +480,7 @@ TV 待机网络审计发现 `OkDns.lookup()` 在 reset/rebuild 并发时存在�
 - armeabi-v7a：`sha256:af4e725c59a9b92e49ce1c4391219c788c3c2d67f37e958881d70ae0cd121f39`
 - arm64-v8a：`sha256:2d482e2d71de00ae7bd75186a80387acc6a2a5896a7db8a2e4453eb1a9c59168`
 
-发布成功后已先恢复 publish workflow 为 `workflow_dispatch` only，再删除临时 marker，避免清理提交再次触发 Actions。随后只同步 README/DEVELOPMENT 文档，没有修改运行代码。当前 Release 集合只保留黄金 `v5.6.0-xray.5`、当前测试 `v5.6.3-xray.test.6` 与用户明确要求的 `source-backup-2026-10-02-main-6a4117c8` 源码备份；旧测试/临时发布已不在集合中。自动构建已验证，但 Android TV 真机 Xray 与待机/长后台恢复仍需实际设备验收。
+发布成功后已先恢复 publish workflow 为 `workflow_dispatch` only，再删除临时 marker，避免清理提交再次触发 Actions。随后只同步 README/DEVELOPMENT 文档，没有修改运行代码。当前 Release 集合只保留黄金 `v5.6.0-xray.5`、当前测试 `v5.6.3-xray.test.6` 与一份用户明确要求的最新 `source-backup-*` 源码备份；旧测试/临时发布不长期保留。自动构建已验证，但 Android TV 真机 Xray 与待机/长后台恢复仍需实际设备验收。
 
 ### 2026-10-03 — 发布 native parity 淘汰未验证 mapped-IPv6 runtime 增强
 
