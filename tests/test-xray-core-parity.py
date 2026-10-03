@@ -87,20 +87,9 @@ if current_destination != released_destination:
     )
 
 
-current_proxy_socket = normalized_java_mirror(
-    "xray/src/main/java/com/fingmi/xray/network/XrayProxySocketFactory.java",
-    "com.fingmi.xray.network",
-    "XrayProxySocketFactory",
-)
-released_proxy_socket = normalized_java_mirror(
-    "recovery/legacy-src/com/fongmi/android/tv/xray/legacy/LegacyXrayProxySocketFactory.java",
-    "com.fongmi.android.tv.xray.legacy",
-    "LegacyXrayProxySocketFactory",
-)
-if current_proxy_socket != released_proxy_socket:
-    raise SystemExit(
-        "XrayProxySocketFactory diverged from the released oz3 behavioral mirror"
-    )
+# oz3 is retained as the released behavioral reference, but current intentionally
+# fixes its failed bind/connect socket leak. Address-resolution and SOCKS semantics
+# remain guarded below instead of requiring byte-for-byte mirror equality.
 
 
 require(
@@ -174,6 +163,8 @@ require(
     '"https://1.1.1.1/dns-query"',
     '"https://8.8.8.8/dns-query"',
     '.put("network", "tcp,udp")',
+    '"::ffff:0:0:0/96"',
+    '"::ffff:0:0/96"',
 )
 
 forbid(
@@ -201,7 +192,24 @@ require(
     "probeTlsCertificate(",
     "requestsInsecure(",
     "pins.get(identity)",
-    "pins.put(identity, normalizedObserved)",
+    "pins.put(identity, fingerprint)",
+)
+
+require(
+    "xray/src/main/java/com/fingmi/xray/security/XrayShareLinkSecurity.java",
+    "public PreparedLink prepare(String normalizedLink)",
+    "PreparedLink prepared = prepare(normalizedLink);",
+    "prepared.commitTrust();",
+    "new PendingTrust(identity, normalizedObserved, kind)",
+    "public void commitTrust() throws Exception",
+)
+
+require(
+    "xray/src/main/java/com/fingmi/xray/config/XrayConfigFactory.java",
+    "public PreparedConfig prepare(int socksPort, String shareLink, boolean udp)",
+    "XrayShareLinkSecurity.PreparedLink preparedLink = security.prepare(normalized);",
+    "createFromSecuredLink(socksPort, normalized, udp)",
+    "public void commitTrust() throws Exception",
 )
 
 require(
@@ -240,13 +248,30 @@ require(
     "return new Socket(proxy);",
     "InetSocketAddress.createUnresolved(host, port)",
     "socket.bind(new InetSocketAddress(localAddress, localPort));",
+    "catch (IOException | RuntimeException error)",
+    "closeQuietly(socket);",
+    "private static void closeQuietly(Socket socket)",
+    "socket.close();",
 )
+
+proxy_socket_source = read(
+    "xray/src/main/java/com/fingmi/xray/network/XrayProxySocketFactory.java"
+)
+if proxy_socket_source.count("closeQuietly(socket);") != 4:
+    raise SystemExit(
+        "Xray RTSP socket factory must close every newly-created SOCKS socket when bind/connect fails"
+    )
 
 require(
     "xray/src/main/java/com/fingmi/xray/service/XrayGenerationGate.java",
+    "synchronized void begin(long operationId)",
     "current.accumulateAndGet(operationId, Math::max)",
+    "synchronized boolean cancel(long operationId)",
     "current.compareAndSet(operationId, Long.MAX_VALUE)",
+    "synchronized void invalidateAll()",
     "current.set(Long.MAX_VALUE)",
+    "synchronized boolean runIfCurrent(long operationId, ThrowingAction action)",
+    "action.run();",
 )
 forbid(
     "xray/src/main/java/com/fingmi/xray/service/XrayGenerationGate.java",
@@ -259,12 +284,24 @@ forbid(
 require(
     "xray/src/main/java/com/fingmi/xray/service/XrayService.java",
     "for (int attempt = 0; attempt < 3; attempt++)",
+    "configFactory.prepare(port, shareLink, udp)",
+    "XrayConfigFactory.PreparedConfig prepared",
     "bridge.validateConfig(config)",
     "bridge.testLatency(config, XrayConfigFactory.PROXY_TAG)",
     "bridge.run(config)",
+    "commitOperationTrust(operationId, prepared);",
+    "operationGate.runIfCurrent(operationId, prepared::commitTrust)",
+    "sessionGate.runIfCurrent(operationId, prepared::commitTrust)",
     "if (!bridge.isRunning())",
     "for (int attempt = 0; attempt < 2; attempt++)",
+    "catch (Exception | LinkageError ignored)",
+    "callback.onResult(",
+    "} catch (Exception | LinkageError ignored) {",
     "XrayCertificatePins.resetAll(this)",
+    "if (!operationGate.runIfCurrent(operationId, () -> {",
+    "XrayCertificatePins.resetAll(this);",
+    "certificatePins = new XrayCertificatePins(this);",
+    "ensureOperationCurrent(operationId);\n            send(callback, operationId, XrayOperation.RESET_SECURITY, true",
     'value.contains("address already in use")',
     'value.contains("failed to listen")',
     "if (!cleaned || !delivered) cancelInternal(XrayOperation.START, operationId);",
@@ -305,10 +342,49 @@ require(
     "CLEANUP_TIMEOUT_MS = 1_500L",
     "STARTUP_TIMEOUT_MS = 30_000L",
     "Previous Xray session cleanup timed out",
-    "if (state != XraySessionListener.RUNNING)",
-    "fail(\"Xray startup timed out\");\n            serviceClient.cancel(XrayOperation.START, operationId);",
-    "fail(result.message);\n                serviceClient.disconnect();",
-    "notifyState(XraySessionListener.ERROR, 0, safe);\n        notifyState(XraySessionListener.IDLE, 0, \"\");",
+    "abortReplacementStartAfterCleanupFailure(",
+    "currentOperationId = NO_OPERATION;",
+    "if (currentOperationId == NO_OPERATION) {\n            serviceClient.cancel(XrayOperation.START, replacementOperationId);",
+    "fail(\"Xray startup timed out\");\n            if (currentOperationId == operationId) {\n                serviceClient.cancel(XrayOperation.START, operationId);",
+    "fail(result.message);\n                if (currentOperationId == result.operationId) {\n                    serviceClient.disconnect();",
+    "notifyState(XraySessionListener.ERROR, 0, safe);",
+    "if (state == XraySessionListener.IDLE) {\n            notifyState(XraySessionListener.IDLE, 0, \"\");",
+    "if (currentOperationId == operationId) {\n            serviceClient.disconnect();",
+    "if (currentOperationId == result.operationId) {\n                serviceClient.cancel(XrayOperation.STOP, result.operationId);",
+    "serviceClient.execute(new XrayServiceClient.Request(\n                    operationId,\n                    XrayOperation.START",
+    "() -> scheduleStartupTimeout(operationId)));\n            notifyState(XraySessionListener.STARTING, 0, \"\");",
+    "serviceClient.execute(new XrayServiceClient.Request(\n                operationId,\n                XrayOperation.STOP",
+    "() -> scheduleCleanupTimeout(operationId)));\n        notifyState(XraySessionListener.IDLE, 0, \"\");",
+    "disposed = true;\n        if (state != XraySessionListener.IDLE) {\n            stopSession();",
+)
+
+forbid(
+    "xray/src/main/java/com/fingmi/xray/session/XraySessionController.java",
+    "fail(\"Previous Xray session cleanup timed out\");\n            }\n            serviceClient.cancel(XrayOperation.STOP, operationId);",
+)
+
+require(
+    "xray/src/main/java/com/fingmi/xray/session/XrayServiceClient.java",
+    "catch (Exception | LinkageError ignored)",
+    "finally {\n            disconnectLocked();",
+    "catch (LinkageError error) {\n            failLocked(next, XrayErrorSanitizer.sanitize(error));",
+    "service = IXrayService.Stub.asInterface(binder);",
+    "catch (RuntimeException error) {\n                    failLocked(this, XrayErrorSanitizer.fromException(error));",
+    "catch (LinkageError error) {\n                    failLocked(this, XrayErrorSanitizer.sanitize(error));",
+    "binder.unlinkToDeath(this, 0);\n                } catch (Exception | LinkageError ignored)",
+    "context.unbindService(old);\n            } catch (RuntimeException | LinkageError ignored)",
+)
+
+require(
+    "xray/src/main/java/com/fingmi/xray/session/XraySessionController.java",
+    "catch (LinkageError error)",
+    "fail(XrayErrorSanitizer.sanitize(error));",
+)
+
+require(
+    "app/src/leanback/java/com/fongmi/android/tv/ui/activity/SettingActivity.java",
+    "XrayDisplay.describe(preferences.getShareLink())",
+    "} catch (Exception | LinkageError ignored) {",
 )
 
 require(
@@ -318,8 +394,21 @@ require(
     "XrayOperation.TEST",
     "XrayOperation.RESET_SECURITY",
     "replaceClient()",
-    "replaceClient();\n        try {\n            preferences.clear();",
-    "if (onLocalCleared != null) onLocalCleared.run();\n\n            serviceClient.execute",
+    "replaceClient();\n        XrayServiceClient ownerClient = serviceClient;\n        boolean localClearedCallbackDelivered = false;",
+    "localClearedCallbackDelivered = notifyLocalCleared(onLocalCleared);",
+    "activeOperationId != operationId",
+    "activeOperation != XrayOperation.RESET_SECURITY",
+    "serviceClient != ownerClient",
+    "ownerClient.execute(new XrayServiceClient.Request(",
+    "!localClearedCallbackDelivered && !preferences.isConfigured()",
+    "if (!closed\n                    && activeOperationId == operationId\n                    && activeOperation == XrayOperation.RESET_SECURITY\n                    && serviceClient == ownerClient) {\n                clearActive();\n                replaceClient();",
+    "private static boolean notifyLocalCleared(Runnable action)",
+    "UI cleanup failure must not prevent remote RESET_SECURITY.",
+    "XrayServiceClient ownerClient = serviceClient;",
+    "activeOperationId == NO_OPERATION\n                && serviceClient == ownerClient",
+    "ownerClient.cancel(operation, operationId);",
+    "private void notifyResult(",
+    "catch (RuntimeException | LinkageError ignored)",
 )
 
 require(
@@ -442,6 +531,7 @@ require(
 require(
     "app/src/leanback/java/com/fongmi/android/tv/ui/activity/SettingXrayActivity.java",
     "Notify.show(XrayErrorSanitizer.sanitize(error));",
+    "Notify.dismiss();",
 )
 
 # Keep the recovered behavioral reference in-tree so future refactors can be
