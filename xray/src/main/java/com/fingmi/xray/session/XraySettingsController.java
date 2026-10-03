@@ -101,11 +101,23 @@ public final class XraySettingsController implements XrayServiceClient.Listener,
         activeOperation = XrayOperation.RESET_SECURITY;
 
         replaceClient();
+        XrayServiceClient ownerClient = serviceClient;
+        boolean localClearedCallbackDelivered = false;
         try {
             preferences.clear();
-            if (onLocalCleared != null) onLocalCleared.run();
+            localClearedCallbackDelivered = notifyLocalCleared(onLocalCleared);
 
-            serviceClient.execute(new XrayServiceClient.Request(
+            // Local-clear callbacks are re-entrant. cancel/abandon/close (or a
+            // replacement delete after one of them) can retire this operation
+            // before its remote RESET_SECURITY has even been dispatched.
+            if (closed
+                    || activeOperationId != operationId
+                    || activeOperation != XrayOperation.RESET_SECURITY
+                    || serviceClient != ownerClient) {
+                return operationId;
+            }
+
+            ownerClient.execute(new XrayServiceClient.Request(
                     operationId,
                     XrayOperation.RESET_SECURITY,
                     "",
@@ -113,8 +125,23 @@ public final class XraySettingsController implements XrayServiceClient.Listener,
                     () -> scheduleTimeout(operationId)));
             return operationId;
         } catch (Exception | LinkageError error) {
-            clearActive();
-            replaceClient();
+            // The released store removes SharedPreferences before deleting its
+            // AndroidKeyStore key. Key deletion can therefore fail after the
+            // saved node is already gone. Keep surfacing the storage failure,
+            // but make the UI reflect the state that actually committed.
+            if (!localClearedCallbackDelivered && !preferences.isConfigured()) {
+                notifyLocalCleared(onLocalCleared);
+            }
+            // The recovery UI callback is re-entrant too. If it retired this
+            // failed delete and created a newer settings operation, do not let
+            // the outer partial-delete cleanup destroy that newer owner.
+            if (!closed
+                    && activeOperationId == operationId
+                    && activeOperation == XrayOperation.RESET_SECURITY
+                    && serviceClient == ownerClient) {
+                clearActive();
+                replaceClient();
+            }
             throw error;
         }
     }
@@ -183,6 +210,7 @@ public final class XraySettingsController implements XrayServiceClient.Listener,
         if (operationId == NO_OPERATION || operationId != activeOperationId) return;
 
         int operation = activeOperation;
+        XrayServiceClient ownerClient = serviceClient;
         clearTimeout();
 
         // Invalidate local state before the synchronous Binder cancel. The
@@ -191,17 +219,22 @@ public final class XraySettingsController implements XrayServiceClient.Listener,
         activeOperationId = NO_OPERATION;
         activeOperation = -1;
 
-        if (listener != null) {
-            listener.onXraySettingsResult(
-                    operationId,
-                    operation,
-                    false,
-                    -1L,
-                    "Xray operation timed out");
-        }
+        notifyResult(
+                operationId,
+                operation,
+                false,
+                -1L,
+                "Xray operation timed out");
 
-        serviceClient.cancel(operation, operationId);
-        replaceClient();
+        // Listener callbacks are re-entrant. A new operation may already own
+        // this client, or abandon/delete/close may have replaced it entirely.
+        // Only the unchanged old owner may be cancelled/disconnected here.
+        if (!closed
+                && activeOperationId == NO_OPERATION
+                && serviceClient == ownerClient) {
+            ownerClient.cancel(operation, operationId);
+            replaceClient();
+        }
     }
 
     @Override
@@ -210,20 +243,23 @@ public final class XraySettingsController implements XrayServiceClient.Listener,
         if (closed || result.operationId != activeOperationId) return;
 
         int operation = activeOperation;
+        XrayServiceClient ownerClient = serviceClient;
         clearTimeout();
         activeOperationId = NO_OPERATION;
         activeOperation = -1;
 
-        if (listener != null) {
-            listener.onXraySettingsResult(
-                    result.operationId,
-                    operation,
-                    result.success,
-                    result.latencyMs,
-                    XrayErrorSanitizer.sanitize(result.message));
-        }
+        notifyResult(
+                result.operationId,
+                operation,
+                result.success,
+                result.latencyMs,
+                XrayErrorSanitizer.sanitize(result.message));
 
-        replaceClient();
+        if (!closed
+                && activeOperationId == NO_OPERATION
+                && serviceClient == ownerClient) {
+            replaceClient();
+        }
     }
 
     @Override
@@ -232,20 +268,53 @@ public final class XraySettingsController implements XrayServiceClient.Listener,
         if (closed || operationId != activeOperationId) return;
 
         int operation = activeOperation;
+        XrayServiceClient ownerClient = serviceClient;
         clearTimeout();
         activeOperationId = NO_OPERATION;
         activeOperation = -1;
 
-        if (listener != null) {
+        notifyResult(
+                operationId,
+                operation,
+                false,
+                -1L,
+                XrayErrorSanitizer.sanitize(message));
+
+        if (!closed
+                && activeOperationId == NO_OPERATION
+                && serviceClient == ownerClient) {
+            replaceClient();
+        }
+    }
+
+    private static boolean notifyLocalCleared(Runnable action) {
+        if (action == null) return false;
+        try {
+            action.run();
+        } catch (RuntimeException | LinkageError ignored) {
+            // UI cleanup failure must not prevent remote RESET_SECURITY.
+        }
+        return true;
+    }
+
+    private void notifyResult(
+            long operationId,
+            int operation,
+            boolean success,
+            long latencyMs,
+            String message) {
+        if (listener == null) return;
+        try {
             listener.onXraySettingsResult(
                     operationId,
                     operation,
-                    false,
-                    -1L,
-                    XrayErrorSanitizer.sanitize(message));
+                    success,
+                    latencyMs,
+                    message == null ? "" : message);
+        } catch (RuntimeException | LinkageError ignored) {
+            // A UI/listener failure must not strand the remote Binder operation
+            // or prevent the old client generation from being cleaned up.
         }
-
-        replaceClient();
     }
 
     private void replaceClient() {
