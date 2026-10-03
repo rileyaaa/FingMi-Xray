@@ -21,7 +21,7 @@
 - 最新 runs 列表确认 run 已完成后，才读取该 run 的 jobs / logs 核对实际成功步骤或失败原因。
 - 临时 `push` trigger 只允许用于必要验证；完整 run 入队后不得继续向 `main` 提交任何内容，也不得提前恢复 `workflow_dispatch`；必须等该 run 完整结束后再恢复 manual-only。`current-main-build.yml` 与 publish workflow 都使用两阶段 marker：先用只修改 workflow 的 arm commit 增加仅监听对应 marker path 的 `push`，该 arm commit 本身不得触发完整构建；再用只修改 `.github/.trigger-current-main-build` 或 `.github/.trigger-publish-current-main-test` 的 marker commit 作为真正 checkout / build source，并由 workflow source guard 验证 marker-only diff。publish 还必须等 Release 创建、tag / digest 校验与上一测试版替换全部完成后才能撤回 trigger。不得把直接修改 workflow YAML 的 arm commit 当成 current build 或 Release target。验证结束还要确认 current-main 与 publish workflow 都是纯手动且 marker 已删除。
 - 如果当前自动化环境既没有 `workflow_dispatch` 调用能力，又明确阻止修改 workflow trigger，则不得通过强制移动 `main`、回退默认分支、复用旧自动 trigger commit 或其他方式绕过平台安全限制。保持仓库 pure manual-only，由用户在 GitHub Actions 页面使用 `Run workflow` 触发；AI 继续完成不依赖该触发动作的审计、文档、存储清理和后续结果核验。
-- GitHub Releases 只用于发布产物，不作为长期文件仓库。正常状态只保留 `v5.6.0-xray.5` 黄金参考和一个当前可上真机测试的版本；构建输入、recovery 材料、旧测试版和临时文件应改为项目内源码 / 脚本 / fixture / hash 或短期 Actions artifact。不得为了省事新建 build-input Release。
+- GitHub Releases 主要用于发布产物，不作为长期文件仓库。正常 APK 发布集合只保留 `v5.6.0-xray.5` 黄金参考和一个当前可上真机测试的版本；构建输入、recovery 材料、旧测试版和临时文件应改为项目内源码 / 脚本 / fixture / hash 或短期 Actions artifact。**唯一例外是用户明确要求的完整源码备份**，可使用 `source-backup-*` Release，并必须与 APK 发布集合分开识别；不得为了省事新建 build-input Release。
 
 ## 3. 正常开发只保留 `main` 一个分支
 
@@ -85,7 +85,7 @@
 ## 7. CI 产物必须区分长期存留与临时使用
 
 - 在创建、上传或保留较大的 APK、AAR、ZIP、构建报告或测试证据前，先判断它是发布产物、可重建输入、不可重建的黄金证据，还是一次性临时产物。
-- GitHub Releases 只承载发布版本；正常状态只保留 `v5.6.0-xray.5` 黄金参考和一个当前可上真机测试的版本。不得把 player AAR、recovery ZIP、构建缓存或其他 build input 另建 Release 长期存放。
+- GitHub Releases 的正常 APK 集合只承载发布版本：`v5.6.0-xray.5` 黄金参考和一个当前可上真机测试的版本。用户明确要求的 `source-backup-*` 完整源码备份可作为独立例外保留，但不得被发布器当成 APK 测试版；player AAR、recovery ZIP、构建缓存或其他 build input 仍不得另建 Release 长期存放。
 - 可重建的长期输入应保存固定 source commit、构建脚本、最小 fixture / patch 和校验规则；构建时现场重建并验证。不可重建且确属黄金发布来源的二进制只能从保留的黄金 Release 按固定 digest 取证。
 - 适合 Git 长期保存的证据应是最小、可复核的文本、源码、patch、fixture 与 hash；不要把大型 APK / AAR / SO 直接塞入普通 Git 历史。
 - Actions artifacts 只用于短期调试、交接、人工复核或失败排查，应采用短 retention、尽量只保留最新必要副本，用完及时删除；不得让重复构建产物随每次 CI 线性累积。
