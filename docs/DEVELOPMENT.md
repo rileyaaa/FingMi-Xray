@@ -4,7 +4,7 @@
 
 长期架构边界见 [PROJECT.md](PROJECT.md)。`v5.6.0-xray.5` 的恢复、native provenance 与 v7 Xray 黄金行为证据见 [RECOVERY.md](RECOVERY.md)。当前 `main` 负责架构与构建验证，v7 黄金参考负责约束 Xray 外部行为；两者不能混为旧 faithful 架构重建。
 
-文档状态：`AI_COLLABORATION.md` 与 `ORIGINAL_README.md` 已按用户要求冻结；除非用户明确解除冻结，不修改这两份文件。当前工程事实、长期架构和历史证据分别继续维护在本文、`PROJECT.md` 与 `RECOVERY.md`。
+文档状态：`ORIGINAL_README.md` 是用户明确指定的冻结旧发布说明，只读不改；`AI_COLLABORATION.md` 是当前协作规则的 canonical 文档，用户调整开发限制时应同步维护。当前工程事实、长期架构和历史证据分别继续维护在本文、`PROJECT.md` 与 `RECOVERY.md`。
 
 ## 1. 当前工程基线
 
@@ -128,6 +128,8 @@ Activity 负责：
 
 ### Settings / Binder
 
+分享链接兼容目标沿用冻结发布说明：以 **v2rayN 导出的标准单节点分享链接**作为主要兼容与测试目标；v2rayN 只是格式来源，不是工程依赖。当前 normalizer / native chain 继续由 `tests/test-v2rayn-share-chain.py`、`tests/test-v2rayn-reference-chain.py` 与发布 native parity 约束。
+
 设置页的 VALIDATE / TEST / RESET_SECURITY 由 `XraySettingsController` 串行拥有单一 operation generation，45 秒 timeout、abandon、client replacement 与 stale callback 丢弃都在 controller/client 边界收口。
 
 RESET_SECURITY 保持发布版顺序：先占有 reset generation 并替换 Binder client，再清本地安全配置；本地清理成功后才清 UI，最后派发远端 security reset。同步失败时会清 active generation 并再次替换 client，避免旧 Binder 状态继续持有操作。
@@ -249,7 +251,7 @@ on:
 
 #### AI 协作执行准则
 
-[AI_COLLABORATION.md](AI_COLLABORATION.md) 已冻结，现有规则按只读约束继续执行；需要改变协作规则时，必须由用户明确解除冻结或给出新的直接指令。本文不再重复维护其临时 trigger、轮询和交接细节。
+[AI_COLLABORATION.md](AI_COLLABORATION.md) 是当前 AI 协作规则的 canonical 文档；用户给出新的开发边界、Actions/AC、分支或交接要求时，应直接同步维护该文件。本文不重复维护其临时 trigger、轮询和交接细节。
 
 
 当前工程主构建：
@@ -274,9 +276,9 @@ on:
 
 Release 的 APK 发布集合长期保留 `v5.6.0-xray.5` 黄金参考和一个当前可上真机测试的 pre-release。构建输入、恢复材料、临时归档和旧测试版不得长期堆在 APK 发布集合中；用户明确要求的完整源码备份可使用 `source-backup-*` 独立 Release，APK 发布器在校验“黄金版 + 当前测试版”时忽略这类源码备份，不会自动删除它们。
 
-GitHub Releases 当前仍保留 `v5.6.3-xray.test.6` 作为上一测试版，并与黄金 `v5.6.0-xray.5` 构成现有 Release 集合。`test.6` 的 target 早于 2026-10-02 完整重建后的 `main`，因此不能作为当前 `main` 的最终二进制验收。上一运行代码基线已通过主构建 workflow 的源码 guard、双 ABI Xray parity、Leanback compile / assemble、最终 APK native provenance 与 Manifest gate；fresh 黄金 TV 网络恢复对比随后修正了 Jar/JS/Python Spider cleanup 的单项异常隔离，因此当前 HEAD 相比该成功构建基线已有这一个小型运行代码变化，尚未重复触发完整 Actions。发布新的真机测试包之前仍需按实际目标决定是否继续沿用/替换 `test.6` 或推进新的测试 tag。
+GitHub Releases 当前只有 `v5.6.0-xray.5` 黄金参考与用户要求保留的 `source-backup-2026-10-02-main-6a4117c8` 源码备份，**没有当前可上真机测试的 pre-release**。过去成功的主构建、native parity、Leanback assemble 与 Manifest gate 只证明当时对应源码；2026-10-03 从 source-backup 重放确认修复后的当前 HEAD 尚未重新完成 Gradle compile / assemble 或 Android TV 真机回归。后续若发布测试包，应以当前 HEAD 为唯一 BUILD_SOURCE_SHA 重新验证。
 
-发布 workflow 以 `BUILD_SOURCE_SHA` 作为唯一构建与发布源码，重新准备固定依赖、执行源码 guard、执行当前 Java → 发布版 native 动态 Xray chain parity、只编译/assemble Android TV / Leanback 两个 ABI，并在发布前重复执行最终 APK MPEG-H、四类 native runtime provenance 与 merged Manifest security contract。**当前 YAML 仍显式配置 `RELEASE_TAG=v5.6.3-xray.test.6`、`PREVIOUS_RELEASE_TAG=v5.6.3-xray.test.5`；它不会自动递增版本号。** 因此按现状手动触发会以当前 `BUILD_SOURCE_SHA` 重新发布/替换 `test.6`，若要发布 `test.7` 或其它 tag，必须同时更新 workflow 与 `tests/test-build-hygiene.py` 中对应的 release-set guard。正常手动触发时 `BUILD_SOURCE_SHA = github.sha`；发布 job 保持最小权限 `contents: write + actions: read`。临时触发、轮询与清理规则只以冻结的 [AI_COLLABORATION.md](AI_COLLABORATION.md) 为准，本文不重复保存一次性操作历史。
+发布 workflow 以 `BUILD_SOURCE_SHA` 作为唯一构建与发布源码，重新准备固定依赖、执行源码 guard、执行当前 Java → 发布版 native 动态 Xray chain parity、只编译/assemble Android TV / Leanback 两个 ABI，并在发布前重复执行最终 APK MPEG-H、四类 native runtime provenance 与 merged Manifest security contract。**当前 YAML 仍显式配置 `RELEASE_TAG=v5.6.3-xray.test.6`、`PREVIOUS_RELEASE_TAG=v5.6.3-xray.test.5`；它不会自动递增版本号。** 因此按现状手动触发会创建/替换 `test.6`（当前该 Release 不存在），若要发布 `test.7` 或其它 tag，必须同时更新 workflow 与 `tests/test-build-hygiene.py` 中对应的 release-set guard。正常手动触发时 `BUILD_SOURCE_SHA = github.sha`；发布 job 保持最小权限 `contents: write + actions: read`。临时触发、轮询与清理规则只以 [AI_COLLABORATION.md](AI_COLLABORATION.md) 为准，本文不重复保存一次性操作历史。
 
 当前 build 与 publish workflow 都必须先执行：
 
@@ -451,6 +453,12 @@ TV 待机网络审计发现 `OkDns.lookup()` 在 reset/rebuild 并发时存在�
 
 该结论仍限定为**已取证行为/调用链完整映射**：旧 APK 的原始未混淆 Java 源码和 libXray 原始 Go 源码并未找回。native 继续使用正式 APK 固定 SHA 的 `libgojni.so` 与匹配 generated bindings，并由此前成功的双 ABI current-chain parity 验证；最终 Android TV 真机仍是更高层级验收。
 
+
+### 2026-10-03 — 全量文档与冻结发布说明反查
+
+重新检查仓库 7 份 Markdown（6 份项目文档 + `LICENSE.md`），并完整读取冻结的 `ORIGINAL_README.md` 后，以其用户级产品合同反查 current 源码与长期文档。确认 no-VPN、当前播放会话手动启用、VOD/Live identity 边界、节点测试/手机导入、独立 `:xray` 进程、资源释放与 TV 长后台网络恢复仍有 current 实现；v2rayN 标准单节点重新明确为主要分享链接兼容/测试目标。
+
+同时修正文档自身漂移：只有 `ORIGINAL_README.md` 冻结，`AI_COLLABORATION.md` 必须随用户开发限制更新；当前 Releases 已无 `v5.6.3-xray.test.6`，只有黄金版与用户要求的 source-backup；README 的 CI SDK 列表同步为 workflow 实际安装的 Android 36 + 37.0 / Build Tools 36.0.0 + 37.0.0。RECOVERY 另修正黄金 STOP/callback 竞态的前后矛盾，并明确冻结 README 的“换地址/后台状态”是用户级概括，DEX/JADX 证据对 logical identity / resolved URL / 后台保留播放给出更精确语义。
 
 ### 2026-10-03 — 纠正 5.6.8 文档与构建边界
 
