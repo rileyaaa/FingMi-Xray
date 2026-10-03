@@ -39,6 +39,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.regex.Pattern;
+import java.util.concurrent.atomic.AtomicLong;
 
 import jahirfiquitiva.libs.textdrawable.TextDrawable;
 
@@ -48,6 +49,7 @@ public class ImgUtil {
     private static final int MAX_DATA_URI_LENGTH = 8 * 1024 * 1024;
     private static final Pattern IMAGE_MIME = Pattern.compile("image/[a-z0-9.+-]+");
     private static final Set<String> failed = Collections.synchronizedSet(new HashSet<>());
+    private static final AtomicLong networkFailureEpoch = new AtomicLong();
     private static final Cache<String, Image> CACHE = CacheBuilder.newBuilder().maximumWeight(MAX_CACHE_SIZE).weigher((String key, Image value) -> value.data().length).build();
 
     public static void logo(ImageView view) {
@@ -138,6 +140,7 @@ public class ImgUtil {
     }
 
     public static void resetNetworkFailures() {
+        networkFailureEpoch.incrementAndGet();
         failed.clear();
     }
 
@@ -157,9 +160,11 @@ public class ImgUtil {
     }
 
     private static RequestListener<Drawable> getListener(String text, String url, ImageView view, boolean vod) {
+        long requestEpoch = networkFailureEpoch.get();
         return new RequestListener<>() {
             @Override
             public boolean onLoadFailed(@Nullable GlideException e, Object model, @NonNull Target<Drawable> target, boolean isFirstResource) {
+                if (requestEpoch != networkFailureEpoch.get()) return true;
                 view.setImageDrawable(getTextDrawable(text, vod));
                 failed.add(url);
                 return true;
