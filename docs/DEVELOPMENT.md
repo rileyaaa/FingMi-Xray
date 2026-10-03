@@ -450,3 +450,17 @@ TV 待机网络审计发现 `OkDns.lookup()` 在 reset/rebuild 并发时存在�
 结果没有发现当前 `main` 尚未映射的 Xray runtime path；旧 AIDL 六个事务与当前 `validate/test/start/stop/resetSecurity/cancel` 一一对应，5s bind、1.5s cleanup、30s startup、45s settings timeout 也由 fresh JADX/DEX 重新确认。fresh v7 与仓库 selected reference 的 3 个差异仅是 TV 网络 helper 的格式整理，已恢复为 fresh 文本；此后 63 个 `shared/sources/` 文件与 fresh v7 blob 全部一致。运行代码没有因此修改。
 
 该结论仍限定为**已取证行为/调用链完整映射**：旧 APK 的原始未混淆 Java 源码和 libXray 原始 Go 源码并未找回。native 继续使用正式 APK 固定 SHA 的 `libgojni.so` 与匹配 generated bindings，并由此前成功的双 ABI current-chain parity 验证；最终 Android TV 真机仍是更高层级验收。
+
+
+### 2026-10-03 — 回到 source-backup 后只重放 Xray / TV recovery 已确认修复
+
+按用户要求，`main` 先强制恢复到源码备份 tag `source-backup-2026-10-02-main-6a4117c8` 对应的 exact commit `6a4117c8d52a37af117daf6c716969293400bb87`，再重新审计该点之后 274 个提交及其最终净差异。此前由静态竞态推演扩散出的 Config replay/task owner、BaseLoader barrier/Spider lease、deferred Cast/BOOT/navigation、Setting/Live recovery UI 等实验链没有重新带回；普通 FongMi Config/UI/业务源码继续以 source-backup/固定公开上游为准。
+
+重新提交的运行代码只保留两类：
+
+- **Xray**：VOD new-intent identity/ready-state 边界；Live XML/EPG 在 proxy install、手动关闭与 ERROR rollback 时的播放网络身份重新接管；IPv4-mapped IPv6 私网防护；native cleanup、Binder bind/asInterface/link/unlink/unbind/cancel/callback 的 Runtime/Linkage failure 收口；本地 proxy 安装/卸载失败后的资源与 Core 回滚；replacement START / bind-pending / failure callback 的 reentrant owner 竞态；Settings result/timeout/delete/reset 的 owner、partial-delete 与 listener 隔离；首次 TOFU pin 只在拥有该 operation/session 的成功路径提交；RTSP SOCKS connect/bind 失败时关闭新建 socket。
+- **Android TV 网络恢复**：保持 source-backup 的 generation → 普通 API/DNS/DoH reset → async Spider clear → stable network → Home refresh 小边界，仅补 `ImgUtil.networkFailureEpoch`，使退休网络代际晚到的 Glide `onLoadFailed()` 不再重新污染新 generation 的图片失败集合或覆盖恢复后的图片状态。
+
+与上述修复直接对应的 current-native/share、core/playback、ServiceClient、session/settings、transport-security 与 TV recovery source/JVM guards 一并重放。TV recovery guard 额外锁定普通 `KeepActivity/SiteApi/BaseConfig/VodConfig/LiveConfig/WallConfig/LiveParser/ConfigEvent/Notify` 必须保持固定上游 Git blob，防止后续再把恢复状态机扩散进普通业务层。
+
+这次重放没有触发 GitHub Actions/AC，也没有把旧 run 冒充为新 HEAD 验证。source-backup 之前已有的构建/native/Manifest 证据仍只证明当时对应代码；当前重放后的 HEAD 尚未重新完成 Gradle compile、Leanback assemble 或 Android TV 真机回归，后续如需消耗 AC 应在静态审计收敛后一次性集中验证。
