@@ -180,6 +180,8 @@ DLNA 生命周期使用 flavor-specific `TvDlnaLifecycle`：
 
 因此 Mobile 不需要依赖 Leanback-only 的 DLNA Service。
 
+TV recovery 的维护边界必须保持小。固定上游 `FongMi/TV@c616c0aa3613e87529791587a9f71b78c278c991` 下，普通 `KeepActivity`、`SiteApi`、`BaseConfig`、`VodConfig`、`LiveConfig`、`WallConfig`、`LiveParser`、`ConfigEvent` 与 `Notify` 不承担 recovery 状态机，必须保持固定上游 Git blob；`tests/test-tv-network-recovery.py` 会直接验证这一范围。待机恢复只允许在 Home/lifecycle/coordinator、普通 API/DNS/DoH reset、Spider clear、Glide 与必要的请求取消 hook 内维护。没有真机或明确黄金证据时，不得再把 Config replay、task owner、Spider lease、deferred UI/navigation 等状态扩散进普通 FongMi 业务代码。
+
 ## 5. 当前媒体兼容层
 
 FongMi/TV 业务、UI 与播放器行为以公开上游为准。本仓库不再把 FongMi/Release 5.6.7 / 5.6.8 中未公开的 Dolby、MPV、ISO 或光碟导航行为反向迁入 `main`。这里保留的媒体差异只允许是**让当前公开 FongMi/TV 与固定公开 FongMi/media 能正常构建所必需的最小 compatibility adapter**。
