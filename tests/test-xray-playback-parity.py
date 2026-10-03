@@ -268,8 +268,26 @@ require(
     "retryProxyRollback(clearResourcesAfterError());",
     "retryProxyRollback(clearResources(preserveOnStop));",
     "private void retryProxyRollback(Throwable failure)",
+    "closed = true;\n\n        // stop() is asynchronous.",
+    "retryProxyRollback(clearResources(false));\n        service.close();",
 )
 
+
+
+playback_session = read("xray/src/main/java/com/fingmi/xray/session/XrayPlaybackSession.java")
+close_body = playback_session.split(
+    "public void close()", 1
+)[1].split(
+    "private static boolean isBlank", 1
+)[0]
+if close_body.find("closed = true;") > close_body.find("retryProxyRollback(clearResources(false));"):
+    raise SystemExit(
+        "XrayPlaybackSession.close must seal the owner before synchronous proxy detach"
+    )
+if close_body.find("retryProxyRollback(clearResources(false));") > close_body.find("service.close();"):
+    raise SystemExit(
+        "XrayPlaybackSession.close must release playback proxy resources before disposing the Binder controller"
+    )
 
 require(
     "app/src/main/java/com/fongmi/android/tv/model/VideoViewModel.java",
