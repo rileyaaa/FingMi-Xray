@@ -102,10 +102,13 @@ public final class XrayService extends Service {
             for (int attempt = 0; attempt < 3; attempt++) {
                 try {
                     int port = bridge.getFreePort();
-                    JSONObject config = configFactory.create(port, shareLink, udp);
+                    XrayConfigFactory.PreparedConfig prepared =
+                            configFactory.prepare(port, shareLink, udp);
+                    JSONObject config = prepared.config();
                     ensureOperationCurrent(operationId);
                     bridge.validateConfig(config);
                     ensureOperationCurrent(operationId);
+                    commitOperationTrust(operationId, prepared);
                     ensureOperationCurrent(operationId);
                     send(callback, operationId, XrayOperation.VALIDATE, true, 0, -1L, "");
                     return;
@@ -143,11 +146,15 @@ public final class XrayService extends Service {
             for (int attempt = 0; attempt < 3; attempt++) {
                 try {
                     int port = bridge.getFreePort();
-                    JSONObject config = configFactory.create(port, shareLink, udp);
+                    XrayConfigFactory.PreparedConfig prepared =
+                            configFactory.prepare(port, shareLink, udp);
+                    JSONObject config = prepared.config();
                     ensureOperationCurrent(operationId);
                     bridge.validateConfig(config);
                     ensureOperationCurrent(operationId);
                     long latency = bridge.testLatency(config, XrayConfigFactory.PROXY_TAG);
+                    ensureOperationCurrent(operationId);
+                    commitOperationTrust(operationId, prepared);
                     ensureOperationCurrent(operationId);
                     send(callback, operationId, XrayOperation.TEST, true, 0, latency, "");
                     return;
@@ -188,7 +195,9 @@ public final class XrayService extends Service {
                 if (!ensureSessionCurrent(operationId, callback)) return;
 
                 int port = bridge.getFreePort();
-                JSONObject config = configFactory.create(port, shareLink, udp);
+                XrayConfigFactory.PreparedConfig prepared =
+                        configFactory.prepare(port, shareLink, udp);
+                JSONObject config = prepared.config();
 
                 try {
                     if (!ensureSessionCurrent(operationId, callback)) return;
@@ -202,6 +211,17 @@ public final class XrayService extends Service {
                         throw new IllegalStateException("Xray core did not enter running state");
                     }
 
+                    if (!sessionGate.isCurrent(operationId)) {
+                        stopCoreQuietly();
+                        ensureSessionCurrent(operationId, callback);
+                        return;
+                    }
+
+                    if (!sessionGate.runIfCurrent(operationId, prepared::commitTrust)) {
+                        stopCoreQuietly();
+                        ensureSessionCurrent(operationId, callback);
+                        return;
+                    }
                     if (!sessionGate.isCurrent(operationId)) {
                         stopCoreQuietly();
                         ensureSessionCurrent(operationId, callback);
@@ -304,13 +324,18 @@ public final class XrayService extends Service {
     private void resetSecurityInternal(long operationId, IXrayCallback callback) {
         try {
             ensureOperationCurrent(operationId);
-            XrayCertificatePins.resetAll(this);
-            synchronized (this) {
-                certificatePins = new XrayCertificatePins(this);
-                configFactory = new XrayConfigFactory(
-                        bridge,
-                        new XrayShareLinkSecurity(bridge, certificatePins));
+            if (!operationGate.runIfCurrent(operationId, () -> {
+                XrayCertificatePins.resetAll(this);
+                synchronized (this) {
+                    certificatePins = new XrayCertificatePins(this);
+                    configFactory = new XrayConfigFactory(
+                            bridge,
+                            new XrayShareLinkSecurity(bridge, certificatePins));
+                }
+            })) {
+                ensureOperationCurrent(operationId);
             }
+            ensureOperationCurrent(operationId);
             send(callback, operationId, XrayOperation.RESET_SECURITY, true, 0, -1L, "");
         } catch (Exception error) {
             send(
@@ -358,6 +383,14 @@ public final class XrayService extends Service {
         }
     }
 
+    private void commitOperationTrust(
+            long operationId,
+            XrayConfigFactory.PreparedConfig prepared) throws Exception {
+        if (!operationGate.runIfCurrent(operationId, prepared::commitTrust)) {
+            ensureOperationCurrent(operationId);
+        }
+    }
+
     private boolean ensureSessionCurrent(long operationId, IXrayCallback callback) {
         if (sessionGate.isCurrent(operationId)) return true;
         send(
@@ -399,7 +432,7 @@ public final class XrayService extends Service {
         try {
             stopCore();
             return true;
-        } catch (Exception ignored) {
+        } catch (Exception | LinkageError ignored) {
             return false;
         }
     }
@@ -432,7 +465,7 @@ public final class XrayService extends Service {
                     latencyMs,
                     XrayErrorSanitizer.sanitize(message));
             return true;
-        } catch (RemoteException ignored) {
+        } catch (Exception | LinkageError ignored) {
             return false;
         }
     }
