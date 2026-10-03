@@ -97,7 +97,7 @@
 - 判断 FongMi/TV、FongMi/media 等“上游当前版本”时，只以对应公开源码仓库的实际默认分支、commit、tree 和仓库内版本配置为准；公开仓库 HEAD 是本项目上游同步的唯一源码基线。
 - FongMi Release / APK 的版本号即使高于公开源码仓库中的 `versionName`，也不得据此认定公开仓库“落后”，更不得通过反编译较新 APK 将未公开实现反向移植到 `main`，并把这种行为称为“跟随上游”。
 - Release / APK 反编译只允许用于以下范围：本项目既有黄金版本的行为恢复与 parity 取证；必要的 ABI、native provenance 或兼容性验证；以及用户明确授权的专项研究。除这些场景外，不得把 APK 反编译结果当作上游源码替代品。
-- 当公开源码仓库仍为 5.6.3，而 Release / APK 显示 5.6.8 等更高版本时，本项目仍以公开仓库 HEAD 为上游；未在公开仓库出现的 Dolby、MPV bridge、ISO / UDF、光碟导航或其他 Release-only 功能不得为了“追版本”主动迁入。
+- Release / APK 即使显示高于公开源码仓库的版本号，本项目仍只以公开仓库 HEAD 为上游；任何未在公开源码出现的 Dolby、MPV bridge、ISO / UDF、光碟导航或其他 Release-only 功能都不得为了“追版本”主动迁入。
 - 上游同步时应优先记录并验证目标仓库 commit，而不是只看版本号。版本号用于描述仓库当时声明的版本，不得凌驾于源码 commit/tree 之上。
 
 ## 9. 开发与 Bug 修复范围只限 Xray 和 TV 待机网络恢复
