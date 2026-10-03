@@ -14,6 +14,8 @@ final class XrayServiceClient {
     static XrayServiceClient last;
     final List<Request> requests = new ArrayList<>();
     int cancellations, disconnects;
+    int lastCancelledOperation = -1;
+    long lastCancelledOperationId = Long.MIN_VALUE;
     XrayServiceClient(Context context, Listener listener) {
         last=this;
         Trace.add("client:create");
@@ -25,6 +27,8 @@ final class XrayServiceClient {
     }
     void cancel(int op, long id) {
         cancellations++;
+        lastCancelledOperation = op;
+        lastCancelledOperationId = id;
         Trace.add("client:cancel:" + op);
         disconnect();
     }
