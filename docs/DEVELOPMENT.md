@@ -12,7 +12,7 @@
 
 - 上游目标 commit：`c616c0aa3613e87529791587a9f71b78c278c991`
 - 上一固定基线：`4afc4473e22a7ed3d98ee12233e0c2a490061000`（5.6.3）
-- 两者是直接父子 commit；新增 runtime 变化集中在 `catvod` 的 redirect-aware proxy selection/authentication，不代表从 5.6.3 到 Release 5.6.8 之间存在五轮 App 架构重写。
+- 两者是直接父子 commit；新增 runtime 变化集中在 `catvod` 的 redirect-aware proxy selection/authentication。Release / APK 的更高版本号不改变本项目的公开源码上游基线。
 - app `versionCode`：`563`
 - app `versionName`：`5.6.3`
 - Java：21
@@ -184,7 +184,7 @@ TV recovery 的维护边界必须保持小。固定上游 `FongMi/TV@c616c0aa361
 
 ## 5. 当前媒体兼容层
 
-FongMi/TV 业务、UI 与播放器行为以公开上游为准。本仓库不再把 FongMi/Release 5.6.7 / 5.6.8 中未公开的 Dolby、MPV、ISO 或光碟导航行为反向迁入 `main`。这里保留的媒体差异只允许是**让当前公开 FongMi/TV 与固定公开 FongMi/media 能正常构建所必需的最小 compatibility adapter**。
+FongMi/TV 业务、UI 与播放器行为只以公开源码上游为准。任何只存在于更高版本 Release / APK、但未进入公开源码的 Dolby、MPV、ISO 或光碟导航行为都不得反向迁入 `main`。这里保留的媒体差异只允许是**让当前公开 FongMi/TV 与固定公开 FongMi/media 能正常构建所必需的最小 compatibility adapter**。
 
 ### Media3 / Libass
 
@@ -212,7 +212,7 @@ app 中只保留当前公开播放器 API 与本 fork 接线所需的小型 adap
 
 current player candidate 使用固定公开 FongMi/media 的 MPV 源码。current `MpvPlayerEngine` / `MpvUtil` 只保留当前 app 调用面所需的 secondary subtitle、font 与 config option 兼容映射。
 
-曾经对 FongMi 5.6.7 / 5.6.8 Release 做过 Dolby、MPV stream、remote ISO、`libisoJNI.so` 和 disc-navigation 取证；这些材料仍可作为历史研究证据，但**不再属于 `main` 的实现目标**。current build 不包含 5.6.8 Dolby overlay、MPV Release bridge、remote ISO provider、native ISO UDF/navigation overlay，也不把 Release-only 音量上限等差异带回公开上游代码。发现这类差异时，默认保留/恢复公开上游实现，除非它是 Xray、TV 网络恢复或当前构建不可避免的最小兼容条件。
+历史上曾对高于公开源码的 Release-only Dolby、MPV stream、remote ISO、`libisoJNI.so` 和 disc-navigation 做过取证；这些材料只属于历史研究证据，**不属于 `main` 的实现目标**。current build 不得恢复这些 Release-only 功能，也不得把对应播放器行为带回公开上游代码。发现这类差异时，默认恢复公开上游实现，除非它是 Xray、TV 网络恢复或当前构建不可避免的最小兼容条件。
 
 ## 6. 二进制依赖
 
@@ -224,17 +224,15 @@ current player candidate 使用固定公开 FongMi/media 的 MPV 源码。curren
 - 历史 `v5.6.0-xray.5` 黄金 APK：只为 Xray API v2 Java bindings / Go JNI 提供成套 provenance，并作为 Xray 外部行为与 native parity 的黄金参考；current player / FFmpeg 不从该 APK 回灌；
 - 官方 libXray v26.7.28 AAR 外层容器；
 - 按固定公开 Media3 输入重建的 Libass compatibility AAR；
-- FongMi 5.6.8 immutable Leanback APK 只作为当前 Libass compatibility 所需 `libmedia3ass.so` 的固定容器来源，不作为 `main` 业务/播放器源码来源。
+**当前构建债（不是上游基线）**：公开 `FongMi/TV@c616c0aa...` 明确是 5.6.3，且本项目唯一上游仍是这条公开源码线。公开 `FongMi/media@3c2c...` 不包含 `libraries/exoplayer_libass/`，而仓库当前的 Libass compatibility 构建仍从 FongMi Release 5.6.8 Leanback APK 提取 `libmedia3ass.so` 作为 native 容器。这一输入只是此前为了补齐公开源码缺失 player AAR 所留下的**待移除构建技术债**，不能称为上游、不能用于引入任何 5.6.8 App/播放器行为，也意味着当前仓库尚不能按“二进制输入也严格只有公开 5.6.3 + Xray + TV recovery”来描述。
 
-Libass 的 5.6.8 native contract 只用于证明所取 `libmedia3ass.so` 与当前 reconstructed Java/JNI 调用面兼容。它不能被解释为“`main` 跟随 5.6.8 Release”，更不能据此继续恢复 Dolby、MPV、ISO 或其他 Release-only 行为。
-
-公开历史 `FongMi/media@9dae39e9689ee305c83f94bd11cf3bcecb9d6171` 曾完整包含一版 `libraries/exoplayer_libass/`、`media3ass.c`、CMake 和固定 `libass-cmake@d3f00a43ca66e42a2c34de964b1a7dbbfa9dbc8b`。该历史 native 只有早期 JNI 表，和 5.6.8 发布版当前需要的 17-method ABI 不兼容：后者额外包含 `nativeCreateLibrary`、`nativeProcessTimedData`、`nativeSetStyleOverride`、扩展 `nativeRenderFrame(...ZZ)` 等接口。当前公开仓库搜索也没有发现这套后期 JNI 的源码，因此不能用 `9dae` 的早期 `libmedia3ass.so` 冒充替换 5.6.8 native；在找到可验证的后期公开源码之前，固定官方 APK 中的 `libmedia3ass.so` 仍是唯一允许的最小 compatibility 二进制例外。
+公开历史 `FongMi/media@9dae39e9689ee305c83f94bd11cf3bcecb9d6171` 曾包含一版 `libraries/exoplayer_libass/` 与 native 构建源码，但它与固定 `3c2c...` 是分叉历史，当前不能在没有 ABI 验证的情况下直接冒充 5.6.3 的可替代输入。后续清理这项构建债时，优先寻找与 5.6.3 公开源码/公开 media 可验证对应的来源；不得因为现有脚本“能构建”就继续把更高版本 Release 当长期依赖。
 
 `libXray/**` generated bindings 与 `libgojni.so` 必须作为同一 JNI ABI 单元恢复；不能把官方旧 bindings 与黄金 API v2 JNI 单独拼接。当前 `scripts/build/build-published-libxray-aar.py` 从固定黄金 APK恢复匹配的 `libXray/**` bindings 与双 ABI JNI，同时保留官方 v26.7.28 AAR 中未经过 App R8 混淆的通用 `go/**` runtime。
 
 最终 APK native 验证使用 ELF `PT_LOAD` runtime image，而不是 whole-file SHA：Android Gradle strip 可以改变 section metadata，但不能改变运行时 load segments。当前最终门槛核对 Xray、公开 FongMi/media 重建得到的 FFmpeg、MPEG-H 与 Libass 四类 native，并单独检查 merged Manifest：XrayService 必须 `exported=false` / `process=:xray`，同时拒绝 BootReceiver、`RECEIVE_BOOT_COMPLETED`、`REQUEST_INSTALL_PACKAGES` 与 VPN service permission 回流。普通 FongMi 权限不因为本 fork 的一般性安全偏好而额外改写；只有 Xray、TV 网络恢复或防止上游 APK 自更新覆盖 fork 所必需的 Manifest 差异可以长期保留。
 
-current / publish workflow 会在主 Gradle compile / assemble 前清理已消费的 APK、JADX、native harness、Libass extractor 与 reconstruction workdir。修改 compatibility 输入或 hash 时必须同步修改对应 verifier；不得重新加入 5.6.8 Dolby/MPV/ISO Release-only restorer。
+current / publish workflow 会在主 Gradle compile / assemble 前清理已消费的 APK、JADX、native harness、Libass extractor 与 reconstruction workdir。修改 compatibility 输入或 hash 时必须同步修改对应 verifier；不得重新加入任何高于公开源码的 Dolby/MPV/ISO Release-only restorer。
 
 ## 7. 构建
 
@@ -423,7 +421,7 @@ FingMi-Xray 当前**不使用 FongMi/Release 的应用内自更新**。原因是
 
 ### 2026-09-30 — 媒体边界回到公开上游
 
-播放器与普通业务重新明确以公开 FongMi/TV + 固定公开 FongMi/media 为主体。FongMi Release 5.6.7/5.6.8 中未公开的 Dolby、MPV bridge、remote ISO、native UDF / disc navigation 等不属于本 fork 的恢复目标。保留的媒体差异只允许是当前公开源码可构建所需的最小 compatibility adapter；Libass 后期 native 继续作为明确、固定来源的构建兼容例外。
+播放器与普通业务重新明确只以公开 FongMi/TV + 固定公开 FongMi/media 为主体。任何只存在于高于公开源码的 Release / APK 中、但未公开的 Dolby、MPV bridge、remote ISO、native UDF / disc navigation 等都不属于本 fork 的恢复目标。保留的媒体差异只允许是当前公开源码可构建所需的最小 compatibility adapter；Libass native 的非源码来源另见下方“构建债”说明。
 
 最终 APK 验收同时提升为硬门槛：Xray、FFmpeg、MPEG-H、Libass 的 runtime PT_LOAD provenance 与 merged Manifest security contract 必须在 assemble 后直接验证，不能只检查构建输入。
 
@@ -453,6 +451,12 @@ TV 待机网络审计发现 `OkDns.lookup()` 在 reset/rebuild 并发时存在�
 
 该结论仍限定为**已取证行为/调用链完整映射**：旧 APK 的原始未混淆 Java 源码和 libXray 原始 Go 源码并未找回。native 继续使用正式 APK 固定 SHA 的 `libgojni.so` 与匹配 generated bindings，并由此前成功的双 ABI current-chain parity 验证；最终 Android TV 真机仍是更高层级验收。
 
+
+### 2026-10-03 — 纠正 5.6.8 文档与构建边界
+
+再次检查全部长期 docs 后确认，公开上游仍严格是 FongMi/TV 5.6.3（`c616c0aa...`）；Release/APK 的更高版本号不得被写成 current 上游或功能目标。README、PROJECT、RECOVERY 当前没有 5.6.8 基线表述；AI 协作规则与 DEVELOPMENT 已把一般性的高版本 Release 叙述改成“高于公开源码的 Release-only”。
+
+同时确认这不是纯文档问题：current/publish workflow 仍下载 FongMi Release 5.6.8 Leanback APK，只为 Libass compatibility 提取 `libmedia3ass.so`。该路径现明确登记为**待移除构建技术债**，不是允许继续维护的第三项能力，也不能用来恢复 5.6.8 的 Dolby/MPV/ISO 等行为。当前业务源码仍只维护 Xray 与 TV recovery，但在这项 Libass 二进制输入清理完成前，不再把仓库描述成“所有构建输入也严格只来自公开 5.6.3”。
 
 ### 2026-10-03 — 回到 source-backup 后只重放 Xray / TV recovery 已确认修复
 
