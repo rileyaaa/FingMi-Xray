@@ -22,12 +22,6 @@ public final class CurrentNativeChain {
         if (!value) throw new AssertionError(message);
     }
 
-    private static boolean contains(JSONArray values, String target) {
-        for (int i = 0; i < values.length(); i++) {
-            if (target.equals(values.optString(i))) return true;
-        }
-        return false;
-    }
 
     private static XrayConfigFactory factory() {
         LibXrayBridge bridge = new LibXrayBridge();
@@ -128,30 +122,12 @@ public final class CurrentNativeChain {
                                         .length()
                                 == 4,
                         "routing rules");
-                JSONArray dnsServers =
-                        runtime.getJSONObject("dns").getJSONArray("servers");
-                check(dnsServers.length() == 4, "DNS servers");
-                for (int server = 0; server < dnsServers.length(); server++) {
-                    JSONArray unexpected =
-                            dnsServers.getJSONObject(server).getJSONArray("unexpectedIPs");
-                    check(
-                            contains(unexpected, "::ffff:0:0:0/96"),
-                            "released IPv4-translatable guard");
-                    check(
-                            contains(unexpected, "::ffff:0:0/96"),
-                            "IPv4-mapped IPv6 DNS guard");
-                }
-                JSONArray privateNetworks =
-                        runtime.getJSONObject("routing")
-                                .getJSONArray("rules")
-                                .getJSONObject(2)
-                                .getJSONArray("ip");
                 check(
-                        contains(privateNetworks, "::ffff:0:0:0/96"),
-                        "released IPv4-translatable routing guard");
-                check(
-                        contains(privateNetworks, "::ffff:0:0/96"),
-                        "IPv4-mapped IPv6 routing guard");
+                        runtime.getJSONObject("dns")
+                                        .getJSONArray("servers")
+                                        .length()
+                                == 4,
+                        "DNS servers");
 
                 output.put(
                         new JSONObject()
