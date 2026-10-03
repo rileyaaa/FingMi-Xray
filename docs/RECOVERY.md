@@ -220,7 +220,7 @@ fresh 安全复核曾提出黄金 v7 runtime reserved list 只有 `::ffff:0:0:0/
 | `PlaybackIdentityGate` | 旧 VOD/Live Activity、Controller、`th2` 调用链 | 新架构抽出的逻辑身份状态机，没有旧同名类 |
 | `XrayOperationIds` | `LegacyXrayOperationIds` | operation id 递增语义镜像 |
 | `XrayPlaybackAddress` | `LegacyXrayPlaybackAddress` | public HTTP(S)/RTSP/RTSPT 与 Live direct-source 边界一致 |
-| `XrayPlaybackSession` | 旧 Activity + PlayerManager + session controller 融合行为 | 新架构独立会话对象；换身份、resolved URL、preserve/error cleanup 由 playback/race guard 锁定；current 额外保证 owner dispose 时同步 detach/close 模块化 `XrayHttpClient`，不依赖 disposed controller 不再发送的最终 IDLE callback |
+| `XrayPlaybackSession` | 旧 Activity + PlayerManager + session controller 融合行为 | 新架构独立会话对象；换身份、resolved URL、preserve/error cleanup 由 playback/race guard 锁定 |
 | `XrayResult` | `LegacyXrayOperationResult` | callback result carrier |
 | `XrayServiceClient` | `LegacyXrayServiceClient` + lifecycle harness + `ez3/hz3` | Binder generation、bind/death/null/disconnect/5s timeout 与 pending 语义；current 额外收口 bind/asInterface/link/unlink/unbind/cancel 的异常与 `LinkageError`，确保失败连接仍完成 generation 失效；Service callback delivery 也把 Exception/LinkageError 收口为发送失败，避免坏 callback 打穿 worker |
 | `XraySessionController` | `LegacyXraySessionController` + `yz3` | 1.5s cleanup、30s startup、stale callback/race；current 额外把 playback preference/Keystore LinkageError 收口为 ERROR→IDLE |
