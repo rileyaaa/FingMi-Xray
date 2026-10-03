@@ -179,6 +179,8 @@ public final class ServiceClientLifecycleTest {
         final List<ServiceConnection> unbound = new ArrayList<>();
         final List<String> trace = new ArrayList<>();
         boolean bindResult = true;
+        boolean throwBindLinkage;
+        boolean throwUnbindLinkage;
 
         @Override
         public Context getApplicationContext() {
@@ -189,13 +191,19 @@ public final class ServiceClientLifecycleTest {
         public boolean bindService(Intent intent, ServiceConnection connection, int flags) {
             lastConnection = connection;
             trace.add("bind");
+            if (throwBindLinkage) {
+                throw new NoClassDefFoundError("synthetic bind linkage");
+            }
             return bindResult;
         }
 
         @Override
         public void unbindService(ServiceConnection connection) {
-            unbound.add(connection);
             trace.add("unbind");
+            if (throwUnbindLinkage) {
+                throw new NoClassDefFoundError("synthetic unbind linkage");
+            }
+            unbound.add(connection);
         }
     }
 
@@ -203,6 +211,7 @@ public final class ServiceClientLifecycleTest {
         final List<String> calls = new ArrayList<>();
         final List<String> trace;
         IXrayCallback callback;
+        boolean throwCancelLinkage;
 
         FakeService(List<String> trace) {
             this.trace = trace;
@@ -241,6 +250,9 @@ public final class ServiceClientLifecycleTest {
         @Override
         public void cancel(int operation, long id) {
             trace.add("remote-cancel:" + operation + ":" + id);
+            if (throwCancelLinkage) {
+                throw new NoClassDefFoundError("synthetic cancel linkage");
+            }
         }
     }
 
@@ -248,6 +260,10 @@ public final class ServiceClientLifecycleTest {
         final FakeService service;
         DeathRecipient recipient;
         boolean throwOnLink;
+        boolean throwLinkageOnLink;
+        boolean throwLinkageOnUnlink;
+        boolean throwLinkageOnAsInterface;
+        boolean throwRuntimeOnAsInterface;
         int unlinkCount;
 
         FakeBinder(FakeService service) {
@@ -256,17 +272,29 @@ public final class ServiceClientLifecycleTest {
 
         @Override
         public IXrayService service() {
+            if (throwLinkageOnAsInterface) {
+                throw new NoClassDefFoundError("synthetic asInterface linkage");
+            }
+            if (throwRuntimeOnAsInterface) {
+                throw new IllegalStateException("synthetic asInterface runtime");
+            }
             return service;
         }
 
         @Override
         public void linkToDeath(DeathRecipient recipient, int flags) throws RemoteException {
+            if (throwLinkageOnLink) {
+                throw new NoClassDefFoundError("synthetic link linkage");
+            }
             if (throwOnLink) throw new RemoteException("synthetic link failure");
             this.recipient = recipient;
         }
 
         @Override
         public boolean unlinkToDeath(DeathRecipient recipient, int flags) {
+            if (throwLinkageOnUnlink) {
+                throw new NoClassDefFoundError("synthetic unlink linkage");
+            }
             if (this.recipient == recipient) this.recipient = null;
             unlinkCount++;
             return true;
@@ -371,6 +399,32 @@ public final class ServiceClientLifecycleTest {
         check(listener.results.isEmpty(), "cancelled callback was delivered");
     }
 
+    private static void cancelLinkageStillUnbindsAndInvalidatesCallback() {
+        Handler.reset();
+        FakeContext context = new FakeContext();
+        Listener listener = new Listener();
+        XrayServiceClient client = new XrayServiceClient(context, listener);
+
+        client.execute(request(51L, XrayOperation.TEST, () -> {}));
+        FakeService service = new FakeService(context.trace);
+        connect(context, service);
+        IXrayCallback oldCallback = service.callback;
+        service.throwCancelLinkage = true;
+        context.trace.clear();
+
+        client.cancel(XrayOperation.TEST, 51L);
+
+        check(context.trace.equals(List.of(
+                        "remote-cancel:" + XrayOperation.TEST + ":51",
+                        "unbind")),
+                "cancel LinkageError did not preserve disconnect cleanup: " + context.trace);
+
+        oldCallback.onResult(51L, XrayOperation.TEST, true, 0, 20L, "");
+        Handler.advance(0L);
+        check(listener.results.isEmpty(),
+                "callback survived cancel LinkageError disconnect");
+    }
+
     private static void bindTimeoutDisconnectsThenReportsFailure() {
         Handler.reset();
         FakeContext context = new FakeContext();
@@ -422,6 +476,127 @@ public final class ServiceClientLifecycleTest {
                 "stale connection failure disturbed current generation");
     }
 
+    private static void bindLinkageReportsFailureAndUnbinds() {
+        Handler.reset();
+        FakeContext context = new FakeContext();
+        context.throwBindLinkage = true;
+        Listener listener = new Listener();
+        XrayServiceClient client = new XrayServiceClient(context, listener);
+
+        client.execute(request(81L, XrayOperation.TEST, () -> {}));
+        Handler.advance(0L);
+
+        check(context.unbound.contains(context.lastConnection),
+                "bind LinkageError did not unbind failed connection");
+        check(listener.failures.equals(List.of(81L)),
+                "bind LinkageError did not report pending operation");
+    }
+
+    private static void asInterfaceLinkageReportsFailureAndUnbinds() {
+        Handler.reset();
+        FakeContext context = new FakeContext();
+        Listener listener = new Listener();
+        XrayServiceClient client = new XrayServiceClient(context, listener);
+
+        client.execute(request(82L, XrayOperation.TEST, () -> {}));
+        FakeService service = new FakeService(context.trace);
+        FakeBinder binder = new FakeBinder(service);
+        binder.throwLinkageOnAsInterface = true;
+        context.lastConnection.onServiceConnected(NAME, binder);
+        Handler.advance(0L);
+
+        check(context.unbound.contains(context.lastConnection),
+                "asInterface LinkageError did not unbind connection");
+        check(listener.failures.equals(List.of(82L)),
+                "asInterface LinkageError did not report pending operation");
+    }
+
+    private static void asInterfaceRuntimeReportsFailureAndUnbinds() {
+        Handler.reset();
+        FakeContext context = new FakeContext();
+        Listener listener = new Listener();
+        XrayServiceClient client = new XrayServiceClient(context, listener);
+
+        client.execute(request(821L, XrayOperation.TEST, () -> {}));
+        FakeService service = new FakeService(context.trace);
+        FakeBinder binder = new FakeBinder(service);
+        binder.throwRuntimeOnAsInterface = true;
+        context.lastConnection.onServiceConnected(NAME, binder);
+        Handler.advance(0L);
+
+        check(context.unbound.contains(context.lastConnection),
+                "asInterface RuntimeException did not unbind connection");
+        check(listener.failures.equals(List.of(821L)),
+                "asInterface RuntimeException did not report pending operation");
+    }
+
+    private static void linkToDeathLinkageReportsFailureAndUnbinds() {
+        Handler.reset();
+        FakeContext context = new FakeContext();
+        Listener listener = new Listener();
+        XrayServiceClient client = new XrayServiceClient(context, listener);
+
+        client.execute(request(83L, XrayOperation.TEST, () -> {}));
+        FakeService service = new FakeService(context.trace);
+        FakeBinder binder = new FakeBinder(service);
+        binder.throwLinkageOnLink = true;
+        context.lastConnection.onServiceConnected(NAME, binder);
+        Handler.advance(0L);
+
+        check(context.unbound.contains(context.lastConnection),
+                "linkToDeath LinkageError did not unbind connection");
+        check(listener.failures.equals(List.of(83L)),
+                "linkToDeath LinkageError did not report pending operation");
+    }
+
+    private static void unlinkLinkageStillCompletesCancelDisconnect() {
+        Handler.reset();
+        FakeContext context = new FakeContext();
+        Listener listener = new Listener();
+        XrayServiceClient client = new XrayServiceClient(context, listener);
+
+        client.execute(request(84L, XrayOperation.TEST, () -> {}));
+        FakeService service = new FakeService(context.trace);
+        FakeBinder binder = connect(context, service);
+        IXrayCallback oldCallback = service.callback;
+        binder.throwLinkageOnUnlink = true;
+        context.trace.clear();
+
+        client.cancel(XrayOperation.TEST, 84L);
+
+        check(context.trace.equals(List.of(
+                        "remote-cancel:" + XrayOperation.TEST + ":84",
+                        "unbind")),
+                "unlink LinkageError interrupted cancel cleanup: " + context.trace);
+        oldCallback.onResult(84L, XrayOperation.TEST, true, 0, 21L, "");
+        Handler.advance(0L);
+        check(listener.results.isEmpty(),
+                "callback survived unlink LinkageError disconnect");
+    }
+
+    private static void unbindLinkageStillInvalidatesCallbackGeneration() {
+        Handler.reset();
+        FakeContext context = new FakeContext();
+        Listener listener = new Listener();
+        XrayServiceClient client = new XrayServiceClient(context, listener);
+
+        client.execute(request(85L, XrayOperation.TEST, () -> {}));
+        FakeService service = new FakeService(context.trace);
+        connect(context, service);
+        IXrayCallback oldCallback = service.callback;
+        context.throwUnbindLinkage = true;
+        context.trace.clear();
+
+        client.disconnect();
+
+        check(context.trace.equals(List.of("unbind")),
+                "unbind LinkageError was not attempted: " + context.trace);
+        oldCallback.onResult(85L, XrayOperation.TEST, true, 0, 22L, "");
+        Handler.advance(0L);
+        check(listener.results.isEmpty(),
+                "callback survived unbind LinkageError disconnect");
+    }
+
     private static void binderDeathReportsActiveOperation() {
         Handler.reset();
         FakeContext context = new FakeContext();
@@ -464,8 +639,15 @@ public final class ServiceClientLifecycleTest {
         currentCallbackDelivered();
         disconnectInvalidatesPostedCallback();
         cancelCallsRemoteBeforeUnbindAndInvalidatesCallback();
+        cancelLinkageStillUnbindsAndInvalidatesCallback();
         bindTimeoutDisconnectsThenReportsFailure();
         staleServiceConnectionCannotReplaceCurrent();
+        bindLinkageReportsFailureAndUnbinds();
+        asInterfaceLinkageReportsFailureAndUnbinds();
+        asInterfaceRuntimeReportsFailureAndUnbinds();
+        linkToDeathLinkageReportsFailureAndUnbinds();
+        unlinkLinkageStillCompletesCancelDisconnect();
+        unbindLinkageStillInvalidatesCallbackGeneration();
         binderDeathReportsActiveOperation();
         linkToDeathFailureReportsConnectionFailure();
         System.out.println("PASS released XrayServiceClient lifecycle");
