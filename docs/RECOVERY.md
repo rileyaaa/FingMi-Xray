@@ -2,7 +2,9 @@
 
 本文记录 `v5.6.0-xray.5` 的**历史证据对象、证据来源、faithful 源码结构、二进制来源和可重复恢复方法**。
 
-> **定位**：当前 `main` 决定现行源码、模块架构与上游版本。本文件固定 `v5.6.0-xray.5` 的历史事实、native provenance 和 Xray 黄金行为证据。`main` 不回退到旧 faithful 架构，但 Xray 外部行为应在已取证范围内与 v7 黄金参考等价。
+> **定位**：当前 `main` 决定现行源码、模块架构与上游版本。本文件固定 `v5.6.0-xray.5` 的历史事实、native provenance 和 Xray 黄金行为证据。`main` 不回退到旧 faithful 架构；在源码缺失、缺少更强证据时，Xray 外部行为优先按 v7 黄金参考恢复。
+>
+> **黄金参考不是正确性证明。** v7 是长期实际使用、相对稳定、目前没有已知明显或致命问题的恢复起点，但仍可能存在尚未发现的 Bug。若后续在 Xray 维护范围内以源码/DEX/native/真机或可复现实验确认黄金行为本身有缺陷，current 可以有意修复；本文件继续如实记录黄金原行为，current 的修正理由和验证则记录在开发文档/guard 中。
 
 它不是开发日志，也不记录当前开发分支的上游升级过程。当前工程见 [DEVELOPMENT.md](DEVELOPMENT.md)，AI 协作与非流水账文档维护规则见 [AI_COLLABORATION.md](AI_COLLABORATION.md)，原发布时的用户说明见 [ORIGINAL_README.md](ORIGINAL_README.md)。
 
@@ -189,15 +191,17 @@ Live 的会话边界包括切频道、换线路 / 源、直播配置变化和播
 - 非默认 TLS / HY2 信任通过首次 pin 与后续变更拒绝实现；
 - 错误展示前会隐藏链接、UUID、密码、token、secret、key、short id、seed 等敏感内容。
 
+fresh 安全复核确认黄金 v7 的 Java destination guard 会拒绝标准 IPv4-mapped IPv6，但其 runtime reserved list 只有 `::ffff:0:0:0/96`（IPv4-translatable 形式），缺少标准 mapped 前缀 `::ffff:0:0/96`。这属于黄金实现自身的安全缺口，不应通过改写 historical reference 来“伪装成从来没有”。因此 recovery reference、冻结 native fixture 继续保持原样；current `main` 作为明确安全增强额外加入 `::ffff:0:0/96`，并在 current-native parity 中只归一化这一条登记差异后继续对照 v7，其增强后配置仍由发布 JNI `testXray` 实际验证。
+
 ### 当前模块与 v7 证据映射账本
 
 当前 `:xray` 的类名和旧 APK 混合架构不同，不能用“有没有同名类”判断是否还原。2026-10-02 完整重建并统一到 `main` 后的映射如下：
 
 | current | v7 / readable evidence | 说明 |
 | --- | --- | --- |
-| `XrayConfigFactory` | `LegacyXrayRuntimeConfigFactory` + 发布 native converter | JSON 生成语义由 differential/native parity 锁定 |
+| `XrayConfigFactory` | `LegacyXrayRuntimeConfigFactory` + 发布 native converter | 黄金 JSON 语义由 differential/native parity 锁定；current 仅额外补齐标准 `::ffff:0:0/96` mapped-IPv6 私网防护 |
 | `XrayDisplay` | `LegacyXrayDisplay` | 去包名/类名后行为镜像 |
-| `XrayPreferences` | `LegacyXrayConfigStore` | secure prefs / Keystore 逻辑源码镜像 guard |
+| `XrayPreferences` | `LegacyXrayConfigStore` | secure prefs / Keystore 逻辑源码镜像 guard；current 普通设置页摘要读取也收口 Keystore/AIDL `LinkageError` |
 | `XrayShareLinkNormalizer` | `LegacyXrayShareLinkNormalizer` + `a04` + v7 native cases | VLESS/VMess/Trojan/SS/HY2/KCP 等 differential/native parity |
 | `LibXrayBridge` | `LegacyLibXrayApi` + `LegacyXrayProbeApi` + `s11` | 正常调用面一致；current 只额外收口 `LinkageError` |
 | `PublicPlaybackDestinationInterceptor` | `LegacyPublicPlaybackDestinationInterceptor` | 公开/私网 destination policy 镜像 |
@@ -207,16 +211,17 @@ Live 的会话边界包括切频道、换线路 / 源、直播配置变化和播
 | `XrayShareLinkSecurity` | `LegacyXrayTransportSecurity` | TLS/HY2 TOFU、identity、pin change differential |
 | `XrayGenerationGate` | `LegacyXrayGenerationGate` | generation 算法一致；current 仅收紧可见性 |
 | `XrayOperation` | `LegacyXrayOperation` | operation 1~5 保持一致 |
+| `XrayServiceClient` | `LegacyXrayServiceClient` + lifecycle harness | Binder generation / timeout / death 语义镜像；current 额外收口 bind/asInterface/link/unlink/unbind 的 Runtime/Linkage framework failure |
 | `XrayService` | `recovery/legacy-src/.../xray/XrayService.java` + `sz3/tz3/uz3` | VALIDATE/TEST/START/STOP/RESET_SECURITY、cleanup/process reset |
 | `PlaybackIdentityGate` | 旧 VOD/Live Activity、Controller、`th2` 调用链 | 新架构抽出的逻辑身份状态机，没有旧同名类 |
 | `XrayOperationIds` | `LegacyXrayOperationIds` | operation id 递增语义镜像 |
 | `XrayPlaybackAddress` | `LegacyXrayPlaybackAddress` | public HTTP(S)/RTSP/RTSPT 与 Live direct-source 边界一致 |
 | `XrayPlaybackSession` | 旧 Activity + PlayerManager + session controller 融合行为 | 新架构独立会话对象；换身份、resolved URL、preserve/error cleanup 由 playback/race guard 锁定 |
 | `XrayResult` | `LegacyXrayOperationResult` | callback result carrier |
-| `XrayServiceClient` | `LegacyXrayServiceClient` + `ez3/hz3` | bind/death/null/disconnect/5s timeout |
-| `XraySessionController` | `LegacyXraySessionController` + `yz3` | 1.5s cleanup、30s startup、stale callback/race |
+| `XrayServiceClient` | `LegacyXrayServiceClient` + `ez3/hz3` | bind/death/null/disconnect/5s timeout；current 额外收口 bind/asInterface/link/unlink/unbind/cancel 的异常与 `LinkageError`，确保失败连接仍完成 generation 失效；Service callback delivery 也把 Exception/LinkageError 收口为发送失败，避免坏 callback 打穿 worker |
+| `XraySessionController` | `LegacyXraySessionController` + `yz3` | 1.5s cleanup、30s startup、stale callback/race；current 额外把 playback preference/Keystore LinkageError 收口为 ERROR→IDLE |
 | `XraySessionListener` | `LegacyXraySessionListener` | 仅状态/方法命名模块化，状态值保持一致 |
-| `XraySettingsController` | `LegacyXraySettingsController` + 设置页 DEX | 45s timeout、delete/reset 顺序、phone-import abandon |
+| `XraySettingsController` | `LegacyXraySettingsController` + 设置页 DEX | 45s timeout、delete/reset 顺序、phone-import abandon；current 额外保护 result/failure/timeout listener 内同步 replacement owner，并在 share-link prefs 已实际删除但后续 Keystore clear 失败时同步 local-cleared UI 状态 |
 | `XrayErrorSanitizer` | `LegacyXrayErrorSanitizer` | 文本去敏主体镜像；current 额外支持 Throwable/LinkageError 收口 |
 
 另外两段旧 helper 因为属于 FongMi 播放器接口而留在 `:app`：`XrayArtworkBitmapLoader` 对应 `LegacyXrayBitmapLoader/rf2`，`ExoMediaSourceFactory.GuardedPlaybackDataSource` 对应 `LegacyXraySchemeGuardDataSource/or2`。两者的 local-scheme / Unicode whitespace 判定已重新按 v7 对齐：无 scheme 的本地路径以及 `file`、`asset`、`content`、`data`、`rawresource`、`android.resource` 继续走本地资源；HTTP(S) 使用当前 Xray DataSource；其它无法保证网络身份的泛用 scheme 在 Xray active 时拒绝。
@@ -226,6 +231,21 @@ Live 的会话边界包括切频道、换线路 / 源、直播配置变化和播
 这张账本只说明**已取证的行为映射**，不是声称已经拿到旧 APK 的原始未混淆源码。任何未来发现的新 full-JADX / DEX caller 都应先补到本表及 parity guard，再修改当前实现。
 
 本次 fresh full-JADX / DEX 复核重新确认的外围 caller 包括：Live EPG/XML、VOD 自动弹幕、弹幕搜索与播放器重建后的 client 重绑、字幕搜索/详情/下载、远程 MediaSession artwork、VOD/Live artwork/logo、preload/cache、外部播放器、手机导入，以及 VOD/Live 的 proxy install/remove 与逻辑播放身份变化。旧外部播放器本身也只接收原始 URL/headers，并不获得应用内部 SOCKS；当前实现保持同一边界。fresh AIDL 事务 1~6 也与当前 `validate / test / start / stop / resetSecurity / cancel` 顺序一致，callback 参数形状一致。此次没有发现新的、尚未映射到当前 `main` 的 Xray runtime path。
+
+黄金 `yz3` 的 cleanup timeout/旧 STOP failure 还有一个已确认的自身竞态，legacy reference 继续原样保留用于说明历史事实：如果旧 STOP 尚未正常收口时已经发起 replacement START，黄金 controller 在旧 cleanup failure/1.5 秒 timeout 时会先发 ERROR→OFF，却只 cancel 旧 STOP；replacement START 已经取得更新的 Service session generation，旧 STOP cancel 对它不起终止作用，因此晚到 START success 仍可在失败之后重新进入 RUNNING。current 将这一点登记为**有意的黄金 Bug 修复**而非 parity：cleanup failure 若命中正在进行的 replacement START，会先失效该 replacement owner，并在没有更新代 reentrant START 的情况下 cancel replacement START；如果 ERROR/OFF listener 已同步发起更新代 retry，则保留更新代 Binder，由新的 generation 淘汰旧操作。这样 legacy 文件仍回答“黄金当时怎么做”，current guard 则回答“为什么这里必须不同”。
+
+fresh bind-stage 复核又确认同一组 `yz3 + hz3` 还有第二个黄金自身竞态。黄金 Binder client 在 Service 尚未连接时只有一个 `pending` 槽，后来的 request 会覆盖先前 request；而黄金 controller 的 START/STOP 都先同步通知 listener、再调用 client.execute。若 STARTING callback 同步 STOP，pending STOP 会被外层旧 START 覆盖；若 OFF/IDLE callback 同步 START，新 START 会被外层旧 STOP 覆盖，且被覆盖的 START 没有进入 dispatch，因此连 startup timeout 都不会启动。黄金 dispose 也在 stop callback 之后才封 disposed，允许销毁期间 reentrant START。current 保留 client 的 released latest-pending 事实，只把 Controller 改成**先提交命令、后通知 listener，close 先封 disposed**，使 binding 阶段最终 pending request 始终代表 callback 产生的最新意图。此项同样属于有证据的黄金 Bug 修复；legacy controller/client 继续保持原样作为历史证据，current session race 与 ServiceClient lifecycle guard 分别锁新后置条件和黄金 pending 语义。
+
+继续沿同一“listener 可重入”契约复核还确认，黄金 `yz3` 的失败 cleanup 也会误伤 callback 中新建的 owner：START failure、startup timeout、Binder connection failure 和 STOP failure 都先同步通知 ERROR/OFF，再无条件 disconnect/cancel 原 operation。若 listener 在通知内同步发起新的 START，黄金随后会把共享 client 断开；ERROR 内重试时，黄金 `fail()` 还会在 nested STARTING 之后继续补发 OFF。current 将这组行为同样登记为**有意的黄金 Bug 修复**：失败通知返回后只在旧 operation id 仍拥有 Controller 时执行 cleanup；若 callback 已生成更新 operation，则由 Service generation 自行淘汰旧工作并保留新 owner；尾随 IDLE/OFF 也只在内部状态仍为 IDLE 时发布。legacy reference 保持原样说明历史事实，current race guard 锁住四类 failure reentrant retry 与正常无重试顺序。
+
+Settings 侧的 `LegacyXraySettingsController` 还有同型 owner 问题：result、connection failure 与 45 秒 timeout 都先清本地 active 状态并同步通知 UI，再无条件 replace/cancel Binder client。若 listener 在回调内同步发起下一次 TEST/VALIDATE，新 operation 已经占用同一 client，却会被外层旧 callback 随后断开；callback 若执行 abandon/delete/close，还可能已经主动替换或销毁 client。current 保留正常无重入时“listener 先于 cleanup”的黄金顺序，但在 callback 前同时快照 operation owner 与 `ownerClient`，返回后只有 controller 仍 open、没有新 active operation、且 client identity 未变化时才执行旧 cleanup；更新 owner/client 一律保留。JVM settings lifecycle harness 同时锁正常黄金顺序和 result/timeout/connection-failure 三类 reentrant replacement。
+
+同一 settings 删除链还保留黄金存储顺序：先移除 `xray_secure` 中的 share-link ciphertext/IV/UDP，再删除 AndroidKeyStore share-link key，远端 `RESET_SECURITY` 再负责 Hysteria2 pin store/key。黄金在第二步 Keystore 删除失败时会抛错，但第一步 prefs 已经 commit，旧 UI 因 `onLocalCleared` 未执行而仍显示已不存在的节点。current 不改变安全存储顺序，也不吞掉删除失败；只在 catch 中确认 prefs 已不再 configured 且 local-cleared callback 尚未投递时补一次 UI 清空，然后继续以失败状态退出。这样 key/pin 未完全 reset 仍要求用户重试，同时页面不会伪装节点仍保存在本地。
+
+Settings result/timeout/connection-failure listener 也属于不可信 UI 边界。current 的 `notifyResult()` 隔离 RuntimeException/LinkageError，保证 callback 故障不能在本地 active owner 已清空后跳过 remote cancel、unbind 或 client replacement；若 callback 在抛错前同步创建更新 operation，既有 active-operation + `ownerClient` identity gate 仍保留新 owner。local-clear UI callback 同样通过 `notifyLocalCleared()` 隔离异常并只调用一次，UI 故障不能阻断远端 `RESET_SECURITY`；只有 prefs 已经实际删除、但后续 Keystore clear 先失败且 local-clear 尚未执行的 partial-delete 路径才补一次 UI 清空。
+
+
+
 
 ### Android TV 网络恢复
 
@@ -244,15 +264,19 @@ Live 的会话边界包括切频道、换线路 / 源、直播配置变化和播
 
 #### 当前实现相对黄金版的有意差异
 
-2026-10-02 fresh v7 full-JADX 对 TV 网络恢复链再次逐项核对后，当前实现与黄金版的核心时序保持一致：generation 只来自真实前后台 / SCREEN_OFF→ON，Home 只在 `onResume()` / 重新获得焦点时检查，恢复顺序仍是取消旧 Home 请求 → 只淘汰普通 API client 并重建 DNS/DoH → 异步清 Spider → 约 500 ms 稳定性轮询 → 连续两次具备 Internet capability 后刷新 Home；独立 player client 不在恢复时销毁，DLNA 的 TV 生命周期也保持一致。
+2026-10-02 fresh v7 full-JADX 对 TV 网络恢复链再次逐项核对后，当前实现与黄金版的核心时序保持一致：generation 只来自真实前后台 / SCREEN_OFF→ON，Home 只在 `onResume()` / 重新获得焦点时检查，恢复顺序仍是取消旧 Home 请求 → 只淘汰普通 API client 并重建 DNS/DoH → 异步清 Spider → 约 500 ms 稳定性轮询 → 连续两次具备 Internet capability 后刷新 Home；独立 player client 不在恢复时销毁，DLNA 的 TV 生命周期也保持一致。 fresh v7 完整 JADX 的 `C1853z5(mode=5)` 也再次确认：SCREEN_OFF 调 background/DLNA-stop 路径，SCREEN_ON 在已有 started Activity 时只推进 `gn3` generation，不直接 start DLNA；DLNA start 仍由 `onActivityResumed()` 负责，因此 current receiver 不需要增加额外 SCREEN_ON start。
 
-当前相对黄金版有以下明确、刻意保留的增强：
+当前相对黄金版只保留少量、可审计的模块化增强：
 
-- `TvNetworkLifecycle` / `NetworkRecoveryCoordinator` 只是把旧 `gn3 + HomeActivity + l61` 的状态拆成可维护类，并额外记录 `recoveredGeneration`，避免 Home 被重建时把尚未真正恢复的 generation 误当成已应用；
-- 黄金 `OkGlideModule` 在 Glide 注册时固定持有当时的 API `OkHttpClient`；当前改为每个图片请求动态取得 `OkHttp.client()`，使网络 generation 恢复后不会继续复用被淘汰的 client；
-- 黄金图片失败集合 `ha1.f7011a` 在网络恢复时不会清空；当前 `ImgUtil.resetNetworkFailures()` 会清掉这类瞬时失败，允许网络恢复后重新加载图片；
-- 黄金 `ha2.lookup()` 在离开同步块后会再次读取 volatile DoH resolver；当前在锁内快照 `Dns resolver` 后再执行 lookup，修复 reset/rebuild 并发窗口；
-- fresh 对比还发现当前三个 loader 曾用 `forEach(Spider::destroy)`，单个 Spider 抛异常会中断后续清理；黄金版对每个 `destroy()` 单独吞掉异常并继续清空全部 Jar/Python/JS 状态。当前已恢复成黄金版的逐 Spider 容错语义，并由 `tests/test-tv-network-recovery.py` 锁定。
+- `TvNetworkLifecycle` / `NetworkRecoveryCoordinator` 把旧 `gn3 + HomeActivity + l61` 的状态拆成独立类，并记录 `recoveredGeneration`，避免 Home 重建后把尚未完成的 generation 直接当成已应用；generation 来源仍只是真实前后台与 SCREEN_OFF→ON，不增加默认网络 callback 等新触发源。
+- Home 每轮仍只做：取消旧 Home RESULT 请求 → `OkHttp.resetApiNetworkForResume()` 重建普通 API client / DNS / DoH（不销毁 playback client）→ 异步 `BaseLoader.clear()` → 约 500 ms 稳定检查 → 连续两次 Internet capability 后刷新 Home；最多约 12 次检查的黄金兜底保持不变。
+- `OkGlideModule` 每次图片请求动态取得当前普通 API client，`ImgUtil.resetNetworkFailures()` 在 recovery 开始时推进本地图片失败 epoch 并清瞬时失败集合；每个 Glide failure listener 快照该 epoch，退休 generation 晚到的 `onLoadFailed()` 不再更新 View 或重新污染新 generation 的失败缓存。
+- `OkDns.lookup()` 在同步边界内快照本次查询使用的 DoH resolver，再在锁外执行请求，避免 reset/rebuild 并发时离锁后重新读取另一代 resolver。
+- Jar / JS / Python loader 的 clear 保持异步，并对每个 `Spider.destroy()` 单独隔离异常，使一个第三方 Spider 清理失败不会阻断其余 runtime 清空；这恢复黄金版已有的清理容错，不建立第二套 Config/Spider 调度器。
+- Leanback `TvDlnaLifecycle` 负责真实 DLNA start/stop，Mobile 为 no-op。fresh v7 `C1853z5(mode=5)` 已确认 SCREEN_ON 只推进 generation，不直接 start DLNA；DLNA start 仍由 Activity RESUMED 路径负责。
+- Manifest 不再引入 BootReceiver / BOOT_COMPLETED 作为第二条网络恢复入口；Home resume/focus 是 recovery 消费 generation 的唯一页面入口。
+
+**范围边界：** 2026-10-03 对 source-backup 之后的维护做范围审计，确认后续 AI 曾把 TV recovery 过度扩散进 `BaseConfig/VodConfig/LiveConfig` 的 Config replay/task owner 状态机、BaseLoader barrier/Spider lease、Keep/Setting deferred config UI、ConfigEvent BOOT owner 等普通上游代码。该实验链已经整体回退到已确认的 source-backup 边界。当前固定 FongMi/TV 基线下，`KeepActivity`、`SiteApi`、`BaseConfig`、`VodConfig`、`LiveConfig`、`WallConfig`、`LiveParser`、`ConfigEvent`、`Notify` 必须保持上游 Git blob；`tests/test-tv-network-recovery.py` 直接锁定这些 blob，防止 recovery 再次侵入普通业务层。若未来确有真机证据要求突破该边界，必须先重新评估架构并取得用户明确同意，不能靠静态竞态推演自行扩张。
 
 FongMi/TV 当前公开仓库 `c616c0aa...` 新增的 redirect-aware proxy selection / authentication 属于上游普通网络栈演进，不是黄金待机恢复模块的一部分；本 fork 的恢复逻辑只保证它与 generation reset 能共存，不把 Release/APK 反编译行为当成新的上游功能。
 
@@ -403,3 +427,10 @@ GitHub Actions 对应两段手动流程：
 2026-10-02 fresh audit 的结论强度因此定义为：在固定 v7 APK 可反编译/可枚举的 Java、DEX、Binder、播放器外围调用链范围内，未发现当前 `main` 缺失的已知 Xray 功能或网络旁路；native Xray Core 则继续使用发布 APK 中固定 SHA 的 `libgojni.so` 字节与匹配 generated Java bindings，并已有双 ABI current-chain 动态 parity。这个结论是“已取证外部行为与调用链完整映射”，不是“恢复了原始源码逐字节 1:1”。
 
 如果未来出现新的 APK / DEX / native 证据改变既有结论，应先修正 recovery reference / fixture，再更新当前 parity 测试与本文。当前重构实现不需要回退旧 faithful 架构，但凡已经确认属于 v7 Xray 外部行为的语义，应在当前模块中恢复或做等价映射。最终仍需用当前测试、构建和 Android TV 设备回归确认真实运行。
+
+
+### 2026-10-03 TV recovery 范围纠偏
+
+对 source-backup 之后的 258 个维护提交重新按文件与固定上游逐项审计后，确认 TV recovery 曾被静态竞态分析推动成过宽的 Config/UI 状态机。当前已把这些实验性扩散整体回退：普通 Config、Keep、SiteApi、LiveParser、ConfigEvent、Notify 恢复固定 FongMi/TV 上游 blob；SettingActivity 也移除 recovery deferred UI，仅保留 Xray 自身的接线与 LinkageError 边界。Home / coordinator / lifecycle / API-DNS reset / async Spider clear / Glide 与 DoH 等 source-backup 已有恢复能力继续保留。
+
+后续 TV recovery 的默认策略是**先保持这条小边界**。没有真机或明确黄金证据时，不再通过 BaseConfig taskId、Config replay、Spider operation lease、deferred navigation owner 等手段把恢复状态扩散到普通业务代码。若普通上游在没有本 fork recovery 时也可能出现同类并发问题，则视为上游行为，不在本项目修复。
