@@ -1,4 +1,4 @@
-package com.fongmi.android.tv.network;
+package com.fingmi.tvrecovery;
 
 /** Rebuilds the ordinary app/catvod network once per foreground generation. */
 public final class NetworkRecoveryCoordinator implements AutoCloseable {

@@ -52,8 +52,11 @@
 | `:quickjs` | QuickJS 相关能力 |
 | `:libxray` | 本地 `libXray.aar` 依赖容器 |
 | `:xray` | 模块化 Xray 实现 |
+| `:tv-recovery` | 独立 TV 前后台网络代际与恢复协调核心 |
 
 `:app` 直接依赖 `:xray`，`:xray` 再依赖 `:libxray`。这样可以把 Xray 的 Service、配置与网络资源从 FongMi 业务代码中分离。
+
+`:app` 同时依赖 `:tv-recovery`；恢复模块没有对 `:app`、`:catvod` 或 `:xray` 的反向依赖。`app/src/main/java/com/fingmi/integration/` 保存项目自有的 FongMi 适配代码，属于接线层，不能把普通上游功能复制到这里长期维护。
 
 ## 3. 当前 Xray 接线
 
@@ -158,10 +161,11 @@ TV 网络恢复没有放进 `:xray`。
 
 主要入口：
 
-- `app/src/main/java/com/fongmi/android/tv/network/TvNetworkLifecycle.java`
-- `app/src/main/java/com/fongmi/android/tv/network/NetworkRecoveryCoordinator.java`
+- `tv-recovery/src/main/java/com/fingmi/tvrecovery/TvNetworkLifecycle.java`
+- `tv-recovery/src/main/java/com/fingmi/tvrecovery/NetworkRecoveryCoordinator.java`
+- `app/src/main/java/com/fingmi/integration/recovery/FongMiNetworkRecovery.java`
 
-`TvNetworkLifecycle` 由 Leanback `HomeActivity.initView()` 首次安装，随后注册 Application 级 Activity lifecycle 与 SCREEN_ON / SCREEN_OFF receiver 来生成前后台 / screen 网络代际；它不是 Application 冷启动时无条件创建的第二套网络服务。`NetworkRecoveryCoordinator` 仍由 Home 持有，并只在 Home 的 `onResume()` / 窗口重新获得焦点时检查并执行每个待恢复 generation 的普通网络重建。
+`TvNetworkLifecycle` 由 Leanback `HomeActivity.initView()` 创建 `FongMiNetworkRecovery` 适配器时首次安装，随后注册 Application 级 Activity lifecycle 与 SCREEN_ON / SCREEN_OFF receiver 来生成前后台 / screen 网络代际；它不是 Application 冷启动时无条件创建的第二套网络服务。Home 持有适配器，适配器持有独立模块的 `NetworkRecoveryCoordinator`，仍只在 Home 的 `onResume()` / 窗口重新获得焦点时检查并执行每个待恢复 generation 的普通网络重建。Home 不再实现网络状态判断或资源重建流程，仅提供取消页面请求、进度显示、存活判断和刷新回调。
 
 发布版 generation **只**由真实后台 / SCREEN_OFF 后重新进入前台 / SCREEN_ON 推进；前台 Wi-Fi、VPN 或默认网络切换本身不额外创建 generation。Home 也只在自身 `onResume()` / 重新获得窗口焦点时检查是否需要恢复，隐藏在其他播放页面后的 Home 不主动执行恢复。`recoveredGeneration` 只用于防止 Home 重建时漏掉尚未完成的 generation，不增加新的触发来源。
 
@@ -175,12 +179,14 @@ TV 网络恢复没有放进 `:xray`。
 4. 以约 500 ms 周期等待网络稳定，连续两次具备 Internet capability 后继续，最多约 12 次检查；
 5. 刷新 Home。
 
-DLNA 生命周期使用 flavor-specific `TvDlnaLifecycle`：
+DLNA 生命周期通过模块的 `Renderer` 接口接入 `com.fingmi.integration.recovery` 下 flavor-specific `TvDlnaLifecycle`：
 
 - Leanback 实际启停 DLNA renderer；
 - Mobile 为 no-op。
 
 因此 Mobile 不需要依赖 Leanback-only 的 DLNA Service。
+
+`tests/test-fork-module-boundaries.py` 检查两个核心模块不依赖 FongMi / catvod / 应用适配类，并编译执行真实 lifecycle、coordinator、FongMi adapter 与 Leanback/Mobile 桥；Android/HTTP/Spider 是边界替身。它覆盖冷启动、配置重建、熄屏唤醒、两次稳定检查、Home 重建、迟到清理回调、失效 owner 与 DLNA flavor 行为，已接入现有 TV recovery 验证入口。独立 Gradle 验证命令为 `bash gradlew :tv-recovery:assembleDebug :tv-recovery:testDebugUnitTest`。
 
 TV recovery 的维护边界必须保持小。固定上游 `FongMi/TV@c616c0aa3613e87529791587a9f71b78c278c991` 下，普通 `KeepActivity`、`SiteApi`、`BaseConfig`、`VodConfig`、`LiveConfig`、`WallConfig`、`LiveParser`、`ConfigEvent` 与 `Notify` 不承担 recovery 状态机，必须保持固定上游 Git blob；`tests/test-tv-network-recovery.py` 会直接验证这一范围。待机恢复只允许在 Home/lifecycle/coordinator、普通 API/DNS/DoH reset、Spider clear、Glide 与必要的请求取消 hook 内维护。没有真机或明确黄金证据时，不得再把 Config replay、task owner、Spider lease、deferred UI/navigation 等状态扩散进普通 FongMi 业务代码。
 
@@ -540,3 +546,13 @@ TV recovery 复核覆盖 SCREEN/background generation、配置重建排除、Hom
 本次独立审查未复现新的确定运行缺陷，没有追加运行代码修复。重新执行 session-races、service-client-lifecycle、playback-parity（包含真实弹幕/字幕 API 的 16 个确定性场景）和 TV-network-recovery 四个针对性入口，均通过；这些证据包含真实 Java 类配合 Android/Binder/网络边界替身的 JVM 测试与源码合同检查，不等于 Android ART、APK assemble 或 TV 真机运行。本次没有重跑 native 节点连通性或触发 Actions。
 
 第 2 点仍有明确构建例外：现有 Libass compatibility 输入从 5.6.8 APK 提取固定 hash 的原生库，且存在为兼容重建的 media 接口；它不是公开 5.6.3 源码本身。该技术债并未因此消失，也不能作为继续跟进更高版本 APK 功能的依据。约 6 秒恢复轮询上限与后台保留 player client 仍沿用已取证行为，留待真机验证，不宣称当前代码无 Bug。
+
+### 2026-10-04 — 独立恢复模块与集中 FongMi 接线
+
+按用户要求进一步独立维护两项自有能力，新增 `:tv-recovery` Android library，将 `NetworkRecoveryCoordinator` 与 `TvNetworkLifecycle` 移入 `com.fingmi.tvrecovery`。恢复协调算法保持原样；lifecycle 中的 DLNA 服务调用替换为宿主提供的 `Renderer` 接口。模块只依赖 Android/annotation，不引用 FongMi、catvod、Xray 或应用适配类。既有 coordinator 单元测试随核心移入模块。
+
+新增应用自有 `com.fingmi.integration.recovery.FongMiNetworkRecovery` 适配器，集中普通 API/DNS/Glide reset、Spider clear、系统网络能力判断、主线程调度、已恢复 generation 标记及 flavor DLNA 接线。Home 只提供页面取消、进度、存活判断、刷新回调，并保留原有 resume/focus/check/destroy 调用；普通 FongMi Config、SiteApi、播放器业务等没有随拆分重写。Xray 核心继续独立维护在既有 `:xray`，应用封面适配 `XrayArtworkBitmapLoader` 仅移动到 `com.fingmi.integration.xray`，行为未改。Xray 核心版本、JNI/bindings、转换/security/runtime 配置、固定 native 来源及 workflow 均未调整。
+
+新增模块边界与实际适配器 JVM 验证，分别编译执行 Leanback/Mobile 接线；既有 14 个本地验证入口全部通过。实际执行 `:tv-recovery:assembleDebug :tv-recovery:testDebugUnitTest` 成功，独立 AAR 生成、Android Java 编译与两个迁移的 JUnit 测试通过。云端 Gradle 使用当前 session proxy 和系统 CA 信任，不为此修改上游 Gradle/toolchain 设置。本次没有构建完整应用 APK、触发 Actions、更新核心版本或发布 Release，Android 真机验收仍未完成。
+
+后续上游同步应保留两个核心模块，先采用公开 FongMi 树，再核对应用自有适配层及页面/播放器所需接入点。核心独立不意味着零上游接线：网络资源、播放器与 UI 属于宿主，接口变化仍需适配与回归验证；不得因此接管普通上游业务或把网络恢复并入 Xray。

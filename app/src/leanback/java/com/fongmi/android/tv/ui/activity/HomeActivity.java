@@ -3,9 +3,6 @@ package com.fongmi.android.tv.ui.activity;
 import android.annotation.SuppressLint;
 import android.app.SearchManager;
 import android.content.Intent;
-import android.net.ConnectivityManager;
-import android.net.Network;
-import android.net.NetworkCapabilities;
 import android.os.Bundle;
 import android.text.TextUtils;
 import android.view.KeyEvent;
@@ -24,11 +21,11 @@ import androidx.lifecycle.ViewModelProvider;
 import androidx.recyclerview.widget.RecyclerView;
 import androidx.viewbinding.ViewBinding;
 
+import com.fingmi.integration.recovery.FongMiNetworkRecovery;
 import com.fongmi.android.tv.App;
 import com.fongmi.android.tv.Product;
 import com.fongmi.android.tv.R;
 import com.fongmi.android.tv.api.config.LiveConfig;
-import com.fongmi.android.tv.api.loader.BaseLoader;
 import com.fongmi.android.tv.api.config.VodConfig;
 import com.fongmi.android.tv.api.config.WallConfig;
 import com.fongmi.android.tv.bean.Cache;
@@ -47,8 +44,6 @@ import com.fongmi.android.tv.event.RefreshEvent;
 import com.fongmi.android.tv.event.ServerEvent;
 import com.fongmi.android.tv.impl.Callback;
 import com.fongmi.android.tv.model.SiteViewModel;
-import com.fongmi.android.tv.network.TvNetworkLifecycle;
-import com.fongmi.android.tv.network.NetworkRecoveryCoordinator;
 import com.fongmi.android.tv.player.extractor.Source;
 import com.fongmi.android.tv.server.Server;
 import com.fongmi.android.tv.service.PlaybackService;
@@ -65,7 +60,6 @@ import com.fongmi.android.tv.ui.presenter.ProgressPresenter;
 import com.fongmi.android.tv.ui.presenter.VodPresenter;
 import com.fongmi.android.tv.utils.Clock;
 import com.fongmi.android.tv.utils.FileChooser;
-import com.fongmi.android.tv.utils.ImgUtil;
 import com.fongmi.android.tv.utils.KeyUtil;
 import com.fongmi.android.tv.utils.Notify;
 import com.fongmi.android.tv.utils.PermissionUtil;
@@ -94,7 +88,7 @@ public class HomeActivity extends BaseActivity implements CustomTitleView.Listen
     private Result mResult;
     private Clock mClock;
 
-    private NetworkRecoveryCoordinator mNetworkRecovery;
+    private FongMiNetworkRecovery mNetworkRecovery;
 
     private Site getHome() {
         return VodConfig.get().getHome();
@@ -123,26 +117,12 @@ public class HomeActivity extends BaseActivity implements CustomTitleView.Listen
 
     @Override
     protected void initView(Bundle savedInstanceState) {
-        TvNetworkLifecycle.get(getApplication());
-        mNetworkRecovery = new NetworkRecoveryCoordinator(TvNetworkLifecycle.recoveredGeneration(), new NetworkRecoveryCoordinator.Hooks() {
-            @Override public long generation() { return TvNetworkLifecycle.generation(); }
-            @Override public void cancelRequests() { if (mViewModel != null) mViewModel.cancelResultRequest(); }
-            @Override public void resetApiAndDns() {
-                OkHttp.resetApiNetworkForResume();
-                ImgUtil.resetNetworkFailures();
-            }
-            @Override public void clearSpiders(Runnable after) { BaseLoader.get().clear(after); }
-            @Override public boolean networkReady() { return hasInternetCapability(); }
-            @Override public void schedule(Runnable action, long delay) { App.post(action, delay); }
-            @Override public void unschedule(Runnable action) { App.removeCallbacks(action); }
-            @Override public void showProgress() { mBinding.progressLayout.showProgress(); }
-            @Override public void refreshHome() {
-                if (isFinishing() || isDestroyed()) return;
-                TvNetworkLifecycle.markRecovered(TvNetworkLifecycle.generation());
-                showContent();
-                getVideo();
-            }
-        });
+        mNetworkRecovery = new FongMiNetworkRecovery(
+                getApplication(),
+                () -> { if (mViewModel != null) mViewModel.cancelResultRequest(); },
+                () -> mBinding.progressLayout.showProgress(),
+                () -> !isFinishing() && !isDestroyed(),
+                () -> { showContent(); getVideo(); });
 
         mResult = Result.empty();
         mClock = Clock.create(mBinding.clock);
@@ -479,26 +459,6 @@ public class HomeActivity extends BaseActivity implements CustomTitleView.Listen
 
     private void checkNetworkGeneration() {
         if (mNetworkRecovery != null) mNetworkRecovery.check();
-    }
-
-    private boolean hasInternetCapability() {
-        try {
-            ConnectivityManager connectivity =
-                    (ConnectivityManager)
-                            getSystemService(CONNECTIVITY_SERVICE);
-            if (connectivity == null) return false;
-
-            Network network = connectivity.getActiveNetwork();
-            if (network == null) return false;
-
-            NetworkCapabilities capabilities =
-                    connectivity.getNetworkCapabilities(network);
-            return capabilities != null
-                    && capabilities.hasCapability(
-                            NetworkCapabilities.NET_CAPABILITY_INTERNET);
-        } catch (RuntimeException ignored) {
-            return false;
-        }
     }
 
     @Override

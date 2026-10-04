@@ -37,7 +37,7 @@ import com.fongmi.android.tv.event.ConfigEvent;
 import com.fongmi.android.tv.player.PlayerManager;
 import com.fongmi.android.tv.player.media.ArtworkBitmapLoader;
 import com.fongmi.android.tv.player.media.PlaySpec;
-import com.fongmi.android.tv.player.media.XrayArtworkBitmapLoader;
+import com.fingmi.integration.xray.XrayArtworkBitmapLoader;
 import com.fongmi.android.tv.server.Server;
 import com.fongmi.android.tv.utils.Task;
 import com.google.common.collect.ImmutableList;

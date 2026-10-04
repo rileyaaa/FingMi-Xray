@@ -1,4 +1,4 @@
-package com.fongmi.android.tv.network;
+package com.fingmi.tvrecovery;
 
 import android.app.Activity;
 import android.app.Application;
@@ -22,9 +22,15 @@ import androidx.annotation.Nullable;
 public final class TvNetworkLifecycle
         implements Application.ActivityLifecycleCallbacks {
 
+    /** Application-owned renderer actions; the core never depends on a TV service. */
+    public interface Renderer {
+        void start();
+        void stop();
+    }
+
     private static volatile TvNetworkLifecycle instance;
 
-    private final Application application;
+    private final Renderer renderer;
     private final BroadcastReceiver screenReceiver;
     private int startedActivities;
     private long generation;
@@ -32,8 +38,8 @@ public final class TvNetworkLifecycle
     private boolean backgroundPending;
     private boolean dlnaStarted;
 
-    private TvNetworkLifecycle(Application application) {
-        this.application = application;
+    private TvNetworkLifecycle(Application application, Renderer renderer) {
+        this.renderer = renderer;
         this.screenReceiver = new BroadcastReceiver() {
             @Override
             public void onReceive(Context context, Intent intent) {
@@ -58,14 +64,14 @@ public final class TvNetworkLifecycle
         application.registerReceiver(screenReceiver, filter);
     }
 
-    public static TvNetworkLifecycle get(Application application) {
+    public static TvNetworkLifecycle get(Application application, Renderer renderer) {
         TvNetworkLifecycle current = instance;
         if (current != null) return current;
 
         synchronized (TvNetworkLifecycle.class) {
             current = instance;
             if (current == null) {
-                current = new TvNetworkLifecycle(application);
+                current = new TvNetworkLifecycle(application, renderer);
                 instance = current;
             }
             return current;
@@ -106,7 +112,7 @@ public final class TvNetworkLifecycle
 
         if (stopDlna) {
             try {
-                TvDlnaLifecycle.stop(application);
+                renderer.stop();
             } catch (RuntimeException ignored) {
             }
         }
@@ -131,7 +137,7 @@ public final class TvNetworkLifecycle
         if (!startDlna) return;
 
         try {
-            TvDlnaLifecycle.start(application);
+            renderer.start();
         } catch (RuntimeException ignored) {
             synchronized (this) {
                 dlnaStarted = false;

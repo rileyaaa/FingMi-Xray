@@ -199,7 +199,7 @@ require(
 )
 
 require(
-    "app/src/main/java/com/fongmi/android/tv/player/media/XrayArtworkBitmapLoader.java",
+    "app/src/main/java/com/fingmi/integration/xray/XrayArtworkBitmapLoader.java",
     "Remote artwork blocked while Xray is enabled",
     "cancelRemoteLoads()",
     '"rawresource".equals(value)',

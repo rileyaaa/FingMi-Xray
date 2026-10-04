@@ -1,4 +1,4 @@
-package com.fongmi.android.tv.network;
+package com.fingmi.tvrecovery;
 
 import static org.junit.Assert.*;
 import org.junit.Test;

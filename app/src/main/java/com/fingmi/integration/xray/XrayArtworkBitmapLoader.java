@@ -1,4 +1,4 @@
-package com.fongmi.android.tv.player.media;
+package com.fingmi.integration.xray;
 
 import android.graphics.Bitmap;
 import android.net.Uri;

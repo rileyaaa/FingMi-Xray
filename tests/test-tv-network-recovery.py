@@ -3,11 +3,14 @@
 from pathlib import Path
 import hashlib
 import subprocess
+import sys
 import tempfile
 
 ROOT = Path(__file__).resolve().parents[1]
-LIFECYCLE = ROOT / "app/src/main/java/com/fongmi/android/tv/network/TvNetworkLifecycle.java"
-COORDINATOR = ROOT / "app/src/main/java/com/fongmi/android/tv/network/NetworkRecoveryCoordinator.java"
+subprocess.run([sys.executable, str(ROOT / "tests/test-fork-module-boundaries.py")], check=True)
+LIFECYCLE = ROOT / "tv-recovery/src/main/java/com/fingmi/tvrecovery/TvNetworkLifecycle.java"
+COORDINATOR = ROOT / "tv-recovery/src/main/java/com/fingmi/tvrecovery/NetworkRecoveryCoordinator.java"
+ADAPTER = ROOT / "app/src/main/java/com/fingmi/integration/recovery/FongMiNetworkRecovery.java"
 HOME = ROOT / "app/src/leanback/java/com/fongmi/android/tv/ui/activity/HomeActivity.java"
 GLIDE = ROOT / "app/src/main/java/com/fongmi/android/tv/utils/OkGlideModule.java"
 IMG = ROOT / "app/src/main/java/com/fongmi/android/tv/utils/ImgUtil.java"
@@ -79,13 +82,14 @@ for forbidden in (
             f"SettingActivity must not carry TV-recovery callback state: {forbidden}"
         )
 
-for path in (LIFECYCLE, COORDINATOR, HOME, GLIDE, IMG, JAR_LOADER, JS_LOADER, PY_LOADER, LEANBACK_MANIFEST, REFERENCE, OKHTTP, OKDNS, PROXY_SELECTOR, PROXY_AUTH, PROXY_REDIRECT, PROXY_TEST):
+for path in (LIFECYCLE, COORDINATOR, ADAPTER, HOME, GLIDE, IMG, JAR_LOADER, JS_LOADER, PY_LOADER, LEANBACK_MANIFEST, REFERENCE, OKHTTP, OKDNS, PROXY_SELECTOR, PROXY_AUTH, PROXY_REDIRECT, PROXY_TEST):
     if not path.is_file():
         raise SystemExit(f"missing TV network recovery source: {path.relative_to(ROOT)}")
 
 lifecycle = LIFECYCLE.read_text(encoding="utf-8")
 reference = REFERENCE.read_text(encoding="utf-8")
 home = HOME.read_text(encoding="utf-8")
+adapter = ADAPTER.read_text(encoding="utf-8")
 manifest = LEANBACK_MANIFEST.read_text(encoding="utf-8")
 
 for forbidden in (
@@ -117,8 +121,8 @@ for needle in (
     "Intent.ACTION_SCREEN_ON",
     "backgroundPending = true;",
     "generation++;",
-    "TvDlnaLifecycle.start(application)",
-    "TvDlnaLifecycle.stop(application)",
+    "renderer.start()",
+    "renderer.stop()",
 ):
     if needle not in lifecycle:
         raise SystemExit(f"TvNetworkLifecycle missing released generation contract: {needle}")
@@ -164,8 +168,8 @@ for needle in (
 ):
     if needle not in img:
         raise SystemExit(f"ImgUtil missing stale Glide failure generation guard: {needle}")
-if "ImgUtil.resetNetworkFailures();" not in home:
-    raise SystemExit("HomeActivity network recovery must reset transient image failures")
+if "ImgUtil.resetNetworkFailures();" not in adapter:
+    raise SystemExit("FongMi recovery adapter must reset transient image failures")
 
 glide = GLIDE.read_text(encoding="utf-8")
 if "new OkHttpUrlLoader.Factory(OkHttp.client())" in glide:
@@ -279,18 +283,17 @@ for needle in (
         raise SystemExit(f"NetworkRecoveryCoordinator missing serialized recovery contract: {needle}")
 
 for needle in (
-    "new NetworkRecoveryCoordinator(TvNetworkLifecycle.recoveredGeneration()",
+    "TvNetworkLifecycle.recoveredGeneration()",
     "OkHttp.resetApiNetworkForResume()",
     "BaseLoader.get().clear(after)",
     "NetworkCapabilities.NET_CAPABILITY_INTERNET",
     "TvNetworkLifecycle.markRecovered(TvNetworkLifecycle.generation())",
-    "checkNetworkGeneration();",
 ):
-    if needle not in home:
-        raise SystemExit(f"HomeActivity missing TV recovery contract: {needle}")
+    if needle not in adapter:
+        raise SystemExit(f"FongMi adapter missing TV recovery contract: {needle}")
 
 HARNESS = r"""
-package com.fongmi.android.tv.network;
+package com.fingmi.tvrecovery;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -425,7 +428,7 @@ public final class NetworkRecoveryParityTest {
 
 with tempfile.TemporaryDirectory(prefix="tv-network-recovery-") as directory:
     work = Path(directory)
-    harness = work / "com/fongmi/android/tv/network/NetworkRecoveryParityTest.java"
+    harness = work / "com/fingmi/tvrecovery/NetworkRecoveryParityTest.java"
     harness.parent.mkdir(parents=True, exist_ok=True)
     harness.write_text(HARNESS.strip() + "\n", encoding="utf-8")
     classes = work / "classes"
@@ -448,7 +451,7 @@ with tempfile.TemporaryDirectory(prefix="tv-network-recovery-") as directory:
             "java",
             "-cp",
             str(classes),
-            "com.fongmi.android.tv.network.NetworkRecoveryParityTest",
+            "com.fingmi.tvrecovery.NetworkRecoveryParityTest",
         ],
         check=True,
     )

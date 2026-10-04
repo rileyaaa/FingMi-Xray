@@ -27,3 +27,4 @@ include ':quickjs'
 rootProject.name = "TV"
 include ':libxray'
 include ':xray'
+include ':tv-recovery'

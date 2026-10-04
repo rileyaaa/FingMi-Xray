@@ -1,0 +1,22 @@
+plugins {
+    alias libs.plugins.android.library
+}
+
+android {
+    namespace = 'com.fingmi.tvrecovery'
+    compileSdk libs.versions.compileSdk.get().toInteger()
+
+    defaultConfig {
+        minSdk libs.versions.minSdk.get().toInteger()
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_21
+        targetCompatibility JavaVersion.VERSION_21
+    }
+}
+
+dependencies {
+    implementation libs.annotation
+    testImplementation 'junit:junit:4.13.2'
+}
