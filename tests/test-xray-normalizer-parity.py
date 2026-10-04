@@ -157,6 +157,33 @@ public final class ShareLinkNormalizerParityTest {
                 "hy2://pw@example.com?obfs=salamander&obfs-password=x",
                 "hy2://pw@example.com:443?obfs=salamander&obfs-password=x");
 
+        // Intentional improvement over the frozen released reference: a URI
+        // fragment is only a remark, even when it contains a literal '?'.
+        expect(
+                "hy2-fragment-is-not-query",
+                "hy2://pw@example.com#node?mport=invalid&insecure=1",
+                "hy2://pw@example.com:443#node?mport=invalid&insecure=1");
+        expect(
+                "hy2-valid-looking-fragment-is-not-query",
+                "hy2://pw@example.com#node?mport=2066-2080&sni=other.example&insecure=1",
+                "hy2://pw@example.com:443#node?mport=2066-2080&sni=other.example&insecure=1");
+        expect(
+                "hysteria2-ipv6-fragment-is-not-query",
+                "hysteria2://pw@[2001:4860:4860::8888]:2066#node?obfs=gecko",
+                "hysteria2://pw@[2001:4860:4860::8888]:2066#node?obfs=gecko");
+        expect(
+                "hy2-ipv4-hopping-with-fragment",
+                "hy2://pw@8.8.8.8:2066-2080#node?mport=invalid",
+                "hy2://pw@8.8.8.8:2066?ports=2066-2080#node?mport=invalid");
+        expect(
+                "hy2-real-query-with-fragment",
+                "hy2://pw@example.com?mport=2066-2080&sni=edge.example#node?obfs=gecko",
+                "hy2://pw@example.com:443?ports=2066-2080&sni=edge.example#node?obfs=gecko");
+        expect(
+                "hy2-encoded-fragment-query",
+                "hy2://pw@example.com#node%3Fmport%3Dinvalid",
+                "hy2://pw@example.com:443#node%3Fmport%3Dinvalid");
+
         expectError(
                 "hy2-gecko",
                 "hy2://pw@example.com?obfs=gecko&obfs-password=x",
@@ -259,6 +286,7 @@ public final class ShareLinkNormalizerParityTest {
                         + " normalizer boundaries + "
                         + displayInputs.size()
                         + " display boundaries + released exact cases");
+        System.out.println("PASS 6 Hysteria2 URI fragment regressions");
     }
 }
 """

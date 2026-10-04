@@ -282,9 +282,9 @@ on:
 
 Release 的 APK 发布集合长期保留 `v5.6.0-xray.5` 黄金参考和一个当前可上真机测试的 pre-release。构建输入、恢复材料、临时归档和旧测试版不得长期堆在 APK 发布集合中；用户明确要求的完整源码备份可使用 `source-backup-*` 独立 Release，APK 发布器在校验“黄金版 + 当前测试版”时忽略这类源码备份，不会自动删除它们。
 
-GitHub Releases 当前保留 `v5.6.0-xray.5` 黄金参考、`v5.6.3-xray.test.6` 当前可上真机测试的 pre-release，以及一份用户要求保留、与当前纯净 `main` 对齐的 `source-backup-*` 源码备份。`test.6` 已完成完整自动 build/native parity/assemble/Manifest 验证；Android TV 真机 Xray 与待机/长后台网络恢复仍是最终验收层。
+GitHub Releases 当前保留 `v5.6.0-xray.5` 黄金参考、`v5.6.3-xray.test.7` 当前可上真机测试的 pre-release，以及一份用户要求保留的 `source-backup-*` 历史源码备份。`test.7` 已完成完整 build/native parity/assemble/Manifest 验证；build source 为 `439cea8d7a9d3cdb1a17b4ed962c6d68ed164508`，不包含之后的 Hysteria2 备注查询边界修复。Android TV 真机 Xray 与待机/长后台网络恢复仍是最终验收层。
 
-发布 workflow 以 `BUILD_SOURCE_SHA` 作为唯一构建与发布源码，重新准备固定依赖、执行源码 guard、执行当前 Java → 发布版 native 动态 Xray chain parity、只编译/assemble Android TV / Leanback 两个 ABI，并在发布前重复执行最终 APK MPEG-H、四类 native runtime provenance 与 merged Manifest security contract。**当前 YAML 仍显式配置 `RELEASE_TAG=v5.6.3-xray.test.6`、`PREVIOUS_RELEASE_TAG=v5.6.3-xray.test.5`；它不会自动递增版本号。** 因此按现状手动触发会创建/替换 `test.6`（当前该 Release 不存在），若要发布 `test.7` 或其它 tag，必须同时更新 workflow 与 `tests/test-build-hygiene.py` 中对应的 release-set guard。正常手动触发时 `BUILD_SOURCE_SHA = github.sha`；发布 job 保持最小权限 `contents: write + actions: read`。临时触发、轮询与清理规则只以 [AI_COLLABORATION.md](AI_COLLABORATION.md) 为准，本文不重复保存一次性操作历史。
+发布 workflow 以 `BUILD_SOURCE_SHA` 作为唯一构建与发布源码，重新准备固定依赖、执行源码 guard、执行当前 Java → 发布版 native 动态 Xray chain parity、只编译/assemble Android TV / Leanback 两个 ABI，并在发布前重复执行最终 APK MPEG-H、四类 native runtime provenance 与 merged Manifest security contract。**当前 YAML 显式配置 `RELEASE_TAG=v5.6.3-xray.test.7`、`PREVIOUS_RELEASE_TAG=v5.6.3-xray.test.6`；它不会自动递增版本号。** 当前 `test.7` 已发布，若要发布新 tag，必须同时更新 workflow 与 `tests/test-build-hygiene.py` 中对应的 release-set guard。正常手动触发时 `BUILD_SOURCE_SHA = github.sha`；发布 job 保持最小权限 `contents: write + actions: read`。临时触发、轮询与清理规则只以 [AI_COLLABORATION.md](AI_COLLABORATION.md) 为准，本文不重复保存一次性操作历史。
 
 当前 build 与 publish workflow 都必须先执行：
 
@@ -575,3 +575,22 @@ TV recovery 复核覆盖 SCREEN/background generation、配置重建排除、Hom
 两 APK 使用同一云端 Debug 测试证书 SHA-256 `0d71ccd96f6c91f8e3d1e9c9e7f37d5e1c3ce4b4bb407a0a7d85ade1475a6c2b`，与黄金版及 test.6 证书不同，不能覆盖安装；测试前需备份配置。该证书不等同历史正式发布签名。完整 APK 保存在本地 `app/build/outputs/apk/leanback/debug/`。
 
 云端向 GitHub uploads endpoint 的直接发布失败：GitHub CLI、urllib 与 curl（HTTP/1.1、HTTP/2）均返回 HTTP 400 `Bad Content-Length`；1 KB 和更小的临时未发布探测也同样失败，未留下任何远端资产，不能归因于 APK 内容或文件大小。保持原测试 Release，清理本轮空草稿后，仅尝试一次已有纯手动 publisher 作为必要发布替代；该路径会重新构建，必须以它实际产出的 source / digest 为准，不能把上述本地 APK hash 当作 Actions 发布资产 hash。
+
+### 2026-10-04 — 再次逐项上游审查与 Hysteria2 备注边界修复
+
+重新读取公开 FongMi/TV 默认分支 HEAD，仍为 `c616c0aa3613e87529791587a9f71b78c278c991`；其 `versionCode=563`、`versionName=5.6.3` 与当前应用一致。本次按 Git tracked tree/blob 对照审查起点 `439cea8d7a9d3cdb1a17b4ed962c6d68ed164508`，得到 1061 个同路径完全相同文件、57 个修改文件（其中 42 个 Java）、2 个删除文件和 376 个新增文件。删除项仍只有 Pages 自动部署 workflow 与网站目录 README。逐项读取现有差异，而非仅凭类名或上次记录认定它们属于接线。
+
+本次没有发现需要进一步恢复的无关上游业务修复。播放器差异限定于 Xray client/DRM/RTSP 注入、身份变化时卸载代理、预加载与媒体旁路清理；普通 ViewModel 通用取消、频道回收、配置解析和数据库仍保持公开上游。字幕/MPV 差异另与固定公开 media 的真实 API 对照：该版本没有应用所需的 secondary-track selection/reset/suppression、独立副字幕样式及字体设置接口，保留现有最小兼容实现。禁用上游 APK 自更新属于防止 fork 被覆盖的既有基础设施。Libass 的 5.6.8 APK 固定原生库输入仍是未移除的构建债，**不是上游源码、不是第三项维护业务，也不代表完全满足“所有二进制输入仅来自公开 5.6.3”**。本次没有反编译较新 APK、引入其功能或修改媒体依赖。
+
+Xray 审查覆盖分享链接、security/pin/config、Service 串行执行与代际门控、Binder 死亡/超时、settings 保存/删除/取消、VOD/Live 身份及 Exo/DRM/RTSP、弹幕/字幕/EPG/XML、artwork/logo/preload 的实际调用方。网络恢复审查覆盖 SCREEN/Activity 前后台代际、DLNA 生命周期、Home adapter、API client 与 DNS/DoH 重建、Spider 串行清理和 Glide 失败代际；未复现新的确定恢复缺陷。`tv-recovery` 不反向依赖 `app`、`catvod` 或 `xray`，网络资源重建通过应用自有适配器接入；两个核心模块独立维护仍需要宿主页面/播放器接线。
+
+复现了一个 Xray 分享链接缺陷：Hysteria2 备注允许出现未转义的 `?`，但 `rawQuery()` 从任意位置寻找问号，把 `#node?mport=invalid&insecure=1` 中的备注当成连接参数，导致合法节点报端口错误；合法形状的备注参数也可能被错误移到真实查询部分。先加入失败回归，确认修改前抛出 `Xray link port is invalid`，再仅调整 `:xray` 查询边界，忽略 `#` 之后的问号。冻结 legacy normalizer 同样保留旧边界，这是已登记的 current 有意修复；黄金参考源码和 native oracle 不修改。Xray v26.7.28 与双 ABI JNI/bindings 均未更新，上游业务代码未修改。
+
+验证结果：14 个标准本地入口全部通过；新增 6 个 Hysteria2 备注回归涵盖域名、IPv4、IPv6、authority 跳跃端口、真实查询与备注共存、百分号编码及形似有效参数的备注；双 ABI 各 26 个真实黄金 JNI 转换/runtime 用例仍与冻结 oracle 一致。另以现有 CurrentNativeChain 编译真实当前 Java，在两 ABI 各执行 5 个新备注场景，经 security、固定黄金 native 转换、当前 runtime 构建及 native `testXray` 均成功；证书探测与 pin 存储仍为确定性测试边界。完整 `:app:compileLeanbackReleaseJavaWithJavac --offline --no-daemon` 成功，未为上游 resource/deprecation warning 修改源码。本次未重新 assemble/publish APK、触发 Actions、测试 ART/真实节点或 TV 息屏恢复；约 6 秒恢复等待上限等既有真机观察项继续保留，不据静态推测改写上游状态机。
+
+同时确认此前唯一手动发布 run [`37195530886`](https://github.com/rileyaaa/FingMi-Xray/actions/runs/37195530886) 已成功。`v5.6.3-xray.test.7` 的 tag/build source 均为 `439cea8d7a9d3cdb1a17b4ed962c6d68ed164508`，两个实际 Release 资产如下；发布集合现为黄金版、test.7 和历史源码备份，test.6 已由发布器验证后清理。**test.7 包含独立 recovery 模块，但不包含本节随后修复的 Hysteria2 备注问题；本节测试对应后续 main 源码，不是该已发布 APK 的新增证明。** README 与当前发布说明同步纠正，保留历史构建记录。
+
+| test.7 实际发布资产 | GitHub 资产 SHA-256 |
+| --- | --- |
+| armeabi-v7a | `fbf6d6beab7c18f0cf4366a8586814667f6d825bf06fca1a7f566357e3077c1e` |
+| arm64-v8a | `19ee000e08e62f8019f0d7e4afd7c1005fd775027840bf07f4abcdd6d37caad3` |

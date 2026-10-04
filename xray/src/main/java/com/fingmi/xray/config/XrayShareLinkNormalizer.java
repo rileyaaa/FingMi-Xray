@@ -544,8 +544,8 @@ public final class XrayShareLinkNormalizer {
 
     private static String rawQuery(String value) {
         int query = value.indexOf('?');
-        if (query < 0) return "";
-        int fragment = value.indexOf('#', query + 1);
+        int fragment = value.indexOf('#');
+        if (query < 0 || (fragment >= 0 && query > fragment)) return "";
         int end = fragment < 0 ? value.length() : fragment;
         return value.substring(query + 1, end);
     }
