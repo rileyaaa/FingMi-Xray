@@ -289,7 +289,7 @@ GitHub Releases 当前保留 `v5.6.0-xray.5` 黄金参考、`v5.6.3-xray.test.7`
 当前 build 与 publish workflow 都必须先执行：
 
 - `tests/test-xray-android-runtime-compat.py`：防止 Java 21 可编译、但旧 Android ART 运行时不存在的 API 再进入 `:xray`，并防止 `main` 构建重新退回“官方旧 Java bindings + 单独替换发布版 Go JNI”的不匹配组合；
-- `tests/test-xray-core-parity.py`：守住配置生成、存储 / TOFU、Service 重试清理、Settings 核心语义、手机导入的 EventBus / operation 中断边界与发布版错误去敏链，并要求 current public destination guard 与发布 `qz3` readable mirror 保持逐行为等价；
+- `tests/test-xray-core-parity.py`：守住配置生成、存储 / TOFU、Service 重试清理、Settings 核心语义、手机导入的 EventBus / operation 中断边界与发布版错误去敏链，并要求 current public destination guard 与发布 `qz3` readable mirror 保持逐行为等价；同时调用 `tests/test-xray-service-execution.py`，编译执行真实 Service、generation gate 与错误去敏类，验证启动/停止、准备期间替换/取消、回调失败后的清理、仍运行的 native Core 防护与取消后禁止信任写入。Android、native、配置构建及 pin 存储为确定性边界替身，实际 native 配置另由双 ABI chain 验证；
 - `tests/test-xray-playback-parity.py`：守住 VOD / Live、播放器代理切换、媒体旁路、本地 scheme、artwork/logo 与资源释放语义，并调用 `tests/test-xray-side-request-lifecycle.py`，编译真实弹幕/字幕 API 与上游 `ApiCallback`，验证 HTTP / 下载完成后排队回调的 Xray 取消、owner 关闭、replacement 与 reentrant 边界；
 - `tests/test-xray-playback-address-parity.py`：把 public HTTP(S)/RTSP/RTSPT、私网/保留目标、Unicode whitespace，以及 Live pending `.strm` / YouTube indirection 边界与冻结发布证据做 differential parity；
 - `tests/test-xray-session-races.py`：锁住发布版 STOP / timeout / callback 的竞态顺序；
@@ -302,6 +302,8 @@ GitHub Releases 当前保留 `v5.6.0-xray.5` 黄金参考、`v5.6.3-xray.test.7`
 - `tests/test-tv-network-recovery.py`：锁住正式 `gn3` 的前后台 / SCREEN generation 来源，并用纯 JVM harness 验证 recovery 顺序、连续稳定检查、DoH resolver snapshot 与跨 generation 串行清理。
 
 `tests/` 是 `main` 的统一回归入口，不再另维护目录 README。除上述 workflow guard 外：
+
+- build/publish 的 Gradle 编译步骤必须同时执行 `:xray:testDebugUnitTest` 与 `:tv-recovery:testDebugUnitTest`，`test-build-hygiene.py` 检查这两个入口不可被遗漏。Python source/JVM guards 与 Gradle 模块 JUnit 是不同验证层，不能互相替代；workflow 仍只允许手动触发。
 
 - `tests/test-current-native-share-chain.py` + `tests/xray-current-chain/`：执行 current Java normalize/security/config 链，并分别调用固定 v7 / arm64 发布 `libgojni.so`，对 26 组 conversion/runtime oracle 与发布版 `testXray` 做动态 parity；其中 6 组覆盖 KCP golden cases。
 - `tests/xray-session/`：Android / Binder / Handler 等 deterministic test doubles，只替代平台边界，真实编译 session / settings controller。
@@ -328,9 +330,11 @@ FingMi-Xray 当前**不使用 FongMi/Release 的应用内自更新**。原因是
 完成依赖准备后，主要验证命令为：
 
 ```bash
-./gradlew --no-daemon :app:compileLeanbackDebugJavaWithJavac
-./gradlew --no-daemon :app:assembleLeanbackDebug
+bash gradlew --no-daemon :xray:testDebugUnitTest :tv-recovery:testDebugUnitTest :app:compileLeanbackDebugJavaWithJavac
+bash gradlew --no-daemon :app:assembleLeanbackDebug
 ```
+
+集中复查时，除上述源码/JVM入口和双 ABI native chain 外，应核对 Gradle XML 中实际执行的 tests/failures/errors/skipped。需要确认重新执行而非 `UP-TO-DATE` / `FROM-CACHE` 时，在对应 task 后加 `--rerun`；不要为普通文档调整重复构建。可用 `--offline` 复用已经校验的本地依赖。
 
 云端受限文件系统中，Java 用户目录与 Maven/Gradle 缓存必须使用可写路径；Robolectric 会在 Java `user.home` 写下载锁，不能只设置 Maven local repository。当前云端以 `-Duser.home=/workspace` 和 `/workspace/.m2/repository` 完成测试；Gradle 自动下载的 JetBrains JDK 需通过 `-Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cacerts` 信任环境系统 CA。代理沿用环境提供的配置，不关闭 TLS 验证。播放器公开源码构建还会安装 NDK `29.0.14206865` 与 `28.2.13676358`。wrapper 未带执行位时可使用 `bash gradlew`。 `check-final-apk-manifest.py` 读取 apkanalyzer 的合并输出，因此检查时需将 Java 参数传给 `JAVA_OPTS` 并移除该子进程的 `JAVA_TOOL_OPTIONS`，避免 JVM 的 “Picked up” 提示混入 XML；参数不变、TLS 验证仍开启。
 
@@ -602,3 +606,22 @@ Xray 审查覆盖分享链接、security/pin/config、Service 串行执行与代
 补跑真实 Gradle 单元测试发现一条过期 Xray 断言：`livePendingResolverRetainsCurrentIdentity()` 仍期待临时 URL 解析成不同最终 URL 时 `resolved()` 返回 false。历史提交 `59e231f` 已将该接口语义改成报告 URL 变化，同时保留播放 identity/generation；生产调用方不再用此返回值关闭代理，当时漏同步了该测试。仅修正测试预期，并补充最终 URL 与重复解析不变化的断言，保留 generation 不变及换线清空 URL 的原有检查；不改运行代码。`bash gradlew :xray:testDebugUnitTest --rerun :tv-recovery:testDebugUnitTest --rerun --offline --no-daemon` 随后成功，XML 确认 Xray 3 项、recovery 2 项实际执行，失败、错误、跳过均为 0。既有 14 个标准本地验证入口全部通过；这些入口此前并不包含 Gradle JUnit，不能把它们的通过等同全部模块测试通过。
 
 另在仓库外编译真实当前 Java，验证 1188 组 Hysteria2 域名/IPv4/IPv6、默认/跳跃端口、真实 query、literal/encoded 备注组合，参数隔离与重复规范化均通过。用真实 `XrayProxySocketFactory` 对本地 SOCKS5 测试服务执行 8 次握手，验证不可本地解析的域名仍以域名交给代理、字符串 IPv4/IPv6 和 InetAddress overload 的目标地址及端口正确、local bind 与无参 socket 路径正常。再执行固定 v7 Go JNI 的 6 个 VMess QR insecure 字段边界，生成的 TLS `allowInsecure` 均为 false，排除该组输入绕过 security query 处理的疑点。这些是宿主 JVM/环回 socket 和 QEMU native 的验证，不包含 Android ART、真实远端 DNS/节点握手、APK assemble 或电视息屏/长后台验收。本轮 Xray 核心版本、运行源码和发布资产不变，未触发 Actions。
+
+
+### 2026-10-05 — 集中复查与验证入口补齐
+
+重新读取公开 FongMi/TV HEAD，仍为 `c616c0aa3613e87529791587a9f71b78c278c991` / 5.6.3。再次生成完整 tracked-tree 差异并逐项读取 57 个修改文件；审查起点的 1061 个同路径相同文件、2 个删除文件和 376 个新增文件与上一轮一致。新增应用类另按 Xray、恢复 flavor/资源适配及固定公开 media 缺失 API 的兼容用途核对。普通上游业务不追加修复，既有 MPV/字幕兼容接线和 5.6.8 Libass 固定 native 输入债没有被当作公开上游源码，也未进一步扩大。本轮没有反编译 APK 或更新 Xray，AAR 中双 ABI Go JNI 与既有黄金 hash 逐字节一致。
+
+集中核对 normalizer/security/config、Service/generation、Binder 与设置取消、播放身份/代理卸载、媒体旁路回调，以及恢复 lifecycle → Home adapter → API/DNS/DoH → Spider → Glide 的实际调用链，未复现新的确定运行缺陷。两个独立核心没有反向引用 FongMi 业务；宿主仍保留必要接线。本轮不修改运行源码，修改只涉及测试、手动构建验收与文档。
+
+这次把已有验证层一起执行并明确区分：
+
+- 14 个标准 source/JVM/验证器自测入口通过；其中包括真实弹幕/字幕 API 的 16 个排队回调场景及 Leanback/Mobile 恢复适配 JVM 检查。
+- 实际 Gradle JUnit 强制重跑：Xray 3 项、recovery 2 项，XML 的失败、错误、跳过均为 0；完整 Leanback Release Java 编译单独 `--rerun` 成功。
+- 双 ABI 各 26 个 current Java → 固定黄金 JNI → current runtime → native `testXray` 用例通过；另各 5 个备注边界用例通过。
+- 仓库外补查 1188 组 Hysteria2 备注参数隔离/幂等组合及 8 次实际 JVM/环回 SOCKS5 握手，域名交给代理及 IPv4/IPv6 地址、端口、local bind 正常。
+- 新增 `test-xray-service-execution.py` 编译执行真实 Service/gate/sanitizer，9 个确定性场景通过：正常启停、live 时拒绝测试、准备期间替换/停止、无法交付启动回调后的清理、停止失败时仍运行 Core 的防护、取消重置私有进程请求及取消后禁止信任写入。Android/native/config/pin 为替身，不冒充真实 Binder/ART；已接入现有 core parity 入口。
+
+前轮遗漏 Gradle JUnit 属于验证流程缺口。现有两个手动 build/publish workflow 的编译步骤加入两个模块的 JUnit tasks，并由 build-hygiene guard 要求保留；这补齐未来手动验收，不改变触发方式，本轮未触发 Actions。README 删除误留的 test.6 校验值，改为引用本文件中经 GitHub 实际资产 digest 核对的 test.7 表，避免重复维护。历史 test.6 记录仍保留其原资产摘要。
+
+这些证据不包含当前 APK assemble、Android ART、真实远端节点握手/播放或 TV 息屏、Fast Start、长后台验收。约 6 秒恢复轮询上限、后台保留 player client 及 Libass 输入债仍是已登记的限制；已发布 test.7 也仍不包含后续 main 的备注修复。不得把本轮未发现新的确定缺陷表述为所有场景无 Bug。

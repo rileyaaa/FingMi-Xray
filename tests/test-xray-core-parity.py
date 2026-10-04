@@ -3,6 +3,8 @@
 
 from pathlib import Path
 import re
+import subprocess
+import sys
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -549,5 +551,10 @@ for reference in (
 ):
     if not (ROOT / reference).is_file():
         raise SystemExit(f"missing released-Xray behavioral reference: {reference}")
+
+subprocess.run(
+    [sys.executable, str(ROOT / "tests/test-xray-service-execution.py")],
+    check=True,
+)
 
 print("Xray core released-behavior parity guards passed")

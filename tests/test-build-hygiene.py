@@ -254,6 +254,8 @@ for name, text in (
     for required in (
         "bash scripts/build/build-player-aar-candidate.sh",
         "'platforms;android-36'",
+        ":xray:testDebugUnitTest",
+        ":tv-recovery:testDebugUnitTest",
         ":app:compileLeanbackDebugJavaWithJavac",
         ":app:assembleLeanbackDebug",
         "python3 scripts/build/check-elf-runtime.py --self-test",

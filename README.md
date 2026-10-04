@@ -36,7 +36,7 @@ GitHub Releases 当前保留 `v5.6.0-xray.5` 黄金参考、[`v5.6.3-xray.test.7
 
 当前 17-AAR player candidate 从固定公开 FongMi/media 1.11.0 源码重建；Libass compatibility 仍有一项单独登记的 native 构建债，不能据此把更高版本 Release 当作上游。MPV、FFmpeg 等 native 组件没有在当前工程中维护独立、可直接声明的 semver，因此不另外虚构版本号；当前构建规则与该构建债见 [DEVELOPMENT.md](docs/DEVELOPMENT.md)，历史二进制来源和 v7 Xray 黄金行为证据见 [RECOVERY.md](docs/RECOVERY.md)。
 
-当前测试 APK 校验：armeabi-v7a `sha256:af4e725c59a9b92e49ce1c4391219c788c3c2d67f37e958881d70ae0cd121f39`；arm64-v8a `sha256:2d482e2d71de00ae7bd75186a80387acc6a2a5896a7db8a2e4453eb1a9c59168`。
+当前测试 APK 的双 ABI SHA-256 见 [DEVELOPMENT.md 的 test.7 发布资产表](docs/DEVELOPMENT.md#2026-10-04--再次逐项上游审查与-hysteria2-备注边界修复)。
 
 ### 构建环境
 
