@@ -332,7 +332,7 @@ FingMi-Xray 当前**不使用 FongMi/Release 的应用内自更新**。原因是
 ./gradlew --no-daemon :app:assembleLeanbackDebug
 ```
 
-云端受限文件系统中，Java 用户目录与 Maven/Gradle 缓存必须使用可写路径；Robolectric 会在 Java `user.home` 写下载锁，不能只设置 Maven local repository。当前云端以 `-Duser.home=/workspace` 和 `/workspace/.m2/repository` 完成测试；Gradle 自动下载的 JetBrains JDK 需通过 `-Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cacerts` 信任环境系统 CA。代理沿用环境提供的配置，不关闭 TLS 验证。播放器公开源码构建还会安装 NDK `29.0.14206865` 与 `28.2.13676358`。wrapper 未带执行位时可使用 `bash gradlew`。
+云端受限文件系统中，Java 用户目录与 Maven/Gradle 缓存必须使用可写路径；Robolectric 会在 Java `user.home` 写下载锁，不能只设置 Maven local repository。当前云端以 `-Duser.home=/workspace` 和 `/workspace/.m2/repository` 完成测试；Gradle 自动下载的 JetBrains JDK 需通过 `-Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cacerts` 信任环境系统 CA。代理沿用环境提供的配置，不关闭 TLS 验证。播放器公开源码构建还会安装 NDK `29.0.14206865` 与 `28.2.13676358`。wrapper 未带执行位时可使用 `bash gradlew`。 `check-final-apk-manifest.py` 读取 apkanalyzer 的合并输出，因此检查时需将 Java 参数传给 `JAVA_OPTS` 并移除该子进程的 `JAVA_TOOL_OPTIONS`，避免 JVM 的 “Picked up” 提示混入 XML；参数不变、TLS 验证仍开启。
 
 ## 8. 跟随 FongMi/TV 上游
 
@@ -563,4 +563,15 @@ TV recovery 复核覆盖 SCREEN/background generation、配置重建排除、Hom
 
 用户明确要求本地编译并上传 Release。本次完整 Leanback javac 发现拆分恢复模块时误删了 HomeActivity 的 `ImgUtil` import，而上游 `ImgUtil.logo()` 调用仍保留；仅恢复该 import，不改变上游 logo 或恢复流程。此前核心/适配器 JVM 验证没有编译完整 HomeActivity，不能代替应用编译。固定 Media3 container AAR 加入构建产物忽略规则，二进制不提交 Git。发布 workflow 仍为纯手动，当前测试目标推进为 `v5.6.3-xray.test.7`。
 
-固定公开 FongMi/media 17-AAR candidate 已在云端重建成功；Libass 的 10 个真实 Robolectric 测试通过，extractor SHA-256 `feb8be30e3d431391ce4b3b165a6cbfb18313969d7ba7da2d6ccfeb96d25ee68` 与 candidate SHA-256 `f047f8ad84be08aeddb0672500e9b263cafd6f2a009812392554dc55b2019861` 均符合仓库固定值。最初 Robolectric 因只读用户目录失败，改用可写 Java user.home 后通过，没有为此更改上游源代码。既有 14 个 source guards 及 ARMv7/ARM64 各 26 个真实黄金 JNI 转换/runtime 用例均通过。Xray v26.7.28 与两 ABI 黄金原生库保持原样，FongMi 公开源码基线仍为 5.6.3。完整 APK 重编译与最终发布结果待下面追加验证记录。
+固定公开 FongMi/media 17-AAR candidate 已在云端重建成功；Libass 的 10 个真实 Robolectric 测试通过，extractor SHA-256 `feb8be30e3d431391ce4b3b165a6cbfb18313969d7ba7da2d6ccfeb96d25ee68` 与 candidate SHA-256 `f047f8ad84be08aeddb0672500e9b263cafd6f2a009812392554dc55b2019861` 均符合仓库固定值。最初 Robolectric 因只读用户目录失败，改用可写 Java user.home 后通过，没有为此更改上游源代码。既有 14 个 source guards 及 ARMv7/ARM64 各 26 个真实黄金 JNI 转换/runtime 用例均通过。Xray v26.7.28 与两 ABI 黄金原生库保持原样，FongMi 公开源码基线仍为 5.6.3。完整 Leanback javac 重编译与 APK assemble 均成功，APK build source 为 `631cbcf0948370bdbf8c4a337d44fbd979c68485`。
+
+两个完整 APK 的最终 Xray / FFmpeg / MPEG-H / Libass ELF 运行段均匹配验证过的 AAR；双 ABI 单独打包，DEX 包含 Xray service、独立 recovery core 及 app adapter；Manifest、apksigner 与 16 KB page zipalign 校验通过。该源码重新跑完 14 个标准验证入口。本轮没有 Android ART 启动、真实节点握手、播放或 TV 待机验收。
+
+| 本地完整测试 APK | SHA-256 |
+| --- | --- |
+| armeabi-v7a | `44385f3a3a7b62d0b894efa7020eb253de310d08b5eaa751523272764c20ffdd` |
+| arm64-v8a | `5915528ac25ac4ee6f09391275868c119fd1d6123253970a01862b86292ae05e` |
+
+两 APK 使用同一云端 Debug 测试证书 SHA-256 `0d71ccd96f6c91f8e3d1e9c9e7f37d5e1c3ce4b4bb407a0a7d85ade1475a6c2b`，与黄金版及 test.6 证书不同，不能覆盖安装；测试前需备份配置。该证书不等同历史正式发布签名。完整 APK 保存在本地 `app/build/outputs/apk/leanback/debug/`。
+
+云端向 GitHub uploads endpoint 的直接发布失败：GitHub CLI、urllib 与 curl（HTTP/1.1、HTTP/2）均返回 HTTP 400 `Bad Content-Length`；1 KB 和更小的临时未发布探测也同样失败，未留下任何远端资产，不能归因于 APK 内容或文件大小。保持原测试 Release，清理本轮空草稿后，仅尝试一次已有纯手动 publisher 作为必要发布替代；该路径会重新构建，必须以它实际产出的 source / digest 为准，不能把上述本地 APK hash 当作 Actions 发布资产 hash。
