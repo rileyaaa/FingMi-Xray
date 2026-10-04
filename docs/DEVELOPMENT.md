@@ -594,3 +594,11 @@ Xray 审查覆盖分享链接、security/pin/config、Service 串行执行与代
 | --- | --- |
 | armeabi-v7a | `fbf6d6beab7c18f0cf4366a8586814667f6d825bf06fca1a7f566357e3077c1e` |
 | arm64-v8a | `19ee000e08e62f8019f0d7e4afd7c1005fd775027840bf07f4abcdd6d37caad3` |
+
+### 2026-10-05 — 模块取消、资源关闭与网络边界复查
+
+再次刷新公开 FongMi/TV HEAD，仍为 5.6.3 的 `c616c0aa3613e87529791587a9f71b78c278c991`。重新计算当前 tracked tree 差异，仍为 1061 个同路径相同文件、57 个修改文件、2 个删除文件、376 个新增文件；宿主、网络恢复、媒体兼容及 libXray 输入的 blob 自上一轮逐项审查以来均未变化。复查 Service/Binder 的取消与代际门控、START/STOP 替换、播放代理卸载、媒体旁路回调、Loader 清理、API/DNS/DoH 重建及 Home 销毁后的迟到回调，没有复现新的确定运行缺陷，也没有追加普通上游修复。既有 Libass 构建债仍未移除。
+
+补跑真实 Gradle 单元测试发现一条过期 Xray 断言：`livePendingResolverRetainsCurrentIdentity()` 仍期待临时 URL 解析成不同最终 URL 时 `resolved()` 返回 false。历史提交 `59e231f` 已将该接口语义改成报告 URL 变化，同时保留播放 identity/generation；生产调用方不再用此返回值关闭代理，当时漏同步了该测试。仅修正测试预期，并补充最终 URL 与重复解析不变化的断言，保留 generation 不变及换线清空 URL 的原有检查；不改运行代码。`bash gradlew :xray:testDebugUnitTest --rerun :tv-recovery:testDebugUnitTest --rerun --offline --no-daemon` 随后成功，XML 确认 Xray 3 项、recovery 2 项实际执行，失败、错误、跳过均为 0。既有 14 个标准本地验证入口全部通过；这些入口此前并不包含 Gradle JUnit，不能把它们的通过等同全部模块测试通过。
+
+另在仓库外编译真实当前 Java，验证 1188 组 Hysteria2 域名/IPv4/IPv6、默认/跳跃端口、真实 query、literal/encoded 备注组合，参数隔离与重复规范化均通过。用真实 `XrayProxySocketFactory` 对本地 SOCKS5 测试服务执行 8 次握手，验证不可本地解析的域名仍以域名交给代理、字符串 IPv4/IPv6 和 InetAddress overload 的目标地址及端口正确、local bind 与无参 socket 路径正常。再执行固定 v7 Go JNI 的 6 个 VMess QR insecure 字段边界，生成的 TLS `allowInsecure` 均为 false，排除该组输入绕过 security query 处理的疑点。这些是宿主 JVM/环回 socket 和 QEMU native 的验证，不包含 Android ART、真实远端 DNS/节点握手、APK assemble 或电视息屏/长后台验收。本轮 Xray 核心版本、运行源码和发布资产不变，未触发 Actions。

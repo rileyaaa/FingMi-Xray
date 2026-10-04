@@ -22,8 +22,11 @@ public class PlaybackIdentityGateTest {
         gate.begin("live:channel-1/line-1");
         gate.provisional("https://source.example/live");
         long generation = gate.generation();
-        assertFalse(gate.resolved("https://cdn.example/resolved"));
+        // The URL changed; the logical channel/line identity did not.
+        assertTrue(gate.resolved("https://cdn.example/resolved"));
         assertEquals(generation, gate.generation());
+        assertEquals("https://cdn.example/resolved", gate.mediaUrl());
+        assertFalse(gate.resolved("https://cdn.example/resolved"));
         assertTrue(gate.begin("live:channel-1/line-2"));
         assertNull(gate.mediaUrl());
         gate.end();
