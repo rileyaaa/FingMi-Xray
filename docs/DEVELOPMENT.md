@@ -332,6 +332,8 @@ FingMi-Xray 当前**不使用 FongMi/Release 的应用内自更新**。原因是
 ./gradlew --no-daemon :app:assembleLeanbackDebug
 ```
 
+云端受限文件系统中，Java 用户目录与 Maven/Gradle 缓存必须使用可写路径；Robolectric 会在 Java `user.home` 写下载锁，不能只设置 Maven local repository。当前云端以 `-Duser.home=/workspace` 和 `/workspace/.m2/repository` 完成测试；Gradle 自动下载的 JetBrains JDK 需通过 `-Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cacerts` 信任环境系统 CA。代理沿用环境提供的配置，不关闭 TLS 验证。播放器公开源码构建还会安装 NDK `29.0.14206865` 与 `28.2.13676358`。wrapper 未带执行位时可使用 `bash gradlew`。
+
 ## 8. 跟随 FongMi/TV 上游
 
 升级上游时只以当前 `main` 和目标 FongMi/TV 上游为架构开发输入，不从历史 recovery faithful tree 继续开发；但 `:xray` 的外部行为仍必须保持与 `v5.6.0-xray.5` v7 黄金参考一致。
@@ -556,3 +558,9 @@ TV recovery 复核覆盖 SCREEN/background generation、配置重建排除、Hom
 新增模块边界与实际适配器 JVM 验证，分别编译执行 Leanback/Mobile 接线；既有 14 个本地验证入口全部通过。实际执行 `:tv-recovery:assembleDebug :tv-recovery:testDebugUnitTest` 成功，独立 AAR 生成、Android Java 编译与两个迁移的 JUnit 测试通过。云端 Gradle 使用当前 session proxy 和系统 CA 信任，不为此修改上游 Gradle/toolchain 设置。本次没有构建完整应用 APK、触发 Actions、更新核心版本或发布 Release，Android 真机验收仍未完成。
 
 后续上游同步应保留两个核心模块，先采用公开 FongMi 树，再核对应用自有适配层及页面/播放器所需接入点。核心独立不意味着零上游接线：网络资源、播放器与 UI 属于宿主，接口变化仍需适配与回归验证；不得因此接管普通上游业务或把网络恢复并入 Xray。
+
+### 2026-10-04 — 云端完整 TV APK 构建与模块拆分接线修正
+
+用户明确要求本地编译并上传 Release。本次完整 Leanback javac 发现拆分恢复模块时误删了 HomeActivity 的 `ImgUtil` import，而上游 `ImgUtil.logo()` 调用仍保留；仅恢复该 import，不改变上游 logo 或恢复流程。此前核心/适配器 JVM 验证没有编译完整 HomeActivity，不能代替应用编译。固定 Media3 container AAR 加入构建产物忽略规则，二进制不提交 Git。发布 workflow 仍为纯手动，当前测试目标推进为 `v5.6.3-xray.test.7`。
+
+固定公开 FongMi/media 17-AAR candidate 已在云端重建成功；Libass 的 10 个真实 Robolectric 测试通过，extractor SHA-256 `feb8be30e3d431391ce4b3b165a6cbfb18313969d7ba7da2d6ccfeb96d25ee68` 与 candidate SHA-256 `f047f8ad84be08aeddb0672500e9b263cafd6f2a009812392554dc55b2019861` 均符合仓库固定值。最初 Robolectric 因只读用户目录失败，改用可写 Java user.home 后通过，没有为此更改上游源代码。既有 14 个 source guards 及 ARMv7/ARM64 各 26 个真实黄金 JNI 转换/runtime 用例均通过。Xray v26.7.28 与两 ABI 黄金原生库保持原样，FongMi 公开源码基线仍为 5.6.3。完整 APK 重编译与最终发布结果待下面追加验证记录。
