@@ -526,3 +526,17 @@ TV 待机网络审计发现 `OkDns.lookup()` 在 reset/rebuild 并发时存在�
 新增 `tests/test-xray-side-request-lifecycle.py` 用确定性 HTTP / Download / 主线程队列边界编译执行真实 API：修复前复现 stale callback，修复后 16 个场景通过，并已接入现有 playback parity guard，build/publish 无需新增 workflow 步骤即可运行。本轮本地 14 个标准验证入口均通过；证据限于源码/JVM、v7 native 配置校验与本地 Core DNS，不包含当前改动的 APK assemble、Android ART、真实播放或 TV 待机验收。未触发 GitHub Actions 或发布。
 
 再次复核公开上游 HEAD 与当前声明版本，仍为上述 5.6.3 基线；普通 Config、Keep、SiteApi、LiveParser、Event/Notify 等源码保持上游 blob。沿弹幕/字幕调用方、Xray playback identity / START-STOP / proxy cleanup，以及 TV SCREEN/background generation → Home 串行恢复 → API/DNS/DoH reset → Spider cleanup → Glide epoch 重新检查，没有复现新的确定问题。约 6 秒网络稳定性轮询上限与后台保留 dedicated player client 继续作为已登记的真机观察项，不据静态推测扩张上游业务状态机。
+
+### 2026-10-04 — 公开上游完整差异与两项维护模块独立复核
+
+环境发布后的验证重跑只证明工具链和既有测试仍可执行，不能代替独立代码审查。本次另从固定公开 `FongMi/TV@c616c0aa3613e87529791587a9f71b78c278c991` 完整树重新生成并逐项读取差异：上游 1,120 个受 Git 跟踪路径中，1,061 个文件逐字节一致；57 个同路径修改（其中 42 个 Java 文件）及 2 个网站文件删除均重新检查。这里的计数不包含本项目新增的 Xray、恢复、兼容层、测试与冻结取证文件，不能据此声称所有新增代码也来自上游。
+
+保留差异逐项核对其 Xray、TV recovery、禁用 APK 自更新、构建基础设施或公开 media API 兼容理由。额外直接读取固定公开 `FongMi/media@3c2cbe8ac742c2fe15eff52f03eeb3b1b648848d` 的 `MpvPlayer`、`MpvPlayerConfig`、`MpvSubtitleOptions`：该版本没有 current app 调用所需的 secondary-track selection/reset/suppression 等接口，因此现有选轨与字幕位置适配不能作为无关业务修复直接删除。前一轮恢复的 `ViewModelTaskRunner.cancelAll()` 和 `ChannelAdapter.onViewRecycled()` 继续保持公开上游实现；没有新增普通 Config、导航或播放器功能状态机。
+
+Xray 复核覆盖 normalizer/security/config、Service 单线程运行与 operation/session gate、Binder 绑定/死亡/超时、settings/save/delete/reset、播放 identity、Exo/DRM/RTSP 注入、弹幕/字幕/EPG/XML、artwork/logo/preload 以及停止、失败和 owner 销毁的实际调用顺序。再次排除几种仅看局部代码产生的误报：上游 `ProxyRedirectInterceptor` 只有未显式设置 proxy 时才重新选路，故不会覆盖 Xray 明确设置的 SOCKS；`close()` 通过同步 IDLE 回调先卸载代理，再置 closed；清空预加载请求后，已排队的 preload 结果仍需通过 controller 的 pending-request 匹配。没有把上游通用 `LiveData.postValue()` 改造成另一套交付机制，也不以取消 Future 代替对观察者/request identity 的检查。
+
+TV recovery 复核覆盖 SCREEN/background generation、配置重建排除、Home resume/focus、清理期间 generation 再变化、销毁后的 completion/poll、普通 API 与 player client 隔离、DNS/DoH reset、Jar/JS/Python destroy 异常隔离、Glide 动态 client 与失败 epoch。锁顺序沿实际 Startup DoH supplier 反查，该 supplier 读取设置并构造 DoH 数据，没有反向获取 OkHttp 锁；没有仅凭类之间的理论调用关系添加锁或 loader barrier。
+
+本次独立审查未复现新的确定运行缺陷，没有追加运行代码修复。重新执行 session-races、service-client-lifecycle、playback-parity（包含真实弹幕/字幕 API 的 16 个确定性场景）和 TV-network-recovery 四个针对性入口，均通过；这些证据包含真实 Java 类配合 Android/Binder/网络边界替身的 JVM 测试与源码合同检查，不等于 Android ART、APK assemble 或 TV 真机运行。本次没有重跑 native 节点连通性或触发 Actions。
+
+第 2 点仍有明确构建例外：现有 Libass compatibility 输入从 5.6.8 APK 提取固定 hash 的原生库，且存在为兼容重建的 media 接口；它不是公开 5.6.3 源码本身。该技术债并未因此消失，也不能作为继续跟进更高版本 APK 功能的依据。约 6 秒恢复轮询上限与后台保留 player client 仍沿用已取证行为，留待真机验证，不宣称当前代码无 Bug。
