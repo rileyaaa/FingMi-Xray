@@ -69,7 +69,7 @@ public class DanmakuApi {
         Call call;
         Runnable completion;
         synchronized (DanmakuApi.class) {
-            if (runCompletion && currentCall == null) return;
+            if (runCompletion && currentRequestId < 0) return;
             REQUEST_ID.incrementAndGet();
             call = currentCall;
             completion = runCompletion ? xrayCancelCompletion : null;
@@ -122,7 +122,7 @@ public class DanmakuApi {
             @Override
             public void onFailure(Call call, IOException exception) {
                 try {
-                    ApiCallback.post(requestId, REQUEST_ID, () -> error.accept(exception));
+                    postResult(requestId, () -> error.accept(exception));
                 } finally {
                     finish(call);
                 }
@@ -132,9 +132,9 @@ public class DanmakuApi {
             public void onResponse(Call call, Response response) {
                 try (response) {
                     List<Danmaku> result = Danmaku.arrayFrom(read(response));
-                    ApiCallback.post(requestId, REQUEST_ID, () -> success.accept(result));
+                    postResult(requestId, () -> success.accept(result));
                 } catch (Exception exception) {
-                    ApiCallback.post(requestId, REQUEST_ID, () -> error.accept(exception));
+                    postResult(requestId, () -> error.accept(exception));
                 } finally {
                     finish(call);
                 }
@@ -146,6 +146,22 @@ public class DanmakuApi {
     private static synchronized void finish(Call call) {
         if (currentCall != call) return;
         currentCall = null;
+    }
+
+    private static void postResult(int requestId, Runnable action) {
+        ApiCallback.post(requestId, REQUEST_ID, () -> {
+            try {
+                action.run();
+            } finally {
+                finishResult(requestId);
+            }
+        });
+    }
+
+    private static synchronized void finishResult(int requestId) {
+        // HTTP completion is not UI completion. Keep the owner cancelable
+        // while its result is queued across an Xray network transition.
+        if (currentRequestId != requestId) return;
         currentRequestId = -1;
         xrayCancelCompletion = null;
     }

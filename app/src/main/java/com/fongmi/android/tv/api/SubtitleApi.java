@@ -79,7 +79,7 @@ public class SubtitleApi {
         Download download;
         Runnable completion;
         synchronized (SubtitleApi.class) {
-            if (currentCall == null && currentDownload == null) return;
+            if (currentRequestId < 0) return;
             REQUEST_ID.incrementAndGet();
             call = currentCall;
             download = currentDownload;
@@ -180,7 +180,7 @@ public class SubtitleApi {
             @Override
             public void onFailure(Call call, IOException exception) {
                 try {
-                    ApiCallback.post(requestId, REQUEST_ID, () -> error.accept(exception));
+                    postResult(requestId, () -> error.accept(exception));
                 } finally {
                     finishCall(call);
                 }
@@ -190,9 +190,9 @@ public class SubtitleApi {
             public void onResponse(Call call, Response response) {
                 try (response) {
                     T value = parser.parse(response);
-                    ApiCallback.post(requestId, REQUEST_ID, () -> success.accept(value));
+                    postResult(requestId, () -> success.accept(value));
                 } catch (Exception exception) {
-                    ApiCallback.post(requestId, REQUEST_ID, () -> error.accept(exception));
+                    postResult(requestId, () -> error.accept(exception));
                 } finally {
                     finishCall(call);
                 }
@@ -203,16 +203,30 @@ public class SubtitleApi {
     private static synchronized void finishCall(Call call) {
         if (currentCall != call) return;
         currentCall = null;
-        currentRequestId = -1;
-        xrayCancelCompletion = null;
     }
 
     private static synchronized boolean finishDownload(Download download) {
         if (currentDownload != download) return false;
         currentDownload = null;
+        return true;
+    }
+
+    private static void postResult(int requestId, Runnable action) {
+        ApiCallback.post(requestId, REQUEST_ID, () -> {
+            try {
+                action.run();
+            } finally {
+                finishResult(requestId);
+            }
+        });
+    }
+
+    private static synchronized void finishResult(int requestId) {
+        // Also retain ownership during ZIP extraction and queued UI delivery.
+        // A reentrant callback may already own a newer request.
+        if (currentRequestId != requestId) return;
         currentRequestId = -1;
         xrayCancelCompletion = null;
-        return true;
     }
 
     private static Call newSearchCall(OkHttpClient client, String keyword, int pos) {
@@ -260,7 +274,7 @@ public class SubtitleApi {
             Consumer<List<SubtitleSearchItem>> success) {
         List<File> files = SubtitleArchive.unzip(file, SubtitleArchive.getDir(item.getUrl()));
         List<SubtitleSearchItem> items = SubtitleSearchItem.fromFiles(files, item.getLang());
-        ApiCallback.post(requestId, REQUEST_ID, () -> success.accept(items));
+        postResult(requestId, () -> success.accept(items));
     }
 
     private static void completeDownload(
@@ -273,7 +287,7 @@ public class SubtitleApi {
                 item.getName(),
                 file.getAbsolutePath(),
                 item.getLang());
-        ApiCallback.post(requestId, REQUEST_ID, () -> success.accept(List.of(local)));
+        postResult(requestId, () -> success.accept(List.of(local)));
     }
 
     private static String read(Response response) throws IOException {
@@ -360,9 +374,8 @@ public class SubtitleApi {
         @Override
         public void error(String msg) {
             if (!finishDownload(task)) return;
-            ApiCallback.post(
+            postResult(
                     requestId,
-                    REQUEST_ID,
                     () -> error.accept(new IOException(msg)));
         }
 

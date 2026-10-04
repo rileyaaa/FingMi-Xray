@@ -284,7 +284,7 @@ GitHub Releases 当前保留 `v5.6.0-xray.5` 黄金参考、`v5.6.3-xray.test.6`
 
 - `tests/test-xray-android-runtime-compat.py`：防止 Java 21 可编译、但旧 Android ART 运行时不存在的 API 再进入 `:xray`，并防止 `main` 构建重新退回“官方旧 Java bindings + 单独替换发布版 Go JNI”的不匹配组合；
 - `tests/test-xray-core-parity.py`：守住配置生成、存储 / TOFU、Service 重试清理、Settings 核心语义、手机导入的 EventBus / operation 中断边界与发布版错误去敏链，并要求 current public destination guard 与发布 `qz3` readable mirror 保持逐行为等价；
-- `tests/test-xray-playback-parity.py`：守住 VOD / Live、播放器代理切换、媒体旁路、本地 scheme、artwork/logo 与资源释放语义；
+- `tests/test-xray-playback-parity.py`：守住 VOD / Live、播放器代理切换、媒体旁路、本地 scheme、artwork/logo 与资源释放语义，并调用 `tests/test-xray-side-request-lifecycle.py`，编译真实弹幕/字幕 API 与上游 `ApiCallback`，验证 HTTP / 下载完成后排队回调的 Xray 取消、owner 关闭、replacement 与 reentrant 边界；
 - `tests/test-xray-playback-address-parity.py`：把 public HTTP(S)/RTSP/RTSPT、私网/保留目标、Unicode whitespace，以及 Live pending `.strm` / YouTube indirection 边界与冻结发布证据做 differential parity；
 - `tests/test-xray-session-races.py`：锁住发布版 STOP / timeout / callback 的竞态顺序；
 - `tests/test-xray-service-client-lifecycle.py`：直接编译真实 Service client，锁住 bind timeout、cancel/unbind、Binder death 与 stale callback / connection generation；
@@ -512,3 +512,17 @@ TV 待机网络审计发现 `OkDns.lookup()` 在 reset/rebuild 并发时存在�
 与上述修复直接对应的 current-native/share、core/playback、ServiceClient、session/settings、transport-security 与 TV recovery source/JVM guards 一并重放。TV recovery guard 额外锁定普通 `KeepActivity/SiteApi/BaseConfig/VodConfig/LiveConfig/WallConfig/LiveParser/ConfigEvent/Notify` 必须保持固定上游 Git blob，防止后续再把恢复状态机扩散进普通业务层。
 
 这次重放完成时尚未触发 GitHub Actions/AC，也没有把旧 run 冒充为新 HEAD 验证。source-backup 之前已有的构建/native/Manifest 证据仍只证明当时对应代码；该状态随后由 2026-10-03 的 publish run `37100464365` 完成自动验证，见后续记录。
+
+### 2026-10-04 — 用户分享链接核验与 Xray 旁路排队回调修正
+
+重新对照公开 `FongMi/TV@c616c0aa3613e87529791587a9f71b78c278c991`（5.6.3）完整树核查差异，恢复两处不需要改变普通上游行为的细节：`ViewModelTaskRunner.cancelAll()` 回到上游仅取消并清空 futures 的实现，保留 Xray/TV recovery 所需的定向 `cancel(type)`；`ChannelAdapter.onViewRecycled()` 回到上游实现，Xray logo 抑制继续只由专用状态及绑定路径负责。没有用高于公开源码的 APK 恢复上游功能；既有 5.6.8 Libass native 输入债仍按前述边界保留，尚未移除。
+
+用户提供的六条单节点链接（HY2 IPv6 + mport、域名 Reality XHTTP packet-up、IPv4 Reality gRPC gun、VMess KCP、VLESS / Trojan WS TLS）与五组 IPv6/域名端点变体，均用当前真实 Java normalize/security/config 链和冻结 legacy reference 完成完全一致比较，再用 SHA 固定的黄金 v7 `libgojni.so` 执行真实转换及 `testXray` 配置校验。额外逐字段核对 server address/port、SNI、Reality 参数、Host/path、gRPC authority/serviceName、KCP seed 与 HY2 跳跃端口；没有把域名替换成导入时解析的 IP。既有 26 条 native/runtime oracle（含 6 条 KCP）也全部通过。原始用户凭据只用于工作区外临时测试，不写入源码、fixture 或文档。
+
+固定公开 Xray Core 的 `recovery/node-dns-tests` 在本地合成 DNS/TCP/UDP 环境通过 9 个子场景：AAAA-only、双栈、IPv6 字面地址与 nil/AsIs dial 设置。该证据验证节点域名引导使用系统解析器、IPv6 字面地址不发起 DNS，且节点地址与 TLS SNI 分离；它不代表实际 Android 网络或用户节点一定可达。HY2 `insecure=1` 继续遵循黄金 TOFU 证书 pin 语义，本次配置测试使用合成证书探测结果，没有执行真实节点握手。
+
+本轮复现一个 current Xray 集成缺陷：弹幕/字幕 HTTP 或下载完成后先清空 request owner，而 `ApiCallback.post()` 的 UI 结果尚未执行；此时开启 Xray，取消逻辑误判没有请求，旧网络结果仍会送达，搜索对话框的取消 completion 也被遗失。当前只把 owner/completion 的退休延后到 UI 结果实际执行完毕，HTTP/下载句柄仍及时清空；按 request id 收口，避免旧结果清理回调中创建的新请求。字幕 ZIP 解包后的排队交付同样受该 owner 保护，上游 `ApiCallback` 保持原样。
+
+新增 `tests/test-xray-side-request-lifecycle.py` 用确定性 HTTP / Download / 主线程队列边界编译执行真实 API：修复前复现 stale callback，修复后 16 个场景通过，并已接入现有 playback parity guard，build/publish 无需新增 workflow 步骤即可运行。本轮本地 14 个标准验证入口均通过；证据限于源码/JVM、v7 native 配置校验与本地 Core DNS，不包含当前改动的 APK assemble、Android ART、真实播放或 TV 待机验收。未触发 GitHub Actions 或发布。
+
+再次复核公开上游 HEAD 与当前声明版本，仍为上述 5.6.3 基线；普通 Config、Keep、SiteApi、LiveParser、Event/Notify 等源码保持上游 blob。沿弹幕/字幕调用方、Xray playback identity / START-STOP / proxy cleanup，以及 TV SCREEN/background generation → Home 串行恢复 → API/DNS/DoH reset → Spider cleanup → Glide epoch 重新检查，没有复现新的确定问题。约 6 秒网络稳定性轮询上限与后台保留 dedicated player client 继续作为已登记的真机观察项，不据静态推测扩张上游业务状态机。

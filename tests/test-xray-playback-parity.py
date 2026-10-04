@@ -4,6 +4,7 @@
 from pathlib import Path
 import hashlib
 import subprocess
+import sys
 import tempfile
 
 
@@ -526,5 +527,10 @@ with tempfile.TemporaryDirectory(prefix="xray-playback-identity-") as directory:
         ],
         check=True,
     )
+
+subprocess.run(
+    [sys.executable, str(ROOT / "tests/test-xray-side-request-lifecycle.py")],
+    check=True,
+)
 
 print("Xray playback parity guards passed")

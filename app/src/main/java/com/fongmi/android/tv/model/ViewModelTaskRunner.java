@@ -50,6 +50,7 @@ final class ViewModelTaskRunner<T extends Enum<T>> {
     }
 
     void cancelAll() {
-        for (T type : taskIds.keySet()) cancel(type);
+        futures.values().forEach(future -> future.cancel(true));
+        futures.clear();
     }
 }

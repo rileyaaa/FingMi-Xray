@@ -112,7 +112,6 @@ public class ChannelAdapter extends RecyclerView.Adapter<ChannelAdapter.ViewHold
     @Override
     public void onViewRecycled(@NonNull ViewHolder holder) {
         Glide.with(holder.binding.logo).clear(holder.binding.logo);
-        holder.binding.logo.setImageDrawable(null);
     }
 
     public interface OnClickListener {
