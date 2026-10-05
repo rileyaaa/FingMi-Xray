@@ -66,12 +66,16 @@ jobs:
           backup="$(jq -r .backup_tag "$manifest")"
           zip="$(jq -r '.files[] | select(.name | endswith(".zip")) | .name' "$manifest")"
           test "$(gh api "repos/$GITHUB_REPOSITORY" --jq .private)" = true
-          gh release edit "$tag" --repo "$GITHUB_REPOSITORY" --target "$BUILD_SOURCE_SHA" --notes-file upload-payload/release-notes.md
+          if gh release view "$tag" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release edit "$tag" --repo "$GITHUB_REPOSITORY" --notes-file upload-payload/release-notes.md
+          else
+            gh release create "$tag" --repo "$GITHUB_REPOSITORY" --verify-tag --title "$tag" --draft --notes-file upload-payload/release-notes.md
+          fi
           gh release upload "$tag" --repo "$GITHUB_REPOSITORY" --clobber release-upload/*.apk
           if gh release view "$backup" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
             gh release upload "$backup" --repo "$GITHUB_REPOSITORY" --clobber "release-upload/$zip"
           else
-            gh release create "$backup" --repo "$GITHUB_REPOSITORY" --target "$BUILD_SOURCE_SHA" --title "$backup" --prerelease --notes-file upload-payload/backup-notes.md "release-upload/$zip"
+            gh release create "$backup" --repo "$GITHUB_REPOSITORY" --verify-tag --title "$backup" --prerelease --notes-file upload-payload/backup-notes.md "release-upload/$zip"
           fi
           gh release edit "$tag" --repo "$GITHUB_REPOSITORY" --draft=false --prerelease=false --latest
       - name: Verify remote tags and asset digests before pruning older releases
