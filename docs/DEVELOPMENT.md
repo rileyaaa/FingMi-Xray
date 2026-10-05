@@ -286,11 +286,10 @@ Release 的 APK 发布集合长期保留 `v5.6.0-xray.5` 黄金参考和一个�
 
 发布 workflow 以 `BUILD_SOURCE_SHA` 作为唯一构建与发布源码，重新准备固定依赖、执行源码 guard 与双 ABI 黄金 Xray chain parity，只编译/assemble Android TV / Leanback Release 两个 ABI，并核对最终 native provenance、Manifest、签名、应用版本、non-debuggable 与 16 KB alignment。当前显式配置 `RELEASE_TAG=v5.6.3-xray.1`、`PREVIOUS_RELEASE_TAG=v5.6.3-xray.test.7`，创建非预览的正式版；它不会自动递增修订号。正常手动触发时 `BUILD_SOURCE_SHA = github.sha`，权限保持 `contents: write + actions: read`；清理上一版之前必须核对新 tag、两 APK 的远端 digest 与正式状态。
 
-### 正式版命名与固定签名
+### 固定签名与 Release 构建校验
 
-- Tag 与应用设置显示的 `versionName` 一致：`v<公开 FongMi 版本>-xray.<本 fork 修订号>`。当前 `v5.6.3-xray.1` 的 `5.6.3` 只表示公开 FongMi/TV 源码基线；`xray.1` 表示本项目二开修补发布的第 1 个正式修订，包含 Xray 与待机网络恢复，不表示 Xray-core 版本。
-- 同一上游基线的下一次修补发布使用 `v5.6.3-xray.2`、`.3` 等；跟随公开上游新版本时，从该上游版本的 `.1` 开始。发布前同时更新 `app/build.gradle`、workflow 的 tag/上一版目标和 build-hygiene guard，禁止复用旧修订号冒充新发布。
-- Android 安装顺序使用 `versionCode = 公开上游 versionCode × 1000 + fork 修订号`，修订号范围 1..999。当前为 `563001`；下一次为 `563002`，上游 `564` 的首版为 `564001`。必须严格递增且不超过 Android 最大值，不能仅修改显示版本名。
+版本命名、修订号递增、versionCode 公式和覆盖升级约定以 [PROJECT.md](PROJECT.md#版本命名与覆盖升级) 为准；后续 AI 的强制发布要求见 [AI_COLLABORATION.md](AI_COLLABORATION.md#11-ai-开发与发布的版本约束)。本节维护签名恢复、构建配置与产物验证方法。
+
 - 新固定签名为 RSA-4096 / SHA256withRSA，有效期 100 年，自此用于本地与手动 workflow 的正常发布。PKCS12 文件 `signing/fingmi-xray-release.p12`、恢复配置 `signing/release-signing.properties` 和证书 fingerprint 文件按用户授权存入**私有仓库**；配置包含密钥密码，不能输出到日志或复制到公开项目。源码备份也包含它们，应同时保存到用户离线备份。
 - `app/build.gradle` 直接读取此固定配置，Debug 也复用同一签名；缺少文件时构建失败，不回退到临时开发证书。两个 current-main workflow 不再生成签名，正式包使用 Release variant。历史 recovery workflow 仅用于冻结旧行为取证，不作为当前正式发布入口。
 - 当前 GitHub 连接无 Actions Secrets 管理权限，因此本轮采用用户授权的私有仓库恢复配置。签名证书 SHA-256：`3cd86f4fdf6044e7e60307624bf0d8c892dfd83b81ce21748504fcbba28763c2`，见 `signing/release-certificate.sha256`；每次发布用 `scripts/build/check-release-signing.py` 核对，不得重新生成或覆盖此 key。

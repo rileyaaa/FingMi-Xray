@@ -10,7 +10,7 @@ FingMi-Xray 将 Xray 集成到播放器内部。遇到这类内容时，可以�
 
 当前 `main` 以 FongMi/TV 5.6.3（`c616c0aa3613e87529791587a9f71b78c278c991`）为公开上游基线，只长期维护 **Xray 播放代理**与 **Android TV 网络恢复**两项自有能力。历史 `v5.6.0-xray.5` armeabi-v7a 正式 APK 是源码丢失后的 Xray 恢复基线：它经过实际使用、相对稳定，适合在缺少源码时先还原行为，但并不代表完全没有未知 Bug。当前模块化重构已经完成；后续若在这两项自有能力中确认真实问题，可以基于证据修复并登记与黄金版的有意差异，其余 FongMi 功能继续直接跟随公开上游。
 
-GitHub Releases 保留 `v5.6.0-xray.5` 黄金参考、[`v5.6.3-xray.1`](https://github.com/rileyaaa/FingMi-Xray/releases/tag/v5.6.3-xray.1) 当前正式版，以及一份最新 `source-backup-*` 源码备份。正式版包含独立 `:xray`、`:tv-recovery` 模块和 Hysteria2 备注查询边界修复，使用固定正式签名。应用版本、命名递增、签名恢复与构建验收见 [DEVELOPMENT.md](docs/DEVELOPMENT.md#正式版命名与固定签名)。旧签名安装包首次切换需要卸载；后续保持同签名与包名、递增 versionCode，可覆盖安装。
+GitHub Releases 保留 `v5.6.0-xray.5` 黄金参考、[`v5.6.3-xray.1`](https://github.com/rileyaaa/FingMi-Xray/releases/tag/v5.6.3-xray.1) 当前正式版，以及一份最新 `source-backup-*` 源码备份。正式版包含独立 `:xray`、`:tv-recovery` 模块和 Hysteria2 备注查询边界修复，使用固定正式签名。版本命名与递增规则见 [PROJECT.md](docs/PROJECT.md#版本命名与覆盖升级)，AI 发布要求见 [AI_COLLABORATION.md](docs/AI_COLLABORATION.md#11-ai-开发与发布的版本约束)，签名恢复与构建验收见 [DEVELOPMENT.md](docs/DEVELOPMENT.md#固定签名与-release-构建校验)。旧签名安装包首次切换需要卸载；后续保持同签名与包名、递增 versionCode，可覆盖安装。
 
 主要组件版本如下：
 

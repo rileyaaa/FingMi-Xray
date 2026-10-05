@@ -198,6 +198,16 @@ FingMi-Xray 不允许应用内从 FongMi/Release 下载并安装上游 APK。上
 
 从 5.6.3 重构线开始，**`main` 负责现行源码、架构、构建和上游同步；`v5.6.0-xray.5` v7 正式 APK 是 Xray 外部行为黄金参考。** `main` 不要求重新通过 faithful APK 重建才能发布，但涉及 Xray 行为的修改必须通过冻结证据、自动 parity 或真机证据证明没有无意偏离。
 
+### 版本命名与覆盖升级
+
+正式版本统一使用 `v<公开 FongMi 版本>-xray.<本 fork 修订号>`，Release tag 与应用设置显示的 `versionName` 必须一致。例如 `v5.6.3-xray.1` 中，`5.6.3` 对应实际采用的公开 FongMi/TV 源码版本，`xray.1` 对应本项目二开修补发布的第 1 个正式修订，涵盖 Xray 与待机网络恢复；它不表示 Xray-core 的版本。不得用更高版本的上游 APK 版本号替代公开源码基线。
+
+同一上游基线的后续修补发布依次使用 `.2`、`.3` 等；跟随公开上游新版本时，从该上游版本的 `.1` 开始。已经发布的修订号不得用于另一份修改后的 APK；只修改文档或审核代码而没有发布新 APK，不递增应用版本。
+
+Android 安装顺序使用 `versionCode = 公开上游 versionCode × 1000 + fork 修订号`，修订号范围为 1..999，且最终数值必须严格递增、不超过 Android 最大值。上游 code 为 `563` 时，`.1` 对应 `563001`，`.2` 对应 `563002`；上游 code 为 `564` 时，首版对应 `564001`。显示版本名不能替代安装用的 versionCode。
+
+后续覆盖升级必须保持包名 `com.fongmi.android.tv` 和固定正式签名，并递增 versionCode。不得在 AI 接手、环境重建或上游同步时重新生成签名。旧签名已遗失，首次切换需要备份配置并卸载旧安装；固定签名的位置、恢复方法和产物校验见 [DEVELOPMENT.md](DEVELOPMENT.md#固定签名与-release-构建校验)。AI 发布时的强制执行要求见 [AI_COLLABORATION.md](AI_COLLABORATION.md#11-ai-开发与发布的版本约束)。
+
 ## 9. 上游升级原则
 
 FingMi-Xray 应尽可能继续跟随 FongMi/TV，而不是复制整个上游长期独立演化。除 Xray 与 TV 网络恢复外，**“和上游一致”本身就是默认维护目标。**
