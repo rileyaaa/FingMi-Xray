@@ -1,110 +1,408 @@
-name: Upload locally verified v5.6.3-xray.1 release
+name: Build and publish signed 5.6.3 fork release
 
 on:
   workflow_dispatch:
-  push:
-    branches: [main]
-    paths: [.github/.trigger-publish-current-main-test]
 
 permissions:
   contents: write
   actions: read
 
 jobs:
-  publish:
+  build:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 110
+
     env:
-      GH_TOKEN: ${{ github.token }}
-      BUILD_SOURCE_SHA: "357402dc77c008ec2d0def9345c97d2e5608e1c6"
-      PAYLOAD_SHA: "4afc7e4f4c72a48de82d142dc39ed7b20b338ac0"
+      OLD_V7_SHA256: "cacc7a90ce082adf955fc80a444b54f8cc86d5b5c3ac7acb13d1392b59928bda"
+      OLD_V8_SHA256: "b5ac05193c1e19809fc7ffb3048f7d75aaa2124eace9953d669f4a81a477c21d"
+      LIBASS_V7_APK_SHA256: "2859ebef12bf0fa0dfec023d410df478ac5e5a82a72ef2be48f6e4fa09a24761"
+      LIBASS_V8_APK_SHA256: "948df594843e304c332476a380163dc1cc74f964be5ea1539ff0465a9dd936eb"
+      MEDIA3_CONTAINER_SHA256: "930fca2f018f06f1d08c12599f8c97f31eddbd728edee5de06eb53a882f8fc54"
+      LIBASS_CANDIDATE_SHA256: "f047f8ad84be08aeddb0672500e9b263cafd6f2a009812392554dc55b2019861"
+      JADX_VERSION: "1.5.6"
+      JADX_SHA256: "545ea2be9c242511bc145755cf4bda2485ade42966e096f8b4d3da2a230e8974"
+      PREVIOUS_RELEASE_TAG: "v5.6.3-xray.test.7"
+      RELEASE_TAG: "v5.6.3-xray.1"
+      BUILD_SOURCE_SHA: ${{ github.sha }}
+
     steps:
       - uses: actions/checkout@v7
         with:
-          fetch-depth: 2
-      - name: Verify temporary marker-only source
+          ref: ${{ env.BUILD_SOURCE_SHA }}
+
+      - name: Verify temporary push trigger source
         if: github.event_name == 'push'
         shell: bash
         run: |
           set -euo pipefail
-          changed="$(git diff --name-only HEAD^ HEAD)"
+          test -n "$BUILD_SOURCE_SHA"
+          test "$BUILD_SOURCE_SHA" = "$GITHUB_SHA"
+          git fetch --no-tags --depth=2 origin "$GITHUB_SHA"
+          parent="$(git rev-parse "$GITHUB_SHA^")"
+          test -n "$parent"
+          changed="$(git diff --name-only "$parent" "$GITHUB_SHA")"
           test "$changed" = ".github/.trigger-publish-current-main-test"
-      - uses: actions/checkout@v7
+
+      - uses: actions/setup-java@v6
         with:
-          ref: ${{ env.PAYLOAD_SHA }}
-          path: upload-payload
-      - name: Restore locally verified signed APKs and tracked-tree backup
+          distribution: temurin
+          java-version: "21"
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.10"
+
+      - name: Run fork source guards
         shell: bash
         run: |
           set -euo pipefail
-          python3 - <<'PY'
-          import hashlib, json, os
-          from pathlib import Path
-          payload=Path('upload-payload')
-          manifest=json.loads((payload/'manifest.json').read_text())
-          assert manifest['source']==os.environ['BUILD_SOURCE_SHA']
-          assert manifest['release_tag']=='v5.6.3-xray.1'
-          out=Path('release-upload'); out.mkdir()
-          for row in manifest['files']:
-              assert Path(row['name']).name==row['name']
-              digest=hashlib.sha256(); size=0
-              with (out/row['name']).open('wb') as target:
-                  for name in row['parts']:
-                      assert Path(name).name==name
-                      with (payload/name).open('rb') as source:
-                          while block:=source.read(1024*1024):
-                              target.write(block); digest.update(block); size+=len(block)
-              assert size==row['size'] and digest.hexdigest()==row['sha256']
-              print('PASS restored verified asset',row['name'],size,digest.hexdigest())
-          PY
-      - name: Upload and publish formal APKs plus latest source backup
+          python3 tests/test-xray-android-runtime-compat.py
+          python3 tests/test-xray-core-parity.py
+          python3 tests/test-xray-playback-parity.py
+          python3 tests/test-xray-playback-address-parity.py
+          python3 tests/test-xray-session-races.py
+          python3 tests/test-xray-service-client-lifecycle.py
+          python3 tests/test-xray-normalizer-parity.py
+          python3 tests/test-xray-transport-security-parity.py
+          python3 tests/test-upstream-update-disabled.py
+          python3 scripts/build/check-elf-runtime.py --self-test
+          python3 scripts/build/check-final-apk-native.py --self-test
+          python3 scripts/build/check-final-apk-manifest.py --self-test
+          python3 tests/test-build-hygiene.py
+          python3 tests/test-tv-network-recovery.py
+
+      - name: Prepare Android SDK 36 and 37
         shell: bash
         run: |
           set -euo pipefail
-          manifest=upload-payload/manifest.json
-          tag="$(jq -r .release_tag "$manifest")"
-          backup="$(jq -r .backup_tag "$manifest")"
-          zip="$(jq -r '.files[] | select(.name | endswith(".zip")) | .name' "$manifest")"
-          test "$(gh api "repos/$GITHUB_REPOSITORY" --jq .private)" = true
-          if gh release view "$tag" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
-            gh release edit "$tag" --repo "$GITHUB_REPOSITORY" --notes-file upload-payload/release-notes.md
-          else
-            gh release create "$tag" --repo "$GITHUB_REPOSITORY" --verify-tag --title "$tag" --draft --notes-file upload-payload/release-notes.md
+          sdk_root="${ANDROID_HOME:-/usr/local/lib/android/sdk}"
+          sdkmanager="$sdk_root/cmdline-tools/latest/bin/sdkmanager"
+          test -x "$sdkmanager"
+          yes | "$sdkmanager" --licenses >/dev/null 2>&1 || true
+          "$sdkmanager" --channel=3 --install 'platforms;android-36' 'build-tools;36.0.0' 'platforms;android-37.0' 'build-tools;37.0.0'
+
+      - name: Verify persistent private-project release signing
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 scripts/build/check-release-signing.py
+
+      - name: Rebuild and verify pinned player/native inputs
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p build/work/current-main/input build/work/current-main/restored
+
+          bash scripts/build/build-player-aar-candidate.sh \
+            --workdir build/work/current-main/player-source \
+            --output build/work/current-main/input/player-candidate.zip
+
+          gh release download v5.6.0-xray.5             --repo rileyaaa/FingMi-Xray             --pattern 'FongMi-Xray-TV-v5.6.0-xray.5-armeabi-v7a.apk'             --pattern 'FongMi-Xray-TV-v5.6.0-xray.5-arm64-v8a.apk'             --dir build/work/current-main/input
+          mv build/work/current-main/input/FongMi-Xray-TV-v5.6.0-xray.5-armeabi-v7a.apk             build/work/current-main/input/published-v560-v7.apk
+          mv build/work/current-main/input/FongMi-Xray-TV-v5.6.0-xray.5-arm64-v8a.apk             build/work/current-main/input/published-v560-v8.apk
+
+          curl -fL --retry 3             'https://github.com/FongMi/Release/releases/download/5.6.8/leanback-armeabi_v7a.apk'             -o build/work/current-main/input/published-v568-v7.apk
+          curl -fL --retry 3             'https://github.com/FongMi/Release/releases/download/5.6.8/leanback-arm64_v8a.apk'             -o build/work/current-main/input/published-v568-v8.apk
+
+          curl -fL --retry 3             'https://dl.google.com/dl/android/maven2/androidx/media3/media3-container/1.11.0/media3-container-1.11.0.aar'             -o build/work/current-main/input/media3-container-1.11.0.aar
+
+          curl -fL --retry 3 --retry-delay 2             "https://github.com/skylot/jadx/releases/download/v${JADX_VERSION}/jadx-${JADX_VERSION}.zip"             -o build/work/current-main/input/jadx.zip
+
+          printf '%s  %s\n'             "$OLD_V7_SHA256" build/work/current-main/input/published-v560-v7.apk             "$OLD_V8_SHA256" build/work/current-main/input/published-v560-v8.apk             "$LIBASS_V7_APK_SHA256" build/work/current-main/input/published-v568-v7.apk             "$LIBASS_V8_APK_SHA256" build/work/current-main/input/published-v568-v8.apk             "$MEDIA3_CONTAINER_SHA256" build/work/current-main/input/media3-container-1.11.0.aar             "$JADX_SHA256" build/work/current-main/input/jadx.zip             | sha256sum -c -
+
+          mkdir -p build/work/current-main/tools/jadx
+          unzip -q build/work/current-main/input/jadx.zip -d build/work/current-main/tools/jadx
+          chmod +x build/work/current-main/tools/jadx/bin/jadx
+
+      - name: Prepare public player and Xray native dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 scripts/build/import-player-aar-candidate.py             build/work/current-main/input/player-candidate.zip
+
+          bash scripts/recovery/fetch-libxray.sh
+          sdk_root="${ANDROID_HOME:-/usr/local/lib/android/sdk}"
+          python3 scripts/build/build-published-libxray-aar.py             --official-aar libxray/libs/libXray.aar             --v7-apk build/work/current-main/input/published-v560-v7.apk             --v8-apk build/work/current-main/input/published-v560-v8.apk             --jadx build/work/current-main/tools/jadx/bin/jadx             --android-jar "$sdk_root/platforms/android-37.0/android.jar"             --work-dir build/work/current-main/libxray-bindings             --to build/work/current-main/restored/libXray.aar
+
+          cp build/work/current-main/restored/libXray.aar libxray/libs/libXray.aar
+
+      - name: Verify current Xray chain against published v7 and arm64 native
+        shell: bash
+        run: |
+          set -euo pipefail
+          work="build/work/current-main/xray-native-chain"
+          mkdir -p "$work"
+
+          unzip -p build/work/current-main/input/published-v560-v7.apk \
+            lib/armeabi-v7a/libgojni.so > "$work/published-v7-libgojni.so"
+          unzip -p build/work/current-main/input/published-v560-v8.apk \
+            lib/arm64-v8a/libgojni.so > "$work/published-arm64-libgojni.so"
+          printf '%s  %s\n%s  %s\n' \
+            "6f01f219fe4087790cd8e647394de9dbefc61e0d750d927924b93f120b06fb7e" "$work/published-v7-libgojni.so" \
+            "40b08a399871973ba6ad5898ca7097961337d7aeddb4b3378b153a66679eeece" "$work/published-arm64-libgojni.so" \
+            | sha256sum -c -
+
+          python3 scripts/recovery/prepare-native-converter-harness.py \
+            --workdir "$work/v7-harness" \
+            --jni "$work/published-v7-libgojni.so"
+
+          python3 tests/test-current-native-share-chain.py \
+            --abi armeabi-v7a \
+            --workdir "$work/test" \
+            --jni "$work/published-v7-libgojni.so" \
+            --bridge "$work/v7-harness/invoke-bridge" \
+            --qemu "$work/v7-harness/qemu/usr/bin/qemu-arm-static" \
+            --android-root "$work/v7-harness/android/root"
+
+          python3 scripts/recovery/prepare-native-converter-harness.py \
+            --abi arm64-v8a \
+            --workdir "$work/arm64-harness" \
+            --jni "$work/published-arm64-libgojni.so"
+
+          python3 tests/test-current-native-share-chain.py \
+            --abi arm64-v8a \
+            --workdir "$work/test" \
+            --jni "$work/published-arm64-libgojni.so" \
+            --bridge "$work/arm64-harness/invoke-bridge" \
+            --qemu "$work/arm64-harness/qemu/usr/bin/qemu-aarch64-static" \
+            --android-root "$work/arm64-harness/android/root"
+
+      - name: Build and import reconstructed Libass candidate
+        shell: bash
+        run: |
+          set -euo pipefail
+          work="build/work/current-main"
+          mvn -B dependency:get -Dartifact=org.robolectric:android-all:15-robolectric-12650502
+          mvn -B dependency:get -Dartifact=com.google.guava:guava:33.3.1-android
+          mvn -B dependency:get -Dartifact=androidx.annotation:annotation-jvm:1.9.1 -DremoteRepositories=google::default::https://dl.google.com/dl/android/maven2
+
+          python3 scripts/build/build-libass-extractor.py             --candidate "$work/input/player-candidate.zip"             --workdir "$work/extractor"             --container "$work/input/media3-container-1.11.0.aar"             --maven "$(command -v mvn)"
+
+          android_all="$HOME/.m2/repository/org/robolectric/android-all/15-robolectric-12650502/android-all-15-robolectric-12650502.jar"
+          test -s "$android_all"
+
+          python3 scripts/build/build-libass-candidate.py             --candidate "$work/input/player-candidate.zip"             --extractor "$work/extractor/lib-extractor-libass-release.aar"             --container "$work/input/media3-container-1.11.0.aar"             --v7-apk "$work/input/published-v568-v7.apk"             --v8-apk "$work/input/published-v568-v8.apk"             --android-jar "$android_all"             --output "$work/lib-exoplayer-libass-reconstructed.aar"
+
+          echo "$LIBASS_CANDIDATE_SHA256  $work/lib-exoplayer-libass-reconstructed.aar" | sha256sum -c -
+          python3 scripts/build/check-libass-contract.py --aar "$work/lib-exoplayer-libass-reconstructed.aar"
+
+          python3 scripts/build/import-libass-candidate.py             --aar "$work/lib-exoplayer-libass-reconstructed.aar"             --extractor "$work/extractor/lib-extractor-libass-release.aar"             --container "$work/input/media3-container-1.11.0.aar"
+
+          # All verified reconstruction inputs have now been imported into app/libs
+          # and libxray/libs. Reclaim transient provenance/native harness space before
+          # the main Gradle build so hosted-runner disk is reserved for compile/assemble.
+          rm -rf \
+            "$work/input" \
+            "$work/tools" \
+            "$work/restored" \
+            "$work/libxray-bindings" \
+            "$work/xray-native-chain" \
+            "$work/extractor"
+          rm -f \
+            "$work/lib-exoplayer-libass-reconstructed.aar" \
+            "$work/lib-exoplayer-libass-reconstructed.json"
+          mkdir -p "$work"
+
+      - name: Compile current 5.6.3 Leanback source
+        shell: bash
+        run: |
+          set -euo pipefail
+          chmod +x gradlew
+          ./gradlew --no-daemon :xray:testDebugUnitTest :tv-recovery:testDebugUnitTest :app:compileLeanbackReleaseJavaWithJavac --stacktrace --warning-mode all
+
+      - name: Assemble Android TV release APKs
+        shell: bash
+        run: |
+          set -euo pipefail
+          ./gradlew --no-daemon :app:assembleLeanbackRelease --stacktrace --warning-mode all
+
+      - name: Verify MPEG-H survives final TV APK packaging
+        shell: bash
+        run: |
+          set -euo pipefail
+          for abi in armeabi-v7a arm64-v8a; do
+            apk="$(find app/build/outputs/apk/leanback -type f -name "leanback-${abi//-/_}.apk" -print -quit)"
+            test -n "$apk"
+            test -s "$apk"
+            entry="lib/${abi}/libmpeghJNI.so"
+            unzip -Z1 "$apk" | grep -Fx "$entry"
+            size="$(unzip -p "$apk" "$entry" | wc -c)"
+            test "$size" -gt 100000
+            unzip -p "$apk" 'classes*.dex' | strings | grep -F 'Landroidx/media3/decoder/mpegh/MpeghAudioRenderer;' >/dev/null
+            echo "PASS MPEG-H ${abi}: ${size} bytes in $apk"
+          done
+
+      - name: Verify pinned native runtime survives final TV APK packaging
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 scripts/build/check-final-apk-native.py \
+            --apk-dir app/build/outputs/apk/leanback --build-type release
+
+      - name: Verify final Leanback manifest security contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          sdk_root="${ANDROID_HOME:-/usr/local/lib/android/sdk}"
+          apkanalyzer="$sdk_root/cmdline-tools/latest/bin/apkanalyzer"
+          test -x "$apkanalyzer"
+          mapfile -t apks < <(
+            find app/build/outputs/apk/leanback -type f -name 'leanback-*.apk' -print | sort
+          )
+          test "${#apks[@]}" -eq 2
+          for apk in "${apks[@]}"; do
+            test -s "$apk"
+            python3 scripts/build/check-final-apk-manifest.py \
+              --apkanalyzer "$apkanalyzer" \
+              --apk "$apk"
+            python3 scripts/build/check-release-signing.py --sdk "$sdk_root" --apk "$apk"
+          done
+      - name: Record build inputs and outputs
+        if: success()
+        shell: bash
+        run: |
+          set -euo pipefail
+          {
+            echo "commit=$BUILD_SOURCE_SHA"
+            echo "workflow_run_commit=$GITHUB_SHA"
+            java -version 2>&1 | head -n 1
+            ./gradlew --version | sed -n '1,12p'
+            echo "libass_candidate_sha256=$LIBASS_CANDIDATE_SHA256"
+            find app/build/outputs/apk/leanback -type f -name '*.apk' -print0 | sort -z | xargs -0 sha256sum
+          } | tee build/work/current-main/BUILD_RESULT.txt
+
+      - name: Upload build reports on failure
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: fingmi-xray-5.6.3-build-failure-reports
+          path: |
+            app/build/reports/
+            **/build/reports/
+          if-no-files-found: ignore
+          retention-days: 1
+
+      - name: Stage Android TV release APKs
+        if: success()
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          tv_v7="$(find app/build/outputs/apk -type f -name 'leanback-armeabi_v7a.apk' -print -quit)"
+          tv_arm64="$(find app/build/outputs/apk -type f -name 'leanback-arm64_v8a.apk' -print -quit)"
+
+          test -n "$tv_v7"
+          test -n "$tv_arm64"
+          test -s "$tv_v7"
+          test -s "$tv_arm64"
+
+          mkdir -p release
+          cp "$tv_v7" "release/FongMi-Xray-TV-$RELEASE_TAG-armeabi-v7a.apk"
+          cp "$tv_arm64" "release/FongMi-Xray-TV-$RELEASE_TAG-arm64-v8a.apk"
+
+          TV_V7_SHA256="$(sha256sum "release/FongMi-Xray-TV-$RELEASE_TAG-armeabi-v7a.apk" | awk '{print $1}')"
+          TV_ARM64_SHA256="$(sha256sum "release/FongMi-Xray-TV-$RELEASE_TAG-arm64-v8a.apk" | awk '{print $1}')"
+
+          echo "TV_V7_SHA256=$TV_V7_SHA256" >> "$GITHUB_ENV"
+          echo "TV_ARM64_SHA256=$TV_ARM64_SHA256" >> "$GITHUB_ENV"
+
+          sha256sum release/*.apk
+
+      - name: Publish formal release and remove previous test release
+        if: success()
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+
+          notes_file="$RUNNER_TEMP/release-notes.md"
+          {
+            echo "## v5.6.3-xray.1 正式版"
+            echo
+            echo "> current-main 决定架构与构建；Xray 外部行为以 v5.6.0-xray.5 v7 为黄金参考做 parity。faithful APK 重建不是 current 发布前置，正式版使用固定私有项目签名，设备行为仍需真机验收。"
+            echo
+            printf -- "- APK 构建源码 commit：\`%s\`\n" "$BUILD_SOURCE_SHA"
+            printf -- "- APK 构建 Actions run：\`%s\`\n" "$GITHUB_RUN_ID"
+            echo "- 状态：Android TV / Leanback Release javac 与 APK assemble 已通过"
+            echo "- Android TV / Leanback 两个 ABI，固定正式签名；旧签名安装需先卸载，后续同签名且 versionCode 递增可覆盖升级"
+            echo "- 包含 Android 12 / SDK 32 Java runtime compatibility 修复"
+            echo "- 内置 FongMi 上游自更新已禁用，避免覆盖 Xray fork"
+            echo
+            echo "### APK SHA-256"
+            echo
+            printf -- "- armeabi-v7a：\`%s\`\n" "$TV_V7_SHA256"
+            printf -- "- arm64-v8a：\`%s\`\n" "$TV_ARM64_SHA256"
+            echo
+            echo "### 尚未完成"
+            echo
+            echo "- Android TV 真机行为回归"
+            echo
+            echo "如果测试发现问题，以这里记录的 APK 构建 commit / run / SHA-256 作为定位基准。"
+          } > "$notes_file"
+
+          # A rerun of this workflow replaces this explicitly selected release tag
+          # rather than accumulate stale assets or leave it on an older commit.
+          if gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release delete "$RELEASE_TAG" \
+              --repo "$GITHUB_REPOSITORY" \
+              --cleanup-tag \
+              --yes
+          elif gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$RELEASE_TAG" >/dev/null 2>&1; then
+            gh api \
+              --method DELETE \
+              "repos/$GITHUB_REPOSITORY/git/refs/tags/$RELEASE_TAG"
           fi
-          gh release upload "$tag" --repo "$GITHUB_REPOSITORY" --clobber release-upload/*.apk
-          if gh release view "$backup" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
-            gh release upload "$backup" --repo "$GITHUB_REPOSITORY" --clobber "release-upload/$zip"
-          else
-            gh release create "$backup" --repo "$GITHUB_REPOSITORY" --verify-tag --title "$backup" --prerelease --notes-file upload-payload/backup-notes.md "release-upload/$zip"
-          fi
-          gh release edit "$tag" --repo "$GITHUB_REPOSITORY" --draft=false --prerelease=false --latest
-      - name: Verify remote tags and asset digests before pruning older releases
-        shell: bash
-        run: |
-          set -euo pipefail
-          python3 - <<'PY'
-          from pathlib import Path
-          import json, subprocess
-          manifest=json.loads(Path('upload-payload/manifest.json').read_text())
-          repo='rileyaaa/FingMi-Xray'
-          def api(path):
-              return json.loads(subprocess.check_output(['gh','api',f'repos/{repo}/{path}']))
-          def check(tag,files,prerelease):
-              release=api('releases/tags/'+tag)
-              assert not release['draft'] and release['prerelease']==prerelease
-              assert api('git/ref/tags/'+tag)['object']['sha']==manifest['source']
-              assert len(release['assets'])==len(files)
-              assets={x['name']:x for x in release['assets']}
-              for row in files:
-                  asset=assets[row['name']]
-                  assert asset['state']=='uploaded' and asset['size']==row['size']
-                  assert asset['digest']=='sha256:'+row['sha256']
-              print('PASS remote release',tag)
-          check(manifest['release_tag'],[x for x in manifest['files'] if x['name'].endswith('.apk')],False)
-          check(manifest['backup_tag'],[x for x in manifest['files'] if x['name'].endswith('.zip')],True)
-          assert api('releases/latest')['tag_name']==manifest['release_tag']
-          PY
-          gh release delete v5.6.3-xray.test.7 --repo "$GITHUB_REPOSITORY" --cleanup-tag --yes
-          gh release delete source-backup-2026-10-03-main-41896214 --repo "$GITHUB_REPOSITORY" --cleanup-tag --yes
-          gh api --method DELETE "repos/$GITHUB_REPOSITORY/git/refs/heads/temp-release-upload-20261005-xray1"
-          gh api "repos/$GITHUB_REPOSITORY/releases?per_page=100" --jq '.[] | {tag_name,prerelease,draft,assets:[.assets[]|{name,size,digest}]}'
+
+          gh release create "$RELEASE_TAG" \
+            --repo "$GITHUB_REPOSITORY" \
+            --target "$BUILD_SOURCE_SHA" \
+            --title "$RELEASE_TAG" \
+            --notes-file "$notes_file" \
+            --latest \
+            release/*.apk
+
+          tag_json="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$RELEASE_TAG")"
+          jq -e --arg sha "$BUILD_SOURCE_SHA" '
+            .object.type == "commit" and
+            .object.sha == $sha
+          ' <<< "$tag_json" >/dev/null
+
+          release_json="$(gh api "repos/$GITHUB_REPOSITORY/releases/tags/$RELEASE_TAG")"
+          jq -e \
+            --arg tag "$RELEASE_TAG" \
+            --arg v7 "sha256:$TV_V7_SHA256" \
+            --arg v8 "sha256:$TV_ARM64_SHA256" '
+              .tag_name == $tag and
+              .prerelease == false and
+              .draft == false and
+              (.assets | length) == 2 and
+              any(.assets[]; .name | endswith("-armeabi-v7a.apk")) and
+              any(.assets[]; .name | endswith("-arm64-v8a.apk")) and
+              any(.assets[]; .digest == $v7) and
+              any(.assets[]; .digest == $v8)
+            ' <<< "$release_json" >/dev/null
+
+          # Only after the new release exists and its two APKs are verified do
+          # we prune stale publication-only entries. Releases are not used as build storage.
+          for stale_tag in "$PREVIOUS_RELEASE_TAG" "build-inputs-5.6.3"; do
+            if gh release view "$stale_tag" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+              gh release delete "$stale_tag" \
+                --repo "$GITHUB_REPOSITORY" \
+                --cleanup-tag \
+                --yes
+            elif gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$stale_tag" >/dev/null 2>&1; then
+              gh api \
+                --method DELETE \
+                "repos/$GITHUB_REPOSITORY/git/refs/tags/$stale_tag"
+            fi
+          done
+
+          remaining="$(gh api "repos/$GITHUB_REPOSITORY/releases?per_page=100" --jq '.[].tag_name | select(startswith("source-backup-") | not)' | sort)"
+          expected="$(printf '%s\n%s\n' 'v5.6.0-xray.5' "$RELEASE_TAG" | sort)"
+          test "$remaining" = "$expected"
+
+          echo "Published and verified $RELEASE_TAG"
+          echo "Release set pruned to v5.6.0-xray.5 plus $RELEASE_TAG"
