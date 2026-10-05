@@ -625,3 +625,13 @@ Xray 审查覆盖分享链接、security/pin/config、Service 串行执行与代
 前轮遗漏 Gradle JUnit 属于验证流程缺口。现有两个手动 build/publish workflow 的编译步骤加入两个模块的 JUnit tasks，并由 build-hygiene guard 要求保留；这补齐未来手动验收，不改变触发方式，本轮未触发 Actions。README 删除误留的 test.6 校验值，改为引用本文件中经 GitHub 实际资产 digest 核对的 test.7 表，避免重复维护。历史 test.6 记录仍保留其原资产摘要。
 
 这些证据不包含当前 APK assemble、Android ART、真实远端节点握手/播放或 TV 息屏、Fast Start、长后台验收。约 6 秒恢复轮询上限、后台保留 player client 及 Libass 输入债仍是已登记的限制；已发布 test.7 也仍不包含后续 main 的备注修复。不得把本轮未发现新的确定缺陷表述为所有场景无 Bug。
+
+### 2026-10-05 — 复查测试有效性与上游边界
+
+再次读取公开 FongMi/TV HEAD，仍为 `c616c0aa3613e87529791587a9f71b78c278c991` / 5.6.3；复查起点 main 为 `b3e5cf2`。重新生成 tracked-tree 清单：1061 个同路径相同文件、57 个修改文件、2 个删除文件、377 个新增文件。前三类路径与前轮逐项审查清单一致，新增清单只多了前轮的 Service 执行测试。另逐字节核对 `app`、`catvod`、`xray`、`tv-recovery`、`libxray`、`compat` 的 Git diff，自 `b7a30ba` 起没有运行源码或输入变化；双 ABI Go JNI 仍与固定黄金文件完全相同，未更新核心或反编译 APK。
+
+本轮重新阅读 Service/gate 的失败清理、取消与信任提交，Binder client 的断连/回调代际、设置取消与重入，以及 recovery lifecycle/coordinator → Home adapter → API/DNS/DoH 的关闭与恢复接线，没有复现新的确定运行缺陷。独立核心仍不反向依赖 FongMi 业务，宿主保留必要适配；没有发现需要新增恢复的无关上游修复。既有 MPV/字幕公开 media API 兼容和 Libass 的 5.6.8 APK 固定 native 输入债仍存在，不能宣称所有输入都只有公开 5.6.3。
+
+为确认测试能捕获错误，在仓库外临时副本中分别移除五处保护，真实 Java 编译均成功，原测试随后分别在预期行为断言失败：运行中禁止测试、无法交付 START 回调后的核心清理、取消操作的归属判断、恢复 owner 关闭后的迟到清理回调、失效 Home 禁止刷新及标记恢复。每组独立运行，未改仓库运行代码，也不把人为注入的错误计作产品 Bug。正向 14 个标准验证入口、其中真实 Service 的 9 个场景，以及强制重跑的 Gradle JUnit（Xray 3 项、recovery 2 项，失败/错误/跳过均为 0）全部通过；Leanback Release Java 编译 `--rerun` 成功。双 ABI 各 26 个固定 JNI 转换/runtime/native `testXray` 黄金用例，以及各 5 个备注边界链用例重新执行通过。
+
+本轮只有审查记录修改，没有新增运行修复、改测试预期、触发 Actions 或发布 APK。证据仍限于本地编译、宿主 JVM 与 QEMU native；Android ART/Binder、真实节点握手/播放及电视息屏/长后台恢复仍需要真机验收。不能用反向验证通过代替这些设备层验证。
