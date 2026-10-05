@@ -1,4 +1,4 @@
-name: Build and replace 5.6.3 test pre-release
+name: Build and publish signed 5.6.3 fork release
 
 on:
   workflow_dispatch:
@@ -21,8 +21,8 @@ jobs:
       LIBASS_CANDIDATE_SHA256: "f047f8ad84be08aeddb0672500e9b263cafd6f2a009812392554dc55b2019861"
       JADX_VERSION: "1.5.6"
       JADX_SHA256: "545ea2be9c242511bc145755cf4bda2485ade42966e096f8b4d3da2a230e8974"
-      PREVIOUS_RELEASE_TAG: "v5.6.3-xray.test.6"
-      RELEASE_TAG: "v5.6.3-xray.test.7"
+      PREVIOUS_RELEASE_TAG: "v5.6.3-xray.test.7"
+      RELEASE_TAG: "v5.6.3-xray.1"
       BUILD_SOURCE_SHA: ${{ github.sha }}
 
     steps:
@@ -81,16 +81,11 @@ jobs:
           yes | "$sdkmanager" --licenses >/dev/null 2>&1 || true
           "$sdkmanager" --channel=3 --install 'platforms;android-36' 'build-tools;36.0.0' 'platforms;android-37.0' 'build-tools;37.0.0'
 
-      - name: Prepare debug-only local signing configuration
+      - name: Verify persistent private-project release signing
         shell: bash
         run: |
           set -euo pipefail
-          keytool -genkeypair -noprompt             -keystore "$RUNNER_TEMP/current-main-debug.jks"             -storepass android             -keypass android             -alias recovery             -dname "CN=FingMi-Xray Current Main,O=Local,C=US"             -keyalg RSA -keysize 2048 -validity 3650
-          cat > local.properties <<EOF
-          storeFile=$RUNNER_TEMP/current-main-debug.jks
-          keyAlias=recovery
-          storePassword=android
-          EOF
+          python3 scripts/build/check-release-signing.py
 
       - name: Rebuild and verify pinned player/native inputs
         shell: bash
@@ -215,20 +210,20 @@ jobs:
         run: |
           set -euo pipefail
           chmod +x gradlew
-          ./gradlew --no-daemon :xray:testDebugUnitTest :tv-recovery:testDebugUnitTest :app:compileLeanbackDebugJavaWithJavac --stacktrace --warning-mode all
+          ./gradlew --no-daemon :xray:testDebugUnitTest :tv-recovery:testDebugUnitTest :app:compileLeanbackReleaseJavaWithJavac --stacktrace --warning-mode all
 
-      - name: Assemble Android TV debug APKs
+      - name: Assemble Android TV release APKs
         shell: bash
         run: |
           set -euo pipefail
-          ./gradlew --no-daemon :app:assembleLeanbackDebug --stacktrace --warning-mode all
+          ./gradlew --no-daemon :app:assembleLeanbackRelease --stacktrace --warning-mode all
 
       - name: Verify MPEG-H survives final TV APK packaging
         shell: bash
         run: |
           set -euo pipefail
           for abi in armeabi-v7a arm64-v8a; do
-            apk="$(find app/build/outputs/apk/leanback -type f -name "app-leanback-${abi}-debug.apk" -print -quit)"
+            apk="$(find app/build/outputs/apk/leanback -type f -name "leanback-${abi//-/_}.apk" -print -quit)"
             test -n "$apk"
             test -s "$apk"
             entry="lib/${abi}/libmpeghJNI.so"
@@ -244,7 +239,7 @@ jobs:
         run: |
           set -euo pipefail
           python3 scripts/build/check-final-apk-native.py \
-            --apk-dir app/build/outputs/apk/leanback
+            --apk-dir app/build/outputs/apk/leanback --build-type release
 
       - name: Verify final Leanback manifest security contract
         shell: bash
@@ -254,7 +249,7 @@ jobs:
           apkanalyzer="$sdk_root/cmdline-tools/latest/bin/apkanalyzer"
           test -x "$apkanalyzer"
           mapfile -t apks < <(
-            find app/build/outputs/apk/leanback -type f -name 'app-leanback-*-debug.apk' -print | sort
+            find app/build/outputs/apk/leanback -type f -name 'leanback-*.apk' -print | sort
           )
           test "${#apks[@]}" -eq 2
           for apk in "${apks[@]}"; do
@@ -262,6 +257,7 @@ jobs:
             python3 scripts/build/check-final-apk-manifest.py \
               --apkanalyzer "$apkanalyzer" \
               --apk "$apk"
+            python3 scripts/build/check-release-signing.py --sdk "$sdk_root" --apk "$apk"
           done
       - name: Record build inputs and outputs
         if: success()
@@ -288,14 +284,14 @@ jobs:
           if-no-files-found: ignore
           retention-days: 1
 
-      - name: Stage Android TV test APKs
+      - name: Stage Android TV release APKs
         if: success()
         shell: bash
         run: |
           set -euo pipefail
 
-          tv_v7="$(find app/build/outputs/apk -type f -name 'app-leanback-armeabi-v7a-debug.apk' -print -quit)"
-          tv_arm64="$(find app/build/outputs/apk -type f -name 'app-leanback-arm64-v8a-debug.apk' -print -quit)"
+          tv_v7="$(find app/build/outputs/apk -type f -name 'leanback-armeabi_v7a.apk' -print -quit)"
+          tv_arm64="$(find app/build/outputs/apk -type f -name 'leanback-arm64_v8a.apk' -print -quit)"
 
           test -n "$tv_v7"
           test -n "$tv_arm64"
@@ -314,7 +310,7 @@ jobs:
 
           sha256sum release/*.apk
 
-      - name: Publish new test pre-release and remove previous test release
+      - name: Publish formal release and remove previous test release
         if: success()
         shell: bash
         env:
@@ -324,14 +320,14 @@ jobs:
 
           notes_file="$RUNNER_TEMP/release-notes.md"
           {
-            echo "## 5.6.3 current-main 真机测试包"
+            echo "## v5.6.3-xray.1 正式版"
             echo
-            echo "> current-main 决定架构与构建；Xray 外部行为以 v5.6.0-xray.5 v7 为黄金参考做 parity。faithful APK 重建不是 current 发布前置，本包用于 Android TV 真机回归。"
+            echo "> current-main 决定架构与构建；Xray 外部行为以 v5.6.0-xray.5 v7 为黄金参考做 parity。faithful APK 重建不是 current 发布前置，正式版使用固定私有项目签名，设备行为仍需真机验收。"
             echo
             printf -- "- APK 构建源码 commit：\`%s\`\n" "$BUILD_SOURCE_SHA"
             printf -- "- APK 构建 Actions run：\`%s\`\n" "$GITHUB_RUN_ID"
-            echo "- 状态：Android TV / Leanback Debug javac 与 APK assemble 已通过"
-            echo "- 本 Release 仅上传 Android TV / Leanback 两个 ABI，用于 MuMu / Android TV 回归"
+            echo "- 状态：Android TV / Leanback Release javac 与 APK assemble 已通过"
+            echo "- Android TV / Leanback 两个 ABI，固定正式签名；旧签名安装需先卸载，后续同签名且 versionCode 递增可覆盖升级"
             echo "- 包含 Android 12 / SDK 32 Java runtime compatibility 修复"
             echo "- 内置 FongMi 上游自更新已禁用，避免覆盖 Xray fork"
             echo
@@ -347,7 +343,7 @@ jobs:
             echo "如果测试发现问题，以这里记录的 APK 构建 commit / run / SHA-256 作为定位基准。"
           } > "$notes_file"
 
-          # A rerun of this workflow should replace the same test tag cleanly
+          # A rerun of this workflow replaces this explicitly selected release tag
           # rather than accumulate stale assets or leave it on an older commit.
           if gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
             gh release delete "$RELEASE_TAG" \
@@ -365,7 +361,7 @@ jobs:
             --target "$BUILD_SOURCE_SHA" \
             --title "$RELEASE_TAG" \
             --notes-file "$notes_file" \
-            --prerelease \
+            --latest \
             release/*.apk
 
           tag_json="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$RELEASE_TAG")"
@@ -380,7 +376,7 @@ jobs:
             --arg v7 "sha256:$TV_V7_SHA256" \
             --arg v8 "sha256:$TV_ARM64_SHA256" '
               .tag_name == $tag and
-              .prerelease == true and
+              .prerelease == false and
               .draft == false and
               (.assets | length) == 2 and
               any(.assets[]; .name | endswith("-armeabi-v7a.apk")) and

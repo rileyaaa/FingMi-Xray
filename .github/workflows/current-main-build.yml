@@ -79,16 +79,11 @@ jobs:
           yes | "$sdkmanager" --licenses >/dev/null 2>&1 || true
           "$sdkmanager" --channel=3 --install 'platforms;android-36' 'build-tools;36.0.0' 'platforms;android-37.0' 'build-tools;37.0.0'
 
-      - name: Prepare debug-only local signing configuration
+      - name: Verify persistent private-project release signing
         shell: bash
         run: |
           set -euo pipefail
-          keytool -genkeypair -noprompt             -keystore "$RUNNER_TEMP/current-main-debug.jks"             -storepass android             -keypass android             -alias recovery             -dname "CN=FingMi-Xray Current Main,O=Local,C=US"             -keyalg RSA -keysize 2048 -validity 3650
-          cat > local.properties <<EOF
-          storeFile=$RUNNER_TEMP/current-main-debug.jks
-          keyAlias=recovery
-          storePassword=android
-          EOF
+          python3 scripts/build/check-release-signing.py
 
       - name: Rebuild and verify pinned player/native inputs
         shell: bash
@@ -213,20 +208,20 @@ jobs:
         run: |
           set -euo pipefail
           chmod +x gradlew
-          ./gradlew --no-daemon :xray:testDebugUnitTest :tv-recovery:testDebugUnitTest :app:compileLeanbackDebugJavaWithJavac --stacktrace --warning-mode all
+          ./gradlew --no-daemon :xray:testDebugUnitTest :tv-recovery:testDebugUnitTest :app:compileLeanbackReleaseJavaWithJavac --stacktrace --warning-mode all
 
-      - name: Assemble Android TV debug APKs
+      - name: Assemble Android TV release APKs
         shell: bash
         run: |
           set -euo pipefail
-          ./gradlew --no-daemon :app:assembleLeanbackDebug --stacktrace --warning-mode all
+          ./gradlew --no-daemon :app:assembleLeanbackRelease --stacktrace --warning-mode all
 
       - name: Verify MPEG-H survives final TV APK packaging
         shell: bash
         run: |
           set -euo pipefail
           for abi in armeabi-v7a arm64-v8a; do
-            apk="$(find app/build/outputs/apk/leanback -type f -name "app-leanback-${abi}-debug.apk" -print -quit)"
+            apk="$(find app/build/outputs/apk/leanback -type f -name "leanback-${abi//-/_}.apk" -print -quit)"
             test -n "$apk"
             test -s "$apk"
             entry="lib/${abi}/libmpeghJNI.so"
@@ -242,7 +237,7 @@ jobs:
         run: |
           set -euo pipefail
           python3 scripts/build/check-final-apk-native.py \
-            --apk-dir app/build/outputs/apk/leanback
+            --apk-dir app/build/outputs/apk/leanback --build-type release
 
       - name: Verify final Leanback manifest security contract
         shell: bash
@@ -252,7 +247,7 @@ jobs:
           apkanalyzer="$sdk_root/cmdline-tools/latest/bin/apkanalyzer"
           test -x "$apkanalyzer"
           mapfile -t apks < <(
-            find app/build/outputs/apk/leanback -type f -name 'app-leanback-*-debug.apk' -print | sort
+            find app/build/outputs/apk/leanback -type f -name 'leanback-*.apk' -print | sort
           )
           test "${#apks[@]}" -eq 2
           for apk in "${apks[@]}"; do
@@ -260,6 +255,7 @@ jobs:
             python3 scripts/build/check-final-apk-manifest.py \
               --apkanalyzer "$apkanalyzer" \
               --apk "$apk"
+            python3 scripts/build/check-release-signing.py --sdk "$sdk_root" --apk "$apk"
           done
       - name: Record build inputs and outputs
         if: success()
@@ -274,20 +270,20 @@ jobs:
             find app/build/outputs/apk/leanback -type f -name '*.apk' -print0 | sort -z | xargs -0 sha256sum
           } | tee build/work/current-main/BUILD_RESULT.txt
 
-      - name: Upload current-main debug APKs
+      - name: Upload current-main release APKs
         if: success()
         uses: actions/upload-artifact@v7
         with:
-          name: fingmi-xray-5.6.3-current-main-debug
+          name: fingmi-xray-5.6.3-current-main-release
           path: |
-            app/build/outputs/apk/leanback/**/*.apk
+            app/build/outputs/apk/leanback/release/**/*.apk
             build/work/current-main/BUILD_RESULT.txt
             build/reports/problems/problems-report.html
           if-no-files-found: error
           retention-days: 2
           compression-level: 0
 
-      - name: Remove superseded current-main debug artifacts
+      - name: Remove superseded current-main release artifacts
         if: success()
         shell: bash
         env:
@@ -296,7 +292,7 @@ jobs:
           set -euo pipefail
           mapfile -t stale_ids < <(
             gh api "repos/${GITHUB_REPOSITORY}/actions/artifacts?per_page=100"               --jq '.artifacts
-                    | map(select(.name == "fingmi-xray-5.6.3-current-main-debug"))
+                    | map(select(.name == "fingmi-xray-5.6.3-current-main-release"))
                     | sort_by(.id)
                     | reverse
                     | .[1:][]
@@ -304,7 +300,7 @@ jobs:
           )
           for id in "${stale_ids[@]}"; do
             gh api --method DELETE "repos/${GITHUB_REPOSITORY}/actions/artifacts/$id"
-            echo "DELETE superseded debug artifact $id"
+            echo "DELETE superseded release artifact $id"
           done
 
       - name: Upload build reports on failure

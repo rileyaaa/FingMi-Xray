@@ -36,17 +36,20 @@ def unique_read(path: Path, entry: str) -> bytes:
     return data
 
 
-def find_apk(apk_dir: Path, abi: str) -> Path:
-    matches = sorted(apk_dir.rglob(f"app-leanback-{abi}-debug.apk"))
+def find_apk(apk_dir: Path, abi: str, build_type: str = "debug") -> Path:
+    # The upstream Release finalizer exports leanback-ABI_WITH_UNDERSCORES.apk.
+    name = (f"leanback-{abi.replace('-', '_')}.apk" if build_type == "release"
+            else f"app-leanback-{abi}-debug.apk")
+    matches = sorted(apk_dir.rglob(name))
     if len(matches) != 1:
         raise ValueError(f"expected one Leanback {abi} APK in {apk_dir}, found {len(matches)}")
     return matches[0]
 
 
-def verify(root: Path, apk_dir: Path):
+def verify(root: Path, apk_dir: Path, build_type: str = "debug"):
     results = []
     for abi in ABIS:
-        apk = find_apk(apk_dir, abi)
+        apk = find_apk(apk_dir, abi, build_type)
         for label, aar_rel, soname in NATIVES:
             aar = root / aar_rel
             reference = unique_read(aar, f"jni/{abi}/{soname}")
@@ -70,13 +73,16 @@ def self_test():
         raise AssertionError("TV ABI inventory changed unexpectedly")
     with tempfile.TemporaryDirectory(prefix="final-apk-native-") as directory:
         apk_dir = Path(directory)
-        nested = apk_dir / "debug"
-        nested.mkdir()
-        for abi in ABIS:
-            expected = nested / f"app-leanback-{abi}-debug.apk"
-            expected.touch()
-            if find_apk(apk_dir, abi) != expected:
-                raise AssertionError(f"recursive APK discovery failed for {abi}")
+        for build_type in ("debug", "release"):
+            nested = apk_dir / build_type
+            nested.mkdir()
+            for abi in ABIS:
+                name = (f"leanback-{abi.replace('-', '_')}.apk" if build_type == "release"
+                        else f"app-leanback-{abi}-debug.apk")
+                expected = nested / name
+                expected.touch()
+                if find_apk(apk_dir, abi, build_type) != expected:
+                    raise AssertionError(f"recursive APK discovery failed for {abi}/{build_type}")
     print("PASS final native packaging inventory self-test")
 
 
@@ -84,6 +90,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--root", type=Path, default=ROOT)
     parser.add_argument("--apk-dir", type=Path)
+    parser.add_argument("--build-type", choices=("debug", "release"), default="debug")
     parser.add_argument("--self-test", action="store_true")
     args = parser.parse_args()
 
@@ -96,7 +103,7 @@ def main():
         parser.error("--apk-dir is required")
 
     try:
-        results = verify(args.root, args.apk_dir)
+        results = verify(args.root, args.apk_dir, args.build_type)
     except (OSError, ValueError) as error:
         parser.error(str(error))
 

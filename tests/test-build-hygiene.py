@@ -84,7 +84,7 @@ for required in (
     "lib-decoder-ffmpeg-release.aar",
     "lib-decoder-mpegh-release.aar",
     "lib-exoplayer-libass-reconstructed.aar",
-    'rglob(f"app-leanback-{abi}-debug.apk")',
+    'rglob(name)',
     "recursive APK discovery failed",
     "armeabi-v7a",
     "arm64-v8a",
@@ -256,8 +256,8 @@ for name, text in (
         "'platforms;android-36'",
         ":xray:testDebugUnitTest",
         ":tv-recovery:testDebugUnitTest",
-        ":app:compileLeanbackDebugJavaWithJavac",
-        ":app:assembleLeanbackDebug",
+        ":app:compileLeanbackReleaseJavaWithJavac",
+        ":app:assembleLeanbackRelease",
         "python3 scripts/build/check-elf-runtime.py --self-test",
         "python3 scripts/build/check-final-apk-native.py --self-test",
         "python3 scripts/build/check-final-apk-manifest.py --self-test",
@@ -270,7 +270,7 @@ for name, text in (
         "Verify final Leanback manifest security contract",
         "python3 scripts/build/check-final-apk-manifest.py",
         'apkanalyzer="$sdk_root/cmdline-tools/latest/bin/apkanalyzer"',
-        "find app/build/outputs/apk/leanback -type f -name 'app-leanback-*-debug.apk'",
+        "find app/build/outputs/apk/leanback -type f -name 'leanback-*.apk'",
         'test "${#apks[@]}" -eq 2',
         'for apk in "${apks[@]}"; do',
     ):
@@ -331,25 +331,25 @@ for name, text in (
         if forbidden in text:
             errors.append(f"{name} still depends on retired player artifact storage: {forbidden}")
 
-if "fingmi-xray-5.6.3-current-main-debug" not in current_workflow:
+if "fingmi-xray-5.6.3-current-main-release" not in current_workflow:
     errors.append("current-main-build.yml must retain the short-lived TV debug artifact")
 if "retention-days: 2" not in current_workflow:
     errors.append("current-main-build.yml debug artifact must remain short-lived (2 days)")
 for required in (
     "actions: write",
-    "Remove superseded current-main debug artifacts",
-    'select(.name == "fingmi-xray-5.6.3-current-main-debug")',
+    "Remove superseded current-main release artifacts",
+    'select(.name == "fingmi-xray-5.6.3-current-main-release")',
     'gh api --method DELETE "repos/${GITHUB_REPOSITORY}/actions/artifacts/$id"',
 ):
     if required not in current_workflow:
         errors.append(f"current-main-build.yml must auto-prune superseded debug artifacts: {required}")
-if "fingmi-xray-5.6.3-current-main-debug" in publish_workflow:
+if "fingmi-xray-5.6.3-current-main-release" in publish_workflow:
     errors.append("publish workflow must not duplicate successful APKs into Actions artifacts")
 
-if 'PREVIOUS_RELEASE_TAG: "v5.6.3-xray.test.6"' not in publish_workflow:
-    errors.append("publish workflow must retire the current test.6 release only after replacement verification")
-if 'RELEASE_TAG: "v5.6.3-xray.test.7"' not in publish_workflow:
-    errors.append("publish workflow must target the next v5.6.3-xray.test.7 pre-release")
+if 'PREVIOUS_RELEASE_TAG: "v5.6.3-xray.test.7"' not in publish_workflow:
+    errors.append("publish workflow must retire the current test.7 release only after replacement verification")
+if 'RELEASE_TAG: "v5.6.3-xray.1"' not in publish_workflow:
+    errors.append("publish workflow must target the v5.6.3-xray.1 formal release")
 for required in (
     'for stale_tag in "$PREVIOUS_RELEASE_TAG" "build-inputs-5.6.3"; do',
     "'v5.6.0-xray.5'",
@@ -365,6 +365,27 @@ for name, text in (
 ):
     if "fingmi-xray-5.6.3-build-failure-reports" not in text or "retention-days: 1" not in text:
         errors.append(f"{name} failure reports must remain short-lived (1 day)")
+
+app_build = (ROOT / "app/build.gradle").read_text(encoding="utf-8")
+version_name = re.search(r'versionName "([^"]+)"', app_build).group(1)
+version_code = int(re.search(r'versionCode (\d+)', app_build).group(1))
+if version_name != "v5.6.3-xray.1" or version_code != 563001:
+    errors.append("fork release version must match v5.6.3-xray.1 / 563001")
+if f'RELEASE_TAG: "{version_name}"' not in publish_workflow:
+    errors.append("publish tag must equal the versionName embedded in the APK")
+for name, text in (("current-main", current_workflow), ("publish", publish_workflow)):
+    if "keytool -genkeypair" in text or "current-main-debug.jks" in text:
+        errors.append(f"{name} must never generate a replacement release key")
+    for required in ("python3 scripts/build/check-release-signing.py", "--build-type release"):
+        if required not in text:
+            errors.append(f"{name} lost persistent signing/release verification: {required}")
+previous_tag = re.search(r'PREVIOUS_RELEASE_TAG: "([^"]+)"', publish_workflow).group(1)
+if previous_tag == version_name:
+    errors.append("publisher must not prune the release it just created")
+if "--prerelease" in publish_workflow or ".prerelease == false" not in publish_workflow:
+    errors.append("normal APK publication must be a verified formal release")
+if "signing/release-signing.properties" not in app_build or "signingConfigs.release" not in app_build:
+    errors.append("app must use the persistent private-project release signing configuration")
 
 if errors:
     raise SystemExit("\n".join(errors))

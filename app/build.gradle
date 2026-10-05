@@ -5,9 +5,9 @@ plugins {
     alias libs.plugins.android.application
 }
 
-def localProps = new Properties()
-rootProject.file('local.properties').withInputStream {
-    localProps.load(it)
+def releaseSigning = new Properties()
+rootProject.file('signing/release-signing.properties').withInputStream {
+    releaseSigning.load(it)
 }
 
 android {
@@ -19,8 +19,9 @@ android {
         applicationId "com.fongmi.android.tv"
         minSdk libs.versions.minSdk.get().toInteger()
         targetSdk libs.versions.targetSdk.get().toInteger()
-        versionCode 563
-        versionName "5.6.3"
+        // Public upstream versionCode * 1000 + fork revision (1..999).
+        versionCode 563001
+        versionName "v5.6.3-xray.1"
         javaCompileOptions {
             annotationProcessorOptions {
                 arguments = ["room.schemaLocation": "$projectDir/schemas".toString(), "eventBusIndex": "com.fongmi.android.tv.event.EventIndex"]
@@ -46,14 +47,17 @@ android {
 
     signingConfigs {
         release {
-            storeFile file(localProps['storeFile'])
-            keyAlias localProps['keyAlias']
-            keyPassword localProps['storePassword']
-            storePassword localProps['storePassword']
+            storeFile rootProject.file(releaseSigning['storeFile'])
+            keyAlias releaseSigning['keyAlias']
+            keyPassword releaseSigning['storePassword']
+            storePassword releaseSigning['storePassword']
         }
     }
 
     buildTypes {
+        debug {
+            signingConfig = signingConfigs.release
+        }
         release {
             minifyEnabled = true
             shrinkResources = true

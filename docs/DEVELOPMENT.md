@@ -13,8 +13,8 @@
 - 上游目标 commit：`c616c0aa3613e87529791587a9f71b78c278c991`
 - 上一固定基线：`4afc4473e22a7ed3d98ee12233e0c2a490061000`（5.6.3）
 - 两者是直接父子 commit；新增 runtime 变化集中在 `catvod` 的 redirect-aware proxy selection/authentication。Release / APK 的更高版本号不改变本项目的公开源码上游基线。
-- app `versionCode`：`563`
-- app `versionName`：`5.6.3`
+- app `versionCode`：`563001`
+- app `versionName`：`v5.6.3-xray.1`
 - Java：21
 - Gradle wrapper：9.7.1
 - Android Gradle Plugin：9.3.1
@@ -272,19 +272,41 @@ on:
 4. 重建并导入最小 Libass compatibility AAR；
 5. 执行 current Java → 黄金 v7 / arm64 native 动态 Xray chain parity（统一以 v7 发布行为为黄金 oracle，包含 KCP golden cases 与发布版 `testXray` runtime validation）；
 6. 只编译 Android TV / Leanback Java；
-7. 只 assemble Android TV / Leanback 两个 ABI 的 Debug APK；
+7. 只 assemble Android TV / Leanback 两个 ABI 的 Release APK；
 8. 对最终 APK执行 MPEG-H class/native、Xray/FFmpeg/MPEG-H/Libass runtime PT_LOAD provenance 与 merged Manifest security contract；
-9. 上传短期 TV debug artifact（保留 2 天）供临时验证；上传成功后自动删除同名旧 debug，只保留最新一份。失败报告只保留 1 天。历史 recovery workflow 的 JADX/DEX、faithful APK、native dependency、player AAR 和 upstream snapshot artifacts 也只作临时复核，统一最多保留 3 天；长期可重建输入只保留源码 commit、脚本、fixture 与 hash，不再占用 Release。Gradle 命令继续使用 `--warning-mode all`；当前剩余会在 Gradle 10 失败的 deprecation 已确认全部来自固定上游同样使用的 Chaquopy Gradle plugin 17.0.0（multi-string dependency notation 与 execution-time `Task.project`），不是本仓库 Gradle 脚本。当前保持 FongMi/TV 5.6.3 的 17.0.0 pin，并让 `com.fongmi.chaquo.Platform` 继续跟随固定上游实现，不在本 fork 中为一般兼容或 warning 主动改写 Python ABI 选择逻辑。
+9. 上传短期、固定签名的 TV release artifact（保留 2 天）供临时验证；上传成功后自动删除同名旧 release，只保留最新一份。失败报告只保留 1 天。历史 recovery workflow 的 JADX/DEX、faithful APK、native dependency、player AAR 和 upstream snapshot artifacts 也只作临时复核，统一最多保留 3 天；长期可重建输入只保留源码 commit、脚本、fixture 与 hash，不再占用 Release。Gradle 命令继续使用 `--warning-mode all`；当前剩余会在 Gradle 10 失败的 deprecation 已确认全部来自固定上游同样使用的 Chaquopy Gradle plugin 17.0.0（multi-string dependency notation 与 execution-time `Task.project`），不是本仓库 Gradle 脚本。当前保持 FongMi/TV 5.6.3 的 17.0.0 pin，并让 `com.fongmi.chaquo.Platform` 继续跟随固定上游实现，不在本 fork 中为一般兼容或 warning 主动改写 Python ABI 选择逻辑。
 
-测试发布器：
+正式发布器（文件名保留以兼容既有手动入口）：
 
 `.github/workflows/publish-current-main-test-release.yml`
 
-Release 的 APK 发布集合长期保留 `v5.6.0-xray.5` 黄金参考和一个当前可上真机测试的 pre-release。构建输入、恢复材料、临时归档和旧测试版不得长期堆在 APK 发布集合中；用户明确要求的完整源码备份可使用 `source-backup-*` 独立 Release，APK 发布器在校验“黄金版 + 当前测试版”时忽略这类源码备份，不会自动删除它们。
+Release 的 APK 发布集合长期保留 `v5.6.0-xray.5` 黄金参考和一个当前正式版 `v5.6.3-xray.1`。构建输入、恢复材料、临时归档和旧测试版不得长期堆在 APK 发布集合中；用户要求的最新完整源码备份使用 `source-backup-*` 独立 Release，发布器忽略这类源码备份。备份通过 `git archive` 导出确切 commit 的 tracked tree，包含本私有项目的固定签名及恢复配置，不包含 ignored AAR、缓存或临时构建文件；可重建输入继续由脚本及 hash 管理。
 
-GitHub Releases 当前保留 `v5.6.0-xray.5` 黄金参考、`v5.6.3-xray.test.7` 当前可上真机测试的 pre-release，以及一份用户要求保留的 `source-backup-*` 历史源码备份。`test.7` 已完成完整 build/native parity/assemble/Manifest 验证；build source 为 `439cea8d7a9d3cdb1a17b4ed962c6d68ed164508`，不包含之后的 Hysteria2 备注查询边界修复。Android TV 真机 Xray 与待机/长后台网络恢复仍是最终验收层。
+`test.7` 构建源码为 `439cea8d7a9d3cdb1a17b4ed962c6d68ed164508`，缺少后续 Hysteria2 备注查询边界修复；正式版替换旧测试发布。构建源码、资产 hash 与当前验收结果记录在对应 GitHub Release，历史 test.7 证据保留在本文维护记录，不能当作正式版的验证。
 
-发布 workflow 以 `BUILD_SOURCE_SHA` 作为唯一构建与发布源码，重新准备固定依赖、执行源码 guard、执行当前 Java → 发布版 native 动态 Xray chain parity、只编译/assemble Android TV / Leanback 两个 ABI，并在发布前重复执行最终 APK MPEG-H、四类 native runtime provenance 与 merged Manifest security contract。**当前 YAML 显式配置 `RELEASE_TAG=v5.6.3-xray.test.7`、`PREVIOUS_RELEASE_TAG=v5.6.3-xray.test.6`；它不会自动递增版本号。** 当前 `test.7` 已发布，若要发布新 tag，必须同时更新 workflow 与 `tests/test-build-hygiene.py` 中对应的 release-set guard。正常手动触发时 `BUILD_SOURCE_SHA = github.sha`；发布 job 保持最小权限 `contents: write + actions: read`。临时触发、轮询与清理规则只以 [AI_COLLABORATION.md](AI_COLLABORATION.md) 为准，本文不重复保存一次性操作历史。
+发布 workflow 以 `BUILD_SOURCE_SHA` 作为唯一构建与发布源码，重新准备固定依赖、执行源码 guard 与双 ABI 黄金 Xray chain parity，只编译/assemble Android TV / Leanback Release 两个 ABI，并核对最终 native provenance、Manifest、签名、应用版本、non-debuggable 与 16 KB alignment。当前显式配置 `RELEASE_TAG=v5.6.3-xray.1`、`PREVIOUS_RELEASE_TAG=v5.6.3-xray.test.7`，创建非预览的正式版；它不会自动递增修订号。正常手动触发时 `BUILD_SOURCE_SHA = github.sha`，权限保持 `contents: write + actions: read`；清理上一版之前必须核对新 tag、两 APK 的远端 digest 与正式状态。
+
+### 正式版命名与固定签名
+
+- Tag 与应用设置显示的 `versionName` 一致：`v<公开 FongMi 版本>-xray.<本 fork 修订号>`。当前 `v5.6.3-xray.1` 的 `5.6.3` 只表示公开 FongMi/TV 源码基线；`xray.1` 表示本项目二开修补发布的第 1 个正式修订，包含 Xray 与待机网络恢复，不表示 Xray-core 版本。
+- 同一上游基线的下一次修补发布使用 `v5.6.3-xray.2`、`.3` 等；跟随公开上游新版本时，从该上游版本的 `.1` 开始。发布前同时更新 `app/build.gradle`、workflow 的 tag/上一版目标和 build-hygiene guard，禁止复用旧修订号冒充新发布。
+- Android 安装顺序使用 `versionCode = 公开上游 versionCode × 1000 + fork 修订号`，修订号范围 1..999。当前为 `563001`；下一次为 `563002`，上游 `564` 的首版为 `564001`。必须严格递增且不超过 Android 最大值，不能仅修改显示版本名。
+- 新固定签名为 RSA-4096 / SHA256withRSA，有效期 100 年，自此用于本地与手动 workflow 的正常发布。PKCS12 文件 `signing/fingmi-xray-release.p12`、恢复配置 `signing/release-signing.properties` 和证书 fingerprint 文件按用户授权存入**私有仓库**；配置包含密钥密码，不能输出到日志或复制到公开项目。源码备份也包含它们，应同时保存到用户离线备份。
+- `app/build.gradle` 直接读取此固定配置，Debug 也复用同一签名；缺少文件时构建失败，不回退到临时开发证书。两个 current-main workflow 不再生成签名，正式包使用 Release variant。历史 recovery workflow 仅用于冻结旧行为取证，不作为当前正式发布入口。
+- 当前 GitHub 连接无 Actions Secrets 管理权限，因此本轮采用用户授权的私有仓库恢复配置。签名证书 SHA-256：`3cd86f4fdf6044e7e60307624bf0d8c892dfd83b81ce21748504fcbba28763c2`，见 `signing/release-certificate.sha256`；每次发布用 `scripts/build/check-release-signing.py` 核对，不得重新生成或覆盖此 key。
+- 旧签名遗失，无法用新 key 覆盖黄金版或过去临时签名测试包；首次需备份配置并卸载旧安装。同一包名 `com.fongmi.android.tv`、同签名、递增 versionCode 是后续覆盖升级的必要条件；本轮没有电视安装实测。armeabi-v7a 和 arm64-v8a 使用同一证书和 versionCode，选择设备匹配的 ABI。
+
+本地构建与校验：
+
+```bash
+python3 scripts/build/check-release-signing.py
+bash gradlew :xray:testDebugUnitTest :tv-recovery:testDebugUnitTest :app:assembleLeanbackRelease --no-daemon
+python3 scripts/build/check-final-apk-native.py --apk-dir app/build/outputs/apk/leanback --build-type release
+python3 scripts/build/check-release-signing.py --sdk "$ANDROID_HOME" --apk app/build/outputs/apk/leanback/release/leanback-armeabi_v7a.apk
+python3 scripts/build/check-release-signing.py --sdk "$ANDROID_HOME" --apk app/build/outputs/apk/leanback/release/leanback-arm64_v8a.apk
+```
+
+Release 文件名沿用上游 finalizer 的 `leanback-armeabi_v7a.apk` / `leanback-arm64_v8a.apk`，对外资产命名为 `FongMi-Xray-TV-v5.6.3-xray.1-<ABI>.apk`。设备 ART/真实节点/电视待机仍属于真机验收，不因 GitHub 标记为正式版而自动视为通过。
 
 当前 build 与 publish workflow 都必须先执行：
 
@@ -635,3 +657,14 @@ Xray 审查覆盖分享链接、security/pin/config、Service 串行执行与代
 为确认测试能捕获错误，在仓库外临时副本中分别移除五处保护，真实 Java 编译均成功，原测试随后分别在预期行为断言失败：运行中禁止测试、无法交付 START 回调后的核心清理、取消操作的归属判断、恢复 owner 关闭后的迟到清理回调、失效 Home 禁止刷新及标记恢复。每组独立运行，未改仓库运行代码，也不把人为注入的错误计作产品 Bug。正向 14 个标准验证入口、其中真实 Service 的 9 个场景，以及强制重跑的 Gradle JUnit（Xray 3 项、recovery 2 项，失败/错误/跳过均为 0）全部通过；Leanback Release Java 编译 `--rerun` 成功。双 ABI 各 26 个固定 JNI 转换/runtime/native `testXray` 黄金用例，以及各 5 个备注边界链用例重新执行通过。
 
 本轮只有审查记录修改，没有新增运行修复、改测试预期、触发 Actions 或发布 APK。证据仍限于本地编译、宿主 JVM 与 QEMU native；Android ART/Binder、真实节点握手/播放及电视息屏/长后台恢复仍需要真机验收。不能用反向验证通过代替这些设备层验证。
+
+
+### 2026-10-05 — 正式发布命名与持久签名
+
+按用户要求，将显示版本和 Release tag 统一为 `v5.6.3-xray.1`，Android versionCode 设为 `563001`，新增固定 RSA-4096 发布签名并按授权连同恢复配置保存到私有项目。软件设置直接显示既有 `BuildConfig.VERSION_NAME`，无需修改上游 UI。Xray-core、公开 FongMi 源码基线及两个模块业务行为不变；此次差异限于版本/签名、构建与发布验证、对应文档。
+
+旧 `test.7` 对应 `439cea8`，源码备份对应 `41896214`，均早于本次来源；正式 APK 包含后续 Hysteria2 备注解析修复。手动 current-main/build 与 publish 入口改用 Release variant 和持久签名，保持纯 `workflow_dispatch`；原生库验证器支持上游 Release finalizer 的实际文件名，新增签名/版本/non-debuggable/16 KB alignment/内嵌 Git revision 校验。签名验证器同时支持 Build Tools 37 的 `V2 Signer:` 格式，并用旧临时签名 APK 验证拒绝路径。
+
+完整本地 Release 混淆、资源压缩、Lint 与 assemble 已通过。首次离线运行缺少 Lint 传递依赖 `stax-api` / `xpp3`，联网补齐后成功，没有禁用检查或修改上游业务。14 个 source/JVM/验证器入口通过；实际 JUnit 强制重跑 Xray 3 项、recovery 2 项通过。双 ABI APK 的版本与同签名、Manifest 安全接线、四类原生库 PT_LOAD、单 ABI 打包、MPEG-H class/native 及 16 KB 对齐通过。提交后再次打包，以保证 APK 内嵌 Git revision 与发布 tag 的构建源码完全一致；最终 digest 以 Release 资产为准。正式状态是发布渠道选择，Android ART、真实节点、电视覆盖安装与待机/长后台恢复仍未实测。
+
+旧发布及旧备份仅在新 APK / 新 tracked-tree ZIP 的远端 digest 与 tag 核对后清理。新源码备份包含签名文件和恢复配置，不包含临时产物；签名不可重建，后续维护必须复用并由用户保留离线副本。
