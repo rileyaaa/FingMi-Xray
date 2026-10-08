@@ -28,6 +28,10 @@ public final class XrayPlaybackAddress {
                 return false;
             }
 
+            // URI retains IPv6 brackets; the destination guard expects a bare host.
+            if (host.startsWith("[") && host.endsWith("]")) {
+                host = host.substring(1, host.length() - 1);
+            }
             return !PublicPlaybackDestinationInterceptor
                     .isPrivateOrReserved(host);
         } catch (IllegalArgumentException ignored) {

@@ -152,6 +152,12 @@ JADX 中出现不可能分支、R8 合并控制流或自相矛盾时，必须继
 - 本机、私网和保留目标受 destination guard 保护；
 - 会话结束后关闭 Dispatcher、ConnectionPool、executor 与相关代理资源。
 
+#### 公网 IPv6 播放地址：current 有意修复
+
+2026-10-08 从 SHA 固定的黄金 v7 APK 定向提取 `t11.w(String)` 原始 DEX，见 [t11-playback-address.smali](apk-reference/v7/t11-playback-address.smali)：其 `URI.getHost()` 结果直接传入 `qz3.a()`。Android `java.net.URI` 保留 IPv6 主机的方括号，而冻结 `qz3` 的 IPv6 字面地址检查只接受裸地址，因此连公网 IPv6 媒体 URL 也会被拒绝。真实 current / legacy 地址类与各自真实 destination guard 的 JVM 组合复现了这一行为，实际 VOD / Live 启用入口均可达；它与代理节点分享链接的 IPv6 解析是两条路径。
+
+current 只在 `XrayPlaybackAddress` 的 URI 调用边界剥离一对最外层 `[]`，再使用原地址检查器；不改原生核心、CIDR 配置或私网分类。私网、保留、mapped IPv6、zone identifier 继续拒绝，Live HTTP(S) `.strm` 规则保持。旧原始证据与 legacy mirror 不改；`tests/test-xray-playback-address-parity.py` 编译真实检查器，以显式预期验证 135 个场景，只有已登记的公网 IPv6 修复允许与黄金不同。以前该入口共用简化 guard 替身，只证明两份实现一致，不能证明真实 URI 与地址检查器的组合正确。
+
 ### VOD / Live 身份
 
 VOD 的会话边界包括切集、自动下一集、换线路、换源、真正换播放器、播放结束和离开页面；parser 结果、HTTP redirect 或 CDN URL 在同一逻辑身份内变化时只更新 resolved media URL，不结束会话。
@@ -264,7 +270,7 @@ Settings result/timeout/connection-failure listener 也属于不可信 UI 边界
 - 最多约 12 次检查后继续刷新；
 - DLNA 生命周期随电视前后台 / screen 状态收口。
 
-这一能力在重构后仍属于 `:app` / `:catvod`，不属于 `:xray`。
+当前生命周期与恢复协调核心已拆分到独立 `:tv-recovery`，宿主资源适配仍由 `:app` / `:catvod` 承担，与 `:xray` 独立；现行职责边界见 [PROJECT.md](PROJECT.md#3-android-tv-网络恢复的边界)。
 
 #### 当前实现相对黄金版的有意差异
 

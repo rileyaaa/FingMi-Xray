@@ -667,3 +667,17 @@ Xray 审查覆盖分享链接、security/pin/config、Service 串行执行与代
 完整本地 Release 混淆、资源压缩、Lint 与 assemble 已通过。首次离线运行缺少 Lint 传递依赖 `stax-api` / `xpp3`，联网补齐后成功，没有禁用检查或修改上游业务。14 个 source/JVM/验证器入口通过；实际 JUnit 强制重跑 Xray 3 项、recovery 2 项通过。双 ABI APK 的版本与同签名、Manifest 安全接线、四类原生库 PT_LOAD、单 ABI 打包、MPEG-H class/native 及 16 KB 对齐通过。提交后再次打包，以保证 APK 内嵌 Git revision 与发布 tag 的构建源码完全一致；最终 digest 以 Release 资产为准。正式状态是发布渠道选择，Android ART、真实节点、电视覆盖安装与待机/长后台恢复仍未实测。
 
 旧发布及旧备份仅在新 APK / 新 tracked-tree ZIP 的远端 digest 与 tag 核对后清理。新源码备份包含签名文件和恢复配置，不包含临时产物；签名不可重建，后续维护必须复用并由用户保留离线副本。
+
+### 2026-10-08 — 独立复核上游边界与七条用户分享链接
+
+本轮重新读取项目文档并读取远端源码基线；公开 FongMi/TV HEAD 仍为 `c616c0aa3613e87529791587a9f71b78c278c991` / 5.6.3，审查起点为 `3fab84a`。重新生成完整 tracked-tree 差异：1061 个同路径文件完全一致、57 个修改、2 个删除、381 个新增。审查分别沿上游差异、Xray 生命周期与安全配置、TV 恢复及分享链接转换链展开，不将旧测试记录当作本轮通过证据。
+
+57 个修改文件逐项检查后，未发现本轮需要再恢复的无关上游业务修改。另读取固定公开 media 的实际 MPV API，确认现有兼容映射对应公开源码缺失接口。9 个普通 Config/API/UI 文件及先前恢复的通用取消/频道回收方法仍保持上游；两个核心模块没有反向依赖宿主。既有 Libass 高版本 APK 原生库构建债仍存在，本轮不反编译更高版本 APK、不引入其业务行为。
+
+七条用户链接加 30 个 IPv4/IPv6/域名、跳跃端口与编码变体，在双 ABI 各完成 37 例 current Java → 固定黄金 JNI → current runtime → native `testXray`；744 项字段断言通过，归一化、安全转换与 runtime 配置均与冻结恢复 Java 一致。特别确认 Argo 的连接域名与 TLS SNI / WS Host 分离，`/?ed=2560` 保留正确；HY2 IPv6 / 跳跃端口、Reality XHTTP / gRPC、VMess KCP seed 及 VLESS / Trojan WS 参数同样通过。双 ABI 各 26 项冻结 native oracle 通过，当前 AAR 中 JNI 与黄金文件逐字节相同。固定公开 core 的本地 DNS / IPv6 TCP / UDP 9 个子场景另通过；这是源码与环回环境证据，不能替代 Android 上的实际节点解析。真实用户凭据只作仓库外私有测试输入，未连接用户服务器；证书探测及 pin 存储为确定性边界。
+
+本轮确认并修复一个独立于节点导入的 Xray 问题：公网 IPv6 **媒体 URL** 的 `URI.getHost()` 包含 `[]`，真实 destination guard 只接受裸 IPv6，VOD / Live 因而拒绝启用 Xray。旧测试共用简化 guard，掩盖了这处真实组合缺陷。本轮先替换为真实 current / legacy guard 并得到预期失败，再只修 `XrayPlaybackAddress` 的 URI 边界；135 个回归场景随后通过，私网/保留/zone/mapped 地址继续拒绝。黄金 APK 原始 DEX 也直接传递带括号主机，这是已登记的有意修复，证据与历史差异见 [RECOVERY.md](RECOVERY.md#公网-ipv6-播放地址current-有意修复)。不改 FongMi 业务文件、核心配置或冻结 oracle。
+
+修复后重新执行 14 个标准 source/JVM/验证器入口，全部通过；Gradle JUnit 强制重跑 Xray 3 项、recovery 2 项，失败/错误/跳过均为 0，Leanback Release Java 编译强制重跑成功。另以真实 Service 和替身平台/native 执行 3 个销毁故障场景，覆盖正常停止、stop 连续异常、prepare 阻塞后的中断及禁止启动/信任写入；恢复核心另验证 8192 种网络稳定性序列、27 个代际/关闭场景及 5000 轮前后台/息屏/配置重建组合，均通过。没有复现其它确定的 Xray 资源释放或待机恢复缺陷，不据理论竞态扩张上游状态机。
+
+本次只更新源码修复、对应测试及证据文档；RECOVERY 中遗留的拆分前归属说明也已纠正。Xray 核心、应用版本与固定签名保持不变，未触发 Actions 或重发 APK；已发布 `v5.6.3-xray.1` **尚不包含本轮公网 IPv6 媒体地址修复**。测试不包含 Android ART/Binder、真实节点握手/播放、设备 RSS 或电视待机/长后台验收；约 6 秒恢复兜底与后台 player 保留仍是既有设备观察项。
