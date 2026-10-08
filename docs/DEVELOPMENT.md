@@ -280,11 +280,15 @@ on:
 
 `.github/workflows/publish-current-main-test-release.yml`
 
-Release 的 APK 发布集合长期保留 `v5.6.0-xray.5` 黄金参考和一个当前正式版 `v5.6.3-xray.1`。构建输入、恢复材料、临时归档和旧测试版不得长期堆在 APK 发布集合中；用户要求的最新完整源码备份使用 `source-backup-*` 独立 Release，发布器忽略这类源码备份。备份通过 `git archive` 导出确切 commit 的 tracked tree，包含本私有项目的固定签名及恢复配置，不包含 ignored AAR、缓存或临时构建文件；可重建输入继续由脚本及 hash 管理。
+Release 的 APK 发布集合长期保留 `v5.6.0-xray.5` 黄金参考和一个当前正式版 `v5.6.3-xray.1`。构建输入、恢复材料、临时归档和旧测试版不得长期堆在 APK 发布集合中；用户要求的最新完整源码备份由同一发布流程生成，使用 `source-backup-<UTC 日期>-main-<源码 SHA 前八位>` 独立 Release。备份通过 `git archive` 导出确切 `BUILD_SOURCE_SHA` 的 tracked tree，包含本私有项目的固定签名及恢复配置，不包含 ignored AAR、缓存或临时构建文件；可重建输入继续由脚本及 hash 管理。若使用临时 marker 触发，归档也忠实包含该构建提交的临时 trigger/marker，备份说明必须指出这一点；run 完整结束后另恢复 main 的纯手动工作流，不重写归档并冒称原 SHA。
 
 `test.7` 构建源码为 `439cea8d7a9d3cdb1a17b4ed962c6d68ed164508`，缺少后续 Hysteria2 备注查询边界修复；正式版替换旧测试发布。构建源码、资产 hash 与当前验收结果记录在对应 GitHub Release，历史 test.7 证据保留在本文维护记录，不能当作正式版的验证。
 
-发布 workflow 以 `BUILD_SOURCE_SHA` 作为唯一构建与发布源码，重新准备固定依赖、执行源码 guard 与双 ABI 黄金 Xray chain parity，只编译/assemble Android TV / Leanback Release 两个 ABI，并核对最终 native provenance、Manifest、签名、应用版本、non-debuggable 与 16 KB alignment。当前显式配置 `RELEASE_TAG=v5.6.3-xray.1`、`PREVIOUS_RELEASE_TAG=v5.6.3-xray.test.7`，创建非预览的正式版；它不会自动递增修订号。正常手动触发时 `BUILD_SOURCE_SHA = github.sha`，权限保持 `contents: write + actions: read`；清理上一版之前必须核对新 tag、两 APK 的远端 digest 与正式状态。
+发布 workflow 以 `BUILD_SOURCE_SHA` 作为唯一构建与发布源码，重新准备固定依赖、执行源码 guard 与双 ABI 黄金 Xray chain parity，只编译/assemble Android TV / Leanback Release 两个 ABI，并核对最终 native provenance、Manifest、签名、应用版本、non-debuggable 与 16 KB alignment。当前显式配置 `RELEASE_TAG=v5.6.3-xray.1` 与指定旧源码备份 `PREVIOUS_BACKUP_TAG`，不会自动递增修订号。正常手动触发时 `BUILD_SOURCE_SHA = github.sha`，权限保持 `contents: write + actions: read`，同一发布流程使用 concurrency 排队而不取消正在进行的发布。
+
+`scripts/build/publish-current-release.py` 负责上传和替换，`tests/test-release-publication.py` 验证发布失败与清理顺序。两个 APK 和源码 ZIP 先分别上传到草稿并逐文件核对 name / digest / size；两份新产物完整后才进入切换。已有同名正式版必须由用户明确要求并选中 `replace_existing`；旧 APK 暂存为 rollback 草稿，直到新正式 APK、源码备份及各自 Git tag 都验证成功才清理。只删除显式指定的旧备份，不按 `source-backup-*` 通配删除。失败时保留可诊断/恢复的草稿，不把失败说成替换成功；正常收尾只留下黄金版、当前正式版及最新源码备份。
+
+切换后期失败没有自动回滚，正式入口可能暂时缺失；此时先读取失败 artifact 内 `publication-before.json` / `publication-result.json`，核对正式 tag、rollback 草稿和新草稿，再恢复入口或继续切换，不能直接复用已占用的 rollback tag 盲目重跑。需要时可通过 `rollback_tag` 手动输入一个预先指向旧 APK 源码的 tag，避免 runner token 为旧提交创建 tag 的权限限制；成功后该临时 tag 自动清理。
 
 ### 固定签名与 Release 构建校验
 
@@ -681,3 +685,9 @@ Xray 审查覆盖分享链接、security/pin/config、Service 串行执行与代
 修复后重新执行 14 个标准 source/JVM/验证器入口，全部通过；Gradle JUnit 强制重跑 Xray 3 项、recovery 2 项，失败/错误/跳过均为 0，Leanback Release Java 编译强制重跑成功。另以真实 Service 和替身平台/native 执行 3 个销毁故障场景，覆盖正常停止、stop 连续异常、prepare 阻塞后的中断及禁止启动/信任写入；恢复核心另验证 8192 种网络稳定性序列、27 个代际/关闭场景及 5000 轮前后台/息屏/配置重建组合，均通过。没有复现其它确定的 Xray 资源释放或待机恢复缺陷，不据理论竞态扩张上游状态机。
 
 本次只更新源码修复、对应测试及证据文档；RECOVERY 中遗留的拆分前归属说明也已纠正。Xray 核心、应用版本与固定签名保持不变，未触发 Actions 或重发 APK；已发布 `v5.6.3-xray.1` **尚不包含本轮公网 IPv6 媒体地址修复**。测试不包含 Android ART/Binder、真实节点握手/播放、设备 RSS 或电视待机/长后台验收；约 6 秒恢复兜底与后台 player 保留仍是既有设备观察项。
+
+### 2026-10-08 — 发布前全新复查与同名替换流程
+
+按用户明确要求，以 `6e7ac98` 再次独立读取当前源码与公开上游，重新验证模块边界、135 个真实地址检查场景、7 条链接及 30 个变体的双 ABI 配置链；未确认新的生产缺陷。额外使用真实 OkHttp 5.5.0 与环回 SOCKS 验证运行/排队请求取消、keep-alive 连接回收、基础 client 隔离和公网 IPv6 请求路径，两场景通过。恢复部分新增多 Home owner 的 6 种回调交错及网络/DLNA 异常测试，真实 OkDns / Doh / OkHttp 完成 100 轮重建；确认派生 DoH client 与被清理的 transport 共享池和 Dispatcher。固定公开 core 的 3 个 WS Build 场景确认 `ed` 提取为 early-data 大小并从握手 path 移除。Android 平台/调度仍为明确替身，不等同真机验收。
+
+本次用户明确授权 GitHub Actions 编译，并作为单次例外同名替换 `v5.6.3-xray.1`、更新旧 `source-backup-2026-10-05-main-357402dc`。版本名称、`563001` 与正式签名保持不变；发布器补齐同源码备份、草稿逐资产校验、旧包 rollback 保留及验证后清理，避免构建/上传失败先丢失现有版本。源码备份名称按实际构建 SHA 和 UTC 日期生成；最终是否发布成功及产物摘要以完成后的 Actions / Release 核验为准，准备流程不代表发布已完成。

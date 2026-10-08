@@ -228,8 +228,8 @@ for required in (
     "Verify temporary push trigger source",
     "ref: ${{ env.BUILD_SOURCE_SHA }}",
     'test "$changed" = ".github/.trigger-publish-current-main-test"',
-    '--target "$BUILD_SOURCE_SHA"',
-    ".object.sha == $sha",
+    "python3 scripts/build/publish-current-release.py",
+    "python3 tests/test-release-publication.py",
 ):
     if required not in publish_workflow:
         errors.append(f"publish workflow is missing stable source targeting guard: {required}")
@@ -261,6 +261,7 @@ for name, text in (
         "python3 scripts/build/check-elf-runtime.py --self-test",
         "python3 scripts/build/check-final-apk-native.py --self-test",
         "python3 scripts/build/check-final-apk-manifest.py --self-test",
+        "python3 tests/test-release-publication.py",
         "Verify MPEG-H survives final TV APK packaging",
         'entry="lib/${abi}/libmpeghJNI.so"',
         "Landroidx/media3/decoder/mpegh/MpeghAudioRenderer;",
@@ -346,18 +347,22 @@ for required in (
 if "fingmi-xray-5.6.3-current-main-release" in publish_workflow:
     errors.append("publish workflow must not duplicate successful APKs into Actions artifacts")
 
-if 'PREVIOUS_RELEASE_TAG: "v5.6.3-xray.test.7"' not in publish_workflow:
-    errors.append("publish workflow must retire the current test.7 release only after replacement verification")
+if not re.search(r'PREVIOUS_BACKUP_TAG: "source-backup-[^\"]+"', publish_workflow):
+    errors.append("publish workflow must explicitly select the previous source backup")
 if 'RELEASE_TAG: "v5.6.3-xray.1"' not in publish_workflow:
     errors.append("publish workflow must target the v5.6.3-xray.1 formal release")
 for required in (
-    'for stale_tag in "$PREVIOUS_RELEASE_TAG" "build-inputs-5.6.3"; do',
-    "'v5.6.0-xray.5'",
-    'select(startswith("source-backup-") | not)',
-    'test "$remaining" = "$expected"',
+    "      replace_existing:",
+    "        type: boolean",
+    "        default: false",
+    "  group: fingmi-formal-release",
+    "  cancel-in-progress: false",
+    "      ALLOW_EXISTING_RELEASE:",
+    "      ROLLBACK_TAG:",
+    "Publish verified APKs and matching complete source backup",
 ):
     if required not in publish_workflow:
-        errors.append(f"publish workflow must leave only golden + current test releases: {required}")
+        errors.append(f"publish workflow lost staged replacement/source backup contract: {required}")
 
 for name, text in (
     ("current-main-build.yml", current_workflow),
@@ -379,11 +384,9 @@ for name, text in (("current-main", current_workflow), ("publish", publish_workf
     for required in ("python3 scripts/build/check-release-signing.py", "--build-type release"):
         if required not in text:
             errors.append(f"{name} lost persistent signing/release verification: {required}")
-previous_tag = re.search(r'PREVIOUS_RELEASE_TAG: "([^"]+)"', publish_workflow).group(1)
-if previous_tag == version_name:
-    errors.append("publisher must not prune the release it just created")
-if "--prerelease" in publish_workflow or ".prerelease == false" not in publish_workflow:
-    errors.append("normal APK publication must be a verified formal release")
+# APK formal status and backup-only prerelease status are asserted by the
+# publication transaction tests; a whole-workflow '--prerelease' text ban
+# cannot distinguish the two intentionally different release types.
 if "signing/release-signing.properties" not in app_build or "signingConfigs.release" not in app_build:
     errors.append("app must use the persistent private-project release signing configuration")
 

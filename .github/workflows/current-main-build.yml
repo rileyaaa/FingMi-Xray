@@ -67,6 +67,7 @@ jobs:
           python3 scripts/build/check-final-apk-native.py --self-test
           python3 scripts/build/check-final-apk-manifest.py --self-test
           python3 tests/test-build-hygiene.py
+          python3 tests/test-release-publication.py
           python3 tests/test-tv-network-recovery.py
 
       - name: Prepare Android SDK 36 and 37
