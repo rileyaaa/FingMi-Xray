@@ -239,6 +239,16 @@ for name, text in (
     ("current-main-build.yml", current_workflow),
     ("publish-current-main-test-release.yml", publish_workflow),
 ):
+    # The upstream daemon criteria select JetBrains, not any Java 21 vendor.
+    # Preflight must start a real daemon before expensive native reconstruction.
+    if not re.search(r"distribution: jetbrains\s+java-version: [\"']21[\"']", text):
+        errors.append(f"{name} must install JetBrains JDK 21 for the upstream daemon criteria")
+    preflight = text.find("Verify upstream Gradle daemon toolchain")
+    native_build = text.find("Rebuild and verify pinned player/native inputs")
+    if preflight < 0 or native_build < preflight:
+        errors.append(f"{name} must preflight the daemon before rebuilding native inputs")
+    if "-Porg.gradle.java.installations.auto-download=false" not in text or "help --stacktrace --warning-mode all" not in text:
+        errors.append(f"{name} must start the daemon without fallback toolchain downloads")
     for forbidden in (
         ":app:compileMobile",
         ":app:assembleMobile",

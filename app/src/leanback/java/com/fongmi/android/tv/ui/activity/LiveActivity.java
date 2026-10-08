@@ -545,6 +545,11 @@ public class LiveActivity extends PlaybackActivity implements GroupAdapter.OnCli
     }
 
     @Override
+    protected void onXrayBindingReplaced() {
+        resetXrayForPlaybackChange();
+    }
+
+    @Override
     public void resetXrayForPlaybackChange() {
         mXrayPendingChannelResume = false;
         mXrayStartedFromExistingPlayback = false;

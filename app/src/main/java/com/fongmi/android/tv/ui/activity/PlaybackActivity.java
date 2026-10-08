@@ -372,8 +372,15 @@ public abstract class PlaybackActivity extends BaseActivity implements MediaCont
 
     private void claimBinding() {
         if (mService == null) return;
-        mService.claimBinding(getNavigationCallback(), this::closePiP);
+        mService.claimBinding(getNavigationCallback(), () -> {
+            onXrayBindingReplaced();
+            closePiP();
+        });
         mService.setSessionActivity(buildSessionIntent());
+    }
+
+    /** Release the old Activity's Xray session before the next owner starts media. */
+    protected void onXrayBindingReplaced() {
     }
 
     private boolean canActivate() {
@@ -435,7 +442,9 @@ public abstract class PlaybackActivity extends BaseActivity implements MediaCont
     }
 
     protected final void updatePlaybackDanmakuClient() {
-        danmakuController.setOkHttpClient(player().getPlaybackHttpClient(OkHttp.player()));
+        // View setup runs before the asynchronous PlaybackService binding.
+        danmakuController.setOkHttpClient(mService == null
+                ? OkHttp.player() : player().getPlaybackHttpClient(OkHttp.player()));
     }
 
     private void syncDanmakuSource() {

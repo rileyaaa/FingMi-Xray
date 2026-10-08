@@ -43,7 +43,7 @@ jobs:
 
       - uses: actions/setup-java@v6
         with:
-          distribution: temurin
+          distribution: jetbrains
           java-version: "21"
 
       - uses: actions/setup-python@v7
@@ -79,6 +79,13 @@ jobs:
           test -x "$sdkmanager"
           yes | "$sdkmanager" --licenses >/dev/null 2>&1 || true
           "$sdkmanager" --channel=3 --install 'platforms;android-36' 'build-tools;36.0.0' 'platforms;android-37.0' 'build-tools;37.0.0'
+
+      - name: Verify upstream Gradle daemon toolchain
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash gradlew --no-daemon -Porg.gradle.java.installations.auto-download=false \
+            help --stacktrace --warning-mode all
 
       - name: Verify persistent private-project release signing
         shell: bash

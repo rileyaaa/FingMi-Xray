@@ -565,6 +565,11 @@ public class VideoActivity extends PlaybackActivity implements VodPlaybackHost, 
     }
 
     @Override
+    protected void onXrayBindingReplaced() {
+        resetXrayForPlaybackChange();
+    }
+
+    @Override
     public void resetXrayForPlaybackChange() {
         xrayPlaybackReady = false;
         if (mXray != null) mXray.begin("vod:" + ++mPlaybackEpoch);

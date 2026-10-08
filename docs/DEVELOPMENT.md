@@ -129,6 +129,10 @@ Activity 负责：
 
 业务页面只决定“当前是什么播放身份”，不实现 Xray Core 细节。
 
+关闭会话时先卸载播放器代理、清空会话资源引用，再幂等关闭独立 HTTP Dispatcher，异步取消请求并淘汰连接；普通 player client 不随之销毁。STOP 成功后立即解绑，已派发的 STOP 超过 1.5 秒则取消并解绑，未建立连接由 5 秒 bind timeout 收口。500 ms 仅是 controller 关闭且没有待处理 STOP 时的兜底。最后一个客户端解绑、Android 销毁 Service 后，私有进程等待停止最多 3 秒，最终调用 `killProcess` 回收 Go/native 堆；多个合法 Binder owner 尚未全部离开时不能把进程存活直接判成泄漏。HTTP 清理线程在空闲 5 秒后退出。对象可回收和应用总 RSS 立即下降不是同一指标，设备验收应同时观察 `:xray` 进程退出、连接/线程收口及多轮操作后主进程内存是否持续增长。
+
+多个播放 Activity 交接时，由原有 `PlaybackService.claimBinding` 的旧 owner 回调先触发 Leanback 的 `onXrayBindingReplaced`，同步结束旧 Xray 身份，再执行上游 PiP 关闭和新 owner 的播放任务。不能只依赖旧 Activity 较晚的 `onStop`，因为新页可能已改变共享播放器 key，导致旧页的 owner 检查跳过代理卸载。同 owner 的重复认领不触发此钩子，Mobile 默认钩子为空；不在 `PlayerManager.start` 无条件清代理，以免误关 Live pending 时已经手动开启的新会话。
+
 ### Settings / Binder
 
 分享链接兼容目标沿用冻结发布说明：以 **v2rayN 导出的标准单节点分享链接**作为主要兼容与测试目标；v2rayN 只是格式来源，不是工程依赖。当前 normalizer / native chain 继续由 `tests/test-v2rayn-share-chain.py`、`tests/test-v2rayn-reference-chain.py` 与发布 native parity 约束。
@@ -266,7 +270,7 @@ on:
 
 它负责：
 
-1. 准备 JDK / Android SDK；
+1. 准备 JetBrains JDK 21 / Android SDK，并执行禁用自动下载的 `gradlew help`，实际启动上游要求的 Gradle daemon；预检在昂贵的 player/native 重建之前完成；
 2. 从固定公开 FongMi/media commit 重建 17-AAR player candidate，并下载 / 校验当前 compatibility 与黄金 Xray 输入；
 3. 直接导入固定公开 FongMi/media 重建出的 player candidate；黄金旧 APK只用于重建与 Go JNI 配套的 libXray Java bindings 与 Xray 动态 parity；
 4. 重建并导入最小 Libass compatibility AAR；
@@ -315,8 +319,9 @@ Release 文件名沿用上游 finalizer 的 `leanback-armeabi_v7a.apk` / `leanba
 
 - `tests/test-xray-android-runtime-compat.py`：防止 Java 21 可编译、但旧 Android ART 运行时不存在的 API 再进入 `:xray`，并防止 `main` 构建重新退回“官方旧 Java bindings + 单独替换发布版 Go JNI”的不匹配组合；
 - `tests/test-xray-core-parity.py`：守住配置生成、存储 / TOFU、Service 重试清理、Settings 核心语义、手机导入的 EventBus / operation 中断边界与发布版错误去敏链，并要求 current public destination guard 与发布 `qz3` readable mirror 保持逐行为等价；同时调用 `tests/test-xray-service-execution.py`，编译执行真实 Service、generation gate 与错误去敏类，验证启动/停止、准备期间替换/取消、回调失败后的清理、仍运行的 native Core 防护与取消后禁止信任写入。Android、native、配置构建及 pin 存储为确定性边界替身，实际 native 配置另由双 ABI chain 验证；
-- `tests/test-xray-playback-parity.py`：守住 VOD / Live、播放器代理切换、媒体旁路、本地 scheme、artwork/logo 与资源释放语义，并调用 `tests/test-xray-side-request-lifecycle.py`，编译真实弹幕/字幕 API 与上游 `ApiCallback`，验证 HTTP / 下载完成后排队回调的 Xray 取消、owner 关闭、replacement 与 reentrant 边界；
+- `tests/test-xray-playback-parity.py`：守住 VOD / Live、播放器代理切换、媒体旁路、本地 scheme、artwork/logo 与资源释放语义，并调用 `tests/test-xray-side-request-lifecycle.py`，编译真实弹幕/字幕 API 与上游 `ApiCallback`，验证 HTTP / 下载完成后排队回调的 Xray 取消、owner 关闭、replacement 与 reentrant 边界；`tests/test-xray-danmaku-client-binding.py` 另执行真实页面初始化/选择方法，覆盖服务尚未绑定、直连、代理与断开后的 client 选择，避免只检查代理已经就绪的路径；
 - `tests/test-xray-playback-address-parity.py`：把 public HTTP(S)/RTSP/RTSPT、私网/保留目标、Unicode whitespace，以及 Live pending `.strm` / YouTube indirection 边界与冻结发布证据做 differential parity；
+- `tests/test-xray-playback-binding-handoff.py`：由 playback parity 调用，执行真实 Activity / Service 绑定方法与 `XrayPlaybackSession`，覆盖新旧播放页交接、相同媒体 key、旧页迟到关闭、重复认领、Live pending 及默认 Mobile/PiP 行为；平台、播放器与远端服务为明确替身；
 - `tests/test-xray-session-races.py`：锁住发布版 STOP / timeout / callback 的竞态顺序；
 - `tests/test-xray-service-client-lifecycle.py`：直接编译真实 Service client，锁住 bind timeout、cancel/unbind、Binder death 与 stale callback / connection generation；
 - `tests/test-xray-normalizer-parity.py`：把当前 share-link normalizer 与 display helper 对发布版 readable reference 做纯 JVM differential parity；
@@ -350,7 +355,7 @@ FingMi-Xray 当前**不使用 FongMi/Release 的应用内自更新**。原因是
 
 ### 本地
 
-直接运行 Gradle 前，需要先准备 `app/libs` 与 `libxray/libs/libXray.aar` 所需的固定依赖。最完整的依赖准备顺序以 `current-main-build.yml` 为准。
+编译、测试或 assemble 前，需要先准备 `app/libs` 与 `libxray/libs/libXray.aar` 所需的固定依赖。最完整的依赖准备顺序以 `current-main-build.yml` 为准。仅执行 `help` 的 daemon 预检不依赖这些生成 AAR。
 
 完成依赖准备后，主要验证命令为：
 
@@ -691,3 +696,15 @@ Xray 审查覆盖分享链接、security/pin/config、Service 串行执行与代
 按用户明确要求，以 `6e7ac98` 再次独立读取当前源码与公开上游，重新验证模块边界、135 个真实地址检查场景、7 条链接及 30 个变体的双 ABI 配置链；未确认新的生产缺陷。额外使用真实 OkHttp 5.5.0 与环回 SOCKS 验证运行/排队请求取消、keep-alive 连接回收、基础 client 隔离和公网 IPv6 请求路径，两场景通过。恢复部分新增多 Home owner 的 6 种回调交错及网络/DLNA 异常测试，真实 OkDns / Doh / OkHttp 完成 100 轮重建；确认派生 DoH client 与被清理的 transport 共享池和 Dispatcher。固定公开 core 的 3 个 WS Build 场景确认 `ed` 提取为 early-data 大小并从握手 path 移除。Android 平台/调度仍为明确替身，不等同真机验收。
 
 本次用户明确授权 GitHub Actions 编译，并作为单次例外同名替换 `v5.6.3-xray.1`、更新旧 `source-backup-2026-10-05-main-357402dc`。版本名称、`563001` 与正式签名保持不变；发布器补齐同源码备份、草稿逐资产校验、旧包 rollback 保留及验证后清理，避免构建/上传失败先丢失现有版本。源码备份名称按实际构建 SHA 和 UTC 日期生成；最终是否发布成功及产物摘要以完成后的 Actions / Release 核验为准，准备流程不代表发布已完成。
+
+### 2026-10-08 — Actions 工具链故障与 Xray 内存复核
+
+实际 Actions 失败发生在 Gradle daemon 启动阶段，尚未进入应用编译：workflow 安装 Temurin 21，而公开上游 `gradle-daemon-jvm.properties` 要求 JetBrains 21，备用 Foojay 下载地址返回 HTTP 400。两个 current-main build/publish 入口改为通过 `setup-java` 预装 JetBrains 21，并在 player/native 重建前用禁止自动下载的 `gradlew help` 实际启动 daemon；保留上游工具链条件，不更换 Xray core、版本或签名。官方 JBR 21.0.11 下载已按官方 SHA-512 校验；全新独立缓存下正向 daemon 启动通过，普通 OpenJDK 21 的负向控制按预期拒绝 vendor 不匹配；没有生成 player/Libass/libXray AAR 的干净 tracked tree 同样通过 `help`。失败 run 尚未执行发布步骤，旧正式包及旧备份保留。
+
+同一官方 JBR 下强制重跑模块 JUnit 与 Leanback Release Java 编译通过，XML 确认 Xray 3 项、TV recovery 2 项，失败、错误、跳过均为 0；build hygiene 与 9 个发布事务测试通过，两个 workflow 的 YAML 和纯手动触发结构通过检查。本地编译通过不等同于新 Actions 已完成 assemble / 发布。
+
+内存专项重新组合真实 `XraySessionController` 与 `XrayServiceClient` 执行 9 类共 9000 次启停、绑定失败、超时、重入与迟到回调序列，终止后 binding、DeathRecipient、pending 引用及 Handler 任务均清空。真实 OkHttp 5.5.0 与本地 SOCKS/HTTP 完成 102 次资源生命周期，FD 数 `13→13`，204 个弱引用跟踪对象全部可回收；另一个独立宿主验证完成 10 次活动/空闲连接关闭和 250 次 client 创建销毁，连接池与请求计数归零，普通 player client 不受影响。真实 Service 的 4 类销毁故障验证包含停止异常、准备阻塞及忽略 Java 中断的边界，均到达最终私有进程终止请求。这些没有复现持续泄漏；Android/Binder/native 使用明确替身的部分只能证明清理路径，不能冒充电视 ART、真实进程退出或 PSS/RSS 实测。
+
+沿实际宿主顺序复现并修复两处 Xray 接线缺陷。首次页面初始化先配置弹幕 view、后请求绑定播放服务，原 fork 的 client 选择无条件调用 `player()`，导致服务为空时 NPE；改为未绑定时沿用上游 `OkHttp.player()`，绑定后继续选择当前播放 client。另一处是新播放页改变共享播放器 key 后，旧页 `onStop` 的 owner 检查不再成立，可能关闭 HTTP 资源却未卸载共享播放器的旧代理。实际编译的 PlayerManager / PlaySpec / XrayHttpClient 组合复现了对已 shutdown client 的保留；新 binding 交接钩子在新页播放任务前同步结束旧 Xray。新增回归分别在修前以 NPE、移除交接钩子时以旧资源未释放断言失败，修后通过。改动只落在三个宿主文件的 Xray 必要接线，不改上游 `PlaybackService`、`PlayerManager` 通用逻辑，也不为上游自身问题追加修补。
+
+两处宿主修复完成后，重新执行 14 个标准验证入口（包含新增初始化/交接回归）全部通过；官方 JBR 下 Leanback Release Java 再次强制编译通过，发布事务 9 项通过。Xray 模块源码、核心 AAR、TV recovery、版本和签名均未变化；完整 APK assemble 和远端替换仍由授权的手动 Actions 流程执行，以实际 run 及资产核验为准。

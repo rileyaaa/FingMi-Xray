@@ -87,7 +87,7 @@ require(
     "app/src/main/java/com/fongmi/android/tv/ui/activity/PlaybackActivity.java",
     "private void syncPlayerView(Player player)",
     "getPlayerView().setPlayer(player);\n        updatePlaybackDanmakuClient();",
-    "danmakuController.setOkHttpClient(player().getPlaybackHttpClient(OkHttp.player()));",
+    "protected final void updatePlaybackDanmakuClient()",
 )
 
 require(
@@ -530,6 +530,16 @@ with tempfile.TemporaryDirectory(prefix="xray-playback-identity-") as directory:
 
 subprocess.run(
     [sys.executable, str(ROOT / "tests/test-xray-side-request-lifecycle.py")],
+    check=True,
+)
+
+subprocess.run(
+    [sys.executable, str(ROOT / "tests/test-xray-danmaku-client-binding.py")],
+    check=True,
+)
+
+subprocess.run(
+    [sys.executable, str(ROOT / "tests/test-xray-playback-binding-handoff.py")],
     check=True,
 )
 
