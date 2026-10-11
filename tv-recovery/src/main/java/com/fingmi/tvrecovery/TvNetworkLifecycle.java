@@ -11,6 +11,10 @@ import android.os.Bundle;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
+import java.util.Collections;
+import java.util.IdentityHashMap;
+import java.util.Set;
+
 /**
  * Behavior reconstruction of the shipped TV foreground/network generation
  * monitor (R8 name: gn3).
@@ -32,7 +36,8 @@ public final class TvNetworkLifecycle
 
     private final Renderer renderer;
     private final BroadcastReceiver screenReceiver;
-    private int startedActivities;
+    private final Set<Activity> startedActivities =
+            Collections.newSetFromMap(new IdentityHashMap<>());
     private long generation;
     private long recoveredGeneration;
     private boolean backgroundPending;
@@ -50,7 +55,7 @@ public final class TvNetworkLifecycle
                 } else if (Intent.ACTION_SCREEN_ON.equals(action)) {
                     boolean hasStartedActivities;
                     synchronized (TvNetworkLifecycle.this) {
-                        hasStartedActivities = startedActivities > 0;
+                        hasStartedActivities = !startedActivities.isEmpty();
                     }
                     if (hasStartedActivities) enterForegroundGeneration();
                 }
@@ -149,8 +154,7 @@ public final class TvNetworkLifecycle
     public void onActivityStarted(@NonNull Activity activity) {
         boolean firstStarted;
         synchronized (this) {
-            startedActivities++;
-            firstStarted = startedActivities == 1;
+            firstStarted = startedActivities.add(activity) && startedActivities.size() == 1;
         }
         if (firstStarted) enterForegroundGeneration();
     }
@@ -159,8 +163,10 @@ public final class TvNetworkLifecycle
     public void onActivityStopped(@NonNull Activity activity) {
         boolean noStartedActivities;
         synchronized (this) {
-            startedActivities = Math.max(0, startedActivities - 1);
-            noStartedActivities = startedActivities == 0;
+            // Home may install the monitor after an exported playback Activity
+            // already started. Its later STOP must not consume Home's entry.
+            if (!startedActivities.remove(activity)) return;
+            noStartedActivities = startedActivities.isEmpty();
         }
 
         if (noStartedActivities && !activity.isChangingConfigurations()) {
@@ -186,5 +192,8 @@ public final class TvNetworkLifecycle
 
     @Override
     public void onActivityDestroyed(@NonNull Activity activity) {
+        // Normally STOP has already removed it. Also retire the reference if
+        // the owner is destroyed without a matching STOP callback.
+        onActivityStopped(activity);
     }
 }

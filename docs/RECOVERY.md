@@ -279,6 +279,7 @@ Settings result/timeout/connection-failure listener 也属于不可信 UI 边界
 当前相对黄金版只保留少量、可审计的模块化增强：
 
 - `TvNetworkLifecycle` / `NetworkRecoveryCoordinator` 把旧 `gn3 + HomeActivity + l61` 的状态拆成独立类，并记录 `recoveredGeneration`，避免 Home 重建后把尚未完成的 generation 直接当成已应用；generation 来源仍只是真实前后台与 SCREEN_OFF→ON，不增加默认网络 callback 等新触发源。
+- 黄金 `gn3` 使用整型 started Activity 计数，不能区分首次注册前已经 START 的页面。current 在 2026-10-11 复现冷 Live → 首次 Home 的晚注册路径：旧 Live 的 STOP 误扣 Home，导致错误后台状态与后续 SCREEN 代际遗漏。独立核心改为按对象身份配对 START / STOP，并在 DESTROY 退休残留引用；这是有意修复，不冒称黄金已有此保护。原始证据不变，当前回归入口见 DEVELOPMENT 的 TV 网络恢复章节。
 - Home 每轮仍只做：取消旧 Home RESULT 请求 → `OkHttp.resetApiNetworkForResume()` 重建普通 API client / DNS / DoH（不销毁 playback client）→ 异步 `BaseLoader.clear()` → 约 500 ms 稳定检查 → 连续两次 Internet capability 后刷新 Home；最多约 12 次检查的黄金兜底保持不变。
 - `OkGlideModule` 每次图片请求动态取得当前普通 API client，`ImgUtil.resetNetworkFailures()` 在 recovery 开始时推进本地图片失败 epoch 并清瞬时失败集合；每个 Glide failure listener 快照该 epoch，退休 generation 晚到的 `onLoadFailed()` 不再更新 View 或重新污染新 generation 的失败缓存。
 - `OkDns.lookup()` 在同步边界内快照本次查询使用的 DoH resolver，再在锁外执行请求，避免 reset/rebuild 并发时离锁后重新读取另一代 resolver。

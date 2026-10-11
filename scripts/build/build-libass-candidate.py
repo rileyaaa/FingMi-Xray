@@ -8,12 +8,11 @@ from zipfile import ZipFile,ZipInfo,ZIP_DEFLATED
 ROOT=Path(__file__).resolve().parents[2]
 sys.path.insert(0,str(Path(__file__).resolve().parent))
 from player_candidate import read_verified_candidate
+from libass_native_input import SO, SOURCES, read_native_inputs
 EXTRACTOR='feb8be30e3d431391ce4b3b165a6cbfb18313969d7ba7da2d6ccfeb96d25ee68'
 CONTAINER='930fca2f018f06f1d08c12599f8c97f31eddbd728edee5de06eb53a882f8fc54'
 ANDROID='6c0670454f6fcee9f1b17aa393e81d71bf26e7e6ae7c5777ed3924b062191d5b'
 DEPS={'com/google/guava/guava/33.3.1-android/guava-33.3.1-android.jar':'2c3e41d1b380f2044d257947a3aa82dabf3ae4b978622745254aa18b6cf89ab0','androidx/annotation/annotation-jvm/1.9.1/annotation-jvm-1.9.1.jar':'1e343917ebf27ba96fe4dc52b1cad7fd32b738fbc6355bb6cd5b3b305d7212d0'}
-APK={'armeabi-v7a':'2859ebef12bf0fa0dfec023d410df478ac5e5a82a72ef2be48f6e4fa09a24761','arm64-v8a':'948df594843e304c332476a380163dc1cc74f964be5ea1539ff0465a9dd936eb'}
-SO={'armeabi-v7a':'58bc83730285c9a4ba40bf71d4deeea8be7e69dfb7d1a053f6a77aea006ad6ee','arm64-v8a':'7e160faba4f64abb7551b48d07ae886af73464d3079978dcd55352e7b22bd6b3'}
 PREFIX=('androidx/media3/exoplayer/libass/','androidx/media3/ui/libass/')
 def sha(data):return hashlib.sha256(data).hexdigest()
 def checked(path,expected):
@@ -27,15 +26,12 @@ def zipped(entries):
 def main():
  p=argparse.ArgumentParser(description=__doc__)
  for name in ['candidate','extractor','container','v7-apk','v8-apk','android-jar','output']:p.add_argument('--'+name,type=Path,required=True)
+ p.add_argument('--native-source',choices=SOURCES,default='upstream-568')
  p.add_argument('--local-repository',type=Path,default=Path.home()/'.m2/repository');a=p.parse_args()
  aar_inputs=read_verified_candidate(a.candidate);extractor=checked(a.extractor,EXTRACTOR);container=checked(a.container,CONTAINER);checked(a.android_jar,ANDROID)
  deps=[a.local_repository/path for path in DEPS]
  for path,digest in DEPS.items():checked(a.local_repository/path,digest)
- native={}
- for abi,path in [('armeabi-v7a',a.v7_apk),('arm64-v8a',a.v8_apk)]:
-  with ZipFile(io.BytesIO(checked(path,APK[abi]))) as apk:native['jni/'+abi+'/libmedia3ass.so']=apk.read('lib/'+abi+'/libmedia3ass.so')
-  observed=sha(native['jni/'+abi+'/libmedia3ass.so'])
-  if observed!=SO[abi]: raise SystemExit('libmedia3ass.so SHA mismatch for '+abi+': expected '+SO[abi]+', got '+observed)
+ native,apk_digests=read_native_inputs(a.v7_apk,a.v8_apk,a.native_source)
  with tempfile.TemporaryDirectory(prefix='libass-candidate-') as td:
   work=Path(td);jars=[];owned={}
   aar_inputs=dict(aar_inputs)
@@ -60,7 +56,7 @@ def main():
   assert all('/test/' not in name and 'Test' not in name for name in produced)
   aar={**native,'classes.jar':zipped(produced),'AndroidManifest.xml':b'<manifest xmlns:android="http://schemas.android.com/apk/res/android" package="androidx.media3.exoplayer.libass"/>\n','R.txt':b'','proguard.txt':b'-keep class androidx.media3.exoplayer.libass.LibassNative { *; }\n-keep class androidx.media3.exoplayer.libass.LibassFrame { *; }\n-keep class androidx.media3.exoplayer.libass.LibassImage { *; }\n'}
   a.output.parent.mkdir(parents=True,exist_ok=True);a.output.write_bytes(zipped(aar))
-  report={'kind':'reconstructed compatibility candidate, not exact5.6.3 original','candidate_zip_sha256':sha(a.candidate.read_bytes()),'extractor_aar_sha256':EXTRACTOR,'container_aar_sha256':CONTAINER,'native_source':'official FongMi 5.6.8 immutable APKs; 5.6.7/5.6.8-identical SO hashes pinned','apk_sha256':APK,'so_sha256':SO,'aar_sha256':sha(a.output.read_bytes()),'production_class_count':len(produced),'production_class_sha256':{name:sha(data) for name,data in sorted(produced.items())},'source_sha256':{str(path.relative_to(ROOT)):sha(path.read_bytes()) for path in sources+app_sources},'compile_inputs':{'android_all_sha256':ANDROID,'maven':DEPS},'java_runtime':subprocess.check_output(['java','-version'],stderr=subprocess.STDOUT,text=True).strip(),'target_class_major':61,'class_ownership':'Libass only in candidate; selector/output only in app; extractor compatibility replaces original extractor AAR; no duplicate dependency classes','limits':['no full Android Gradle build','no assemble','no EGL/display or device validation']}
+  report={'kind':'reconstructed compatibility candidate, not exact5.6.3 original','candidate_zip_sha256':sha(a.candidate.read_bytes()),'extractor_aar_sha256':EXTRACTOR,'container_aar_sha256':CONTAINER,'native_source':a.native_source,'native_origin':'historical FongMi 5.6.8 native bytes; both SO hashes remain pinned; no APK Java/DEX imported','apk_sha256':apk_digests,'so_sha256':SO,'aar_sha256':sha(a.output.read_bytes()),'production_class_count':len(produced),'production_class_sha256':{name:sha(data) for name,data in sorted(produced.items())},'source_sha256':{str(path.relative_to(ROOT)):sha(path.read_bytes()) for path in sources+app_sources},'compile_inputs':{'android_all_sha256':ANDROID,'maven':DEPS},'java_runtime':subprocess.check_output(['java','-version'],stderr=subprocess.STDOUT,text=True).strip(),'target_class_major':61,'class_ownership':'Libass only in candidate; selector/output only in app; extractor compatibility replaces original extractor AAR; no duplicate dependency classes','limits':['no full Android Gradle build','no assemble','no EGL/display or device validation']}
   a.output.with_suffix('.json').write_text(json.dumps(report,indent=2)+'\n')
   subprocess.run(['python',str(ROOT/'scripts/build/check-libass-contract.py'),'--aar',str(a.output)],check=True)
   print(json.dumps({key:report[key] for key in ['kind','aar_sha256','production_class_count','native_source','class_ownership']},indent=2))

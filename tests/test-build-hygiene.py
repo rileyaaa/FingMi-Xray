@@ -13,6 +13,7 @@ errors = []
 player_builder = (ROOT / "scripts/build/build-player-aar-candidate.sh").read_text(encoding="utf-8")
 player_verifier = (ROOT / "scripts/build/player_candidate.py").read_text(encoding="utf-8")
 libass_builder = (ROOT / "scripts/build/build-libass-candidate.py").read_text(encoding="utf-8")
+libass_input = (ROOT / "scripts/build/libass_native_input.py").read_text(encoding="utf-8")
 libass_extractor = (ROOT / "scripts/build/build-libass-extractor.py").read_text(encoding="utf-8")
 player_importer = (ROOT / "scripts/build/import-player-aar-candidate.py").read_text(encoding="utf-8")
 libass_contract = (ROOT / "scripts/build/check-libass-contract.py").read_text(encoding="utf-8")
@@ -73,8 +74,10 @@ for required in (
     "58bc83730285c9a4ba40bf71d4deeea8be7e69dfb7d1a053f6a77aea006ad6ee",
     "7e160faba4f64abb7551b48d07ae886af73464d3079978dcd55352e7b22bd6b3",
 ):
-    if required not in libass_builder:
-        errors.append(f"Libass builder lost pinned APK/SO provenance: {required}")
+    if required not in libass_input:
+        errors.append(f"Libass native reader lost pinned APK/SO provenance: {required}")
+if "read_native_inputs(a.v7_apk,a.v8_apk,a.native_source)" not in libass_builder:
+    errors.append("Libass builder must verify exact native bytes for either APK container mode")
 
 elf_runtime_guard = (ROOT / "scripts/build/check-elf-runtime.py").read_text(encoding="utf-8")
 final_native_guard = (ROOT / "scripts/build/check-final-apk-native.py").read_text(encoding="utf-8")
@@ -308,16 +311,22 @@ for name, text in (
         if forbidden in text:
             errors.append(f"{name} must follow public FongMi media instead of Release-only recovery: {forbidden}")
 
-    for retired in ("5.6.5", "5.6.6"):
-        if f"releases/download/{retired}/" in text:
-            errors.append(f"{name} still references deleted FongMi {retired} Release assets")
+    if "github.com/FongMi/Release/releases/download/" in text:
+        errors.append(f"{name} must not depend on deleted upstream APK containers")
     for required in (
-        "releases/download/5.6.8/",
-        "2859ebef12bf0fa0dfec023d410df478ac5e5a82a72ef2be48f6e4fa09a24761",
-        "948df594843e304c332476a380163dc1cc74f964be5ea1539ff0465a9dd936eb",
+        "python3 scripts/build/libass_native_input.py",
+        '--fetch-retained "$GITHUB_REPOSITORY"',
+        "--output-dir build/work/current-main/input",
+        "--report build/work/current-main/libass-native-input.json",
+        "--native-source retained-release",
+        'libass-source-v7.apk',
+        'libass-source-v8.apk',
+        "python3 tests/test-libass-native-input.py",
     ):
         if required not in text:
-            errors.append(f"{name} is missing pinned FongMi 5.6.8 Libass container provenance: {required}")
+            errors.append(f"{name} is missing retained Libass native provenance: {required}")
+    if text.index("python3 scripts/build/libass_native_input.py") > text.index("bash scripts/build/build-player-aar-candidate.sh"):
+        errors.append(f"{name} must verify available Libass inputs before rebuilding player")
 
     for required in (
         "Reclaim remaining verified Libass scratch before Gradle compile/assemble",
@@ -361,7 +370,7 @@ for name, text in (
         )]
         retained = [work / "input" / path for path in (
             "player-candidate.zip", "media3-container-1.11.0.aar",
-            "published-v568-v7.apk", "published-v568-v8.apk",
+            "libass-source-v7.apk", "libass-source-v8.apk",
         )] + [root / path for path in (
             "app/libs/player.aar", "libxray/libs/libXray.aar", "unrelated-keep",
         )]

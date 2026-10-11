@@ -261,7 +261,8 @@ class Publisher:
         notes = (f"{self.c.tag} 正式版\n\nAPK 构建源码：`{self.c.source}`\n"
                  f"Actions run：{self.c.run_id} / attempt {self.c.attempt}\n\n"
                  "包含公网 IPv6 播放地址兼容、播放页服务未绑定时的弹幕 client 初始化、"
-                 "播放页交接时旧 Xray 会话清理修复；Xray 核心及固定签名保持不变。"
+                 "播放页交接时旧 Xray 会话清理、冷启动直播后首次返回首页的待机恢复计数修复；"
+                 "Xray 核心及固定签名保持不变。"
                  "源码、单元、双 ABI native、Release 编译与签名校验已执行；电视真机行为尚未验收。\n\n")
         if old:
             notes += ("本次按用户明确要求同名替换，为一次性版本规则例外；"

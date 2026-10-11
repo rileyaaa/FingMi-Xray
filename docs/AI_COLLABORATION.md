@@ -88,16 +88,18 @@
 - GitHub Releases 的正常 APK 集合只承载发布版本：`v5.6.0-xray.5` 黄金参考和一个当前正式发布版本。用户明确要求的 `source-backup-*` 完整源码备份可作为独立例外保留，但不得被发布器当成 APK 发布版；player AAR、recovery ZIP、构建缓存或其他 build input 仍不得另建 Release 长期存放。
 - 可重建的长期输入应保存固定 source commit、构建脚本、最小 fixture / patch 和校验规则；构建时现场重建并验证。不可重建且确属黄金发布来源的二进制只能从保留的黄金 Release 按固定 digest 取证。
 - 适合 Git 长期保存的证据应是最小、可复核的文本、源码、patch、fixture 与 hash；不要把大型 APK / AAR / SO 直接塞入普通 Git 历史。
-- Actions artifacts 只用于短期调试、交接、人工复核或失败排查，应采用短 retention、尽量只保留最新必要副本，用完及时删除；不得让重复构建产物随每次 CI 线性累积。
+- Actions artifacts 是一次性提取区，不是备份仓库。用户已授权清理本项目全部已完成用途的 Actions 产物；AI 保存必要排错日志、确认重要发布产物或源码备份已在 Releases 等指定位置后，应主动删除这些 artifacts，无需每次重新请求确认。缓存同样不作为备份，失效或无用缓存可清理；不能把 runner 本地磁盘、远端 artifact 配额和下载失败混为一谈。
+- artifacts 仍在当前构建、提取或排错中使用时，采用短 retention 并只保留必要副本；提取完成后清理，不以“尚未到自动过期日”为由保留。清理后重新核对远端数量，不把 Actions 产物清理扩大成删除 Release、源码备份、签名、run 历史或排错日志。
 - 临时产物如果仍在当前工作阶段会被继续使用可以暂留；一旦用途结束，应在同一阶段或最近一次收尾中清理。
 - 具体 workflow 的 retention、自动 pruning、源码重建输入与发布清理规则统一维护在 `DEVELOPMENT.md`，本文件只约束 AI 的存储决策。
+- 已有 Libass 构建债允许从保留的本项目当前正式 APK 读取与原固定 SHA-256 完全一致的原生库，APK 只作容器；不得读取其中业务实现、接受新 native hash、另建 build-input Release 或因此扩大维护范围。取源与历史重建限制见 `DEVELOPMENT.md`。
 
 ## 8. 上游只以公开源码仓库为准
 
-- 判断 FongMi/TV、FongMi/media 等“上游当前版本”时，只以对应公开源码仓库的实际默认分支、commit、tree 和仓库内版本配置为准；公开仓库 HEAD 是本项目上游同步的唯一源码基线。
+- 判断 FongMi/TV 等“上游当前版本”时，只以公开源码仓库的实际默认分支、commit、tree 和仓库内版本配置为准。FongMi/media 采用与 TV 基线配套的固定公开源码分支/commit，必须明确分支名，不能把选用分支与仓库默认分支混为一谈，也不能仅因默认分支不同就替换当前固定依赖。
 - FongMi Release / APK 的版本号即使高于公开源码仓库中的 `versionName`，也不得据此认定公开仓库“落后”，更不得通过反编译较新 APK 将未公开实现反向移植到 `main`，并把这种行为称为“跟随上游”。
 - Release / APK 反编译只允许用于以下范围：本项目既有黄金版本的行为恢复与 parity 取证；必要的 ABI、native provenance 或兼容性验证；以及用户明确授权的专项研究。除这些场景外，不得把 APK 反编译结果当作上游源码替代品。
-- Release / APK 即使显示高于公开源码仓库的版本号，本项目仍只以公开仓库 HEAD 为上游；任何未在公开源码出现的 Dolby、MPV bridge、ISO / UDF、光碟导航或其他 Release-only 功能都不得为了“追版本”主动迁入。
+- Release / APK 即使显示高于公开源码仓库的版本号，本项目仍只以选定的公开源码基线为上游；任何未在公开源码出现的 Dolby、MPV bridge、ISO / UDF、光碟导航或其他 Release-only 功能都不得为了“追版本”主动迁入。
 - 上游同步时应优先记录并验证目标仓库 commit，而不是只看版本号。版本号用于描述仓库当时声明的版本，不得凌驾于源码 commit/tree 之上。
 
 ## 9. 开发与 Bug 修复范围只限 Xray 和 TV 待机网络恢复
