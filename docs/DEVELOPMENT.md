@@ -750,3 +750,5 @@ Xray 当前源码重新验证 9000 次 Controller/Client 清理序列、102 次�
 根因是发布器用 `GET releases/tags/<tag>` 读取草稿，真实 API 返回 404；`GET releases/<id>` 则能读取正确草稿。原测试替身错误地允许按 tag 读取 draft，漏掉了此边界。修复新草稿和旧版 rollback 草稿的 ID 校验，保留全部状态、资产和 Git ref 检查，测试替身按真实 API 行为调整。16 项发布事务测试通过；修前代码在新回归中明确复现原错误。
 
 补充仅续发原已验收资产的手动入口，避免为发布工具修复重复编译应用。11 项来源与失败注入测试、build hygiene 和 workflow 语法检查通过；真实只读演练已走完原 run/jobs、artifact ZIP、草稿资产 ID 下载、APK 摘要/源码/固定签名/Manifest 核验。Actions artifact ZIP 下载使用 JSON API 的默认 Accept，Release 资产下载才使用 octet-stream；两类 API 区分已由实际请求及回归约束。本次没有修改应用、Xray、恢复模块、公开上游版本或签名，续发 APK 和配套源码备份仍准确对应原构建 `943357e2`，不冒称来自后续发布工具提交。
+
+续发 Actions 已成功完成：`v5.6.3-xray.1` 为非预览且 latest，两个资产 ID/摘要与原 Actions 构建报告一致；配套 `source-backup-2026-10-11-main-943357e2` 已发布，下载后的 ZIP 摘要及全部 1507 个 tracked blob（包括固定签名恢复文件）逐项核对通过。旧正式包、指定旧备份、stage/rollback 临时 Release 和 tag 均在最终验证之后清理。保存失败排错证据后删除已消费的 Actions 报告，artifacts/caches 再次核对为 0。发布工具修复和后续记录留在 main，APK/备份的构建源码身份保持原样；真机验收边界仍不变。
