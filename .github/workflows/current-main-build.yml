@@ -162,6 +162,11 @@ jobs:
             --qemu "$work/v7-harness/qemu/usr/bin/qemu-arm-static" \
             --android-root "$work/v7-harness/android/root"
 
+          # The verified v7 runtime is no longer needed by the arm64 test.
+          du -sh "$work/v7-harness"
+          rm -rf "$work/v7-harness"
+          df -h .
+
           python3 scripts/recovery/prepare-native-converter-harness.py \
             --abi arm64-v8a \
             --workdir "$work/arm64-harness" \
@@ -174,6 +179,29 @@ jobs:
             --bridge "$work/arm64-harness/invoke-bridge" \
             --qemu "$work/arm64-harness/qemu/usr/bin/qemu-aarch64-static" \
             --android-root "$work/arm64-harness/android/root"
+
+          du -sh "$work/arm64-harness"
+          rm -rf "$work/arm64-harness"
+          df -h .
+
+      - name: Reclaim verified Xray scratch before Libass
+        shell: bash
+        run: |
+          set -euo pipefail
+          work="build/work/current-main"
+          du -sh "$work"
+          # Both ABI checks passed. Keep the player/container/Libass APK inputs,
+          # imported AARs and build caches; only retire consumed Xray scratch.
+          rm -rf \
+            "$work/tools" \
+            "$work/restored" \
+            "$work/libxray-bindings" \
+            "$work/xray-native-chain"
+          rm -f \
+            "$work/input/published-v560-v7.apk" \
+            "$work/input/published-v560-v8.apk" \
+            "$work/input/jadx.zip"
+          df -h .
 
       - name: Build and import reconstructed Libass candidate
         shell: bash
@@ -196,20 +224,16 @@ jobs:
 
           python3 scripts/build/import-libass-candidate.py             --aar "$work/lib-exoplayer-libass-reconstructed.aar"             --extractor "$work/extractor/lib-extractor-libass-release.aar"             --container "$work/input/media3-container-1.11.0.aar"
 
-          # All verified reconstruction inputs have now been imported into app/libs
-          # and libxray/libs. Reclaim transient provenance/native harness space before
-          # the main Gradle build so hosted-runner disk is reserved for compile/assemble.
+          # Reclaim remaining verified Libass scratch before Gradle compile/assemble.
+          # Xray runtime images and reconstruction tools were already retired above.
           rm -rf \
             "$work/input" \
-            "$work/tools" \
-            "$work/restored" \
-            "$work/libxray-bindings" \
-            "$work/xray-native-chain" \
             "$work/extractor"
           rm -f \
             "$work/lib-exoplayer-libass-reconstructed.aar" \
             "$work/lib-exoplayer-libass-reconstructed.json"
           mkdir -p "$work"
+          df -h .
 
       - name: Compile current 5.6.3 Leanback source
         shell: bash
@@ -319,5 +343,6 @@ jobs:
           path: |
             app/build/reports/
             **/build/reports/
+            build/work/current-main/extractor/target/surefire-reports/
           if-no-files-found: ignore
           retention-days: 1

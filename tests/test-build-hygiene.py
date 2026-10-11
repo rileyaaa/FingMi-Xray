@@ -3,6 +3,9 @@
 
 from pathlib import Path
 import re
+import subprocess
+import tempfile
+import textwrap
 
 ROOT = Path(__file__).resolve().parents[1]
 errors = []
@@ -317,7 +320,7 @@ for name, text in (
             errors.append(f"{name} is missing pinned FongMi 5.6.8 Libass container provenance: {required}")
 
     for required in (
-        "Reclaim transient provenance/native harness space before",
+        "Reclaim remaining verified Libass scratch before Gradle compile/assemble",
         '"$work/input"',
         '"$work/tools"',
         '"$work/restored"',
@@ -327,6 +330,50 @@ for name, text in (
     ):
         if required not in text:
             errors.append(f"{name} must reclaim verified build scratch before Gradle compile/assemble: {required}")
+
+    # Exercise the actual cleanup step in an isolated fake build tree. The
+    # verified Xray inputs must go before Maven starts, but Libass inputs and
+    # the AARs consumed by later Gradle tasks must survive byte-for-byte.
+    cleanup_marker = "      - name: Reclaim verified Xray scratch before Libass\n"
+    libass_marker = "      - name: Build and import reconstructed Libass candidate\n"
+    if cleanup_marker not in text or text.index(cleanup_marker) > text.index(libass_marker):
+        errors.append(f"{name} must retire Xray scratch before Libass starts")
+        continue
+    native_start = text.index("      - name: Verify current Xray chain")
+    native = text[native_start:text.index(cleanup_marker)]
+    v7_end = native.index('--android-root "$work/v7-harness/android/root"')
+    arm64_start = native.index('python3 scripts/recovery/prepare-native-converter-harness.py', v7_end)
+    v7_cleanup = 'rm -rf "$work/v7-harness"'
+    v8_cleanup = 'rm -rf "$work/arm64-harness"'
+    if v7_cleanup not in native[v7_end:arm64_start]:
+        errors.append(f"{name} must retire verified v7 runtime before preparing arm64")
+    if v8_cleanup not in native[native.index('--android-root "$work/arm64-harness/android/root"'):]:
+        errors.append(f"{name} must retire verified arm64 runtime after its test")
+    cleanup = text.split(cleanup_marker, 1)[1].split(libass_marker, 1)[0]
+    cleanup = textwrap.dedent(cleanup.split("        run: |\n", 1)[1])
+    with tempfile.TemporaryDirectory(prefix="fingmi-scratch-check-") as directory:
+        root = Path(directory)
+        work = root / "build/work/current-main"
+        retired = [work / path for path in (
+            "tools/jadx/tool", "restored/libXray.aar", "libxray-bindings/classes.jar",
+            "xray-native-chain/test/input.jar", "input/published-v560-v7.apk",
+            "input/published-v560-v8.apk", "input/jadx.zip",
+        )]
+        retained = [work / "input" / path for path in (
+            "player-candidate.zip", "media3-container-1.11.0.aar",
+            "published-v568-v7.apk", "published-v568-v8.apk",
+        )] + [root / path for path in (
+            "app/libs/player.aar", "libxray/libs/libXray.aar", "unrelated-keep",
+        )]
+        for path in retired + retained:
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_bytes(b"verified-input")
+        subprocess.run(["bash", "-euo", "pipefail", "-c", cleanup], cwd=root,
+                       check=True, stdout=subprocess.DEVNULL)
+        if any(path.exists() for path in retired):
+            errors.append(f"{name} cleanup retains consumed Xray scratch")
+        if any(not path.is_file() or path.read_bytes() != b"verified-input" for path in retained):
+            errors.append(f"{name} cleanup damaged a later build input")
 
 for name, text in (
     ("recovery-player-aars.yml", recovery_player_workflow),

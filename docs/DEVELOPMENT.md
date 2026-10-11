@@ -244,7 +244,7 @@ current player candidate 使用固定公开 FongMi/media 的 MPV 源码。curren
 
 最终 APK native 验证使用 ELF `PT_LOAD` runtime image，而不是 whole-file SHA：Android Gradle strip 可以改变 section metadata，但不能改变运行时 load segments。当前最终门槛核对 Xray、公开 FongMi/media 重建得到的 FFmpeg、MPEG-H 与 Libass 四类 native，并单独检查 merged Manifest：XrayService 必须 `exported=false` / `process=:xray`，同时拒绝 BootReceiver、`RECEIVE_BOOT_COMPLETED`、`REQUEST_INSTALL_PACKAGES` 与 VPN service permission 回流。普通 FongMi 权限不因为本 fork 的一般性安全偏好而额外改写；只有 Xray、TV 网络恢复或防止上游 APK 自更新覆盖 fork 所必需的 Manifest 差异可以长期保留。
 
-current / publish workflow 会在主 Gradle compile / assemble 前清理已消费的 APK、JADX、native harness、Libass extractor 与 reconstruction workdir。修改 compatibility 输入或 hash 时必须同步修改对应 verifier；不得重新加入任何高于公开源码的 Dolby/MPV/ISO Release-only restorer。
+current / publish workflow 按消费顺序清理构建临时文件：v7 native harness 验证通过后、准备 arm64 之前删除，arm64 验证后立即删除；Libass 开始前再回收已消费的黄金 APK、JADX 和 Xray bindings 重建目录。Libass 所需 player candidate、container、5.6.8 固定 native 容器及已导入 AAR 保留到各自消费完成，剩余 Libass 临时文件在主 Gradle compile / assemble 前清理。不能把数 GiB 的两个 Android 原生测试环境一直保留到 Maven 测试之后。关键阶段记录 `du` / `df`，失败 artifact 包含实际 Surefire 报告。修改 compatibility 输入或 hash 时必须同步修改对应 verifier；不得重新加入任何高于公开源码的 Dolby/MPV/ISO Release-only restorer。
 
 ## 7. 构建
 
@@ -708,3 +708,13 @@ Xray 审查覆盖分享链接、security/pin/config、Service 串行执行与代
 沿实际宿主顺序复现并修复两处 Xray 接线缺陷。首次页面初始化先配置弹幕 view、后请求绑定播放服务，原 fork 的 client 选择无条件调用 `player()`，导致服务为空时 NPE；改为未绑定时沿用上游 `OkHttp.player()`，绑定后继续选择当前播放 client。另一处是新播放页改变共享播放器 key 后，旧页 `onStop` 的 owner 检查不再成立，可能关闭 HTTP 资源却未卸载共享播放器的旧代理。实际编译的 PlayerManager / PlaySpec / XrayHttpClient 组合复现了对已 shutdown client 的保留；新 binding 交接钩子在新页播放任务前同步结束旧 Xray。新增回归分别在修前以 NPE、移除交接钩子时以旧资源未释放断言失败，修后通过。改动只落在三个宿主文件的 Xray 必要接线，不改上游 `PlaybackService`、`PlayerManager` 通用逻辑，也不为上游自身问题追加修补。
 
 两处宿主修复完成后，重新执行 14 个标准验证入口（包含新增初始化/交接回归）全部通过；官方 JBR 下 Leanback Release Java 再次强制编译通过，发布事务 9 项通过。Xray 模块源码、核心 AAR、TV recovery、版本和签名均未变化；完整 APK assemble 和远端替换仍由授权的手动 Actions 流程执行，以实际 run 及资产核验为准。
+
+### 2026-10-11 — Actions 磁盘峰值修复
+
+继续处理前次发布失败。真实 runner 的 JetBrains 安装、daemon 预检、源码 guard 和双 ABI Xray native chain 已通过，随后 Robolectric 下载 Android 测试运行库时返回 `java.io.IOException: No space left on device`；这是磁盘耗尽，不是十条 Libass 用例分别出现行为错误。既有清理位于 Libass 测试之后，两个完整 native harness 同时占用空间；本地相同目录的实占约为 v7 2.7 GiB、arm64 3.5 GiB（用于说明规模，不冒充 runner 的实测剩余容量）。
+
+两个 current-main workflow 将清理提前到各自消费者完成后，避免两个测试运行环境同时长期保留；仅删除本次工作目录下已使用完的输入，不清系统工具链、依赖缓存、当前 AAR 或签名。build hygiene 在隔离临时目录执行真实 cleanup shell，验证已消费 Xray 文件删除、后续 Libass 输入及 AAR 字节完整，并检查清理位于验证之后、Maven 之前。所有测试、固定 hash 与发布校验保持开启，workflow 仍只手动触发。
+
+官方 JBR 21.0.11 下以新外部目录重新完成 Libass 构建，Robolectric 10 项通过，失败、错误、跳过为 0；extractor SHA-256 仍为 `feb8be30e3d431391ce4b3b165a6cbfb18313969d7ba7da2d6ccfeb96d25ee68`，candidate 仍为 `f047f8ad84be08aeddb0672500e9b263cafd6f2a009812392554dc55b2019861`，双 ABI native / Java contract 通过。本轮不修改运行源码、公开上游基线、Xray 核心、版本或固定签名。
+
+另完成包含前轮两处宿主修复的本地双 ABI Release assemble，实际执行 R8/L8、打包及签名，原生库运行段、Manifest、固定证书、`v5.6.3-xray.1` / `563001`、non-debuggable、16 KB 对齐和内嵌源码核对均通过。此本地 APK 来源为 `950d8a6`，只作为完整构建证据；远端最终包由提交构建流程修复后的 Actions 重新产出，不能复用本地摘要冒充其结果。清理回归、9 项发布事务测试、YAML 与 Bash 语法检查通过；设备安装及电视运行仍未实测。
