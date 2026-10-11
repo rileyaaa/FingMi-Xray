@@ -206,7 +206,7 @@ class ResumeTests(unittest.TestCase):
             gh.download.side_effect = lambda path, target: target.write_bytes(binaries[path])
             output = directory / "recovered"
             argv = ["resume", "--verified-run-id", "123", "--repository", REPOSITORY,
-                    "--directory", str(output), "--sdk", "/sdk", "--verify-only"]
+                    "--directory", str(output), "--sdk", "/sdk", "--tag", TAG, "--verify-only"]
             with mock.patch.object(RESUME.sys, "argv", argv), mock.patch.object(RESUME, "GitHub", return_value=gh), \
                     mock.patch.object(RESUME, "source_identity") as identity, \
                     mock.patch.object(RESUME.subprocess, "run") as commands, \
@@ -219,9 +219,10 @@ class ResumeTests(unittest.TestCase):
                              {"releases/assets/100", "releases/assets/101"})
             executed = [c.args[0] for c in commands.call_args_list]
             self.assertEqual(executed[0], ["git", "fetch", "--no-tags", "origin", SOURCE])
-            self.assertEqual(len(executed), 5)
+            self.assertEqual(len(executed), 7)
             self.assertEqual(sum("check-release-signing.py" in c[1] for c in executed[1:]), 2)
             self.assertEqual(sum("check-final-apk-manifest.py" in c[1] for c in executed[1:]), 2)
+            self.assertEqual(sum("check-final-apk-media3.py" in c[1] for c in executed[1:]), 2)
             evidence = json.loads((output / "resume-verification.json").read_text())
             self.assertEqual(evidence["source"], SOURCE)
             self.assertEqual(evidence["publication_tooling_source"], "d" * 40)

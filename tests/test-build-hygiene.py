@@ -21,6 +21,7 @@ libass_native_contract = (ROOT / "compat/media3-libass/tests/published-568-nativ
 for required in (
     'SOURCE_COMMIT="3c2cbe8ac742c2fe15eff52f03eeb3b1b648848d"',
     "https://github.com/FongMi/media.git",
+    ":lib-decoder:assembleRelease",
     ":lib-decoder-ffmpeg:assembleRelease",
     ":lib-decoder-mpegh:assembleRelease",
     ":lib-mpvplayer:assembleRelease",
@@ -30,10 +31,11 @@ for required in (
         errors.append(f"player candidate builder lost pinned-source contract: {required}")
 for required in (
     'SOURCE_COMMIT = "3c2cbe8ac742c2fe15eff52f03eeb3b1b648848d"',
+    '"lib-decoder-release.aar"',
     '"lib-decoder-ffmpeg-release.aar"',
     '"lib-decoder-mpegh-release.aar"',
     '"lib-mpvplayer-release.aar"',
-    'EXPECTED_AAR_COUNT = 17',
+    'EXPECTED_AAR_COUNT = 18',
     '"androidx/media3/decoder/mpegh/MpeghAudioRenderer.class"',
     "candidate manifest points at an unexpected FongMi/media commit",
 ):
@@ -284,6 +286,12 @@ for name, text in (
         "Verify pinned native runtime survives final TV APK packaging",
         "python3 scripts/build/check-final-apk-native.py",
         "--apk-dir app/build/outputs/apk/leanback",
+        "Verify imported player startup",
+        "python3 tests/test-player-startup.py",
+        "Verify final Media3 DEX linkage",
+        "python3 scripts/build/check-final-apk-media3.py",
+        "python3 tests/test-media3-dex-linkage.py",
+        "python3 tests/test-player-candidate-linkage.py",
         "Verify final Leanback manifest security contract",
         "python3 scripts/build/check-final-apk-manifest.py",
         'apkanalyzer="$sdk_root/cmdline-tools/latest/bin/apkanalyzer"',
@@ -415,8 +423,8 @@ if "fingmi-xray-5.6.3-current-main-release" in publish_workflow:
 
 if not re.search(r'PREVIOUS_BACKUP_TAG: "source-backup-[^\"]+"', publish_workflow):
     errors.append("publish workflow must explicitly select the previous source backup")
-if 'RELEASE_TAG: "v5.6.3-xray.1"' not in publish_workflow:
-    errors.append("publish workflow must target the v5.6.3-xray.1 formal release")
+if 'RELEASE_TAG: "v5.6.3-xray.2"' not in publish_workflow:
+    errors.append("publish workflow must target the v5.6.3-xray.2 formal release")
 for required in (
     "      replace_existing:",
     "        type: boolean",
@@ -440,8 +448,8 @@ for name, text in (
 app_build = (ROOT / "app/build.gradle").read_text(encoding="utf-8")
 version_name = re.search(r'versionName "([^"]+)"', app_build).group(1)
 version_code = int(re.search(r'versionCode (\d+)', app_build).group(1))
-if version_name != "v5.6.3-xray.1" or version_code != 563001:
-    errors.append("fork release version must match v5.6.3-xray.1 / 563001")
+if version_name != "v5.6.3-xray.2" or version_code != 563002:
+    errors.append("fork release version must match v5.6.3-xray.2 / 563002")
 if f'RELEASE_TAG: "{version_name}"' not in publish_workflow:
     errors.append("publish tag must equal the versionName embedded in the APK")
 for name, text in (("current-main", current_workflow), ("publish", publish_workflow)):

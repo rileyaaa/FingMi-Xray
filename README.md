@@ -10,7 +10,9 @@ FingMi-Xray 将 Xray 集成到播放器内部。遇到这类内容时，可以�
 
 当前 `main` 以 FongMi/TV 5.6.3（`c616c0aa3613e87529791587a9f71b78c278c991`）为公开上游基线，只长期维护 **Xray 播放代理**与 **Android TV 网络恢复**两项自有能力。历史 `v5.6.0-xray.5` armeabi-v7a 正式 APK 是源码丢失后的 Xray 恢复基线：它经过实际使用、相对稳定，适合在缺少源码时先还原行为，但并不代表完全没有未知 Bug。当前模块化重构已经完成；后续若在这两项自有能力中确认真实问题，可以基于证据修复并登记与黄金版的有意差异，其余 FongMi 功能继续直接跟随公开上游。
 
-GitHub Releases 保留 `v5.6.0-xray.5` 黄金参考、[`v5.6.3-xray.1`](https://github.com/rileyaaa/FingMi-Xray/releases/tag/v5.6.3-xray.1) 当前正式版，以及一份最新 `source-backup-*` 源码备份。正式版包含独立 `:xray`、`:tv-recovery` 模块，以及 Hysteria2 备注查询、公网 IPv6 播放地址、播放页初始化/交接和冷入口待机恢复修复，使用固定正式签名。版本命名与递增规则见 [PROJECT.md](docs/PROJECT.md#版本命名与覆盖升级)，AI 发布要求见 [AI_COLLABORATION.md](docs/AI_COLLABORATION.md#11-ai-开发与发布的版本约束)，签名恢复与构建验收见 [DEVELOPMENT.md](docs/DEVELOPMENT.md#固定签名与-release-构建校验)。旧签名安装包首次切换需要卸载；后续保持同签名与包名、递增 versionCode，可覆盖安装。
+GitHub Releases 保留 `v5.6.0-xray.5` 黄金参考、一个[当前正式版](https://github.com/rileyaaa/FingMi-Xray/releases/latest)，以及一份最新 `source-backup-*` 源码备份。正式版包含独立 `:xray`、`:tv-recovery` 模块，以及 Hysteria2 备注查询、公网 IPv6 播放地址、播放页初始化/交接和冷入口待机恢复修复，使用固定正式签名。版本命名与递增规则见 [PROJECT.md](docs/PROJECT.md#版本命名与覆盖升级)，AI 发布要求见 [AI_COLLABORATION.md](docs/AI_COLLABORATION.md#11-ai-开发与发布的版本约束)，签名恢复与构建验收见 [DEVELOPMENT.md](docs/DEVELOPMENT.md#固定签名与-release-构建校验)。旧签名安装包首次切换需要卸载；后续保持同签名与包名、递增 versionCode，可覆盖安装。
+
+当前源码修补目标为 `v5.6.3-xray.2` / `563002`：补齐播放器基础 decoder 依赖，修复 `.1` 打开直播时的缺类崩溃；实际发布状态以 Releases 为准。
 
 主要组件版本如下：
 
@@ -34,9 +36,9 @@ GitHub Releases 保留 `v5.6.0-xray.5` 黄金参考、[`v5.6.3-xray.1`](https://
 | Glide | **5.0.9** |
 | Material Components | **1.14.0** |
 
-当前 17-AAR player candidate 从固定公开 FongMi/media 1.11.0 源码重建；Libass compatibility 仍有一项单独登记的 native 构建债，不能据此把更高版本 Release 当作上游。MPV、FFmpeg 等 native 组件没有在当前工程中维护独立、可直接声明的 semver，因此不另外虚构版本号；当前构建规则与该构建债见 [DEVELOPMENT.md](docs/DEVELOPMENT.md)，历史二进制来源和 v7 Xray 黄金行为证据见 [RECOVERY.md](docs/RECOVERY.md)。
+当前 18-AAR player candidate 从固定公开 FongMi/media 1.11.0 源码重建；Libass compatibility 仍有一项单独登记的 native 构建债，不能据此把更高版本 Release 当作上游。MPV、FFmpeg 等 native 组件没有在当前工程中维护独立、可直接声明的 semver，因此不另外虚构版本号；当前构建规则与该构建债见 [DEVELOPMENT.md](docs/DEVELOPMENT.md)，历史二进制来源和 v7 Xray 黄金行为证据见 [RECOVERY.md](docs/RECOVERY.md)。
 
-当前正式 APK 的双 ABI SHA-256、构建源码与设备验收范围见 [GitHub Release](https://github.com/rileyaaa/FingMi-Xray/releases/tag/v5.6.3-xray.1)。
+当前正式 APK 的双 ABI SHA-256、构建源码与设备验收范围见 [GitHub Release](https://github.com/rileyaaa/FingMi-Xray/releases/latest)。
 
 ### 构建环境
 

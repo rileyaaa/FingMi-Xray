@@ -13,8 +13,8 @@
 - 上游目标 commit：`c616c0aa3613e87529791587a9f71b78c278c991`
 - 上一固定基线：`4afc4473e22a7ed3d98ee12233e0c2a490061000`（5.6.3）
 - 两者是直接父子 commit；新增 runtime 变化集中在 `catvod` 的 redirect-aware proxy selection/authentication。Release / APK 的更高版本号不改变本项目的公开源码上游基线。
-- app `versionCode`：`563001`
-- app `versionName`：`v5.6.3-xray.1`
+- app `versionCode`：`563002`
+- app `versionName`：`v5.6.3-xray.2`
 - Java：21
 - Gradle wrapper：9.7.1
 - Android Gradle Plugin：9.3.1
@@ -216,7 +216,9 @@ FongMi/TV 业务、UI 与播放器行为只以公开源码上游为准。任何�
 
 适配范围限于现有调用面所需的 native loader、Matroska / ASS hook、primary / secondary subtitle、parser / playback session、renderer / EGL-GLES 生命周期、PlayerView controller 与 subtitle sample timestamp。它是构建兼容层，不是第三套 FongMi 播放器实现。
 
-player candidate 每次从固定公开源码现场重建 17 个 AAR，并由 `player_candidate.py` 校验文件集合、manifest digest 与关键 class；其中包含公开源码本来就有的 `lib-decoder-mpegh`。最终 Leanback APK继续校验 `MpeghAudioRenderer` 与对应 ABI 的 `libmpeghJNI.so`。
+player candidate 每次从固定公开源码现场重建 18 个 AAR，显式包含基础 `lib-decoder` 及 FFmpeg/MPEG-H 扩展。`player_candidate.py` 校验产物集合、manifest digest、关键类及 Media3 字节码符号依赖。AAR 本身不携带 Gradle 传递依赖，不能只凭依赖方 AAR 编译通过就认为运行依赖齐全；candidate 唯一外部 Media3 模块为随后由 Libass importer 按原固定摘要导入的 `media3-container-1.11.0.aar`。Android R 类仅按所属 AAR 的 Manifest/R.txt 认定为生成类。
+
+导入完成后，`tests/test-player-startup.py` 从实际 `app/libs` 提取 class，使用 Robolectric 构建/释放真实播放器和 renderer；测试不得从 Maven 引入另一份 Media3 来补齐生产缺失。最终 `check-final-apk-media3.py` 读取所有 DEX 的 `type_ids` / `class_defs`，要求每个 Media3 类型引用都有类定义，并检查三个 JNI/public buffer 的明确保留。不能用 `strings` 找到类名代替类定义存在；签名、Manifest、native provenance 与最终 DEX 依赖均需验收。
 
 ### app adapter
 
@@ -236,7 +238,7 @@ current player candidate 使用固定公开 FongMi/media 的 MPV 源码。curren
 
 当前可重复构建依赖：
 
-- 从固定公开 `FongMi/media@3c2cbe8ac742c2fe15eff52f03eeb3b1b648848d`（`release-1.11.0-fongmi` 分支）现场重建的 17-AAR player candidate；该分支与仓库默认 `release` 分支不同，不能把它称为默认分支 HEAD；
+- 从固定公开 `FongMi/media@3c2cbe8ac742c2fe15eff52f03eeb3b1b648848d`（`release-1.11.0-fongmi` 分支）现场重建的 18-AAR player candidate；该分支与仓库默认 `release` 分支不同，不能把它称为默认分支 HEAD；
 - 历史 `v5.6.0-xray.5` 黄金 APK：只为 Xray API v2 Java bindings / Go JNI 提供成套 provenance，并作为 Xray 外部行为与 native parity 的黄金参考；current player / FFmpeg 不从该 APK 回灌；
 - 官方 libXray v26.7.28 AAR 外层容器；
 - 按固定公开 Media3 输入重建的 Libass compatibility AAR；
@@ -279,30 +281,30 @@ on:
 它负责：
 
 1. 准备 JetBrains JDK 21 / Android SDK，并执行禁用自动下载的 `gradlew help`，实际启动上游要求的 Gradle daemon；预检在昂贵的 player/native 重建之前完成；
-2. 先获取并验证本项目当前正式 APK 内固定 Libass native，再从固定公开 FongMi/media commit 重建 17-AAR player candidate，并下载 / 校验其它 compatibility 与黄金 Xray 输入；
+2. 先获取并验证本项目当前正式 APK 内固定 Libass native，再从固定公开 FongMi/media commit 重建 18-AAR player candidate，并下载 / 校验其它 compatibility 与黄金 Xray 输入；
 3. 直接导入固定公开 FongMi/media 重建出的 player candidate；黄金旧 APK只用于重建与 Go JNI 配套的 libXray Java bindings 与 Xray 动态 parity；
 4. 重建并导入最小 Libass compatibility AAR；
 5. 执行 current Java → 黄金 v7 / arm64 native 动态 Xray chain parity（统一以 v7 发布行为为黄金 oracle，包含 KCP golden cases 与发布版 `testXray` runtime validation）；
 6. 只编译 Android TV / Leanback Java；
 7. 只 assemble Android TV / Leanback 两个 ABI 的 Release APK；
-8. 对最终 APK执行 MPEG-H class/native、Xray/FFmpeg/MPEG-H/Libass runtime PT_LOAD provenance 与 merged Manifest security contract；
+8. 对最终 APK执行 Media3 DEX 类定义/引用闭合、MPEG-H class/native、Xray/FFmpeg/MPEG-H/Libass runtime PT_LOAD provenance 与 merged Manifest security contract；
 9. 上传短期、固定签名的 TV release artifact（保留 2 天）供临时验证；上传成功后自动删除同名旧 release，只保留最新一份。失败报告只保留 1 天。历史 recovery workflow 的 JADX/DEX、faithful APK、native dependency、player AAR 和 upstream snapshot artifacts 也只作临时复核，统一最多保留 3 天；长期可重建输入只保留源码 commit、脚本、fixture 与 hash，不再占用 Release。Gradle 命令继续使用 `--warning-mode all`；当前剩余会在 Gradle 10 失败的 deprecation 已确认全部来自固定上游同样使用的 Chaquopy Gradle plugin 17.0.0（multi-string dependency notation 与 execution-time `Task.project`），不是本仓库 Gradle 脚本。当前保持 FongMi/TV 5.6.3 的 17.0.0 pin，并让 `com.fongmi.chaquo.Platform` 继续跟随固定上游实现，不在本 fork 中为一般兼容或 warning 主动改写 Python ABI 选择逻辑。
 
 正式发布器（文件名保留以兼容既有手动入口）：
 
 `.github/workflows/publish-current-main-test-release.yml`
 
-Release 的 APK 发布集合长期保留 `v5.6.0-xray.5` 黄金参考和一个当前正式版 `v5.6.3-xray.1`。构建输入、恢复材料、临时归档和旧测试版不得长期堆在 APK 发布集合中；用户要求的最新完整源码备份由同一发布流程生成，使用 `source-backup-<UTC 日期>-main-<源码 SHA 前八位>` 独立 Release。备份通过 `git archive` 导出确切 `BUILD_SOURCE_SHA` 的 tracked tree，包含本私有项目的固定签名及恢复配置，不包含 ignored AAR、缓存或临时构建文件；可重建输入继续由脚本及 hash 管理。若使用临时 marker 触发，归档也忠实包含该构建提交的临时 trigger/marker，备份说明必须指出这一点；run 完整结束后另恢复 main 的纯手动工作流，不重写归档并冒称原 SHA。
+Release 的 APK 发布集合长期保留 `v5.6.0-xray.5` 黄金参考和一个当前正式版。构建输入、恢复材料、临时归档和旧测试版不得长期堆在 APK 发布集合中；用户要求的最新完整源码备份由同一发布流程生成，使用 `source-backup-<UTC 日期>-main-<源码 SHA 前八位>` 独立 Release。备份通过 `git archive` 导出确切 `BUILD_SOURCE_SHA` 的 tracked tree，包含本私有项目的固定签名及恢复配置，不包含 ignored AAR、缓存或临时构建文件；可重建输入继续由脚本及 hash 管理。若使用临时 marker 触发，归档也忠实包含该构建提交的临时 trigger/marker，备份说明必须指出这一点；run 完整结束后另恢复 main 的纯手动工作流，不重写归档并冒称原 SHA。
 
 `test.7` 构建源码为 `439cea8d7a9d3cdb1a17b4ed962c6d68ed164508`，缺少后续 Hysteria2 备注查询边界修复；正式版替换旧测试发布。构建源码、资产 hash 与当前验收结果记录在对应 GitHub Release，历史 test.7 证据保留在本文维护记录，不能当作正式版的验证。
 
-发布 workflow 以 `BUILD_SOURCE_SHA` 作为唯一构建与发布源码，重新准备固定依赖、执行源码 guard 与双 ABI 黄金 Xray chain parity，只编译/assemble Android TV / Leanback Release 两个 ABI，并核对最终 native provenance、Manifest、签名、应用版本、non-debuggable 与 16 KB alignment。当前显式配置 `RELEASE_TAG=v5.6.3-xray.1` 与指定旧源码备份 `PREVIOUS_BACKUP_TAG`，不会自动递增修订号。正常手动触发时 `BUILD_SOURCE_SHA = github.sha`，权限保持 `contents: write + actions: read`，同一发布流程使用 concurrency 排队而不取消正在进行的发布。
+发布 workflow 以 `BUILD_SOURCE_SHA` 作为唯一构建与发布源码，重新准备固定依赖、执行源码 guard 与双 ABI 黄金 Xray chain parity，只编译/assemble Android TV / Leanback Release 两个 ABI，并核对最终 native provenance、Manifest、签名、应用版本、non-debuggable 与 16 KB alignment。当前显式配置 `RELEASE_TAG=v5.6.3-xray.2` 与指定旧源码备份 `PREVIOUS_BACKUP_TAG`，不会自动递增修订号。正常手动触发时 `BUILD_SOURCE_SHA = github.sha`，权限保持 `contents: write + actions: read`，同一发布流程使用 concurrency 排队而不取消正在进行的发布。
 
 `scripts/build/publish-current-release.py` 负责上传和替换，`tests/test-release-publication.py` 验证发布失败与清理顺序。两个 APK 和源码 ZIP 先分别上传到草稿并逐文件核对 name / digest / size；两份新产物完整后才进入切换。已有同名正式版必须由用户明确要求并选中 `replace_existing`；旧 APK 暂存为 rollback 草稿，直到新正式 APK、源码备份及各自 Git tag 都验证成功才清理。只删除显式指定的旧备份，不按 `source-backup-*` 通配删除。失败时保留可诊断/恢复的草稿，不把失败说成替换成功；正常收尾只留下黄金版、当前正式版及最新源码备份。
 
 GitHub 的按 tag 获取已发布 Release 接口不会返回草稿；草稿创建和旧版转 rollback 后，必须使用已知 Release ID 校验状态、tag 和全部资产。存在性检查同时包含分页草稿列表；最终正式发布仍检查公开 tag、Git ref、资产摘要及 latest，不能因草稿查询 404 就放松校验。测试替身必须保留“draft 按 tag 查询为 404、按 ID 可读”的真实区别。
 
-仅发布阶段失败时，可用纯手动 `resume-verified-release.yml` 续发原 Actions 已验证 APK，避免重复编译。续发先验证原 run 的仓库、workflow、触发方式、源码及全部构建/验收步骤，再读取该 run 的失败报告，通过明确草稿 ID 下载原资产并重验摘要、签名、Manifest 和内嵌源码。源码 ZIP 仍归档原 APK 的构建 SHA；执行续发工具的较新 main 仅含发布基础设施修复时，也不得把它冒称 APK 的构建来源。原 run、报告或资产不满足条件就停止，不能拿本地包或未经完整验收的草稿补位。
+仅发布阶段失败时，可用纯手动 `resume-verified-release.yml` 续发原 Actions 已验证 APK，避免重复编译。续发先验证原 run 的仓库、workflow、触发方式、源码及全部构建/验收步骤，再读取该 run 的失败报告，通过明确草稿 ID 下载原资产并重验摘要、签名、Media3 DEX 类链接、Manifest 和内嵌源码。源码 ZIP 仍归档原 APK 的构建 SHA；执行续发工具的较新 main 仅含发布基础设施修复时，也不得把它冒称 APK 的构建来源。原 run、报告或资产不满足条件就停止，不能拿本地包或未经完整验收的草稿补位。
 
 切换后期失败没有自动回滚，正式入口可能暂时缺失；此时先读取失败 artifact 内 `publication-before.json` / `publication-result.json`，核对正式 tag、rollback 草稿和新草稿，再恢复入口或继续切换，不能直接复用已占用的 rollback tag 盲目重跑。需要时可通过 `rollback_tag` 手动输入一个预先指向旧 APK 源码的 tag，避免 runner token 为旧提交创建 tag 的权限限制；成功后该临时 tag 自动清理。
 
@@ -325,7 +327,7 @@ python3 scripts/build/check-release-signing.py --sdk "$ANDROID_HOME" --apk app/b
 python3 scripts/build/check-release-signing.py --sdk "$ANDROID_HOME" --apk app/build/outputs/apk/leanback/release/leanback-arm64_v8a.apk
 ```
 
-Release 文件名沿用上游 finalizer 的 `leanback-armeabi_v7a.apk` / `leanback-arm64_v8a.apk`，对外资产命名为 `FongMi-Xray-TV-v5.6.3-xray.1-<ABI>.apk`。设备 ART/真实节点/电视待机仍属于真机验收，不因 GitHub 标记为正式版而自动视为通过。
+Release 文件名沿用上游 finalizer 的 `leanback-armeabi_v7a.apk` / `leanback-arm64_v8a.apk`，对外资产命名为 `FongMi-Xray-TV-v5.6.3-xray.2-<ABI>.apk`。设备 ART/真实节点/电视待机仍属于真机验收，不因 GitHub 标记为正式版而自动视为通过。
 
 当前 build 与 publish workflow 都必须先执行：
 
@@ -752,3 +754,10 @@ Xray 当前源码重新验证 9000 次 Controller/Client 清理序列、102 次�
 补充仅续发原已验收资产的手动入口，避免为发布工具修复重复编译应用。11 项来源与失败注入测试、build hygiene 和 workflow 语法检查通过；真实只读演练已走完原 run/jobs、artifact ZIP、草稿资产 ID 下载、APK 摘要/源码/固定签名/Manifest 核验。Actions artifact ZIP 下载使用 JSON API 的默认 Accept，Release 资产下载才使用 octet-stream；两类 API 区分已由实际请求及回归约束。本次没有修改应用、Xray、恢复模块、公开上游版本或签名，续发 APK 和配套源码备份仍准确对应原构建 `943357e2`，不冒称来自后续发布工具提交。
 
 续发 Actions 已成功完成：`v5.6.3-xray.1` 为非预览且 latest，两个资产 ID/摘要与原 Actions 构建报告一致；配套 `source-backup-2026-10-11-main-943357e2` 已发布，下载后的 ZIP 摘要及全部 1507 个 tracked blob（包括固定签名恢复文件）逐项核对通过。旧正式包、指定旧备份、stage/rollback 临时 Release 和 tag 均在最终验证之后清理。保存失败排错证据后删除已消费的 Actions 报告，artifacts/caches 再次核对为 0。发布工具修复和后续记录留在 main，APK/备份的构建源码身份保持原样；真机验收边界仍不变。
+
+
+### 2026-10-11 — 直播初始化缺少基础解码模块
+
+用户真机报告 `NoClassDefFoundError: androidx.media3.decoder.DecoderInputBuffer`。复核正式版双 ABI APK，确认最终 DEX 引用了但未定义 12 个基础 decoder 类型；播放器重建脚本只导出 17 个 AAR，漏掉公开固定 Media3 源码已有的 `lib-decoder`。AAR 的 `classes.jar` 不内嵌 Gradle 的项目传递依赖，复制依赖方 AAR 并不能自动包含 decoder。Android 默认 ProGuard 配置中的 `-dontwarn androidx.**` 使该缺失没有阻止 R8 出包，已有 `-keep DecoderInputBuffer` 也不能创建未输入的类。这是本 fork 构建集成遗漏，不是应在上游播放器业务中修补的问题。
+
+本轮修复补齐同一固定公开源码的基础 decoder 产物，并补充依赖集合与最终 DEX 定义/引用的校验。验收必须先证明旧正式 APK 会被新检查拒绝，再验证修复包；原来的 assemble、签名、原生库和 Manifest 通过结果不能替代 Java 运行时链接完整性。设备直播/点播与实际解码验收仍需与云端证据区分。修复前后运行对照中，原 24 个 AAR 摘要完全不变，仅增加固定公开源码编译的 decoder：修复前 Java 编译通过但 4 项运行用例均失败；修复后 API 28/35 的真实普通音视频/文本、FFmpeg 音视频、MPEG-H renderer 构造及 ExoPlayer 重复创建/释放共 4 项通过，失败、错误、跳过均为 0。最终 DEX 检查器在两个实际故障 APK 上均明确拒绝 12 个缺失类型；检查器 12 项回归及候选依赖 9 项回归通过。完整固定公开源码的 18 个 AAR 已重建并通过符号依赖校验。此次修补按正常版本规则推进为 `v5.6.3-xray.2` / `563002`，不沿用此前 `.1` 同名替换的一次性例外。随后本地完整 Leanback Release assemble（R8 混淆与资源压缩开启）通过，双 ABI 最终 DEX 中被引用的 46 个 Media3 类型均有定义，三个显式保留 buffer 均存在。双 ABI native PT_LOAD、14 项 Manifest 权限/服务接线、固定正式证书、`563002`、non-debuggable、16 KB 对齐校验全部通过。该本地包用于提交前验证；正式发布必须由 Actions 从修复提交重新构建，不把本地工作树包冒称提交后的 CI 产物。Actions 发布与配套源码归档尚待远端验收。

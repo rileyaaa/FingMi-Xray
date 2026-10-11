@@ -9,20 +9,36 @@ from io import BytesIO
 from pathlib import Path
 from zipfile import BadZipFile, ZipFile
 
+from media3_class_linkage import verify_media3_linkage
+
 SOURCE_COMMIT = "3c2cbe8ac742c2fe15eff52f03eeb3b1b648848d"
-EXPECTED_AAR_COUNT = 17
+EXPECTED_AAR_COUNT = 18
 REQUIRED_AARS = {
     "lib-common-release.aar",
+    "lib-database-release.aar",
+    "lib-datasource-release.aar",
+    "lib-datasource-okhttp-release.aar",
     "lib-extractor-release.aar",
+    "lib-exoplayer-release.aar",
+    "lib-exoplayer-rtsp-release.aar",
+    "lib-exoplayer-hls-release.aar",
+    "lib-exoplayer-dash-release.aar",
+    "lib-exoplayer-smoothstreaming-release.aar",
     "lib-decoder-ffmpeg-release.aar",
+    "lib-decoder-release.aar",
     "lib-decoder-mpegh-release.aar",
+    "lib-effect-release.aar",
     "lib-mpvplayer-release.aar",
+    "lib-session-release.aar",
+    "lib-ui-release.aar",
+    "lib-ui-danmaku-release.aar",
 }
 REQUIRED_CLASSES = {
     "androidx/media3/mpvplayer/MpvPlayer.class",
     "androidx/media3/exoplayer/trackselection/DecodeTrackSelector.class",
     "androidx/media3/exoplayer/source/preload/MediaSourceFactorySupplier.class",
     "androidx/media3/decoder/mpegh/MpeghAudioRenderer.class",
+    "androidx/media3/decoder/DecoderInputBuffer.class",
 }
 
 
@@ -98,6 +114,11 @@ def read_verified_candidate(path: Path) -> dict[str, bytes]:
                     "candidate is missing required player classes: "
                     + ", ".join(sorted(missing))
                 )
+            # Local fileTree AARs carry no Gradle transitive dependency metadata.
+            # Check actual bytecode links, including dependencies not referenced
+            # directly by TV Java. The separately pinned container AAR is supplied
+            # by import-libass-candidate.py and checked again in the final APK.
+            verify_media3_linkage(payload, external_container=True)
             return payload
     except (BadZipFile, KeyError, UnicodeDecodeError, OSError) as error:
         raise ValueError(f"invalid candidate bundle: {error}") from error

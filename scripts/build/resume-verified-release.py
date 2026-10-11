@@ -29,10 +29,12 @@ REQUIRED_STEPS = (
     "Prepare public player and Xray native dependencies",
     "Verify current Xray chain against published v7 and arm64 native",
     "Build and import reconstructed Libass candidate",
+    "Verify imported player startup",
     "Compile current 5.6.3 Leanback source",
     "Assemble Android TV release APKs",
     "Verify MPEG-H survives final TV APK packaging",
     "Verify pinned native runtime survives final TV APK packaging",
+    "Verify final Media3 DEX linkage",
     "Verify final Leanback manifest security contract",
     "Record build inputs and outputs",
     "Stage Android TV release APKs",
@@ -204,8 +206,8 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--verified-run-id", required=True, type=int)
     parser.add_argument("--repository", default=os.environ.get("GITHUB_REPOSITORY", ""))
-    parser.add_argument("--tag", default="v5.6.3-xray.1")
-    parser.add_argument("--previous-backup", default="source-backup-2026-10-05-main-357402dc")
+    parser.add_argument("--tag", default="v5.6.3-xray.2")
+    parser.add_argument("--previous-backup", default="source-backup-2026-10-11-main-943357e2")
     parser.add_argument("--replace-existing", action="store_true")
     parser.add_argument("--rollback-tag", default="")
     parser.add_argument("--directory", type=Path, default=Path("release"))
@@ -239,6 +241,8 @@ def main():
         apk = args.directory / asset["name"]
         gh.download(f"releases/assets/{asset['id']}", apk)
         verify_apk(apk, asset, source)
+        subprocess.run([sys.executable, str(ROOT / "scripts/build/check-final-apk-media3.py"),
+                        "--apk", str(apk)], check=True)
         subprocess.run([sys.executable, str(ROOT / "scripts/build/check-release-signing.py"),
                         "--sdk", str(args.sdk), "--apk", str(apk), "--source-sha", source], check=True)
         subprocess.run([sys.executable, str(ROOT / "scripts/build/check-final-apk-manifest.py"),

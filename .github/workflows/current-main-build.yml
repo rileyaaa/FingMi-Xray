@@ -66,6 +66,8 @@ jobs:
           python3 scripts/build/check-final-apk-manifest.py --self-test
           python3 tests/test-build-hygiene.py
           python3 tests/test-release-publication.py
+          python3 tests/test-media3-dex-linkage.py
+          python3 tests/test-player-candidate-linkage.py
           python3 tests/test-libass-native-input.py
           python3 tests/test-tv-network-recovery.py
 
@@ -239,6 +241,16 @@ jobs:
           mkdir -p "$work"
           df -h .
 
+      - name: Verify imported player startup
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 tests/test-player-startup.py \
+            --libs app/libs --workdir build/work/current-main/player-startup \
+            --maven "$(command -v mvn)" --local-repository "$HOME/.m2/repository"
+          # The test jars and Android sandbox reports are no longer needed on success.
+          rm -rf build/work/current-main/player-startup
+
       - name: Compile current 5.6.3 Leanback source
         shell: bash
         run: |
@@ -274,6 +286,18 @@ jobs:
           set -euo pipefail
           python3 scripts/build/check-final-apk-native.py \
             --apk-dir app/build/outputs/apk/leanback --build-type release
+
+      - name: Verify final Media3 DEX linkage
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -t apks < <(
+            find app/build/outputs/apk/leanback -type f -name 'leanback-*.apk' -print | sort
+          )
+          test "${#apks[@]}" -eq 2
+          python3 scripts/build/check-final-apk-media3.py \
+            --apk "${apks[0]}" --apk "${apks[1]}" \
+            --report build/work/current-main/media3-linkage.json
 
       - name: Verify final Leanback manifest security contract
         shell: bash
@@ -349,5 +373,7 @@ jobs:
             **/build/reports/
             build/work/current-main/extractor/target/surefire-reports/
             build/work/current-main/libass-native-input.json
+            build/work/current-main/media3-linkage.json
+            build/work/current-main/player-startup/target/surefire-reports/
           if-no-files-found: ignore
           retention-days: 1
