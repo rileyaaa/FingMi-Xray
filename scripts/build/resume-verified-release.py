@@ -30,6 +30,8 @@ REQUIRED_STEPS = (
     "Verify current Xray chain against published v7 and arm64 native",
     "Build and import reconstructed Libass candidate",
     "Verify imported player startup",
+    "Verify Xray artwork lifecycle",
+    "Verify proxy policy host regression",
     "Compile current 5.6.3 Leanback source",
     "Assemble Android TV release APKs",
     "Verify MPEG-H survives final TV APK packaging",
@@ -206,8 +208,8 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--verified-run-id", required=True, type=int)
     parser.add_argument("--repository", default=os.environ.get("GITHUB_REPOSITORY", ""))
-    parser.add_argument("--tag", default="v5.6.3-xray.2")
-    parser.add_argument("--previous-backup", default="source-backup-2026-10-11-main-943357e2")
+    parser.add_argument("--tag", default="v5.6.3-xray.3")
+    parser.add_argument("--previous-backup", default="source-backup-2026-10-11-main-6172516b")
     parser.add_argument("--replace-existing", action="store_true")
     parser.add_argument("--rollback-tag", default="")
     parser.add_argument("--directory", type=Path, default=Path("release"))

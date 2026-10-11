@@ -66,6 +66,7 @@ jobs:
           python3 scripts/build/check-final-apk-manifest.py --self-test
           python3 tests/test-build-hygiene.py
           python3 tests/test-release-publication.py
+          python3 tests/test-resume-verified-release.py
           python3 tests/test-media3-dex-linkage.py
           python3 tests/test-player-candidate-linkage.py
           python3 tests/test-libass-native-input.py
@@ -251,6 +252,22 @@ jobs:
           # The test jars and Android sandbox reports are no longer needed on success.
           rm -rf build/work/current-main/player-startup
 
+      - name: Verify Xray artwork lifecycle
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 tests/test-xray-artwork-lifecycle.py \
+            --workdir build/work/current-main/artwork-lifecycle \
+            --maven "$(command -v mvn)" --local-repository "$HOME/.m2/repository"
+          # Retain only failure evidence; resolved jars are disposable test inputs.
+          rm -rf build/work/current-main/artwork-lifecycle
+
+      - name: Verify proxy policy host regression
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash gradlew --no-daemon :catvod:testDebugUnitTest --stacktrace --warning-mode all
+
       - name: Compile current 5.6.3 Leanback source
         shell: bash
         run: |
@@ -375,5 +392,8 @@ jobs:
             build/work/current-main/libass-native-input.json
             build/work/current-main/media3-linkage.json
             build/work/current-main/player-startup/target/surefire-reports/
+            build/work/current-main/artwork-lifecycle/target/surefire-reports/
+            build/work/current-main/artwork-lifecycle/input-sha256.json
+            catvod/build/test-results/
           if-no-files-found: ignore
           retention-days: 1

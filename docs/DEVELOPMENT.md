@@ -13,8 +13,8 @@
 - 上游目标 commit：`c616c0aa3613e87529791587a9f71b78c278c991`
 - 上一固定基线：`4afc4473e22a7ed3d98ee12233e0c2a490061000`（5.6.3）
 - 两者是直接父子 commit；新增 runtime 变化集中在 `catvod` 的 redirect-aware proxy selection/authentication。Release / APK 的更高版本号不改变本项目的公开源码上游基线。
-- app `versionCode`：`563002`
-- app `versionName`：`v5.6.3-xray.2`
+- app `versionCode`：`563003`
+- app `versionName`：`v5.6.3-xray.3`
 - Java：21
 - Gradle wrapper：9.7.1
 - Android Gradle Plugin：9.3.1
@@ -159,6 +159,8 @@ RESET_SECURITY 保持发布版顺序：先占有 reset generation 并替换 Bind
 
 关闭或切换身份后，播放器重新回到普通 FongMi 网络资源。真正切换播放器属于播放身份变化：Activity 先结束当前 Xray generation，再按上游规则选择新的普通 engine；不是在同一 Xray 会话中把 proxy 直接塞给 MPV。
 
+Leanback Live / Video 的 artwork target 正常加载仍绑定 Activity；清理通过 Application 的 Glide manager 委托原 owner 取消，不能在 `onDestroy()` 中重新获取已销毁 Activity 的 manager。退出或销毁后的 Xray 回调仍先卸载播放器代理、取消元数据请求，再跳过 logo / artwork / EPG 与状态 UI 更新，避免清理期间重新发起请求。
+
 ## 4. TV 网络恢复
 
 TV 网络恢复没有放进 `:xray`。
@@ -298,7 +300,7 @@ Release 的 APK 发布集合长期保留 `v5.6.0-xray.5` 黄金参考和一个�
 
 `test.7` 构建源码为 `439cea8d7a9d3cdb1a17b4ed962c6d68ed164508`，缺少后续 Hysteria2 备注查询边界修复；正式版替换旧测试发布。构建源码、资产 hash 与当前验收结果记录在对应 GitHub Release，历史 test.7 证据保留在本文维护记录，不能当作正式版的验证。
 
-发布 workflow 以 `BUILD_SOURCE_SHA` 作为唯一构建与发布源码，重新准备固定依赖、执行源码 guard 与双 ABI 黄金 Xray chain parity，只编译/assemble Android TV / Leanback Release 两个 ABI，并核对最终 native provenance、Manifest、签名、应用版本、non-debuggable 与 16 KB alignment。当前显式配置 `RELEASE_TAG=v5.6.3-xray.2` 与指定旧源码备份 `PREVIOUS_BACKUP_TAG`，不会自动递增修订号。正常手动触发时 `BUILD_SOURCE_SHA = github.sha`，权限保持 `contents: write + actions: read`，同一发布流程使用 concurrency 排队而不取消正在进行的发布。
+发布 workflow 以 `BUILD_SOURCE_SHA` 作为唯一构建与发布源码，重新准备固定依赖、执行源码 guard 与双 ABI 黄金 Xray chain parity，只编译/assemble Android TV / Leanback Release 两个 ABI，并核对最终 native provenance、Manifest、签名、应用版本、non-debuggable 与 16 KB alignment。当前显式配置 `RELEASE_TAG=v5.6.3-xray.3` 与指定旧源码备份 `PREVIOUS_BACKUP_TAG`，不会自动递增修订号。正常手动触发时 `BUILD_SOURCE_SHA = github.sha`，权限保持 `contents: write + actions: read`，同一发布流程使用 concurrency 排队而不取消正在进行的发布。
 
 `scripts/build/publish-current-release.py` 负责上传和替换，`tests/test-release-publication.py` 验证发布失败与清理顺序。两个 APK 和源码 ZIP 先分别上传到草稿并逐文件核对 name / digest / size；两份新产物完整后才进入切换。已有同名正式版必须由用户明确要求并选中 `replace_existing`；旧 APK 暂存为 rollback 草稿，直到新正式 APK、源码备份及各自 Git tag 都验证成功才清理。只删除显式指定的旧备份，不按 `source-backup-*` 通配删除。失败时保留可诊断/恢复的草稿，不把失败说成替换成功；正常收尾只留下黄金版、当前正式版及最新源码备份。
 
@@ -327,7 +329,7 @@ python3 scripts/build/check-release-signing.py --sdk "$ANDROID_HOME" --apk app/b
 python3 scripts/build/check-release-signing.py --sdk "$ANDROID_HOME" --apk app/build/outputs/apk/leanback/release/leanback-arm64_v8a.apk
 ```
 
-Release 文件名沿用上游 finalizer 的 `leanback-armeabi_v7a.apk` / `leanback-arm64_v8a.apk`，对外资产命名为 `FongMi-Xray-TV-v5.6.3-xray.2-<ABI>.apk`。设备 ART/真实节点/电视待机仍属于真机验收，不因 GitHub 标记为正式版而自动视为通过。
+Release 文件名沿用上游 finalizer 的 `leanback-armeabi_v7a.apk` / `leanback-arm64_v8a.apk`，对外资产命名为 `FongMi-Xray-TV-v5.6.3-xray.3-<ABI>.apk`。设备 ART/真实节点/电视待机仍属于真机验收，不因 GitHub 标记为正式版而自动视为通过。
 
 当前 build 与 publish workflow 都必须先执行：
 
@@ -336,6 +338,7 @@ Release 文件名沿用上游 finalizer 的 `leanback-armeabi_v7a.apk` / `leanba
 - `tests/test-xray-playback-parity.py`：守住 VOD / Live、播放器代理切换、媒体旁路、本地 scheme、artwork/logo 与资源释放语义，并调用 `tests/test-xray-side-request-lifecycle.py`，编译真实弹幕/字幕 API 与上游 `ApiCallback`，验证 HTTP / 下载完成后排队回调的 Xray 取消、owner 关闭、replacement 与 reentrant 边界；`tests/test-xray-danmaku-client-binding.py` 另执行真实页面初始化/选择方法，覆盖服务尚未绑定、直连、代理与断开后的 client 选择，避免只检查代理已经就绪的路径；
 - `tests/test-xray-playback-address-parity.py`：把 public HTTP(S)/RTSP/RTSPT、私网/保留目标、Unicode whitespace，以及 Live pending `.strm` / YouTube indirection 边界与冻结发布证据做 differential parity；
 - `tests/test-xray-playback-binding-handoff.py`：由 playback parity 调用，执行真实 Activity / Service 绑定方法与 `XrayPlaybackSession`，覆盖新旧播放页交接、相同媒体 key、旧页迟到关闭、重复认领、Live pending 及默认 Mobile/PiP 行为；平台、播放器与远端服务为明确替身；
+- `tests/test-xray-artwork-lifecycle.py`：从 Gradle 当前应用 runtime 提取真实 Glide / AndroidX，执行两个宿主的实际清理与销毁方法；API 28/35 共 12 项验证 Activity-owned target 取消、重复清理、退出/销毁后的请求抑制与代理卸载。Android 使用 Robolectric，播放器和会话边界是交互计数替身，不代替完整电视播放验收；
 - `tests/test-xray-session-races.py`：锁住发布版 STOP / timeout / callback 的竞态顺序；
 - `tests/test-xray-service-client-lifecycle.py`：直接编译真实 Service client，锁住 bind timeout、cancel/unbind、Binder death 与 stale callback / connection generation；
 - `tests/test-xray-normalizer-parity.py`：把当前 share-link normalizer 与 display helper 对发布版 readable reference 做纯 JVM differential parity；
@@ -347,7 +350,7 @@ Release 文件名沿用上游 finalizer 的 `leanback-armeabi_v7a.apk` / `leanba
 
 `tests/` 是 `main` 的统一回归入口，不再另维护目录 README。除上述 workflow guard 外：
 
-- build/publish 的 Gradle 编译步骤必须同时执行 `:xray:testDebugUnitTest` 与 `:tv-recovery:testDebugUnitTest`，`test-build-hygiene.py` 检查这两个入口不可被遗漏。Python source/JVM guards 与 Gradle 模块 JUnit 是不同验证层，不能互相替代；workflow 仍只允许手动触发。
+- build/publish 的 Gradle 编译步骤必须同时执行 `:xray:testDebugUnitTest` 与 `:tv-recovery:testDebugUnitTest`；另有独立的 `:catvod:testDebugUnitTest` 步骤验证用户批准的主机名修复及既有代理规则。`test-build-hygiene.py` 检查三个入口不可被遗漏，发布续发工具也要求真实 Glide 和代理回归步骤成功。Python source/JVM guards 与 Gradle 模块 JUnit 是不同验证层，不能互相替代；workflow 仍只允许手动触发。
 
 - `tests/test-current-native-share-chain.py` + `tests/xray-current-chain/`：执行 current Java normalize/security/config 链，并分别调用固定 v7 / arm64 发布 `libgojni.so`，对 26 组 conversion/runtime oracle 与发布版 `testXray` 做动态 parity；其中 6 组覆盖 KCP golden cases。
 - `tests/xray-session/`：Android / Binder / Handler 等 deterministic test doubles，只替代平台边界，真实编译 session / settings controller。
@@ -760,4 +763,17 @@ Xray 当前源码重新验证 9000 次 Controller/Client 清理序列、102 次�
 
 用户真机报告 `NoClassDefFoundError: androidx.media3.decoder.DecoderInputBuffer`。复核正式版双 ABI APK，确认最终 DEX 引用了但未定义 12 个基础 decoder 类型；播放器重建脚本只导出 17 个 AAR，漏掉公开固定 Media3 源码已有的 `lib-decoder`。AAR 的 `classes.jar` 不内嵌 Gradle 的项目传递依赖，复制依赖方 AAR 并不能自动包含 decoder。Android 默认 ProGuard 配置中的 `-dontwarn androidx.**` 使该缺失没有阻止 R8 出包，已有 `-keep DecoderInputBuffer` 也不能创建未输入的类。这是本 fork 构建集成遗漏，不是应在上游播放器业务中修补的问题。
 
-本轮修复补齐同一固定公开源码的基础 decoder 产物，并补充依赖集合与最终 DEX 定义/引用的校验。验收必须先证明旧正式 APK 会被新检查拒绝，再验证修复包；原来的 assemble、签名、原生库和 Manifest 通过结果不能替代 Java 运行时链接完整性。设备直播/点播与实际解码验收仍需与云端证据区分。修复前后运行对照中，原 24 个 AAR 摘要完全不变，仅增加固定公开源码编译的 decoder：修复前 Java 编译通过但 4 项运行用例均失败；修复后 API 28/35 的真实普通音视频/文本、FFmpeg 音视频、MPEG-H renderer 构造及 ExoPlayer 重复创建/释放共 4 项通过，失败、错误、跳过均为 0。最终 DEX 检查器在两个实际故障 APK 上均明确拒绝 12 个缺失类型；检查器 12 项回归及候选依赖 9 项回归通过。完整固定公开源码的 18 个 AAR 已重建并通过符号依赖校验。此次修补按正常版本规则推进为 `v5.6.3-xray.2` / `563002`，不沿用此前 `.1` 同名替换的一次性例外。随后本地完整 Leanback Release assemble（R8 混淆与资源压缩开启）通过，双 ABI 最终 DEX 中被引用的 46 个 Media3 类型均有定义，三个显式保留 buffer 均存在。双 ABI native PT_LOAD、14 项 Manifest 权限/服务接线、固定正式证书、`563002`、non-debuggable、16 KB 对齐校验全部通过。该本地包用于提交前验证；正式发布必须由 Actions 从修复提交重新构建，不把本地工作树包冒称提交后的 CI 产物。Actions 发布与配套源码归档尚待远端验收。
+本轮修复补齐同一固定公开源码的基础 decoder 产物，并补充依赖集合与最终 DEX 定义/引用的校验。验收必须先证明旧正式 APK 会被新检查拒绝，再验证修复包；原来的 assemble、签名、原生库和 Manifest 通过结果不能替代 Java 运行时链接完整性。设备直播/点播与实际解码验收仍需与云端证据区分。修复前后运行对照中，原 24 个 AAR 摘要完全不变，仅增加固定公开源码编译的 decoder：修复前 Java 编译通过但 4 项运行用例均失败；修复后 API 28/35 的真实普通音视频/文本、FFmpeg 音视频、MPEG-H renderer 构造及 ExoPlayer 重复创建/释放共 4 项通过，失败、错误、跳过均为 0。最终 DEX 检查器在两个实际故障 APK 上均明确拒绝 12 个缺失类型；检查器 12 项回归及候选依赖 9 项回归通过。完整固定公开源码的 18 个 AAR 已重建并通过符号依赖校验。此次修补按正常版本规则推进为 `v5.6.3-xray.2` / `563002`，不沿用此前 `.1` 同名替换的一次性例外。随后本地完整 Leanback Release assemble（R8 混淆与资源压缩开启）通过，双 ABI 最终 DEX 中被引用的 46 个 Media3 类型均有定义，三个显式保留 buffer 均存在。双 ABI native PT_LOAD、14 项 Manifest 权限/服务接线、固定正式证书、`563002`、non-debuggable、16 KB 对齐校验全部通过。该本地包用于提交前验证；正式发布必须由 Actions 从修复提交重新构建，不把本地工作树包冒称提交后的 CI 产物。随后 Actions 已从该修复提交完成双 ABI 全量构建并发布正式 `.2` 与配套源码备份；本轮下载的 arm64 正式资产摘要与发布记录一致，DEX 的 R8 map ID 与用户后续播放崩溃日志一致。编译、链接与发布成功不等同所有页面生命周期已通过设备验收。
+
+
+### 2026-10-11 — 退出播放页与请求主机名崩溃
+
+用户在 `.2` 报告退出直播时 `You cannot start a load for a destroyed activity`。根因是本 fork 的 artwork 清理在 `onDestroy()` 里调用 `Glide.with(activity)`；Android 此时已标记 Activity destroyed，异常中断后续会话/时钟释放。Live 与 Video 的同类接线一起修复，通过 Application manager 清理原 owner 的 target；退出/销毁时仍先卸载代理，再跳过 UI、logo、artwork 和 EPG 恢复。真实 Glide 5.0.9、当前 Gradle runtime、Robolectric API 28/35 共 12 项通过；相同回归运行修前宿主产生 4 个失败和 4 个错误，包含用户报告的原异常。调用方初始化、旁路取消、跨页面交接及 TV recovery 回归也通过。
+
+另一个 `nc2.<init>:20 → tn2.intercept:128` 与实际发布 APK 的 R8 map ID 精确匹配，定位为 `OkProxySelector.Policy` 对 `URI.getHost()` 的空值调用。该类及拦截器整份源码与公开上游基线相同；部分 OkHttp 接受的域名（如下划线域名）转换为 Java URI 后 host / port 无法识别。用户明确允许仅修复此项上游崩溃，例外登记在 AI_COLLABORATION 第 9 节。最小修复从规范化 `HttpUrl` 读取 origin 的 scheme、host 和有效端口；不把所有空 host 合并成空字符串，不改代理选择、规则匹配或重定向实现。真实 OkHttp HTTP 链与本地服务器验证四类域名、无 Content-Type 响应及不同 host / port 的 origin 隔离；14 项原有代理/重定向/认证回归加 2 项新回归共 16 项通过，同一测试对独立编译的公开上游恰好新增 2 项 NPE 失败。OkHttp 自身对这类 URI 空 host 选择 DIRECT 的既有规则保持原样，不声称新增自定义代理支持。
+
+首页点播无响应找到一条可执行的相关路径：上游 `CrashActivity` 在历史含 Home 时设置 crash 标志；下一次 `SiteApi.homeContent()` 跳过一次 Spider 首页加载并返回空分类，`VodActivity.start()` 在空分类时直接返回。执行这三个实际方法能复现首次不跳转、再次刷新分类后可跳转；三个整份文件保持公开上游原样。尚不能将该路径认定为用户现场唯一原因，不能因此修改上游通用导航。
+
+项目实际 `:catvod:testDebugUnitTest` 也执行 16 项且失败、错误、跳过均为 0；该工程没有 Release unit-test task，CI 使用实际存在的 Debug JUnit 入口，APK 仍编译 Release variant。修复集中完成后，本地 Leanback Release assemble 在 4 分 38 秒完成，执行了重新编译、R8 和打包签名；双 ABI 最终 Media3 46 项引用均有定义，原生库、Manifest、固定签名、`.3` / `563003` 与 16 KB 对齐通过。构建使用提交前工作树并单独记录来源，正式 Actions 必须从提交后的源码重新构建。
+
+以上 JVM / Robolectric 与构建证据不代表电视 ART、真实源搜索播放、硬件解码、PSS/RSS 或连续遥控操作已经验收。正式 APK 和配套源码备份仍以 Actions 发布及远端资产核验为准。

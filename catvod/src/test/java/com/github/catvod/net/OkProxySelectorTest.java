@@ -242,6 +242,39 @@ public class OkProxySelectorTest {
         }
     }
 
+    @Test
+    public void nullUriHostKeepsDistinctOriginsAndExplicitPorts() throws Exception {
+        URI first = new URI("http://api_sub.example.com:8080/play");
+        URI second = new URI("http://api_sub.example.com:8081/play");
+        URI other = new URI("http://other_sub.example.com:8080/play");
+        assertNull(first.getHost());
+        assertEquals(-1, first.getPort());
+        OkProxySelector.Policy policy = selector.policy(first, null);
+        assertNotEquals(policy, selector.policy(second, null));
+        assertNotEquals(policy, selector.policy(other, null));
+        assertEquals(policy, selector.policy(new URI("http://API_SUB.example.com:8080/other"), null));
+        assertEquals(selector.policy(new URI("http://api_sub.example.com/play"), null), selector.policy(new URI("http://api_sub.example.com:80/other"), null));
+    }
+
+    @Test
+    public void nullUriHostCanReachHttpServerWithoutContentType() throws Exception {
+        for (String host : List.of("api_sub.example.com", "foo-.example.com", "-foo.example.com", "example.123")) {
+            try (DirectServer direct = new DirectServer()) {
+                OkHttpClient client = client().newBuilder().dns(name -> List.of(InetAddress.getByName("127.0.0.2"))).build();
+                Request request = new Request.Builder().url(okhttp3.HttpUrl.get(direct.url()).newBuilder().host(host).build()).build();
+                assertNull(request.url().uri().getHost());
+                try (Response response = client.newCall(request).execute()) {
+                    assertEquals(200, response.code());
+                    assertNull(response.body().contentType());
+                } finally {
+                    client.connectionPool().evictAll();
+                    client.dispatcher().executorService().shutdown();
+                }
+                assertEquals(List.of("GET /stream HTTP/1.1"), direct.requests());
+            }
+        }
+    }
+
     private OkHttpClient client() {
         return new OkHttpClient.Builder().proxySelector(selector).proxyAuthenticator(new OkAuthenticator(selector)).addInterceptor(new ProxyRedirectInterceptor(selector)).followRedirects(false).connectTimeout(1, TimeUnit.SECONDS).build();
     }

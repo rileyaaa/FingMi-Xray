@@ -111,6 +111,25 @@ class ResumeTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             self.check_run()
 
+    def test_cannot_resume_without_new_crash_regressions(self):
+        original = copy.deepcopy(self.jobs)
+        for gate in ("Verify Xray artwork lifecycle", "Verify proxy policy host regression"):
+            self.assertIn(gate, RESUME.REQUIRED_STEPS)
+            for mutation in ("missing", "skipped", "duplicated"):
+                with self.subTest(gate=gate, mutation=mutation):
+                    self.jobs = copy.deepcopy(original)
+                    steps = self.jobs[0]["steps"]
+                    step = next(step for step in steps if step["name"] == gate)
+                    if mutation == "missing":
+                        steps.remove(step)
+                    elif mutation == "skipped":
+                        step["conclusion"] = "skipped"
+                    else:
+                        steps.append(copy.deepcopy(step))
+                    with self.assertRaisesRegex(ValueError, gate):
+                        self.check_run()
+        self.jobs = original
+
     def test_rejects_missing_expired_and_wrong_report_owners(self):
         for rows in ([], [self.artifact, self.artifact]):
             with self.assertRaises(ValueError):

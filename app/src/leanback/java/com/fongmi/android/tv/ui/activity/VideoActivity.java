@@ -314,6 +314,7 @@ public class VideoActivity extends PlaybackActivity implements VodPlaybackHost, 
             }
 
             @Override public void onStateChanged(int state, String message) {
+                if (isFinishing() || isDestroyed()) return;
                 mBinding.control.action.xray.setSelected(state == XraySessionListener.RUNNING);
                 mBinding.control.action.xray.setText(state == XraySessionListener.RUNNING
                         ? R.string.xray_on : state == XraySessionListener.STARTING
@@ -1207,6 +1208,7 @@ public class VideoActivity extends PlaybackActivity implements VodPlaybackHost, 
 
     private void setArtwork() {
         clearArtworkTarget();
+        if (isFinishing() || isDestroyed()) return;
         if (service() != null && isOwner() && player().hasXraySession()) return;
 
         mArtworkTarget = new CustomTarget<>() {
@@ -1225,7 +1227,9 @@ public class VideoActivity extends PlaybackActivity implements VodPlaybackHost, 
 
     private void clearArtworkTarget() {
         if (mArtworkTarget == null) return;
-        com.bumptech.glide.Glide.with(this).clear(mArtworkTarget);
+        // Clearing through the application manager delegates to the target owner without
+        // asking Glide to obtain a manager for an already-destroyed Activity.
+        com.bumptech.glide.Glide.with(App.get()).clear(mArtworkTarget);
         mArtworkTarget = null;
     }
 

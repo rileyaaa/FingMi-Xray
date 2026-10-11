@@ -9,9 +9,10 @@ import java.net.ProxySelector;
 import java.net.SocketAddress;
 import java.net.URI;
 import java.util.List;
-import java.util.Locale;
 import java.util.Objects;
 import java.util.concurrent.CopyOnWriteArrayList;
+
+import okhttp3.HttpUrl;
 
 public class OkProxySelector extends ProxySelector {
 
@@ -84,9 +85,10 @@ public class OkProxySelector extends ProxySelector {
         private final int port;
 
         private Policy(URI uri, Proxy rule, List<java.net.Proxy> proxies, ProxySelector system, int generation) {
-            this.scheme = uri.getScheme().toLowerCase(Locale.ROOT);
-            this.host = uri.getHost().toLowerCase(Locale.ROOT);
-            this.port = getPort(uri);
+            HttpUrl url = HttpUrl.get(uri.toString());
+            this.scheme = url.scheme();
+            this.host = url.host();
+            this.port = url.port();
             this.rule = rule;
             this.proxies = List.copyOf(proxies);
             this.system = system;
@@ -120,13 +122,6 @@ public class OkProxySelector extends ProxySelector {
         @Override
         public int hashCode() {
             return Objects.hash(System.identityHashCode(rule), System.identityHashCode(system), generation, scheme, host, port, proxies);
-        }
-
-        private static int getPort(URI uri) {
-            if (uri.getPort() != -1) return uri.getPort();
-            if ("http".equalsIgnoreCase(uri.getScheme())) return 80;
-            if ("https".equalsIgnoreCase(uri.getScheme())) return 443;
-            return -1;
         }
     }
 }

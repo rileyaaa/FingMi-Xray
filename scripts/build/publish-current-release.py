@@ -300,9 +300,11 @@ class Publisher:
         version_name, version_code = self.source_version()
         notes = (f"{self.c.tag} 正式版\n\nAPK 构建源码：`{self.c.source}`\n"
                  f"Actions run：{self.c.run_id} / attempt {self.c.attempt}\n\n"
-                 "补齐公开 Media3 基础 decoder 构建依赖，修复打开直播时 DecoderInputBuffer 缺类崩溃；"
-                 "增加播放器初始化回归与最终 APK 类引用完整性验收。包含公网 IPv6 播放地址兼容、播放页服务未绑定时的弹幕 client 初始化、"
-                 "播放页交接时旧 Xray 会话清理、冷启动直播后首次返回首页的待机恢复计数修复；"
+                 "修复直播与点播退出时，Xray artwork 清理在已销毁 Activity 上重新取得 Glide manager 导致的崩溃；"
+                 "退出期间继续释放播放代理，同时阻止迟到回调重新加载界面图片和元数据。"
+                 "按用户专项授权，仅修复公开上游 OkProxySelector.Policy 对部分有效播放域名取得空 host 时的崩溃；"
+                 "代理选路与重定向规则保持原样。"
+                 "增加真实 Glide 的 API 28/35 生命周期回归及代理 host 回归，保留播放器初始化与最终 APK 类引用完整性验收。"
                  "Xray 核心及固定签名保持不变。"
                  "源码、单元、双 ABI native、Release 编译与签名校验已执行；电视真机行为尚未验收。\n\n")
         if old:

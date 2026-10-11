@@ -177,6 +177,7 @@ public class LiveActivity extends PlaybackActivity implements GroupAdapter.OnCli
                     player().setPlaybackProxy(resources, preserve);
                     updatePlaybackDanmakuClient();
                 }
+                if (isFinishing() || isDestroyed()) return;
                 if (mChannelAdapter != null) mChannelAdapter.setXrayLogoSuppressed(resources != null);
                 setWidgetLogoSuppressed(resources != null);
                 if (mChannel != null) {
@@ -193,6 +194,7 @@ public class LiveActivity extends PlaybackActivity implements GroupAdapter.OnCli
                     player().clearPlaybackProxyPreservingState();
                     updatePlaybackDanmakuClient();
                 }
+                if (isFinishing() || isDestroyed()) return;
                 if (mChannelAdapter != null) mChannelAdapter.setXrayLogoSuppressed(false);
                 setWidgetLogoSuppressed(false);
                 if (mChannel != null) {
@@ -202,6 +204,7 @@ public class LiveActivity extends PlaybackActivity implements GroupAdapter.OnCli
             }
 
             @Override public void onStateChanged(int state, String message) {
+                if (isFinishing() || isDestroyed()) return;
                 mBinding.control.action.xray.setSelected(state == XraySessionListener.RUNNING);
                 mBinding.control.action.xray.setText(state == XraySessionListener.RUNNING
                         ? R.string.xray_on : state == XraySessionListener.STARTING
@@ -777,6 +780,7 @@ public class LiveActivity extends PlaybackActivity implements GroupAdapter.OnCli
 
     private void setArtwork() {
         clearArtworkTarget();
+        if (isFinishing() || isDestroyed()) return;
         if (mXray != null && mXray.isActive()) {
             mBinding.player.setDefaultArtwork(null);
             return;
@@ -797,7 +801,9 @@ public class LiveActivity extends PlaybackActivity implements GroupAdapter.OnCli
 
     private void clearArtworkTarget() {
         if (mArtworkTarget == null) return;
-        com.bumptech.glide.Glide.with(this).clear(mArtworkTarget);
+        // Clearing through the application manager delegates to the target owner without
+        // asking Glide to obtain a manager for an already-destroyed Activity.
+        com.bumptech.glide.Glide.with(App.get()).clear(mArtworkTarget);
         mArtworkTarget = null;
     }
 

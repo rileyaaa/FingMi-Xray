@@ -280,6 +280,7 @@ for name, text in (
         "python3 scripts/build/check-final-apk-native.py --self-test",
         "python3 scripts/build/check-final-apk-manifest.py --self-test",
         "python3 tests/test-release-publication.py",
+        "python3 tests/test-resume-verified-release.py",
         "Verify MPEG-H survives final TV APK packaging",
         'entry="lib/${abi}/libmpeghJNI.so"',
         "Landroidx/media3/decoder/mpegh/MpeghAudioRenderer;",
@@ -288,6 +289,14 @@ for name, text in (
         "--apk-dir app/build/outputs/apk/leanback",
         "Verify imported player startup",
         "python3 tests/test-player-startup.py",
+        "Verify Xray artwork lifecycle",
+        "python3 tests/test-xray-artwork-lifecycle.py",
+        "build/work/current-main/artwork-lifecycle/target/surefire-reports/",
+        "build/work/current-main/artwork-lifecycle/input-sha256.json",
+        "rm -rf build/work/current-main/artwork-lifecycle",
+        "Verify proxy policy host regression",
+        ":catvod:testDebugUnitTest",
+        "catvod/build/test-results/",
         "Verify final Media3 DEX linkage",
         "python3 scripts/build/check-final-apk-media3.py",
         "python3 tests/test-media3-dex-linkage.py",
@@ -423,8 +432,8 @@ if "fingmi-xray-5.6.3-current-main-release" in publish_workflow:
 
 if not re.search(r'PREVIOUS_BACKUP_TAG: "source-backup-[^\"]+"', publish_workflow):
     errors.append("publish workflow must explicitly select the previous source backup")
-if 'RELEASE_TAG: "v5.6.3-xray.2"' not in publish_workflow:
-    errors.append("publish workflow must target the v5.6.3-xray.2 formal release")
+if 'RELEASE_TAG: "v5.6.3-xray.3"' not in publish_workflow:
+    errors.append("publish workflow must target the v5.6.3-xray.3 formal release")
 for required in (
     "      replace_existing:",
     "        type: boolean",
@@ -448,10 +457,15 @@ for name, text in (
 app_build = (ROOT / "app/build.gradle").read_text(encoding="utf-8")
 version_name = re.search(r'versionName "([^"]+)"', app_build).group(1)
 version_code = int(re.search(r'versionCode (\d+)', app_build).group(1))
-if version_name != "v5.6.3-xray.2" or version_code != 563002:
-    errors.append("fork release version must match v5.6.3-xray.2 / 563002")
+if version_name != "v5.6.3-xray.3" or version_code != 563003:
+    errors.append("fork release version must match v5.6.3-xray.3 / 563003")
 if f'RELEASE_TAG: "{version_name}"' not in publish_workflow:
     errors.append("publish tag must equal the versionName embedded in the APK")
+resume_helper = (ROOT / "scripts/build/resume-verified-release.py").read_text(encoding="utf-8")
+previous_backup = re.search(r'PREVIOUS_BACKUP_TAG: "([^"]+)"', publish_workflow).group(1)
+for argument, expected in (("--tag", version_name), ("--previous-backup", previous_backup)):
+    if f'parser.add_argument("{argument}", default="{expected}")' not in resume_helper:
+        errors.append(f"resume publication default {argument} must match the full publication workflow")
 for name, text in (("current-main", current_workflow), ("publish", publish_workflow)):
     if "keytool -genkeypair" in text or "current-main-debug.jks" in text:
         errors.append(f"{name} must never generate a replacement release key")

@@ -172,7 +172,7 @@ require(
 
 require(
     "app/src/leanback/java/com/fongmi/android/tv/ui/activity/VideoActivity.java",
-    "clearArtworkTarget();\n        if (service() != null && isOwner() && player().hasXraySession()) return;",
+    "clearArtworkTarget();\n        if (isFinishing() || isDestroyed()) return;\n        if (service() != null && isOwner() && player().hasXraySession()) return;",
 )
 
 require(
