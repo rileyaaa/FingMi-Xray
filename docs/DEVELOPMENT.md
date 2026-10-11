@@ -232,6 +232,8 @@ current player candidate 使用固定公开 FongMi/media 的 MPV 源码。curren
 
 大型 AAR / APK / SO 不作为普通源码直接提交。`main` 的二进制处理只服务于可重复构建和 Xray provenance，不用于追平 FongMi Release-only 播放器功能。
 
+公开 [FongMi/TV 5.6.3 构建说明](https://github.com/FongMi/TV/blob/c616c0aa3613e87529791587a9f71b78c278c991/README.md) 要求另备 `app/libs/lib-*.aar`，明确说明这些配套 AAR 未纳入 Git，单纯 clone 不包含完整播放器依赖。其公开 workflow 只有网站部署，无法据此核对上游内部 APK 构建链。旧 Release APK 下载返回 404，不等于公开源码消失或上游无法编译；本 fork 从旧 APK 提取固定 Libass native 是重构遗留输入路径，上游拥有配套 AAR 时不需要经过它。上游未公开的 AAR 制作/保存过程和旧资产删除原因不作推测。
+
 当前可重复构建依赖：
 
 - 从固定公开 `FongMi/media@3c2cbe8ac742c2fe15eff52f03eeb3b1b648848d`（`release-1.11.0-fongmi` 分支）现场重建的 17-AAR player candidate；该分支与仓库默认 `release` 分支不同，不能把它称为默认分支 HEAD；
@@ -297,6 +299,10 @@ Release 的 APK 发布集合长期保留 `v5.6.0-xray.5` 黄金参考和一个�
 发布 workflow 以 `BUILD_SOURCE_SHA` 作为唯一构建与发布源码，重新准备固定依赖、执行源码 guard 与双 ABI 黄金 Xray chain parity，只编译/assemble Android TV / Leanback Release 两个 ABI，并核对最终 native provenance、Manifest、签名、应用版本、non-debuggable 与 16 KB alignment。当前显式配置 `RELEASE_TAG=v5.6.3-xray.1` 与指定旧源码备份 `PREVIOUS_BACKUP_TAG`，不会自动递增修订号。正常手动触发时 `BUILD_SOURCE_SHA = github.sha`，权限保持 `contents: write + actions: read`，同一发布流程使用 concurrency 排队而不取消正在进行的发布。
 
 `scripts/build/publish-current-release.py` 负责上传和替换，`tests/test-release-publication.py` 验证发布失败与清理顺序。两个 APK 和源码 ZIP 先分别上传到草稿并逐文件核对 name / digest / size；两份新产物完整后才进入切换。已有同名正式版必须由用户明确要求并选中 `replace_existing`；旧 APK 暂存为 rollback 草稿，直到新正式 APK、源码备份及各自 Git tag 都验证成功才清理。只删除显式指定的旧备份，不按 `source-backup-*` 通配删除。失败时保留可诊断/恢复的草稿，不把失败说成替换成功；正常收尾只留下黄金版、当前正式版及最新源码备份。
+
+GitHub 的按 tag 获取已发布 Release 接口不会返回草稿；草稿创建和旧版转 rollback 后，必须使用已知 Release ID 校验状态、tag 和全部资产。存在性检查同时包含分页草稿列表；最终正式发布仍检查公开 tag、Git ref、资产摘要及 latest，不能因草稿查询 404 就放松校验。测试替身必须保留“draft 按 tag 查询为 404、按 ID 可读”的真实区别。
+
+仅发布阶段失败时，可用纯手动 `resume-verified-release.yml` 续发原 Actions 已验证 APK，避免重复编译。续发先验证原 run 的仓库、workflow、触发方式、源码及全部构建/验收步骤，再读取该 run 的失败报告，通过明确草稿 ID 下载原资产并重验摘要、签名、Manifest 和内嵌源码。源码 ZIP 仍归档原 APK 的构建 SHA；执行续发工具的较新 main 仅含发布基础设施修复时，也不得把它冒称 APK 的构建来源。原 run、报告或资产不满足条件就停止，不能拿本地包或未经完整验收的草稿补位。
 
 切换后期失败没有自动回滚，正式入口可能暂时缺失；此时先读取失败 artifact 内 `publication-before.json` / `publication-result.json`，核对正式 tag、rollback 草稿和新草稿，再恢复入口或继续切换，不能直接复用已占用的 rollback tag 盲目重跑。需要时可通过 `rollback_tag` 手动输入一个预先指向旧 APK 源码的 tag，避免 runner token 为旧提交创建 tag 的权限限制；成功后该临时 tag 自动清理。
 
@@ -736,3 +742,11 @@ Xray 审查覆盖分享链接、security/pin/config、Service 串行执行与代
 Xray 当前源码重新验证 9000 次 Controller/Client 清理序列、102 次真实 OkHttp/SOCKS 开关（FD `13→13`、204 个弱引用可回收）及四类 Service 终止边界，未确认新泄漏。七条分享链接与 30 个变体在 arm64 完整 native/runtime 链通过，372 项字段断言、26 项冻结 oracle、本地 DNS/IPv6 TCP/UDP 9 项和 WS early-data 3 项通过。当前云主机高 PID 触发 API24 ARM32 Bionic 旧 mutex 的 16 位 owner TID 限制，v7 harness 在进入链接转换前阻塞；本轮本地不能声称双 ABI 均通过，Actions 仍保留原双 ABI 验证门槛。没有连接用户节点，也没有修改 Xray 核心或签名。
 
 修改后的 Xray JUnit 3 项与完整 Leanback Release Java 强制重编译通过，14 个标准验证入口、发布事务 9 项及 native 输入边界 13 项通过。新的资产 ID 下载入口已实际下载双 ABI 并验证；官方 JBR 下分别用保留正式包和原上游容器完整重建 Libass AAR，两份产物逐字节相同，SHA-256 仍为 `f047f8ad84be08aeddb0672500e9b263cafd6f2a009812392554dc55b2019861`，49 个类及双 ABI JNI 合约通过。JVM/环回与边界替身证据不代替电视 ART、真实进程 PSS/RSS、握手播放、息屏或 Fast Start 验收；新 APK 与源码备份的最终替换以实际 Actions 成功和远端资产核验为准。
+
+### 2026-10-11 — 编译通过后的草稿发布 API 修复
+
+包含前述修复的 `943357e2` 已在 Actions 完成公开 media、Libass、双 ABI Xray native、模块测试、TV 编译与 Release assemble；最终 native、Manifest、固定签名、版本、源码标识和对齐检查全部通过。双 ABI 各 26 个黄金 native/runtime oracle 也通过，补足本地 v7 高 PID 环境无法启动 harness 的验证限制。失败发生在最后发布阶段，两个正确的新 APK 已上传至草稿，旧正式版未切换。
+
+根因是发布器用 `GET releases/tags/<tag>` 读取草稿，真实 API 返回 404；`GET releases/<id>` 则能读取正确草稿。原测试替身错误地允许按 tag 读取 draft，漏掉了此边界。修复新草稿和旧版 rollback 草稿的 ID 校验，保留全部状态、资产和 Git ref 检查，测试替身按真实 API 行为调整。16 项发布事务测试通过；修前代码在新回归中明确复现原错误。
+
+补充仅续发原已验收资产的手动入口，避免为发布工具修复重复编译应用。11 项来源与失败注入测试、build hygiene 和 workflow 语法检查通过；真实只读演练已走完原 run/jobs、artifact ZIP、草稿资产 ID 下载、APK 摘要/源码/固定签名/Manifest 核验。Actions artifact ZIP 下载使用 JSON API 的默认 Accept，Release 资产下载才使用 octet-stream；两类 API 区分已由实际请求及回归约束。本次没有修改应用、Xray、恢复模块、公开上游版本或签名，续发 APK 和配套源码备份仍准确对应原构建 `943357e2`，不冒称来自后续发布工具提交。

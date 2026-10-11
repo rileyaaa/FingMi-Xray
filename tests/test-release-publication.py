@@ -41,6 +41,7 @@ class FakeGitHub:
         self.bad_stage_digest = False
         self.bad_final_digest = False
         self.change_old_ref = False
+        self.bad_rollback_tag = False
         self.private = True
 
     @staticmethod
@@ -62,7 +63,14 @@ class FakeGitHub:
                 result = self.releases[self.latest]
             elif path.startswith("releases/tags/"):
                 tag = unquote(path.removeprefix("releases/tags/"))
-                result = next((r for r in self.releases.values() if r["tag_name"] == tag), None)
+                # The real endpoint returns 404 for drafts, including drafts
+                # created and uploaded successfully by this caller.
+                result = next((r for r in self.releases.values() if r["tag_name"] == tag and not r["draft"]), None)
+            elif path.startswith("releases?per_page=100&page="):
+                page = int(path.split("page=")[-1])
+                result = list(self.releases.values())[(page - 1) * 100:page * 100]
+            elif path.startswith("releases/"):
+                result = self.releases.get(int(path.split("/")[1]))
             elif path.startswith("git/ref/tags/"):
                 result = self.refs.get(unquote(path.removeprefix("git/ref/tags/")))
             else:
@@ -95,6 +103,8 @@ class FakeGitHub:
             elif method == "PATCH":
                 row = self.releases[identity]
                 row.update(data)
+                if self.bad_rollback_tag and identity == 1 and data.get("draft"):
+                    row["tag_name"] = "unexpected-rollback-tag"
                 # GitHub's asset download URLs follow the release's new tag.
                 for asset in row["assets"]:
                     asset["browser_download_url"] = "new-url/" + row["tag_name"]
@@ -163,6 +173,95 @@ class PublicationTest(unittest.TestCase):
         with self.assertRaisesRegex(PUB.PublicationError, "asset verification"):
             self.publisher().run()
         self.assert_old_preserved()
+
+    def test_known_drafts_are_verified_by_id_in_staging_and_rollback(self):
+        result = self.publisher().run()
+        self.assertEqual(result["phase"], "complete")
+        gets = [path for method, path, _ in self.github.events if method == "GET"]
+        self.assertIn("releases/4", gets)
+        self.assertIn("releases/5", gets)
+        self.assertIn("releases/1", gets)
+        self.assertIn("releases/tags/" + TAG, gets)
+
+    def test_draft_collision_without_a_tag_ref_prevents_upload(self):
+        stage_tag = "stage-" + TAG + "-123-1"
+        row = self.github.row(4, stage_tag, False)
+        row["draft"] = True
+        self.github.releases[4] = row
+        with self.assertRaisesRegex(PUB.PublicationError, "Staging identity already exists"):
+            self.publisher().run()
+        self.assertEqual(self.github.uploads, 0)
+        self.assert_old_preserved()
+
+    def test_draft_collision_lookup_checks_later_pages(self):
+        for identity in range(4, 105):
+            row = self.github.row(identity, "unrelated-" + str(identity), False)
+            row["draft"] = True
+            self.github.releases[identity] = row
+        self.github.releases[104]["tag_name"] = "wanted-draft"
+        self.assertEqual(self.publisher().find_release("wanted-draft")["id"], 104)
+        self.assertIn(("GET", "releases?per_page=100&page=2", None), self.github.events)
+
+    def test_rollback_tag_mismatch_prevents_cutover_and_cleanup(self):
+        self.github.bad_rollback_tag = True
+        with self.assertRaisesRegex(PUB.PublicationError, "Rollback publication was not preserved"):
+            self.publisher().run()
+        self.assertEqual(self.github.refs[TAG]["object"]["sha"], OLD)
+        self.assertIn(1, self.github.releases)
+        self.assertIn(2, self.github.releases)
+        self.assertFalse(any(method == "DELETE" for method, _, _ in self.github.events))
+
+    def prepare_resume(self):
+        from dataclasses import replace
+        tag = "stage-" + TAG + "-122-1"
+        assets = [PUB.Asset.read(path) for path in sorted(self.directory.glob("*.apk"))]
+        row = self.publisher().stage(tag, assets, False, "verified earlier build")
+        self.github.events.clear()
+        self.github.uploads = 0
+        return replace(self.config, resume_stage_id=row["id"], resume_stage_tag=tag), row["id"]
+
+    def test_explicit_resume_reuses_verified_apks_without_uploading_them(self):
+        config, identity = self.prepare_resume()
+        result = self.publisher(config).run()
+        self.assertEqual(result["phase"], "complete")
+        self.assertEqual(result["release_id"], identity)
+        self.assertEqual(result["resumed_stage"], {"id": identity, "tag_name": config.resume_stage_tag})
+        self.assertEqual(self.github.uploads, 1)  # Only the source backup is new.
+        created = [data for method, path, data in self.github.events if method == "POST" and path == "releases"]
+        self.assertEqual(len(created), 1)
+        self.assertTrue(created[0]["tag_name"].endswith("-backup"))
+        self.assertNotIn(config.resume_stage_tag, self.github.refs)
+
+    def test_explicit_resume_rejects_changed_remote_assets_state_and_source(self):
+        mutations = {
+            "tag": lambda row: row.update(tag_name="another-stage"),
+            "id": lambda row: row.update(id=987654),
+            "draft": lambda row: row.update(draft=False),
+            "prerelease": lambda row: row.update(prerelease=True),
+            "digest": lambda row: row["assets"][0].update(digest="sha256:wrong"),
+            "size": lambda row: row["assets"][0].update(size=0),
+            "state": lambda row: row["assets"][0].update(state="starter"),
+            "name": lambda row: row["assets"][0].update(name="different.apk"),
+            "missing_asset": lambda row: row["assets"].pop(),
+            "source": lambda row: self.github.refs[row["tag_name"]].update(object={"type": "commit", "sha": OLD}),
+        }
+        for name, mutate in mutations.items():
+            with self.subTest(name=name):
+                self.github = FakeGitHub()
+                config, identity = self.prepare_resume()
+                mutate(self.github.releases[identity])
+                with self.assertRaises(PUB.PublicationError):
+                    self.publisher(config).run()
+                self.assertEqual(self.github.uploads, 0)
+                self.assert_old_preserved()
+
+    def test_resume_requires_a_positive_id_and_matching_explicit_stage_tag(self):
+        from dataclasses import replace
+        for identity, tag in ((1, ""), (0, "stage-" + TAG + "-1-1"),
+                              (-1, "stage-" + TAG + "-1-1"), (True, "stage-" + TAG + "-1-1"),
+                              (1, TAG), (1, "stage-v5.6.3-xray.2-1-1")):
+            with self.subTest(identity=identity, tag=tag), self.assertRaises(PUB.PublicationError):
+                replace(self.config, resume_stage_id=identity, resume_stage_tag=tag).validate()
 
     def test_final_verification_failure_keeps_rollback_and_old_backup(self):
         self.github.bad_final_digest = True

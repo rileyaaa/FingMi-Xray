@@ -1,0 +1,97 @@
+name: Resume verified formal release publication
+
+on:
+  workflow_dispatch:
+    inputs:
+      verified_run_id:
+        description: "Completed failed full publication run whose APK build and verification succeeded"
+        type: string
+        required: true
+      replace_existing:
+        description: "Explicitly replace the existing same-version formal release"
+        type: boolean
+        default: false
+      rollback_tag:
+        description: "Optional pre-created rollback tag pointing at the existing APK source"
+        type: string
+        default: ""
+
+concurrency:
+  group: fingmi-formal-release
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+  actions: read
+
+jobs:
+  resume:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-java@v6
+        with:
+          distribution: jetbrains
+          java-version: "21"
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.10"
+
+      - name: Verify publication and recovery guards
+        run: |
+          python3 tests/test-release-publication.py
+          python3 tests/test-resume-verified-release.py
+
+      - name: Prepare APK verification tools only
+        shell: bash
+        run: |
+          set -euo pipefail
+          sdk_root="${ANDROID_HOME:-/usr/local/lib/android/sdk}"
+          sdkmanager="$sdk_root/cmdline-tools/latest/bin/sdkmanager"
+          test -x "$sdkmanager"
+          yes | "$sdkmanager" --licenses >/dev/null 2>&1 || true
+          "$sdkmanager" --channel=3 --install 'build-tools;37.0.0'
+
+      - name: Reverify original Actions APKs and resume publication
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERIFIED_RUN_ID: ${{ inputs.verified_run_id }}
+          ALLOW_REPLACEMENT: ${{ inputs.replace_existing }}
+          ROLLBACK_TAG: ${{ inputs.rollback_tag }}
+        run: |
+          set -euo pipefail
+          sdk_root="${ANDROID_HOME:-/usr/local/lib/android/sdk}"
+          args=(--verified-run-id "$VERIFIED_RUN_ID" --sdk "$sdk_root" --rollback-tag "$ROLLBACK_TAG")
+          if [ "$ALLOW_REPLACEMENT" = true ]; then
+            args+=(--replace-existing)
+          fi
+          python3 scripts/build/resume-verified-release.py "${args[@]}"
+
+      - name: Record original build and publication identities
+        if: always()
+        shell: bash
+        run: |
+          if [ -f release/resume-verification.json ]; then
+            {
+              echo 'APKs and source backup retain the original verified build commit; current checkout supplies publication tooling only.'
+              echo '```json'
+              cat release/resume-verification.json
+              echo '```'
+            } >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Upload publication reports on failure
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: fingmi-xray-release-resume-failure-reports
+          path: |
+            release/publication-*.json
+            release/resume-verification.json
+          if-no-files-found: ignore
+          retention-days: 1

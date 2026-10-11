@@ -49,6 +49,8 @@ class Config:
     allow_existing: bool
     rollback_tag: str = ""
     directory: Path = Path("release")
+    resume_stage_id: int = 0
+    resume_stage_tag: str = ""
 
     @classmethod
     def environment(cls):
@@ -57,9 +59,14 @@ class Config:
         allow = os.environ.get("ALLOW_EXISTING_RELEASE", "false")
         if allow not in ("true", "false"):
             raise PublicationError("ALLOW_EXISTING_RELEASE must be true or false")
+        resume_id = os.environ.get("RESUME_STAGE_ID", "")
+        if resume_id and (not resume_id.isdigit() or int(resume_id) <= 0):
+            raise PublicationError("RESUME_STAGE_ID must be a positive release ID")
         return cls(values[required[0]], values[required[1]], values[required[2]],
                    values[required[3]], values[required[4]], values[required[5]],
-                   allow == "true", os.environ.get("ROLLBACK_TAG", ""))
+                   allow == "true", os.environ.get("ROLLBACK_TAG", ""),
+                   resume_stage_id=int(resume_id) if resume_id else 0,
+                   resume_stage_tag=os.environ.get("RESUME_STAGE_TAG", ""))
 
     def validate(self):
         if not re.fullmatch(r"[^/\s]+/[^/\s]+", self.repository):
@@ -74,6 +81,11 @@ class Config:
             raise PublicationError("Only a named source-backup tag may be retired")
         if self.rollback_tag and not self.rollback_tag.startswith(("rollback-", "release-rollback-")):
             raise PublicationError("ROLLBACK_TAG must use a rollback prefix")
+        if bool(self.resume_stage_id) != bool(self.resume_stage_tag):
+            raise PublicationError("RESUME_STAGE_ID and RESUME_STAGE_TAG must be supplied together")
+        if self.resume_stage_id and (type(self.resume_stage_id) is not int or self.resume_stage_id <= 0
+                                    or not re.fullmatch("stage-" + re.escape(self.tag) + r"-\d+-\d+", self.resume_stage_tag)):
+            raise PublicationError("Invalid explicitly resumed APK staging identity")
 
 
 class GitHub:
@@ -150,6 +162,21 @@ class Publisher:
     def release(self, tag):
         return self.gh.api("releases/tags/" + quote(tag, safe=""), optional=True)
 
+    def find_release(self, tag):
+        """The tag endpoint excludes drafts; include them in collision checks."""
+        published = self.release(tag)
+        if published:
+            return published
+        page = 1
+        while True:
+            rows = self.gh.api(f"releases?per_page=100&page={page}")
+            for row in rows:
+                if row.get("tag_name") == tag:
+                    return row
+            if len(rows) < 100:
+                return None
+            page += 1
+
     def commit(self, ref):
         obj = ref["object"] if ref else None
         for _ in range(10):
@@ -170,9 +197,13 @@ class Publisher:
         else:
             self.gh.api("git/refs", "POST", {"ref": "refs/tags/" + tag, "sha": source})
 
-    def verify(self, tag, assets, draft, prerelease, source):
-        release = self.release(tag)
-        if not release or release.get("tag_name") != tag or release.get("draft") != draft or release.get("prerelease") != prerelease:
+    def verify(self, tag, assets, draft, prerelease, source, release_id=None):
+        # Known draft releases must be read by ID. GitHub's by-tag endpoint is
+        # for published releases, even when the caller created the draft.
+        release = self.gh.api(f"releases/{release_id}") if release_id is not None else self.release(tag)
+        if (not release or release.get("tag_name") != tag or release.get("draft") != draft
+                or release.get("prerelease") != prerelease
+                or (release_id is not None and release.get("id") != release_id)):
             raise PublicationError(f"Release state mismatch: {tag}")
         actual = release.get("assets", [])
         expected = {a.path.name: a for a in assets}
@@ -187,7 +218,7 @@ class Publisher:
         return release
 
     def stage(self, tag, assets, prerelease, notes):
-        if self.release(tag) or self.ref(tag):
+        if self.find_release(tag) or self.ref(tag):
             raise PublicationError(f"Staging identity already exists; inspect before retry: {tag}")
         self.ensure_tag(tag, self.c.source)
         release = self.gh.api("releases", "POST", {
@@ -197,7 +228,15 @@ class Publisher:
         self.result.setdefault("staged", {})[tag] = release["id"]
         self.save("uploading")
         self.gh.upload(tag, assets)
-        return self.verify(tag, assets, True, prerelease, self.c.source)
+        return self.verify(tag, assets, True, prerelease, self.c.source, release["id"])
+
+    def resume_stage(self, assets):
+        release = self.verify(self.c.resume_stage_tag, assets, True, False,
+                              self.c.source, self.c.resume_stage_id)
+        self.result.setdefault("staged", {})[self.c.resume_stage_tag] = release["id"]
+        self.result["resumed_stage"] = {"id": release["id"], "tag_name": self.c.resume_stage_tag}
+        self.save("staging_resumed")
+        return release
 
     @staticmethod
     def asset_fingerprint(release):
@@ -235,7 +274,7 @@ class Publisher:
                 for abi in ("armeabi-v7a", "arm64-v8a")]
         if set(self.c.directory.glob("*.apk")) != {a.path for a in apks}:
             raise PublicationError("Publication directory must contain exactly the two named APKs")
-        old = self.release(self.c.tag)
+        old = self.find_release(self.c.tag)
         old_ref = self.ref(self.c.tag)
         old_source = self.commit(old_ref)
         if old and not self.c.allow_existing:
@@ -249,8 +288,9 @@ class Publisher:
         backup_tag = "source-backup-" + datetime.now(timezone.utc).strftime("%Y-%m-%d") + "-main-" + self.c.source[:8]
         backup = self.archive_factory(self.c, backup_tag)
         token = self.c.run_id + "-" + self.c.attempt
-        stage_tag = "stage-" + self.c.tag + "-" + token
-        backup_stage_tag = stage_tag + "-backup"
+        attempt_stage_tag = "stage-" + self.c.tag + "-" + token
+        stage_tag = self.c.resume_stage_tag or attempt_stage_tag
+        backup_stage_tag = attempt_stage_tag + "-backup"
         rollback_tag = self.c.rollback_tag or "rollback-" + self.c.tag + "-" + token
         self.result.update({"backup_tag": backup_tag, "rollback_tag": rollback_tag if old else None,
                             "assets": [a.metadata() for a in apks], "backup_asset": backup.metadata()})
@@ -280,8 +320,8 @@ class Publisher:
                         "不包含 Git 历史、ignored AAR 或构建缓存；所有归档文件与该 commit 的 blob 字节核对。\n\n"
                         + trigger_note +
                         f"{backup.path.name}: `{backup.digest}` ({backup.size} bytes)")
-        stage = self.stage(stage_tag, apks, False, notes)
-        existing_backup = self.release(backup_tag)
+        stage = self.resume_stage(apks) if self.c.resume_stage_id else self.stage(stage_tag, apks, False, notes)
+        existing_backup = self.find_release(backup_tag)
         if existing_backup:
             self.verify(backup_tag, [backup], False, True, self.c.source)
             backup_stage = None
@@ -301,14 +341,17 @@ class Publisher:
         if self.fingerprint(self.release(self.c.tag)) != self.fingerprint(old) or self.ref(self.c.tag) != old_ref:
             raise PublicationError("Old publication changed during staging; refusing cutover")
         if old:
-            if self.release(rollback_tag):
+            if self.find_release(rollback_tag):
                 raise PublicationError("Rollback release already exists; inspect before cutover")
             self.ensure_tag(rollback_tag, old_source)
             self.gh.api(f"releases/{old['id']}", "PATCH", {
                 "tag_name": rollback_tag, "draft": True, "make_latest": "false",
             })
-            rollback = self.release(rollback_tag)
-            if not rollback or rollback["id"] != old["id"] or not rollback["draft"] or self.asset_fingerprint(rollback) != self.asset_fingerprint(old):
+            rollback = self.gh.api(f"releases/{old['id']}")
+            if (not rollback or rollback["id"] != old["id"] or rollback.get("tag_name") != rollback_tag
+                    or not rollback["draft"] or rollback.get("prerelease") != old.get("prerelease")
+                    or self.asset_fingerprint(rollback) != self.asset_fingerprint(old)
+                    or self.commit(self.ref(rollback_tag)) != old_source):
                 raise PublicationError("Rollback publication was not preserved")
             self.result["rollback_release_id"] = old["id"]
         self.save("rollback_preserved")
