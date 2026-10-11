@@ -244,9 +244,9 @@ current player candidate 使用固定公开 FongMi/media 的 MPV 源码。curren
 - 历史 `v5.6.0-xray.5` 黄金 APK：只为 Xray API v2 Java bindings / Go JNI 提供成套 provenance，并作为 Xray 外部行为与 native parity 的黄金参考；current player / FFmpeg 不从该 APK 回灌；
 - 官方 libXray v26.7.28 AAR 外层容器；
 - 按固定公开 Media3 输入重建的 Libass compatibility AAR；
-**当前构建债（不是上游基线）**：公开 `FongMi/TV@c616c0aa...` 明确是 5.6.3，且本项目唯一上游仍是这条公开源码线。公开 `FongMi/media@3c2c...` 不包含 `libraries/exoplayer_libass/`；Libass compatibility 使用的固定 `libmedia3ass.so` 最初取自 FongMi Release 5.6.8，现从本项目保留的当前正式 APK 中读取完全相同的字节。上游原下载地址已返回 404，不再作为正常构建依赖。这只修复容器的可用性，**没有移除原生库缺少对应可重建源码的技术债**，不能称为公开上游、不能用于引入任何 5.6.8 App/播放器行为，也不能声称所有二进制输入都仅来自公开 5.6.3。
+**当前构建债（不是上游基线）**：公开 `FongMi/TV@c616c0aa...` 明确是 5.6.3，且本项目唯一上游仍是这条公开源码线。公开 `FongMi/media@3c2c...` 不包含 `libraries/exoplayer_libass/`；Libass compatibility 使用的固定 `libmedia3ass.so` 最初取自 FongMi Release 5.6.8，现从本项目保留的已发布 APK 中读取完全相同的字节。上游原下载地址已返回 404，不再作为正常构建依赖。这只修复容器的可用性，**没有移除原生库缺少对应可重建源码的技术债**，不能称为公开上游、不能用于引入任何 5.6.8 App/播放器行为，也不能声称所有二进制输入都仅来自公开 5.6.3。
 
-正常构建先选定本仓库当前正式 Release 的两个 ABI 资产并校验 native，再进行昂贵重建；信任边界仍为固定 SO 摘要，容器中的 DEX、资源和其它库不作为输入。实际 Release/资产身份与 APK 摘要单独记录，不能把本项目 APK 冒称原始上游 APK。同名替换会改变容器摘要，但不允许改变 native pin 或 Libass candidate 摘要。新发布先完成输入提取和新资产验证，之后才清理旧版。原上游 APK 的整包摘要校验模式仍供历史取证使用。
+正常构建先从本仓库已发布、非草稿且符合正式版本命名的 Release 中按数字版本选择最新容器，读取两个 ABI 资产并校验 native，再进行昂贵重建；排除黄金参考和源码备份，最高版本缺少资产时失败，不静默回退。容器可被标为预览，选择不依赖 `Latest` 展示标记，报告记录实际预览状态，不把容器认定为当前正式版；信任边界仍为固定 SO 摘要，容器中的 DEX、资源和其它库不作为输入。实际 Release/资产身份与 APK 摘要单独记录，不能把本项目 APK 冒称原始上游 APK。同名替换会改变容器摘要，但不允许改变 native pin 或 Libass candidate 摘要。新发布先完成输入提取和新资产验证，之后才清理旧版。原上游 APK 的整包摘要校验模式仍供历史取证使用。
 
 此策略依赖当前保留的正式版继续携带同一固定库；缺失或摘要不符必须停止，不能自动寻找新版上游 APK 或放宽校验。完整源码备份是 tracked tree，不含 ignored 二进制，不能承诺旧脚本或未来更换 native 后的所有历史版本永远能独立重建。
 
@@ -283,7 +283,7 @@ on:
 它负责：
 
 1. 准备 JetBrains JDK 21 / Android SDK，并执行禁用自动下载的 `gradlew help`，实际启动上游要求的 Gradle daemon；预检在昂贵的 player/native 重建之前完成；
-2. 先获取并验证本项目当前正式 APK 内固定 Libass native，再从固定公开 FongMi/media commit 重建 18-AAR player candidate，并下载 / 校验其它 compatibility 与黄金 Xray 输入；
+2. 先获取并验证本项目已发布 APK 内固定 Libass native，再从固定公开 FongMi/media commit 重建 18-AAR player candidate，并下载 / 校验其它 compatibility 与黄金 Xray 输入；
 3. 直接导入固定公开 FongMi/media 重建出的 player candidate；黄金旧 APK只用于重建与 Go JNI 配套的 libXray Java bindings 与 Xray 动态 parity；
 4. 重建并导入最小 Libass compatibility AAR；
 5. 执行 current Java → 黄金 v7 / arm64 native 动态 Xray chain parity（统一以 v7 发布行为为黄金 oracle，包含 KCP golden cases 与发布版 `testXray` runtime validation）；
@@ -777,3 +777,10 @@ Xray 当前源码重新验证 9000 次 Controller/Client 清理序列、102 次�
 项目实际 `:catvod:testDebugUnitTest` 也执行 16 项且失败、错误、跳过均为 0；该工程没有 Release unit-test task，CI 使用实际存在的 Debug JUnit 入口，APK 仍编译 Release variant。修复集中完成后，本地 Leanback Release assemble 在 4 分 38 秒完成，执行了重新编译、R8 和打包签名；双 ABI 最终 Media3 46 项引用均有定义，原生库、Manifest、固定签名、`.3` / `563003` 与 16 KB 对齐通过。构建使用提交前工作树并单独记录来源，正式 Actions 必须从提交后的源码重新构建。
 
 以上 JVM / Robolectric 与构建证据不代表电视 ART、真实源搜索播放、硬件解码、PSS/RSS 或连续遥控操作已经验收。正式 APK 和配套源码备份仍以 Actions 发布及远端资产核验为准。
+
+
+### 2026-10-11 — 发布标记与固定构建输入分离
+
+新的 Actions 在输入预检阶段停止：已有 `.1` / `.2` 资产未变化，但远端 Release 已被改为预览版，`releases/latest` 因此返回被脚本明确排除的 5.6.0 黄金参考。问题发生在公开 player/native 重建之前，不是新的应用编译错误。保留远端预览状态，将容器选择改为分页读取已发布版本、按数字版本选取最新符合命名的非草稿；只将指定 APK 作为两份固定 Libass SO 的容器。最高版本资产不完整或摘要不符仍必须失败，native pin、历史上游整包验证模式和最终 APK 校验不变。这使重新标记已发布版本不会切断固定构建输入，也避免错误地把有问题的旧包重新设为正式版。
+
+容器选择与完整性回归 18 项通过；实际分页查询后选中仍为预览状态的 `.2`，按原资产 ID 下载双 ABI，APK size / digest 和两份固定 `libmedia3ass.so` SHA-256 全部通过。报告区分 `tag_source_commit`（tag 快照观察值）与 APK 摘要，不将其冒称重新验证的 APK 编译源码；下载和提取不读取 Java/DEX。此次仅修构建取源，应用修复、`.3` 版本、固定签名和核心不再变化。

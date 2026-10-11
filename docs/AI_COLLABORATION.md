@@ -92,7 +92,7 @@
 - artifacts 仍在当前构建、提取或排错中使用时，采用短 retention 并只保留必要副本；提取完成后清理，不以“尚未到自动过期日”为由保留。清理后重新核对远端数量，不把 Actions 产物清理扩大成删除 Release、源码备份、签名、run 历史或排错日志。
 - 临时产物如果仍在当前工作阶段会被继续使用可以暂留；一旦用途结束，应在同一阶段或最近一次收尾中清理。
 - 具体 workflow 的 retention、自动 pruning、源码重建输入与发布清理规则统一维护在 `DEVELOPMENT.md`，本文件只约束 AI 的存储决策。
-- 已有 Libass 构建债允许从保留的本项目当前正式 APK 读取与原固定 SHA-256 完全一致的原生库，APK 只作容器；不得读取其中业务实现、接受新 native hash、另建 build-input Release 或因此扩大维护范围。取源与历史重建限制见 `DEVELOPMENT.md`。
+- 已有 Libass 构建债允许从保留的本项目已发布 APK 读取与原固定 SHA-256 完全一致的原生库，APK 只作容器；Release 后来被标为预览不改变固定库的字节身份，也不得为取源而修改其发布状态。不得读取其中业务实现、接受新 native hash、另建 build-input Release 或因此扩大维护范围。取源与历史重建限制见 `DEVELOPMENT.md`。
 
 ## 8. 上游只以公开源码仓库为准
 

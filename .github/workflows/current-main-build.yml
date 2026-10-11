@@ -103,8 +103,8 @@ jobs:
           set -euo pipefail
           mkdir -p build/work/current-main/input build/work/current-main/restored
 
-          # Keep the current formal APK as a native container until replacement is verified.
-          # The helper snapshots latest once, downloads exact asset IDs and checks both SO pins.
+          # Keep a published fork APK as a native container until replacement is verified.
+          # Snapshot the newest eligible version, independent of Latest/prerelease labels; verify both SO pins.
           python3 scripts/build/libass_native_input.py \
             --fetch-retained "$GITHUB_REPOSITORY" \
             --output-dir build/work/current-main/input \

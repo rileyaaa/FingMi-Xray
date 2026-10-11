@@ -47,7 +47,7 @@ class NativeInputTests(unittest.TestCase):
         patch.object(native, "SO", {abi: digest(data) for abi, data in self.libraries.items()}).start()
         patch.object(native, "APK", {abi: digest(data) for abi, data in self.containers.items()}).start()
         self.release = {"id": 7, "tag_name": "v5.6.3-xray.2", "draft": False,
-                        "prerelease": False, "assets": []}
+                        "prerelease": False, "target_commitish": "a" * 40, "assets": []}
         for index, (abi, data) in enumerate(self.containers.items(), 40):
             self.release["assets"].append({
                 "id": index, "name": "FongMi-Xray-TV-v5.6.3-xray.2-" + abi + ".apk",
@@ -108,9 +108,10 @@ class NativeInputTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "Unknown"):
             self.read("unverified")
 
-    def test_only_completed_current_formal_release_is_accepted(self):
+    def test_published_normal_version_container_accepts_prerelease_flag(self):
         self.assertEqual(len(native.retained_assets(self.release)), 2)
-        for update in ({"draft": True}, {"prerelease": True}, {"tag_name": "v5.6.0-xray.5"},
+        self.assertEqual(len(native.retained_assets({**self.release, "prerelease": True})), 2)
+        for update in ({"draft": True}, {"prerelease": None}, {"tag_name": "v5.6.0-xray.5"},
                        {"id": None}, {"tag_name": "source-backup-example"},
                        {"tag_name": "v5.6.3-xray.test.7"}):
             with self.subTest(update=update), self.assertRaises(ValueError):
@@ -130,7 +131,7 @@ class NativeInputTests(unittest.TestCase):
             with self.subTest(mode=mode), self.assertRaises(ValueError):
                 native.retained_assets(release)
 
-    def download(self, metadata=None, fail=False, fail_first=False):
+    def download(self, metadata=None, fail=False, fail_first=False, pages=None, annotated=False):
         payload = {asset["id"]: self.containers[abi]
                    for abi, asset in native.retained_assets(self.release).items()}
         calls = []
@@ -141,12 +142,32 @@ class NativeInputTests(unittest.TestCase):
             stdout.write(payload[asset_id])
             return subprocess.CompletedProcess(command, 1 if fail or (fail_first and len(calls) == 1) else 0)
 
-        with patch.object(native.subprocess, "check_output", return_value=json.dumps(metadata or self.release)) as lookup, \
+        selected = metadata or self.release
+        snapshot = [[selected]] if pages is None else pages
+        source = "a" * 40
+
+        def lookup_result(command, text):
+            path = command[2]
+            if path == "repos/owner/repo/releases?per_page=100":
+                return "\n".join(json.dumps(page) for page in snapshot)
+            if path == "repos/owner/repo/git/ref/tags/" + selected["tag_name"]:
+                return json.dumps({"ref": "refs/tags/" + selected["tag_name"], "object": {
+                    "type": "tag" if annotated else "commit", "sha": "b" * 40 if annotated else source}})
+            if annotated and path == "repos/owner/repo/git/tags/" + "b" * 40:
+                return json.dumps({"object": {"type": "commit", "sha": source}})
+            raise AssertionError("Unexpected metadata lookup: " + path)
+
+        with patch.object(native.subprocess, "check_output", side_effect=lookup_result) as lookup, \
                 patch.object(native.subprocess, "run", side_effect=run), patch.object(native.time, "sleep"):
             result = native.fetch_retained_inputs("owner/repo", self.root / "download")
-            lookup.assert_called_once_with([
-                "gh", "api", "repos/owner/repo/releases/latest", "--method", "GET",
-            ], text=True)
+            listing = [call for call in lookup.call_args_list
+                       if call.args[0][2] == "repos/owner/repo/releases?per_page=100"]
+            self.assertEqual(len(listing), 1)
+            self.assertEqual(listing[0].args[0], [
+                "gh", "api", "repos/owner/repo/releases?per_page=100", "--method", "GET",
+                "--paginate",
+            ])
+            self.assertEqual(lookup.call_count, 3 if annotated else 2)
         return result, calls
 
     def test_release_snapshot_downloads_asset_ids_and_records_provenance(self):
@@ -157,9 +178,68 @@ class NativeInputTests(unittest.TestCase):
         })
         self.assertEqual(result["tag"], "v5.6.3-xray.2")
         self.assertEqual(result["release_id"], 7)
+        self.assertFalse(result["prerelease"])
+        self.assertEqual(result["tag_source_commit"], "a" * 40)
+        self.assertEqual(result["target_commitish"], "a" * 40)
         self.assertEqual(result["apk_sha256"], native.APK)
         self.assertEqual((self.root / "download/libass-source-v7.apk").read_bytes(),
                          self.containers["armeabi-v7a"])
+
+    def test_latest_golden_display_and_other_release_types_do_not_hide_prerelease(self):
+        preview = {**self.release, "prerelease": True}
+        ignored = [
+            {**self.release, "tag_name": "v5.6.0-xray.5"},
+            {**self.release, "tag_name": "source-backup-2026-10-11-main-6172516b"},
+            {**self.release, "tag_name": "v5.6.3-xray.99", "draft": True},
+            {**self.release, "tag_name": "v5.6.3-xray.test.7"},
+        ]
+        before = copy.deepcopy(ignored + [preview])
+        result, calls = self.download(metadata=preview, pages=[ignored, [preview]])
+        self.assertEqual(len(calls), 2)
+        self.assertEqual(result["tag"], preview["tag_name"])
+        self.assertTrue(result["prerelease"])
+        self.assertEqual(ignored + [preview], before)
+
+    def test_pagination_and_numeric_version_order_choose_highest(self):
+        highest = copy.deepcopy(self.release)
+        highest["tag_name"] = "v5.6.3-xray.10"
+        for abi, asset in zip(native.SO, highest["assets"]):
+            asset["name"] = "FongMi-Xray-TV-" + highest["tag_name"] + "-" + abi + ".apk"
+        result, _ = self.download(metadata=highest, pages=[[self.release], [highest]])
+        self.assertEqual(result["tag"], "v5.6.3-xray.10")
+        newer_upstream = {**highest, "tag_name": "v5.6.10-xray.1"}
+        self.assertIs(native.select_retained_release([highest, newer_upstream]), newer_upstream)
+        newer_major = {**highest, "tag_name": "v10.0.0-xray.1"}
+        self.assertIs(native.select_retained_release([newer_upstream, newer_major]), newer_major)
+
+    def test_highest_incomplete_container_fails_without_downloading_older_release(self):
+        for count in (0, 1):
+            highest = copy.deepcopy(self.release)
+            highest["tag_name"] = "v5.6.3-xray.3"
+            highest["assets"] = highest["assets"][:count]
+            for asset in highest["assets"]:
+                asset["name"] = asset["name"].replace("v5.6.3-xray.2", "v5.6.3-xray.3")
+            pages = json.dumps([self.release]) + "\n" + json.dumps([highest])
+            with self.subTest(available_abis=count), \
+                    patch.object(native.subprocess, "check_output", return_value=pages), \
+                    patch.object(native.subprocess, "run") as download:
+                with self.assertRaisesRegex(ValueError, "Missing or ambiguous"):
+                    native.fetch_retained_inputs("owner/repo", self.root / "download")
+                download.assert_not_called()
+
+    def test_no_eligible_or_ambiguous_highest_container_is_rejected(self):
+        for releases in ([], [{**self.release, "tag_name": "v5.6.0-xray.5"}],
+                         [{**self.release, "draft": True}]):
+            with self.subTest(releases=releases), self.assertRaisesRegex(ValueError, "No published"):
+                native.select_retained_release(releases)
+        with self.assertRaisesRegex(ValueError, "Ambiguous highest"):
+            native.select_retained_release([self.release, copy.deepcopy(self.release)])
+        with self.assertRaisesRegex(ValueError, "Ambiguous highest"):
+            native.select_retained_release([self.release, {**self.release, "tag_name": "v05.6.3-xray.2"}])
+
+    def test_annotated_container_tag_records_commit_source(self):
+        result, _ = self.download(annotated=True)
+        self.assertEqual(result["tag_source_commit"], "a" * 40)
 
     def test_download_failure_and_metadata_mismatch_never_publish_inputs(self):
         with self.assertRaises(RuntimeError):

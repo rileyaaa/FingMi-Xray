@@ -24,15 +24,37 @@ SO = {
     "arm64-v8a": "7e160faba4f64abb7551b48d07ae886af73464d3079978dcd55352e7b22bd6b3",
 }
 SOURCES = ("upstream-568", "retained-release")
+RELEASE_VERSION = re.compile(r"v(\d+)\.(\d+)\.(\d+)-xray\.(\d+)")
+
+
+def retained_version(release):
+    tag = release.get("tag_name", "")
+    match = RELEASE_VERSION.fullmatch(tag)
+    if release.get("draft") is not False or not match or tag == "v5.6.0-xray.5":
+        return None
+    return tuple(map(int, match.groups()))
+
+
+def select_retained_release(releases):
+    # Release display flags do not change the pinned native bytes in an APK.
+    # Choose the highest version first; an incomplete newest container must fail,
+    # not silently fall back to another build with different provenance.
+    candidates = [(retained_version(release), release) for release in releases]
+    candidates = [(version, release) for version, release in candidates if version is not None]
+    if not candidates:
+        raise ValueError("No published FingMi-Xray APK container is available")
+    latest = max(version for version, _ in candidates)
+    matches = [release for version, release in candidates if version == latest]
+    if len(matches) != 1:
+        raise ValueError("Ambiguous highest FingMi-Xray APK container version")
+    return matches[0]
 
 
 def retained_assets(release):
     tag = release.get("tag_name", "")
-    if (release.get("draft") is not False or release.get("prerelease") is not False
-            or not isinstance(release.get("id"), int) or release["id"] <= 0
-            or not re.fullmatch(r"v\d+\.\d+\.\d+-xray\.\d+", tag)
-            or tag == "v5.6.0-xray.5"):
-        raise ValueError("Latest release is not a current formal FingMi-Xray release")
+    if (retained_version(release) is None or type(release.get("prerelease")) is not bool
+            or type(release.get("id")) is not int or release["id"] <= 0):
+        raise ValueError("Release is not a published FingMi-Xray APK container")
     assets = {}
     for abi in SO:
         name = "FongMi-Xray-TV-" + tag + "-" + abi + ".apk"
@@ -48,11 +70,42 @@ def retained_assets(release):
 def fetch_retained_inputs(repository: str, directory: Path):
     if not re.fullmatch(r"[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+", repository):
         raise ValueError("Invalid GitHub repository")
-    # Snapshot once. Asset IDs do not silently switch when the same tag is replaced.
-    release = json.loads(subprocess.check_output([
-        "gh", "api", "repos/" + repository + "/releases/latest", "--method", "GET",
-    ], text=True))
+    # One paginated snapshot, independent of GitHub's Latest/prerelease display.
+    # Asset IDs do not silently switch when the same tag is replaced.
+    output = subprocess.check_output([
+        "gh", "api", "repos/" + repository + "/releases?per_page=100", "--method", "GET",
+        "--paginate",
+    ], text=True)
+    # gh 2.46 supports --paginate but not --slurp; decode each returned page.
+    releases, decoder = [], json.JSONDecoder()
+    while output.strip():
+        page, end = decoder.raw_decode(output.lstrip())
+        if not isinstance(page, list):
+            raise ValueError("Unexpected GitHub release listing page")
+        releases.extend(page)
+        output = output.lstrip()[end:]
+    release = select_retained_release(releases)
     assets = retained_assets(release)
+    tag = release["tag_name"]
+    ref = json.loads(subprocess.check_output([
+        "gh", "api", "repos/" + repository + "/git/ref/tags/" + tag, "--method", "GET",
+    ], text=True))
+    if ref.get("ref") != "refs/tags/" + tag:
+        raise ValueError("Retained APK container tag identity mismatch")
+    obj = ref.get("object", {})
+    for _ in range(5):
+        if not re.fullmatch(r"[0-9a-f]{40}", obj.get("sha", "")):
+            raise ValueError("Invalid retained APK container source")
+        if obj.get("type") == "commit":
+            break
+        if obj.get("type") != "tag":
+            raise ValueError("Retained APK container tag does not identify a commit")
+        annotated = json.loads(subprocess.check_output([
+            "gh", "api", "repos/" + repository + "/git/tags/" + obj["sha"], "--method", "GET",
+        ], text=True))
+        obj = annotated.get("object", {})
+    else:
+        raise ValueError("Retained APK container tag nesting is too deep")
     directory.mkdir(parents=True, exist_ok=True)
     names = {"armeabi-v7a": "libass-source-v7.apk", "arm64-v8a": "libass-source-v8.apk"}
     with tempfile.TemporaryDirectory(prefix="libass-download-", dir=directory) as temporary:
@@ -83,6 +136,9 @@ def fetch_retained_inputs(repository: str, directory: Path):
         report = {
             "native_source": "retained-release", "repository": repository,
             "release_id": release["id"], "tag": release["tag_name"],
+            # This records tag provenance, not a claim about APK Java contents.
+            "prerelease": release["prerelease"], "tag_source_commit": obj["sha"],
+            "target_commitish": release.get("target_commitish"),
             "assets": {abi: {key: asset.get(key) for key in ("id", "name", "size", "digest")}
                        for abi, asset in assets.items()},
             "apk_sha256": apk_digests, "so_sha256": SO,
