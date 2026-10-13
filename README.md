@@ -1,6 +1,6 @@
 # FingMi-Xray
 
-FingMi-Xray 是基于 [FongMi/TV](https://github.com/FongMi/TV) 的 Android TV 二次开发项目。
+FingMi-Xray 是基于 [FongMi/TV](https://github.com/FongMi/TV) 的 Android TV 二次开发项目，安装后的应用显示名称为 **FongMi-Xray**。
 
 项目主要面向一种很具体的播放场景：**影视接口、节目单和播放地址本身可以正常获取，但部分港澳台、海外或跨境媒体线路在当前网络环境下直连质量较差。**
 
@@ -12,7 +12,7 @@ FingMi-Xray 将 Xray 集成到播放器内部。遇到这类内容时，可以�
 
 GitHub Releases 保留 `v5.6.0-xray.5` 黄金参考、一个[当前正式版](https://github.com/rileyaaa/FingMi-Xray/releases/latest)，以及一份最新 `source-backup-*` 源码备份。正式版包含独立 `:xray`、`:tv-recovery` 模块，以及 Hysteria2 备注查询、公网 IPv6 播放地址、播放页初始化/交接和冷入口待机恢复修复，使用固定正式签名。版本命名与递增规则见 [PROJECT.md](docs/PROJECT.md#版本命名与覆盖升级)，AI 发布要求见 [AI_COLLABORATION.md](docs/AI_COLLABORATION.md#11-ai-开发与发布的版本约束)，签名恢复与构建验收见 [DEVELOPMENT.md](docs/DEVELOPMENT.md#固定签名与-release-构建校验)。旧签名安装包首次切换需要卸载；后续保持同签名与包名、递增 versionCode，可覆盖安装。
 
-当前源码修补目标为 `v5.6.3-xray.3` / `563003`：修复直播/点播页退出时的图片清理崩溃，以及用户批准的单项上游主机名崩溃；保留 `.2` 的基础 decoder 依赖修复。实际发布状态以 Releases 为准，例外范围见 [AI 协作规则](docs/AI_COLLABORATION.md#9-开发与-bug-修复范围只限-xray-和-tv-待机网络恢复)。
+当前源码发布目标为 `v5.6.3-xray.4` / `563004`：新增默认关闭的 TLS 分片开关，应用显示名称改为 `FongMi-Xray`；保留此前的退出清理、主机名崩溃及 decoder 依赖修复。分片参数与适用范围见 [开发说明](docs/DEVELOPMENT.md#settings--binder)，实际发布状态以 Releases 为准。
 
 主要组件版本如下：
 

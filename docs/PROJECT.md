@@ -210,6 +210,8 @@ Android 安装顺序使用 `versionCode = 公开上游 versionCode × 1000 + for
 
 后续覆盖升级必须保持包名 `com.fongmi.android.tv` 和固定正式签名，并递增 versionCode。不得在 AI 接手、环境重建或上游同步时重新生成签名。旧签名已遗失，首次切换需要备份配置并卸载旧安装；固定签名的位置、恢复方法和产物校验见 [DEVELOPMENT.md](DEVELOPMENT.md#固定签名与-release-构建校验)。AI 发布时的强制执行要求见 [AI_COLLABORATION.md](AI_COLLABORATION.md#11-ai-开发与发布的版本约束)。
 
+用户指定 Android TV 应用显示名称为 **FongMi-Xray**，用于区分官方与二开版本；通过 Leanback flavor 资源覆盖实现。显示名称与安装包身份不同，改名不改变上述包名、签名和覆盖升级约束，也不重命名 GitHub 仓库或 Java namespace。
+
 ## 9. 上游升级原则
 
 FingMi-Xray 应尽可能继续跟随 FongMi/TV，而不是复制整个上游长期独立演化。除 Xray 与 TV 网络恢复外，**“和上游一致”本身就是默认维护目标。**

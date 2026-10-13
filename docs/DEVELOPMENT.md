@@ -13,8 +13,8 @@
 - 上游目标 commit：`c616c0aa3613e87529791587a9f71b78c278c991`
 - 上一固定基线：`4afc4473e22a7ed3d98ee12233e0c2a490061000`（5.6.3）
 - 两者是直接父子 commit；新增 runtime 变化集中在 `catvod` 的 redirect-aware proxy selection/authentication。Release / APK 的更高版本号不改变本项目的公开源码上游基线。
-- app `versionCode`：`563003`
-- app `versionName`：`v5.6.3-xray.3`
+- app `versionCode`：`563004`
+- app `versionName`：`v5.6.3-xray.4`
 - Java：21
 - Gradle wrapper：9.7.1
 - Android Gradle Plugin：9.3.1
@@ -306,7 +306,7 @@ Release 的 APK 发布集合长期保留 `v5.6.0-xray.5` 黄金参考和一个�
 
 `test.7` 构建源码为 `439cea8d7a9d3cdb1a17b4ed962c6d68ed164508`，缺少后续 Hysteria2 备注查询边界修复；正式版替换旧测试发布。构建源码、资产 hash 与当前验收结果记录在对应 GitHub Release，历史 test.7 证据保留在本文维护记录，不能当作正式版的验证。
 
-发布 workflow 以 `BUILD_SOURCE_SHA` 作为唯一构建与发布源码，重新准备固定依赖、执行源码 guard 与双 ABI 黄金 Xray chain parity，只编译/assemble Android TV / Leanback Release 两个 ABI，并核对最终 native provenance、Manifest、签名、应用版本、non-debuggable 与 16 KB alignment。当前显式配置 `RELEASE_TAG=v5.6.3-xray.3` 与指定旧源码备份 `PREVIOUS_BACKUP_TAG`，不会自动递增修订号。正常手动触发时 `BUILD_SOURCE_SHA = github.sha`，权限保持 `contents: write + actions: read`，同一发布流程使用 concurrency 排队而不取消正在进行的发布。
+发布 workflow 以 `BUILD_SOURCE_SHA` 作为唯一构建与发布源码，重新准备固定依赖、执行源码 guard 与双 ABI 黄金 Xray chain parity，只编译/assemble Android TV / Leanback Release 两个 ABI，并核对最终 native provenance、Manifest、签名、应用版本、non-debuggable 与 16 KB alignment。当前显式配置 `RELEASE_TAG=v5.6.3-xray.4` 与指定旧源码备份 `PREVIOUS_BACKUP_TAG`，不会自动递增修订号。正常手动触发时 `BUILD_SOURCE_SHA = github.sha`，权限保持 `contents: write + actions: read`，同一发布流程使用 concurrency 排队而不取消正在进行的发布。
 
 `scripts/build/publish-current-release.py` 负责上传和替换，`tests/test-release-publication.py` 验证发布失败与清理顺序。两个 APK 和源码 ZIP 先分别上传到草稿并逐文件核对 name / digest / size；两份新产物完整后才进入切换。已有同名正式版必须由用户明确要求并选中 `replace_existing`；旧 APK 暂存为 rollback 草稿，直到新正式 APK、源码备份及各自 Git tag 都验证成功才清理。只删除显式指定的旧备份，不按 `source-backup-*` 通配删除。失败时保留可诊断/恢复的草稿，不把失败说成替换成功；正常收尾只留下黄金版、当前正式版及最新源码备份。
 
@@ -801,3 +801,11 @@ Xray 当前源码重新验证 9000 次 Controller/Client 清理序列、102 次�
 新增配置回归 36 项通过，并覆盖默认关闭、既有 mask 保留与顺序、重复应用、H3 跳过、REALITY 不受无关 TLS ALPN 影响，以及 ping 副本保留选项且不污染播放配置。真实 controller/client/service 配合 Android/Binder/native 替身验证保存、删除、未保存测试、不可变请求及 validate/test/start 传递；既有 normalizer、transport-security、playback、ART API 与构建 guard 通过。独立复核同时修正旧源码 parity guard 对注释的过度转义匹配，确保 Java 字符串中的斜杠不会遮蔽真实配置差异；黄金恢复文件保持冻结。
 
 官方 JBR 21 下 Xray JUnit 3 项（失败、错误、跳过均为 0）及 Leanback Release 的 Java、AIDL、资源编译通过。本地 ARMv7 native harness 再次遇到既有 QEMU 超时，因此不声称本轮 v7 原生验证通过，也不据此认定设备核心故障；没有重复等待。以上没有覆盖电视 ART/遥控实测、真实节点及设备内存曲线，也没有完成新 APK assemble/发布。
+
+### 2026-10-13 — 分片参数评估与 `.4` 发布准备
+
+用户补充该预设来自手机 IG 图片/视频的低延迟使用经验，并要求评估后发布电视版本。保留已实测有效的 `80-120 / 5-10`，不开启全局默认，不增加调参或 DNS 面板。本地两组捕获的首末 ClientHello 分片跨度约 125 / 139 毫秒；这是每条新 TLS 连接的握手开销，不是后续媒体数据持续分片。在受干扰线路上避免重试可能抵消该开销，但缺少用户线路的受控 A/B 证据，不能据本地环回宣称其它参数更快。自动跳过按 transport/security 判断，VLESS/VMess 等协议名本身不决定适用性；XHTTP 独立 `downloadSettings` 子连接不继承顶层 mask，不将其计入分片覆盖范围。
+
+按用户要求仅用 Leanback 默认/简中/繁中资源覆盖将应用显示名称改为 `FongMi-Xray`。公开上游资源、包名 `com.fongmi.android.tv`、固定签名与 Xray 核心保持不变。远端 `.3` 已发布，本次正常递增到 `v5.6.3-xray.4` / `563004`；发布器同步生成匹配源码备份，并在验证完成后替换指定的 `source-backup-2026-10-11-main-b01e193a`。构建与上传结果以 Actions / Releases 实际验证为准，准备状态不等于已发布。
+
+提交前本地 Leanback Release Java 编译、资源链接和 Manifest 合并通过；用 AAPT2 读取本次双 ABI linked resource table，默认/简中/繁中 `app_name` 均为 `FongMi-Xray`，版本与包名一致。Gradle 两模块单测入口通过并复用未变更结果（Xray 3 项、recovery 2 项，失败/错误/跳过为 0）；build hygiene、16 项发布事务、12 项续发来源回归、固定签名与两个 workflow 纯手动 YAML 检查通过。完整 APK assemble、最终 DEX/native/签名验收与远端发布交给本次用户授权的 Actions 从提交源码执行，不将本地编译检查冒称正式 APK 已发布。

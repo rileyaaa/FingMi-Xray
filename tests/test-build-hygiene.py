@@ -432,8 +432,8 @@ if "fingmi-xray-5.6.3-current-main-release" in publish_workflow:
 
 if not re.search(r'PREVIOUS_BACKUP_TAG: "source-backup-[^\"]+"', publish_workflow):
     errors.append("publish workflow must explicitly select the previous source backup")
-if 'RELEASE_TAG: "v5.6.3-xray.3"' not in publish_workflow:
-    errors.append("publish workflow must target the v5.6.3-xray.3 formal release")
+if 'RELEASE_TAG: "v5.6.3-xray.4"' not in publish_workflow:
+    errors.append("publish workflow must target the v5.6.3-xray.4 formal release")
 for required in (
     "      replace_existing:",
     "        type: boolean",
@@ -457,8 +457,8 @@ for name, text in (
 app_build = (ROOT / "app/build.gradle").read_text(encoding="utf-8")
 version_name = re.search(r'versionName "([^"]+)"', app_build).group(1)
 version_code = int(re.search(r'versionCode (\d+)', app_build).group(1))
-if version_name != "v5.6.3-xray.3" or version_code != 563003:
-    errors.append("fork release version must match v5.6.3-xray.3 / 563003")
+if version_name != "v5.6.3-xray.4" or version_code != 563004:
+    errors.append("fork release version must match v5.6.3-xray.4 / 563004")
 if f'RELEASE_TAG: "{version_name}"' not in publish_workflow:
     errors.append("publish tag must equal the versionName embedded in the APK")
 resume_helper = (ROOT / "scripts/build/resume-verified-release.py").read_text(encoding="utf-8")

@@ -300,12 +300,11 @@ class Publisher:
         version_name, version_code = self.source_version()
         notes = (f"{self.c.tag} 正式版\n\nAPK 构建源码：`{self.c.source}`\n"
                  f"Actions run：{self.c.run_id} / attempt {self.c.attempt}\n\n"
-                 "修复直播与点播退出时，Xray artwork 清理在已销毁 Activity 上重新取得 Glide manager 导致的崩溃；"
-                 "退出期间继续释放播放代理，同时阻止迟到回调重新加载界面图片和元数据。"
-                 "按用户专项授权，仅修复公开上游 OkProxySelector.Policy 对部分有效播放域名取得空 host 时的崩溃；"
-                 "代理选路与重定向规则保持原样。"
-                 "增加真实 Glide 的 API 28/35 生命周期回归及代理 host 回归，保留播放器初始化与最终 APK 类引用完整性验收。"
-                 "Xray 核心及固定签名保持不变。"
+                 "应用显示名称改为 FongMi-Xray，包名与固定签名保持不变，可从此前同签名版本覆盖升级。"
+                 "Xray 设置在 UDP 下增加默认关闭的 TLS 分片开关，预设 tlshello / 80–120 字节 / 5–10 毫秒；"
+                 "测试连接与实际播放均传递对应设置，Hysteria2、KCP、QUIC、无 TLS 与 XHTTP 仅 H3 等不适用配置自动跳过。"
+                 "该选项用于部分网络的握手兼容，不保证普遍提速，也不能修正节点域名 DNS 污染。"
+                 "保留此前退出清理、主机名崩溃与 decoder 依赖修复；不升级 Xray 核心或公开 FongMi 基线。"
                  "源码、单元、双 ABI native、Release 编译与签名校验已执行；电视真机行为尚未验收。\n\n")
         if old:
             notes += ("本次按用户明确要求同名替换，为一次性版本规则例外；"
