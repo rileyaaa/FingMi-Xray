@@ -25,6 +25,7 @@ public final class XrayPreferences {
     private static final String LINK_CIPHERTEXT = "link_ciphertext";
     private static final String LINK_IV = "link_iv";
     private static final String UDP = "udp";
+    private static final String TLS_FRAGMENT = "tls_fragment";
 
     private final SharedPreferences preferences;
 
@@ -63,7 +64,15 @@ public final class XrayPreferences {
         return preferences.getBoolean(UDP, false);
     }
 
+    public synchronized boolean isTlsFragmentEnabled() {
+        return preferences.getBoolean(TLS_FRAGMENT, false);
+    }
+
     public synchronized void save(String shareLink, boolean udp) throws Exception {
+        save(shareLink, udp, false);
+    }
+
+    public synchronized void save(String shareLink, boolean udp, boolean tlsFragment) throws Exception {
         String normalized = XrayShareLinkNormalizer.normalize(shareLink);
 
         Cipher cipher = Cipher.getInstance("AES/GCM/NoPadding");
@@ -79,6 +88,7 @@ public final class XrayPreferences {
                         LINK_IV,
                         Base64.encodeToString(cipher.getIV(), Base64.NO_WRAP))
                 .putBoolean(UDP, udp)
+                .putBoolean(TLS_FRAGMENT, tlsFragment)
                 .commit()) {
             throw new IllegalStateException("Unable to persist Xray configuration");
         }
@@ -89,6 +99,7 @@ public final class XrayPreferences {
                 .remove(LINK_CIPHERTEXT)
                 .remove(LINK_IV)
                 .remove(UDP)
+                .remove(TLS_FRAGMENT)
                 .commit()) {
             throw new IllegalStateException("Unable to remove Xray configuration");
         }

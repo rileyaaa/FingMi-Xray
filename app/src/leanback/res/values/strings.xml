@@ -40,6 +40,8 @@
     <string name="xray_test">Test connection</string>
     <string name="xray_test_success">Connected, %1$d ms</string>
     <string name="xray_udp">UDP</string>
+    <string name="xray_tls_fragment">TLS fragmentation</string>
+    <string name="xray_tls_fragment_hint">Try for slow connections or TLS handshake failures; applies to TLS over TCP.</string>
     <string name="xray_vod_public_http_required">This video protocol cannot be fully proxied by Xray</string>
     <string name="xray_vod_required">Start video playback before enabling Xray</string>
 

@@ -135,6 +135,12 @@ Activity 负责：
 
 ### Settings / Binder
 
+设置页在 UDP 下提供默认关闭的 **TLS 分片**开关；仅保存一个 `tls_fragment` 布尔值，不增加参数编辑器、代理出站或依赖。用户已在自己的网络验证的预设为 `tlshello`、`80-120` 字节、`5-10` 毫秒。固定 v26.7.28 核心使用 `streamSettings.finalmask.tcp` 的 `fragment`，其中等待字段是 **`delay`**，对应旧 `freedom.fragment` 的 `interval`，不能把 v2rayN 的 `Fragment4RayItem` 原样当作核心 JSON。只分片首个 TLS ClientHello，正常后续数据不按此预设分片；它可改善部分网络的握手兼容性，本身会增加分段与等待，不承诺普遍降低延迟或提高带宽。
+
+开关通过不可变 Request / AIDL 显式传入 validate、test 和 start，与节点及 UDP 同次保存；未保存的设置用于连接测试，播放启动读取已保存值。测试进行中改变分片选项会使旧测试结果显示“设置已修改，请重新测试”；删除节点同时清除开关。关闭或旧安装没有该键时，保留黄金默认配置；开启是用户授权的有意行为扩展。分片只作用于 TCP 类 TLS/REALITY；HY2、KCP、QUIC、无 TLS，以及 XHTTP 仅 `h3` 的 ALPN 保持原样。既有 TCP mask 保留，新增 fragment 放最前，不重复添加已有 fragment。
+
+**DNS 边界不因分片改变。** 当前已有经代理出站的 DoH（1.1.1.1、8.8.8.8）及 TCP/53 回退，服务于代理内目标解析；节点域名引导解析仍走系统 DNS。节点地址为 IP 时，显式 SNI、WS Host 分别是 TLS/HTTP 身份，不替代连接地址。分片不能把被污染为回环的节点域名恢复成正确地址；本轮不额外增加 DoH 设置，也不把节点引导策略切到依赖同一代理的 DNS，避免启动循环。`allowInsecure=1` 且尚无受信任 pin/name 的 TLS 链接，仍先执行既有证书预探测；该独立 probe API 不携带运行配置的分片选项，不能为分片绕过证书校验。
+
 分享链接兼容目标沿用冻结发布说明：以 **v2rayN 导出的标准单节点分享链接**作为主要兼容与测试目标；v2rayN 只是格式来源，不是工程依赖。当前 normalizer / native chain 继续由 `tests/test-v2rayn-share-chain.py`、`tests/test-v2rayn-reference-chain.py` 与发布 native parity 约束。
 
 设置页的 VALIDATE / TEST / RESET_SECURITY 由 `XraySettingsController` 串行拥有单一 operation generation，45 秒 timeout、abandon、client replacement 与 stale callback 丢弃都在 controller/client 边界收口。
@@ -353,6 +359,7 @@ Release 文件名沿用上游 finalizer 的 `leanback-armeabi_v7a.apk` / `leanba
 - build/publish 的 Gradle 编译步骤必须同时执行 `:xray:testDebugUnitTest` 与 `:tv-recovery:testDebugUnitTest`；另有独立的 `:catvod:testDebugUnitTest` 步骤验证用户批准的主机名修复及既有代理规则。`test-build-hygiene.py` 检查三个入口不可被遗漏，发布续发工具也要求真实 Glide 和代理回归步骤成功。Python source/JVM guards 与 Gradle 模块 JUnit 是不同验证层，不能互相替代；workflow 仍只允许手动触发。
 
 - `tests/test-current-native-share-chain.py` + `tests/xray-current-chain/`：执行 current Java normalize/security/config 链，并分别调用固定 v7 / arm64 发布 `libgojni.so`，对 26 组 conversion/runtime oracle 与发布版 `testXray` 做动态 parity；其中 6 组覆盖 KCP golden cases。
+- `tests/test-xray-tls-fragment.py --workdir build/work/xray-tls-fragment`：执行真实 Java config/bridge，验证默认关闭保持原配置、TCP/TLS 适用范围、HTTP/3 跳过、mask 顺序/去重，以及测试副本与播放配置一致性；复用固定摘要的 org.json，native I/O 为替身，不能代替原生分片实测。两个手动 build/publish workflow 均运行此项。
 - `tests/xray-session/`：Android / Binder / Handler 等 deterministic test doubles，只替代平台边界，真实编译 session / settings controller。
 - recovery 专用 fixture 继续留在 `recovery/*-tests/`；只有 current workflow 显式调用的冻结 oracle 才进入 current 验收链。
 
@@ -784,3 +791,13 @@ Xray 当前源码重新验证 9000 次 Controller/Client 清理序列、102 次�
 新的 Actions 在输入预检阶段停止：已有 `.1` / `.2` 资产未变化，但远端 Release 已被改为预览版，`releases/latest` 因此返回被脚本明确排除的 5.6.0 黄金参考。问题发生在公开 player/native 重建之前，不是新的应用编译错误。保留远端预览状态，将容器选择改为分页读取已发布版本、按数字版本选取最新符合命名的非草稿；只将指定 APK 作为两份固定 Libass SO 的容器。最高版本资产不完整或摘要不符仍必须失败，native pin、历史上游整包验证模式和最终 APK 校验不变。这使重新标记已发布版本不会切断固定构建输入，也避免错误地把有问题的旧包重新设为正式版。
 
 容器选择与完整性回归 18 项通过；实际分页查询后选中仍为预览状态的 `.2`，按原资产 ID 下载双 ABI，APK size / digest 和两份固定 `libmedia3ass.so` SHA-256 全部通过。报告区分 `tag_source_commit`（tag 快照观察值）与 APK 摘要，不将其冒称重新验证的 APK 编译源码；下载和提取不读取 Java/DEX。此次仅修构建取源，应用修复、`.3` 版本、固定签名和核心不再变化。
+
+### 2026-10-13 — 可选 TLS 分片与验证边界
+
+用户反馈在自己的网络使用 `tlshello / 80-120 / 5-10` 后连接改善，明确要求在 UDP 下增加轻量开关。当前仅在 Xray 设置及模块内部接入默认关闭的选项，具体配置、适用范围与 DNS 边界见前述 Settings / Binder；不据此将此前连接失败认定为 DNS 污染，也不把 Xray 测试结束后的进程清理当作根因。没有修改 FongMi 普通业务、TV recovery、固定核心、版本或签名，未触发 Actions 或发布新 APK。
+
+固定发布 ARM64 JNI（SHA-256 `40b08a399871973ba6ad5898ca7097961337d7aeddb4b3378b153a66679eeece`）实际 `testXray` 接受关闭、finalmask 分片及旧 freedom 分片三组配置。Go TLS / Chrome uTLS 各自开关两态共四个本地 VLESS+TLS+WS 测试全部完成证书 pin 校验、TLS 握手、WS 升级、`/?ed=2560` early-data 和隧道内 HEAD 204。环回链路的 TLS record 捕获中，关闭为一个 ClientHello record；开启分别为 19 / 18 个，非末段 payload 均为 80–120 字节，到达间隔约 5.3–9.9 毫秒，重组得到完整 ClientHello。目标、证书及 HTTP 响应均为本地测试，未连接用户节点；这证明固定核心的分片配置实际生效，不证明用户网络已恢复或普遍提速。其它 TCP transport / REALITY 的覆盖来自固定核心源码与配置回归，未声称各自完成端到端握手。
+
+新增配置回归 36 项通过，并覆盖默认关闭、既有 mask 保留与顺序、重复应用、H3 跳过、REALITY 不受无关 TLS ALPN 影响，以及 ping 副本保留选项且不污染播放配置。真实 controller/client/service 配合 Android/Binder/native 替身验证保存、删除、未保存测试、不可变请求及 validate/test/start 传递；既有 normalizer、transport-security、playback、ART API 与构建 guard 通过。独立复核同时修正旧源码 parity guard 对注释的过度转义匹配，确保 Java 字符串中的斜杠不会遮蔽真实配置差异；黄金恢复文件保持冻结。
+
+官方 JBR 21 下 Xray JUnit 3 项（失败、错误、跳过均为 0）及 Leanback Release 的 Java、AIDL、资源编译通过。本地 ARMv7 native harness 再次遇到既有 QEMU 超时，因此不声称本轮 v7 原生验证通过，也不据此认定设备核心故障；没有重复等待。以上没有覆盖电视 ART/遥控实测、真实节点及设备内存曲线，也没有完成新 APK assemble/发布。

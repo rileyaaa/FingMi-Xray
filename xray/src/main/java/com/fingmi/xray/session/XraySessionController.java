@@ -77,6 +77,7 @@ public final class XraySessionController implements XrayServiceClient.Listener, 
                     XrayOperation.START,
                     shareLink,
                     preferences.isUdpEnabled(),
+                    preferences.isTlsFragmentEnabled(),
                     () -> scheduleStartupTimeout(operationId)));
             notifyState(XraySessionListener.STARTING, 0, "");
         } catch (Exception error) {

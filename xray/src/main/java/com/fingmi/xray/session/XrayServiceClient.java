@@ -27,6 +27,7 @@ final class XrayServiceClient {
         final int operation;
         final String shareLink;
         final boolean udp;
+        final boolean tlsFragment;
         final Runnable onDispatched;
 
         Request(
@@ -35,10 +36,21 @@ final class XrayServiceClient {
                 String shareLink,
                 boolean udp,
                 Runnable onDispatched) {
+            this(operationId, operation, shareLink, udp, false, onDispatched);
+        }
+
+        Request(
+                long operationId,
+                int operation,
+                String shareLink,
+                boolean udp,
+                boolean tlsFragment,
+                Runnable onDispatched) {
             this.operationId = operationId;
             this.operation = operation;
             this.shareLink = shareLink == null ? "" : shareLink;
             this.udp = udp;
+            this.tlsFragment = tlsFragment;
             this.onDispatched = onDispatched == null ? () -> { } : onDispatched;
         }
     }
@@ -137,11 +149,11 @@ final class XrayServiceClient {
         try {
             switch (request.operation) {
                 case XrayOperation.VALIDATE ->
-                        service.validate(request.operationId, request.shareLink, request.udp, callback);
+                        service.validate(request.operationId, request.shareLink, request.udp, request.tlsFragment, callback);
                 case XrayOperation.TEST ->
-                        service.test(request.operationId, request.shareLink, request.udp, callback);
+                        service.test(request.operationId, request.shareLink, request.udp, request.tlsFragment, callback);
                 case XrayOperation.START ->
-                        service.start(request.operationId, request.shareLink, request.udp, callback);
+                        service.start(request.operationId, request.shareLink, request.udp, request.tlsFragment, callback);
                 case XrayOperation.STOP ->
                         service.stop(request.operationId, callback);
                 case XrayOperation.RESET_SECURITY ->

@@ -111,9 +111,9 @@ public interface IXrayCallback {
 package com.fingmi.xray.service;
 import android.os.IBinder;
 public interface IXrayService {
-    void validate(long id, String link, boolean udp, IXrayCallback callback) throws Exception;
-    void test(long id, String link, boolean udp, IXrayCallback callback) throws Exception;
-    void start(long id, String link, boolean udp, IXrayCallback callback) throws Exception;
+    void validate(long id, String link, boolean udp, boolean tlsFragment, IXrayCallback callback) throws Exception;
+    void test(long id, String link, boolean udp, boolean tlsFragment, IXrayCallback callback) throws Exception;
+    void start(long id, String link, boolean udp, boolean tlsFragment, IXrayCallback callback) throws Exception;
     void stop(long id, IXrayCallback callback) throws Exception;
     void resetSecurity(long id, IXrayCallback callback) throws Exception;
     void cancel(int operation, long id) throws Exception;
@@ -212,6 +212,7 @@ public final class ServiceClientLifecycleTest {
         final List<String> trace;
         IXrayCallback callback;
         boolean throwCancelLinkage;
+        boolean lastUdp, lastTlsFragment;
 
         FakeService(List<String> trace) {
             this.trace = trace;
@@ -223,17 +224,23 @@ public final class ServiceClientLifecycleTest {
         }
 
         @Override
-        public void validate(long id, String link, boolean udp, IXrayCallback cb) {
+        public void validate(long id, String link, boolean udp, boolean tlsFragment, IXrayCallback cb) {
+            lastUdp = udp;
+            lastTlsFragment = tlsFragment;
             call("validate", id, cb);
         }
 
         @Override
-        public void test(long id, String link, boolean udp, IXrayCallback cb) {
+        public void test(long id, String link, boolean udp, boolean tlsFragment, IXrayCallback cb) {
+            lastUdp = udp;
+            lastTlsFragment = tlsFragment;
             call("test", id, cb);
         }
 
         @Override
-        public void start(long id, String link, boolean udp, IXrayCallback cb) {
+        public void start(long id, String link, boolean udp, boolean tlsFragment, IXrayCallback cb) {
+            lastUdp = udp;
+            lastTlsFragment = tlsFragment;
             call("start", id, cb);
         }
 
@@ -341,6 +348,27 @@ public final class ServiceClientLifecycleTest {
                 "binding generation did not keep only the latest pending request: " + service.calls);
         check(dispatch[0] == 0 && dispatch[1] == 1,
                 "released pending dispatch ownership changed");
+    }
+
+    private static void fragmentOptionReachesEachBinderOperation() {
+        for (int operation : new int[] {XrayOperation.VALIDATE, XrayOperation.TEST, XrayOperation.START}) {
+            Handler.reset();
+            FakeContext context = new FakeContext();
+            XrayServiceClient client = new XrayServiceClient(context, new Listener());
+            client.execute(new XrayServiceClient.Request(101L, operation,
+                    "trojan://synthetic@example.invalid:443", false, true, () -> {}));
+            FakeService service = new FakeService(context.trace);
+            connect(context, service);
+            check(!service.lastUdp && service.lastTlsFragment,
+                    "Binder dispatch lost the independent fragment option for " + operation);
+            client.execute(new XrayServiceClient.Request(102L, operation,
+                    "trojan://synthetic@example.invalid:443", true, false, () -> {}));
+            check(service.lastUdp && !service.lastTlsFragment,
+                    "Binder dispatch reused a stale fragment option for " + operation);
+            client.execute(request(103L, operation, () -> {}));
+            check(!service.lastTlsFragment, "legacy request enabled fragmentation");
+            client.disconnect();
+        }
     }
 
     private static void currentCallbackDelivered() {
@@ -635,6 +663,7 @@ public final class ServiceClientLifecycleTest {
     }
 
     public static void main(String[] args) {
+        fragmentOptionReachesEachBinderOperation();
         pendingRequestReplacementMatchesReleased();
         currentCallbackDelivered();
         disconnectInvalidatesPostedCallback();

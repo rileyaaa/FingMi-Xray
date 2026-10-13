@@ -59,30 +59,48 @@ public final class XraySettingsController implements XrayServiceClient.Listener,
         return preferences.isUdpEnabled();
     }
 
+    public boolean isTlsFragmentEnabled() {
+        return preferences.isTlsFragmentEnabled();
+    }
+
     public void save(String shareLink, boolean udp) throws Exception {
+        save(shareLink, udp, false);
+    }
+
+    public void save(String shareLink, boolean udp, boolean tlsFragment) throws Exception {
         assertMainThread();
         ensureOpen();
         // Released UI blocks Save only while RESET_SECURITY owns the settings process.
         if (activeOperation == XrayOperation.RESET_SECURITY) return;
-        preferences.save(shareLink, udp);
+        preferences.save(shareLink, udp, tlsFragment);
     }
 
     public long test(String shareLink, boolean udp) {
+        return test(shareLink, udp, false);
+    }
+
+    public long test(String shareLink, boolean udp, boolean tlsFragment) {
         assertMainThread();
         ensureIdle();
         return begin(
                 XrayOperation.TEST,
                 XrayShareLinkNormalizer.normalize(shareLink),
-                udp);
+                udp,
+                tlsFragment);
     }
 
     public long validate(String shareLink, boolean udp) {
+        return validate(shareLink, udp, false);
+    }
+
+    public long validate(String shareLink, boolean udp, boolean tlsFragment) {
         assertMainThread();
         ensureIdle();
         return begin(
                 XrayOperation.VALIDATE,
                 XrayShareLinkNormalizer.normalize(shareLink),
-                udp);
+                udp,
+                tlsFragment);
     }
 
     public long delete() throws Exception {
@@ -177,7 +195,7 @@ public final class XraySettingsController implements XrayServiceClient.Listener,
         return activeOperation;
     }
 
-    private long begin(int operation, String shareLink, boolean udp) {
+    private long begin(int operation, String shareLink, boolean udp, boolean tlsFragment) {
         ensureOpen();
 
         long operationId = XrayOperationIds.next();
@@ -189,6 +207,7 @@ public final class XraySettingsController implements XrayServiceClient.Listener,
                 operation,
                 shareLink,
                 udp,
+                tlsFragment,
                 () -> scheduleTimeout(operationId)));
         return operationId;
     }

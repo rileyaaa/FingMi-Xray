@@ -7,8 +7,13 @@ final class XrayServiceClient {
     interface Listener { void onResult(XrayResult result); void onConnectionFailure(long id, String message); }
     static final class Request {
         final long operationId; final int operation; final Runnable onDispatched;
+        final String shareLink; final boolean udp; final boolean tlsFragment;
         Request(long id, int op, String share, boolean udp, Runnable dispatched) {
+            this(id, op, share, udp, false, dispatched);
+        }
+        Request(long id, int op, String share, boolean udp, boolean tlsFragment, Runnable dispatched) {
             operationId=id; operation=op; onDispatched=dispatched;
+            shareLink=share; this.udp=udp; this.tlsFragment=tlsFragment;
         }
     }
     static XrayServiceClient last;

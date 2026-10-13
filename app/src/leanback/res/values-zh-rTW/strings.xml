@@ -40,6 +40,8 @@
     <string name="xray_test">測試連線</string>
     <string name="xray_test_success">連線成功，%1$d 毫秒</string>
     <string name="xray_udp">UDP</string>
+    <string name="xray_tls_fragment">TLS 分片</string>
+    <string name="xray_tls_fragment_hint">連線緩慢或 TLS 交握失敗時可嘗試；僅適用於 TCP 上的 TLS 連線。</string>
     <string name="xray_vod_public_http_required">目前點播協議無法保證完整通過 Xray</string>
     <string name="xray_vod_required">請先開始點播播放再開啟 Xray</string>
 

@@ -27,10 +27,43 @@ def forbid(path: str, *needles: str) -> None:
         raise SystemExit(f"{path}: released-Xray contract forbids: {present}")
 
 
+JAVA_COMMENT_OR_LITERAL = re.compile(
+    r'"(?:\\.|[^"\\])*"'
+    r"|'(?:\\.|[^'\\])*'"
+    r"|/\*[\s\S]*?\*/|//[^\r\n]*"
+)
+
+
+def strip_java_comments(text: str) -> str:
+    # Match literals before comments so URLs, cipher names and escaped quotes
+    # cannot hide executable-code differences from the behavioral mirror.
+    return JAVA_COMMENT_OR_LITERAL.sub(
+        lambda match: " " if match.group().startswith(("//", "/*")) else match.group(),
+        text,
+    )
+
+
+def check_comment_stripping() -> None:
+    literals = r"""String cipher = "AES/GCM/NoPadding";
+String url = "https://example.invalid/a/*literal*/";
+String escaped = "quote: \" // still a string";
+char quote = '\''; char slash = '/';"""
+    with_comments = "/* removed block */\n" + literals + " // removed line\n"
+    if strip_java_comments(with_comments).strip() != literals:
+        raise SystemExit("Java mirror comment stripping altered string/char literals")
+    original = "".join(strip_java_comments(with_comments).split())
+    changed = "".join(strip_java_comments(
+        with_comments.replace("AES/GCM/NoPadding", "AES/ECB/NoPadding")).split())
+    if original == changed:
+        raise SystemExit("Java mirror comment stripping hid an AES mode change")
+
+
+check_comment_stripping()
+
+
 def normalized_java_mirror(path: str, package_name: str, class_name: str) -> str:
     text = read(path)
-    text = re.sub(r"/\\*.*?\\*/", "", text, flags=re.S)
-    text = re.sub(r"//[^\\n]*", "", text)
+    text = strip_java_comments(text)
     text = text.replace(f"package {package_name};", "package parity;")
     text = text.replace(class_name, "PlaybackDestinationInterceptor")
     return " ".join(text.split())
@@ -38,8 +71,24 @@ def normalized_java_mirror(path: str, package_name: str, class_name: str) -> str
 
 def normalized_legacy_mirror(path: str, package_name: str, class_name: str) -> str:
     text = read(path)
-    text = re.sub(r"/\\*.*?\\*/", "", text, flags=re.S)
-    text = re.sub(r"//[^\\n]*", "", text)
+    if class_name == "XrayPreferences":
+        # User-authorized optional TLS fragmentation adds one default-off flag.
+        # Project only that extension out; the released encrypted store remains
+        # an exact mirror, including its save/clear failure behavior.
+        text = text.replace('    private static final String TLS_FRAGMENT = "tls_fragment";\n', '')
+        text = text.replace('''    public synchronized boolean isTlsFragmentEnabled() {
+        return preferences.getBoolean(TLS_FRAGMENT, false);
+    }
+''', '')
+        text = text.replace('''    public synchronized void save(String shareLink, boolean udp) throws Exception {
+        save(shareLink, udp, false);
+    }
+''', '')
+        text = text.replace('save(String shareLink, boolean udp, boolean tlsFragment)',
+                            'save(String shareLink, boolean udp)')
+        text = text.replace('.putBoolean(TLS_FRAGMENT, tlsFragment)', '')
+        text = text.replace('.remove(TLS_FRAGMENT)', '')
+    text = strip_java_comments(text)
     text = re.sub(r"^package .*?$", "", text, flags=re.M)
     text = re.sub(r"^import .*?$", "", text, flags=re.M)
     text = text.replace(class_name, "Mirror")
@@ -71,6 +120,12 @@ for current_path, current_package, current_class, legacy_path, legacy_package, l
         raise SystemExit(
             f"{current_class} diverged from the released v5.6.0-xray.5 behavioral mirror"
         )
+    if current_class == "XrayPreferences":
+        # A real encrypted-store difference must survive the TLS-flag projection
+        # and comment stripping, otherwise the equality above proves too little.
+        changed_cipher = current_mirror.replace("AES/GCM/NoPadding", "AES/ECB/NoPadding")
+        if changed_cipher == current_mirror or changed_cipher == legacy_mirror:
+            raise SystemExit("XrayPreferences mirror failed to detect an AES mode change")
 
 
 current_destination = normalized_java_mirror(
@@ -148,6 +203,10 @@ require(
     'LINK_CIPHERTEXT = "link_ciphertext"',
     'LINK_IV = "link_iv"',
     'UDP = "udp"',
+    'TLS_FRAGMENT = "tls_fragment"',
+    'preferences.getBoolean(TLS_FRAGMENT, false)',
+    '.putBoolean(TLS_FRAGMENT, tlsFragment)',
+    '.remove(TLS_FRAGMENT)',
     "AES/GCM/NoPadding",
     "XrayShareLinkNormalizer.normalize(plaintext)",
 )
@@ -209,7 +268,8 @@ require(
     "xray/src/main/java/com/fingmi/xray/config/XrayConfigFactory.java",
     "public PreparedConfig prepare(int socksPort, String shareLink, boolean udp)",
     "XrayShareLinkSecurity.PreparedLink preparedLink = security.prepare(normalized);",
-    "createFromSecuredLink(socksPort, normalized, udp)",
+    "createFromSecuredLink(socksPort, normalized, udp, tlsFragment)",
+    "return prepare(socksPort, shareLink, udp, false);",
     "public void commitTrust() throws Exception",
 )
 
@@ -285,7 +345,7 @@ forbid(
 require(
     "xray/src/main/java/com/fingmi/xray/service/XrayService.java",
     "for (int attempt = 0; attempt < 3; attempt++)",
-    "configFactory.prepare(port, shareLink, udp)",
+    "configFactory.prepare(port, shareLink, udp, tlsFragment)",
     "XrayConfigFactory.PreparedConfig prepared",
     "bridge.validateConfig(config)",
     "bridge.testLatency(config, XrayConfigFactory.PROXY_TAG)",
@@ -455,6 +515,10 @@ require(
     "Notify.show(R.string.xray_changed_retry);",
     "XrayShareLinkNormalizer.normalize(readLink()).equals(mTestLink)",
     "mBinding.udpSwitch.isChecked() == mTestUdp",
+    "mBinding.tlsFragmentSwitch.isChecked() == mTestTlsFragment",
+    "mBinding.tlsFragmentSwitch.setChecked(mXray.isTlsFragmentEnabled());",
+    "mBinding.tlsFragmentSwitch.setChecked(false);",
+    "mOperationId = mXray.test(mTestLink, mTestUdp, mTestTlsFragment);",
 )
 forbid(
     "app/src/leanback/java/com/fongmi/android/tv/ui/activity/SettingXrayActivity.java",

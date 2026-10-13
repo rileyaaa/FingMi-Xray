@@ -58,29 +58,40 @@ public final class XrayConfigFactory {
     }
 
     public JSONObject create(int socksPort, String shareLink, boolean udp) throws Exception {
+        return create(socksPort, shareLink, udp, false);
+    }
+
+    public JSONObject create(int socksPort, String shareLink, boolean udp, boolean tlsFragment)
+            throws Exception {
         if (socksPort <= 0) throw new IllegalArgumentException("A positive SOCKS port is required");
 
         String normalized = XrayShareLinkNormalizer.normalize(shareLink);
         normalized = security.secure(normalized);
         normalized = XrayShareLinkNormalizer.normalize(normalized);
-        return createFromSecuredLink(socksPort, normalized, udp);
+        return createFromSecuredLink(socksPort, normalized, udp, tlsFragment);
     }
 
     public PreparedConfig prepare(int socksPort, String shareLink, boolean udp) throws Exception {
+        return prepare(socksPort, shareLink, udp, false);
+    }
+
+    public PreparedConfig prepare(int socksPort, String shareLink, boolean udp, boolean tlsFragment)
+            throws Exception {
         if (socksPort <= 0) throw new IllegalArgumentException("A positive SOCKS port is required");
 
         String normalized = XrayShareLinkNormalizer.normalize(shareLink);
         XrayShareLinkSecurity.PreparedLink preparedLink = security.prepare(normalized);
         normalized = XrayShareLinkNormalizer.normalize(preparedLink.value());
         return new PreparedConfig(
-                createFromSecuredLink(socksPort, normalized, udp),
+                createFromSecuredLink(socksPort, normalized, udp, tlsFragment),
                 preparedLink);
     }
 
     private JSONObject createFromSecuredLink(
             int socksPort,
             String normalized,
-            boolean udp) throws Exception {
+            boolean udp,
+            boolean tlsFragment) throws Exception {
         JSONObject converted = bridge.convertShareLink(normalized);
         patchLiteralPlusCredential(normalized, converted);
         JSONObject config = new JSONObject(converted.toString());
@@ -99,6 +110,7 @@ public final class XrayConfigFactory {
         if (streamSettings != null) {
             JSONObject sockopt = streamSettings.optJSONObject("sockopt");
             if (sockopt != null) sockopt.put("domainStrategy", "AsIs");
+            if (tlsFragment) applyTlsFragment(streamSettings);
         }
 
         outbounds.put(new JSONObject()
@@ -156,6 +168,47 @@ public final class XrayConfigFactory {
 
         config.put("log", new JSONObject().put("loglevel", "warning"));
         return config;
+    }
+
+    /** Optional first-ClientHello fragmentation; disabled keeps the released config unchanged. */
+    private static void applyTlsFragment(JSONObject stream) throws JSONException {
+        String security = stream.optString("security");
+        if (!"tls".equals(security) && !"reality".equals(security)) return;
+
+        String network = stream.optString("network", "tcp");
+        switch (network) {
+            case "tcp", "raw", "ws", "websocket", "httpupgrade", "grpc" -> { }
+            case "xhttp", "splithttp" -> {
+                JSONObject tls = "tls".equals(security) ? stream.optJSONObject("tlsSettings") : null;
+                JSONArray alpn = tls == null ? null : tls.optJSONArray("alpn");
+                if (alpn != null && alpn.length() == 1 && "h3".equals(alpn.optString(0))) return;
+            }
+            default -> { return; } // UDP transports and plaintext never use this option.
+        }
+
+        JSONObject finalMask = stream.optJSONObject("finalmask");
+        if (finalMask == null) {
+            finalMask = new JSONObject();
+            stream.put("finalmask", finalMask);
+        }
+        JSONArray existing = finalMask.optJSONArray("tcp");
+        if (existing != null) {
+            for (int i = 0; i < existing.length(); i++) {
+                JSONObject mask = existing.optJSONObject(i);
+                if (mask != null && "fragment".equals(mask.optString("type"))) return;
+            }
+        }
+        // The first wrapper sees the original TLS record before other masks transform it.
+        JSONArray tcp = new JSONArray().put(new JSONObject()
+                .put("type", "fragment")
+                .put("settings", new JSONObject()
+                        .put("packets", "tlshello")
+                        .put("length", "80-120")
+                        .put("delay", "5-10")));
+        if (existing != null) {
+            for (int i = 0; i < existing.length(); i++) tcp.put(existing.get(i));
+        }
+        finalMask.put("tcp", tcp);
     }
 
     public static final class PreparedConfig {

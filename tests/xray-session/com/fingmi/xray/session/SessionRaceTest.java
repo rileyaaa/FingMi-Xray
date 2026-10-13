@@ -10,7 +10,7 @@ public final class SessionRaceTest {
     static XraySessionController controller;
     static void check(boolean condition, String message) { if (!condition) throw new AssertionError(message); }
     static XrayServiceClient transport() { return XrayServiceClient.last; }
-    static void fresh(XraySessionListener listener) { Handler.reset(); controller=new XraySessionController(new Context(),listener); }
+    static void fresh(XraySessionListener listener) { Handler.reset(); XrayPreferences.udpEnabled=false; XrayPreferences.tlsFragmentEnabled=false; controller=new XraySessionController(new Context(),listener); }
     static void reply(XrayServiceClient.Request request, boolean success) {
         controller.onResult(new XrayResult(request.operationId,request.operation,success,success?12345:0,0,success?"":"synthetic failure"));
     }
@@ -244,8 +244,27 @@ public final class SessionRaceTest {
         check(controller.getState()==XraySessionListener.IDLE,"close did not finish in IDLE");
     }
 
+    static void playbackSnapshotsSavedFragmentOptions() {
+        fresh((s,p,m)->{});
+        XrayPreferences.udpEnabled=true;
+        XrayPreferences.tlsFragmentEnabled=true;
+        controller.start();
+        var first=transport().latest();
+        check(first.udp && first.tlsFragment, "playback did not use saved node options");
+        XrayPreferences.udpEnabled=false;
+        XrayPreferences.tlsFragmentEnabled=false;
+        check(first.udp && first.tlsFragment, "saved option change mutated dispatched START");
+        reply(first,true);
+        controller.stop();
+        check(!transport().latest().tlsFragment, "STOP inherited saved fragment option");
+        controller.start();
+        check(!transport().latest().udp && !transport().latest().tlsFragment,
+                "replacement playback did not capture updated options");
+    }
+
     public static void main(String[] args) {
         Map<String,Runnable> tests=new LinkedHashMap<>();
+        tests.put("saved fragment snapshot",SessionRaceTest::playbackSnapshotsSavedFragmentOptions);
         tests.put("old STOP failure",SessionRaceTest::oldStopFailureTerminatesReplacementStart);
         tests.put("old STOP timeout",SessionRaceTest::oldStopTimeoutTerminatesReplacementStart);
         tests.put("running replacement cleanup",SessionRaceTest::runningReplacementClearsOldCleanupTimeout);

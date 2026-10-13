@@ -4,6 +4,7 @@ import android.content.Context;
 import android.os.Handler;
 
 import com.fingmi.xray.service.XrayOperation;
+import com.fingmi.xray.config.XrayPreferences;
 import com.fingmi.xray.test.Trace;
 
 /** Released settings-side Binder generation and callback ordering contract. */
@@ -23,6 +24,8 @@ public final class SettingsLifecycleTest {
 
     private static XraySettingsController fresh(XraySettingsController.Listener listener) {
         Handler.reset();
+        XrayPreferences.udpEnabled = false;
+        XrayPreferences.tlsFragmentEnabled = false;
         Trace.reset();
         com.fingmi.xray.config.XrayPreferences.configured = true;
         com.fingmi.xray.config.XrayPreferences.throwClearAfterRemoval = false;
@@ -316,7 +319,43 @@ public final class SettingsLifecycleTest {
         check(client.disconnects == 0, "old connection failure disconnected replacement operation");
     }
 
+    private static void unsavedFragmentTestUsesExplicitSnapshot() throws Exception {
+        XraySettingsController controller = fresh((id, op, ok, latency, message) -> {});
+        controller.test("trojan://synthetic@example.invalid:443", true, true);
+        XrayServiceClient.Request test = XrayServiceClient.last.latest();
+        check(test.udp && test.tlsFragment, "unsaved TEST options were not captured");
+        check(!controller.isUdpEnabled() && !controller.isTlsFragmentEnabled(),
+                "TEST unexpectedly persisted unsaved options");
+        controller.save("trojan://synthetic@example.invalid:443", false, false);
+        check(test.udp && test.tlsFragment, "save mutated an in-flight TEST snapshot");
+        controller.abandon();
+        controller.save("trojan://synthetic@example.invalid:443", true, true);
+        controller.validate("trojan://synthetic@example.invalid:443", false, false);
+        XrayServiceClient.Request validate = XrayServiceClient.last.latest();
+        check(!validate.udp && !validate.tlsFragment,
+                "VALIDATE read saved options instead of explicit unsaved input");
+        controller.abandon();
+        controller.test("trojan://synthetic@example.invalid:443", false);
+        check(!XrayServiceClient.last.latest().tlsFragment,
+                "legacy TEST overload unexpectedly enabled fragmentation");
+    }
+
+    private static void savedFragmentStateClearsWithNode() throws Exception {
+        XraySettingsController controller = fresh((id, op, ok, latency, message) -> {});
+        controller.save("trojan://synthetic@example.invalid:443", true, true);
+        check(controller.isUdpEnabled() && controller.isTlsFragmentEnabled(),
+                "saved node options were lost");
+        controller.delete(() -> {
+            check(!controller.isUdpEnabled() && !controller.isTlsFragmentEnabled(),
+                    "delete callback saw stale saved options");
+        });
+        check(!XrayServiceClient.last.latest().tlsFragment,
+                "RESET_SECURITY carried a stale fragment option");
+    }
+
     public static void main(String[] args) throws Exception {
+        unsavedFragmentTestUsesExplicitSnapshot();
+        savedFragmentStateClearsWithNode();
         deleteOrderMatchesReleased();
         partialLocalDeleteStillClearsUi();
         localClearCallbackFailureStillDispatchesReset();

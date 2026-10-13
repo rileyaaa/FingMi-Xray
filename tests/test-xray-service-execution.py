@@ -58,9 +58,12 @@ import java.util.concurrent.*;
 public class XrayConfigFactory {
     public static final String PROXY_TAG="proxy";
     public static volatile CountDownLatch entered, release;
+    public static volatile boolean lastUdp, lastTlsFragment;
     public XrayConfigFactory(com.fingmi.xray.core.LibXrayBridge b,com.fingmi.xray.security.XrayShareLinkSecurity s) {
     }
-    public PreparedConfig prepare(int port,String link,boolean udp)throws Exception {
+    public PreparedConfig prepare(int port,String link,boolean udp,boolean tlsFragment)throws Exception {
+        lastUdp=udp;
+        lastTlsFragment=tlsFragment;
         if(link.equals("blocked")) {
             entered.countDown();
             if(!release.await(5,TimeUnit.SECONDS))throw new AssertionError("prepare barrier timed out");
@@ -139,9 +142,9 @@ public interface IXrayCallback {
     'com/fingmi/xray/service/IXrayService.java': r'''
 package com.fingmi.xray.service;
 public interface IXrayService extends android.os.IBinder {
-    void validate(long id,String link,boolean udp,IXrayCallback cb);
-    void test(long id,String link,boolean udp,IXrayCallback cb);
-    void start(long id,String link,boolean udp,IXrayCallback cb);
+    void validate(long id,String link,boolean udp,boolean tlsFragment,IXrayCallback cb);
+    void test(long id,String link,boolean udp,boolean tlsFragment,IXrayCallback cb);
+    void start(long id,String link,boolean udp,boolean tlsFragment,IXrayCallback cb);
     void stop(long id,IXrayCallback cb);
     void resetSecurity(long id,IXrayCallback cb);
     void cancel(int op,long id);
@@ -197,15 +200,42 @@ public class ServiceAudit {
     static void entered()throws Exception {
         check(XrayConfigFactory.entered.await(5,TimeUnit.SECONDS),"prepare not reached");
     }
+    static void fragmentationReachesPreparedConfig() throws Exception {
+        XrayService s=fresh();
+        IXrayService b=binder(s);
+        long operationId=100;
+        for(boolean enabled : new boolean[]{false,true}) {
+            Reply validation=new Reply();
+            b.validate(operationId++,"normal",!enabled,enabled,validation);
+            check(validation.await()&&XrayConfigFactory.lastUdp==!enabled
+                    &&XrayConfigFactory.lastTlsFragment==enabled,"VALIDATE config options");
+            Reply test=new Reply();
+            b.test(operationId++,"normal",!enabled,enabled,test);
+            check(test.await()&&XrayConfigFactory.lastUdp==!enabled
+                    &&XrayConfigFactory.lastTlsFragment==enabled,"TEST config options");
+        }
+        s.onDestroy();
+        for(boolean enabled : new boolean[]{false,true}) {
+            s=fresh(); b=binder(s);
+            Reply start=new Reply();
+            b.start(enabled?105:104,"normal",!enabled,enabled,start);
+            check(start.await()&&XrayConfigFactory.lastUdp==!enabled
+                    &&XrayConfigFactory.lastTlsFragment==enabled,"START config options");
+            s.onDestroy();
+        }
+        pass("fragmentation option reaches VALIDATE TEST and START preparation");
+    }
+
     public static void main(String[] args)throws Exception {
+        fragmentationReachesPreparedConfig();
         XrayService s=fresh();
         IXrayService b=binder(s);
         Reply start=new Reply();
-        b.start(1,"normal",false,start);
+        b.start(1,"normal",false,false,start);
         check(start.await()&&LibXrayBridge.running&&LibXrayBridge.trusts==1,"start/trust");
         pass("successful start commits trust");
         Reply test=new Reply();
-        b.test(2,"normal",false,test);
+        b.test(2,"normal",false,false,test);
         check(!test.await()&&LibXrayBridge.tests==0&&LibXrayBridge.running,"test touched live core");
         pass("test rejects live session without disturbing core");
         Reply stop=new Reply();
@@ -218,9 +248,9 @@ public class ServiceAudit {
         b=binder(s);
         block();
         Reply old=new Reply(), next=new Reply();
-        b.start(10,"blocked",false,old);
+        b.start(10,"blocked",false,false,old);
         entered();
-        b.start(11,"normal",false,next);
+        b.start(11,"normal",false,false,next);
         XrayConfigFactory.release.countDown();
         check(!old.await()&&next.await()&&LibXrayBridge.runs==1&&LibXrayBridge.trusts==1,"superseded start escaped");
         pass("replacement start rejects stale preparation and trust");
@@ -231,7 +261,7 @@ public class ServiceAudit {
         block();
         old=new Reply();
         stop=new Reply();
-        b.start(20,"blocked",false,old);
+        b.start(20,"blocked",false,false,old);
         entered();
         b.stop(21,stop);
         XrayConfigFactory.release.countDown();
@@ -242,13 +272,13 @@ public class ServiceAudit {
         s=fresh();
         b=binder(s);
         CountDownLatch callback=new CountDownLatch(1);
-        b.start(30,"normal",false,(id,op,ok,port,latency,message)-> {
+        b.start(30,"normal",false,false,(id,op,ok,port,latency,message)-> {
             callback.countDown();
             throw new Exception("synthetic dead callback");
         });
         check(callback.await(5,TimeUnit.SECONDS),"callback missing");
         Reply after=new Reply();
-        b.validate(31,"normal",false,after);
+        b.validate(31,"normal",false,false,after);
         check(after.await()&&!LibXrayBridge.running,"dead callback left core live");
         pass("undeliverable successful start cleans core");
         s.onDestroy();
@@ -256,14 +286,14 @@ public class ServiceAudit {
         s=fresh();
         b=binder(s);
         start=new Reply();
-        b.start(40,"normal",false,start);
+        b.start(40,"normal",false,false,start);
         check(start.await(),"setup start");
         LibXrayBridge.stopsFail=2;
         stop=new Reply();
         b.stop(41,stop);
         check(!stop.await()&&LibXrayBridge.running,"stop failure setup");
         after=new Reply();
-        b.validate(42,"normal",false,after);
+        b.validate(42,"normal",false,false,after);
         check(!after.await(),"validation entered still running core");
         pass("failed stop remains protected by native running state");
         int kills=android.os.Process.killed;
@@ -276,7 +306,7 @@ public class ServiceAudit {
         b=binder(s);
         block();
         old=new Reply();
-        b.validate(50,"blocked",false,old);
+        b.validate(50,"blocked",false,false,old);
         entered();
         kills=android.os.Process.killed;
         b.cancel(XrayOperation.VALIDATE,50);

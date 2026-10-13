@@ -29,6 +29,7 @@ public final class SettingXrayActivity extends BaseActivity
     private int mOperation = -1;
     private String mTestLink = "";
     private boolean mTestUdp;
+    private boolean mTestTlsFragment;
 
     public static void start(Activity activity) {
         activity.startActivity(new Intent(activity, SettingXrayActivity.class));
@@ -43,6 +44,7 @@ public final class SettingXrayActivity extends BaseActivity
     protected void initView(Bundle savedInstanceState) {
         mXray = new XraySettingsController(this, this);
         mBinding.udpSwitch.setChecked(mXray.isUdpEnabled());
+        mBinding.tlsFragmentSwitch.setChecked(mXray.isTlsFragmentEnabled());
         try {
             mBinding.link.setText(mXray.getShareLink());
             mBinding.link.setSelection(mBinding.link.length());
@@ -55,6 +57,8 @@ public final class SettingXrayActivity extends BaseActivity
     @Override
     protected void initEvent() {
         mBinding.udp.setOnClickListener(this::onUdp);
+        mBinding.tlsFragment.setOnClickListener(view -> mBinding.tlsFragmentSwitch.setChecked(
+                !mBinding.tlsFragmentSwitch.isChecked()));
         mBinding.save.setOnClickListener(this::onSave);
         mBinding.test.setOnClickListener(this::onTest);
         mBinding.phone.setOnClickListener(this::onPhone);
@@ -68,7 +72,8 @@ public final class SettingXrayActivity extends BaseActivity
     private void onSave(View view) {
         if (mOperation == XrayOperation.RESET_SECURITY) return;
         try {
-            mXray.save(readLink(), mBinding.udpSwitch.isChecked());
+            mXray.save(readLink(), mBinding.udpSwitch.isChecked(),
+                    mBinding.tlsFragmentSwitch.isChecked());
             Notify.show(R.string.xray_saved);
         } catch (Exception | LinkageError error) {
             Notify.show(XrayErrorSanitizer.sanitize(error));
@@ -80,9 +85,10 @@ public final class SettingXrayActivity extends BaseActivity
         try {
             mTestLink = XrayShareLinkNormalizer.normalize(readLink());
             mTestUdp = mBinding.udpSwitch.isChecked();
+            mTestTlsFragment = mBinding.tlsFragmentSwitch.isChecked();
             Notify.progress(getActivity());
             mOperation = XrayOperation.TEST;
-            mOperationId = mXray.test(mTestLink, mTestUdp);
+            mOperationId = mXray.test(mTestLink, mTestUdp, mTestTlsFragment);
         } catch (Exception | LinkageError error) {
             clearOperation();
             Notify.dismiss();
@@ -102,6 +108,7 @@ public final class SettingXrayActivity extends BaseActivity
             mOperationId = mXray.delete(() -> {
                 mBinding.link.setText("");
                 mBinding.udpSwitch.setChecked(false);
+                mBinding.tlsFragmentSwitch.setChecked(false);
             });
         } catch (Exception | LinkageError error) {
             clearOperation();
@@ -143,7 +150,8 @@ public final class SettingXrayActivity extends BaseActivity
     private boolean testInputUnchanged() {
         try {
             return XrayShareLinkNormalizer.normalize(readLink()).equals(mTestLink)
-                    && mBinding.udpSwitch.isChecked() == mTestUdp;
+                    && mBinding.udpSwitch.isChecked() == mTestUdp
+                    && mBinding.tlsFragmentSwitch.isChecked() == mTestTlsFragment;
         } catch (Exception | LinkageError ignored) {
             return false;
         }

@@ -34,6 +34,7 @@
         android:background="@drawable/selector_item"
         android:focusable="true"
         android:focusableInTouchMode="true"
+        android:nextFocusDown="@+id/tlsFragment"
         android:orientation="horizontal">
 
         <com.google.android.material.textview.MaterialTextView
@@ -50,6 +51,47 @@
             android:clickable="false"
             android:focusable="false"
             android:gravity="end" />
+    </androidx.appcompat.widget.LinearLayoutCompat>
+
+    <androidx.appcompat.widget.LinearLayoutCompat
+        android:id="@+id/tlsFragment"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:background="@drawable/selector_item"
+        android:focusable="true"
+        android:focusableInTouchMode="true"
+        android:nextFocusUp="@id/udp"
+        android:nextFocusDown="@+id/save"
+        android:orientation="vertical">
+
+        <androidx.appcompat.widget.LinearLayoutCompat
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal">
+
+            <com.google.android.material.textview.MaterialTextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/xray_tls_fragment"
+                android:textColor="@color/white"
+                android:textSize="18sp" />
+
+            <com.google.android.material.materialswitch.MaterialSwitch
+                android:id="@+id/tlsFragmentSwitch"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:clickable="false"
+                android:focusable="false"
+                android:gravity="end" />
+        </androidx.appcompat.widget.LinearLayoutCompat>
+
+        <com.google.android.material.textview.MaterialTextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/xray_tls_fragment_hint"
+            android:textColor="@color/white"
+            android:textSize="13sp" />
     </androidx.appcompat.widget.LinearLayoutCompat>
 
     <androidx.appcompat.widget.LinearLayoutCompat

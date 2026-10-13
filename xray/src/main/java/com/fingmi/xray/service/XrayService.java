@@ -37,22 +37,22 @@ public final class XrayService extends Service {
 
     private final IXrayService.Stub binder = new IXrayService.Stub() {
         @Override
-        public void validate(long operationId, String shareLink, boolean udp, IXrayCallback callback) {
+        public void validate(long operationId, String shareLink, boolean udp, boolean tlsFragment, IXrayCallback callback) {
             operationGate.begin(operationId);
-            executor.execute(() -> validateInternal(operationId, shareLink, udp, callback));
+            executor.execute(() -> validateInternal(operationId, shareLink, udp, tlsFragment, callback));
         }
 
         @Override
-        public void test(long operationId, String shareLink, boolean udp, IXrayCallback callback) {
+        public void test(long operationId, String shareLink, boolean udp, boolean tlsFragment, IXrayCallback callback) {
             operationGate.begin(operationId);
-            executor.execute(() -> testInternal(operationId, shareLink, udp, callback));
+            executor.execute(() -> testInternal(operationId, shareLink, udp, tlsFragment, callback));
         }
 
         @Override
-        public void start(long operationId, String shareLink, boolean udp, IXrayCallback callback) {
+        public void start(long operationId, String shareLink, boolean udp, boolean tlsFragment, IXrayCallback callback) {
             sessionGate.begin(operationId);
             operationGate.begin(operationId);
-            executor.execute(() -> startInternal(operationId, shareLink, udp, callback));
+            executor.execute(() -> startInternal(operationId, shareLink, udp, tlsFragment, callback));
         }
 
         @Override
@@ -93,6 +93,7 @@ public final class XrayService extends Service {
             long operationId,
             String shareLink,
             boolean udp,
+            boolean tlsFragment,
             IXrayCallback callback) {
         try {
             ensureOperationCurrent(operationId);
@@ -103,7 +104,7 @@ public final class XrayService extends Service {
                 try {
                     int port = bridge.getFreePort();
                     XrayConfigFactory.PreparedConfig prepared =
-                            configFactory.prepare(port, shareLink, udp);
+                            configFactory.prepare(port, shareLink, udp, tlsFragment);
                     JSONObject config = prepared.config();
                     ensureOperationCurrent(operationId);
                     bridge.validateConfig(config);
@@ -137,6 +138,7 @@ public final class XrayService extends Service {
             long operationId,
             String shareLink,
             boolean udp,
+            boolean tlsFragment,
             IXrayCallback callback) {
         try {
             ensureOperationCurrent(operationId);
@@ -147,7 +149,7 @@ public final class XrayService extends Service {
                 try {
                     int port = bridge.getFreePort();
                     XrayConfigFactory.PreparedConfig prepared =
-                            configFactory.prepare(port, shareLink, udp);
+                            configFactory.prepare(port, shareLink, udp, tlsFragment);
                     JSONObject config = prepared.config();
                     ensureOperationCurrent(operationId);
                     bridge.validateConfig(config);
@@ -183,6 +185,7 @@ public final class XrayService extends Service {
             long operationId,
             String shareLink,
             boolean udp,
+            boolean tlsFragment,
             IXrayCallback callback) {
         if (!ensureSessionCurrent(operationId, callback)) return;
 
@@ -196,7 +199,7 @@ public final class XrayService extends Service {
 
                 int port = bridge.getFreePort();
                 XrayConfigFactory.PreparedConfig prepared =
-                        configFactory.prepare(port, shareLink, udp);
+                        configFactory.prepare(port, shareLink, udp, tlsFragment);
                 JSONObject config = prepared.config();
 
                 try {
