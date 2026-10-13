@@ -8,7 +8,7 @@
 
 ## 1. 当前工程基线
 
-当前应用源代码跟随 FongMi/TV 当前 HEAD；上游自身的 `app/build.gradle` 版本名仍为 5.6.3：
+当前应用采用下列 FongMi/TV 固定公开源码基线；该提交的 `app/build.gradle` 版本名为 5.6.3：
 
 - 上游目标 commit：`c616c0aa3613e87529791587a9f71b78c278c991`
 - 上一固定基线：`4afc4473e22a7ed3d98ee12233e0c2a490061000`（5.6.3）
@@ -38,7 +38,21 @@
 - 当前固定媒体二进制与上游 API 之间不可避免的最小构建 compatibility adapter；
 - 构建、发布、测试 guard 与禁用上游自更新等 fork 维护基础设施。
 
-任何超出上述范围的代码修改，在提交前都应先问：**这个变化是否是 Xray 或 TV 网络恢复的必要条件？如果不是，优先删除该差异并跟随上游。**
+任何超出上述范围的代码修改，在提交前都应先判断：**这个变化是否是 Xray 或 TV 网络恢复的必要条件？如果不是，默认跟随上游。** 用户允许的例外仅限像已发生的主机名崩溃一样，有明确证据、明显影响实际使用的上游故障；只做最小修补，并在下方登记，不能据理论风险扩展普通业务维护。
+
+### 已登记的上游业务修复（升级前必读）
+
+**当前只有一项上游业务补丁：`OkProxySelector.Policy` 空主机名崩溃，用户于 2026-10-11 明确授权。**
+
+| 项目 | 记录 |
+| --- | --- |
+| 源码位置 | [`catvod/.../OkProxySelector.java`](../catvod/src/main/java/com/github/catvod/net/OkProxySelector.java) 的 `Policy` 构造方法 |
+| 上游基线与触发 | 公开 5.6.3 / `c616c0aa…`；搜索后播放某些 OkHttp 接受的域名（如下划线域名），Java `URI.getHost()` 返回 null，随后 `toLowerCase()` 引发 NPE；用户日志与正式 APK 的 R8 map 已匹配 |
+| 最小修改 | 从 OkHttp `HttpUrl` 读取规范化 scheme、host、有效 port，避免空主机名，并保持不同 origin 隔离；代理选择、匹配、凭据继承与重定向规则原样保留 |
+| 回归入口 | [`OkProxySelectorTest.java`](../catvod/src/test/java/com/github/catvod/net/OkProxySelectorTest.java)；`./gradlew :catvod:testDebugUnitTest`，现有 14 项加两项空 host 回归共 16 项；同一回归对独立公开上游复现两项 NPE 失败 |
+| 跟随上游时 | 检查上游是否已修复对应输入；若已有等价修复且上述回归通过，采用上游实现并移除本补丁，不重复保留两套处理 |
+
+完整故障证据见[退出播放页与请求主机名崩溃记录](#2026-10-11--退出播放页与请求主机名崩溃)。此前 Glide 销毁期间清理、播放交接和缺少 decoder 的问题属于本 fork 的接线或构建遗漏，不能误记成其它上游业务修复。后续新增例外必须同样记录触发条件、证据、修改范围、回归入口和上游同步处置；执行边界见 [AI_COLLABORATION 第 9 节](AI_COLLABORATION.md#9-开发与-bug-修复范围只限-xray-和-tv-待机网络恢复)。
 
 ## 2. Gradle 模块
 
@@ -809,3 +823,11 @@ Xray 当前源码重新验证 9000 次 Controller/Client 清理序列、102 次�
 按用户要求仅用 Leanback 默认/简中/繁中资源覆盖将应用显示名称改为 `FongMi-Xray`。公开上游资源、包名 `com.fongmi.android.tv`、固定签名与 Xray 核心保持不变。远端 `.3` 已发布，本次正常递增到 `v5.6.3-xray.4` / `563004`；发布器同步生成匹配源码备份，并在验证完成后替换指定的 `source-backup-2026-10-11-main-b01e193a`。构建与上传结果以 Actions / Releases 实际验证为准，准备状态不等于已发布。
 
 提交前本地 Leanback Release Java 编译、资源链接和 Manifest 合并通过；用 AAPT2 读取本次双 ABI linked resource table，默认/简中/繁中 `app_name` 均为 `FongMi-Xray`，版本与包名一致。Gradle 两模块单测入口通过并复用未变更结果（Xray 3 项、recovery 2 项，失败/错误/跳过为 0）；build hygiene、16 项发布事务、12 项续发来源回归、固定签名与两个 workflow 纯手动 YAML 检查通过。完整 APK assemble、最终 DEX/native/签名验收与远端发布交给本次用户授权的 Actions 从提交源码执行，不将本地编译检查冒称正式 APK 已发布。
+
+### 2026-10-13 — `.4` 发布后复核与上游补丁登记
+
+重新读取 Actions 和 Releases，确认 `.4` 已从 `93a69dc7` 完成正式构建、发布及最终校验；两份 APK 的远端 digest 与该构建日志一致，配套备份为 `source-backup-2026-10-13-main-93a69dc7`。本轮未重新下载 APK 或将这些 CI 结果写成新的本地构建。按用户要求把唯一的 `OkProxySelector.Policy` 上游业务补丁、回归入口与未来跟随上游的处置规则放到本文前部；AI 协作限制同步明确，只有有证据且明显影响实际使用的上游故障才允许最小例外。
+
+独立读取 Xray 配置、安全、Settings/Binder/Service、HTTP/Socket 资源所有权及播放页接线，重新执行 session 18 项、settings 18 项、Service 10 项和 client 生命周期回归；36 项分片配置、normalizer/display/HY2、安全转换、媒体旁路及页面交接、135 项播放地址回归均通过。恢复侧重新编译当前源码执行双 flavor/冷入口回归、8192 种稳定序列、27 项迟到/关闭场景、5000 轮生命周期和 6 项多 Home 交错；真实 OkHttp/DoH 100 次重建以及各 5 条运行中/空闲环回连接清理通过，专用 player client 保持独立。
+
+未确认新的可达运行缺陷，本轮只更新文档，不改变生产代码、核心、签名或版本，也不重复触发 Actions。上述 JVM/环回证据不替代电视 ART/Binder、OEM 待机/广播时序、真实节点网络或设备 PSS/RSS；既有证书预探测分片限制、独立 XHTTP 下载子连接和恢复约 6 秒兜底仍按已登记边界处理，不据推测追加功能或重构。
