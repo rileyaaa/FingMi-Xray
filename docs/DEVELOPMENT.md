@@ -349,7 +349,7 @@ python3 scripts/build/check-release-signing.py --sdk "$ANDROID_HOME" --apk app/b
 python3 scripts/build/check-release-signing.py --sdk "$ANDROID_HOME" --apk app/build/outputs/apk/leanback/release/leanback-arm64_v8a.apk
 ```
 
-Release 文件名沿用上游 finalizer 的 `leanback-armeabi_v7a.apk` / `leanback-arm64_v8a.apk`，对外资产命名为 `FongMi-Xray-TV-v5.6.3-xray.3-<ABI>.apk`。设备 ART/真实节点/电视待机仍属于真机验收，不因 GitHub 标记为正式版而自动视为通过。
+Release 文件名沿用上游 finalizer 的 `leanback-armeabi_v7a.apk` / `leanback-arm64_v8a.apk`，对外资产命名为 `FongMi-Xray-TV-<Release tag>-<ABI>.apk`，其中 tag 必须与本次应用 `versionName` 一致。设备 ART/真实节点/电视待机仍属于真机验收，不因 GitHub 标记为正式版而自动视为通过。
 
 当前 build 与 publish workflow 都必须先执行：
 
@@ -831,3 +831,13 @@ Xray 当前源码重新验证 9000 次 Controller/Client 清理序列、102 次�
 独立读取 Xray 配置、安全、Settings/Binder/Service、HTTP/Socket 资源所有权及播放页接线，重新执行 session 18 项、settings 18 项、Service 10 项和 client 生命周期回归；36 项分片配置、normalizer/display/HY2、安全转换、媒体旁路及页面交接、135 项播放地址回归均通过。恢复侧重新编译当前源码执行双 flavor/冷入口回归、8192 种稳定序列、27 项迟到/关闭场景、5000 轮生命周期和 6 项多 Home 交错；真实 OkHttp/DoH 100 次重建以及各 5 条运行中/空闲环回连接清理通过，专用 player client 保持独立。
 
 未确认新的可达运行缺陷，本轮只更新文档，不改变生产代码、核心、签名或版本，也不重复触发 Actions。上述 JVM/环回证据不替代电视 ART/Binder、OEM 待机/广播时序、真实节点网络或设备 PSS/RSS；既有证书预探测分片限制、独立 XHTTP 下载子连接和恢复约 6 秒兜底仍按已登记边界处理，不据推测追加功能或重构。
+
+### 2026-10-20 — 独立复审与公开上游核对
+
+重新读取公开 FongMi/TV 默认分支 `fongmi`，HEAD 为 `0af3b31a1783b8fa4f0ce12e52ac9fad78ddfb1e`。相对固定基线 `c616c0aa…` 的 10 个新提交仅修改 `website/` 中 17 个文件，Android 源码、构建配置和 5.6.3 版本均未变化；本轮不因网站更新迁移应用基线。当前应用、两模块及兼容层源码与已发布 `.4` 的构建提交一致。
+
+相对固定上游，1059 个已有路径完全相同；59 个修改路径已逐项阅读差异，主归类为 Xray 接线 36、恢复及混合接线 12、构建/签名/文档/自更新隔离 7、固定公开媒体 API 兼容 2、已批准主机名修复及回归 2。删除项仍只有 Pages workflow 和网站 README，没有删除 Android 运行源码，也未发现需撤回的无关业务修补。普通业务例外仍只有本文前部登记的 `OkProxySelector.Policy`；核心模块独立不等于宿主零差异，既有 Libass native 来源债也没有因本次审查消失。
+
+重新独立阅读配置/安全/分片、Settings/Binder/Service、播放资源所有权和待机恢复；本轮执行 normalizer（33 个边界、8 个显示边界及发布样例/HY2 回归）、分片配置 36 项、传输安全、session 18 项及 settings 生命周期、client 生命周期、Service 10 项、播放接线/旁路、135 项播放地址、TV recovery 双 flavor/冷入口/代际竞态，以及 core parity、ART API、自更新禁用和构建 hygiene 检查，均通过。未确认新的可复现运行缺陷，没有修改生产代码、Xray 核心、签名或版本，没有触发 Actions 或重新发布 APK。
+
+本轮证据为静态审查与实际 Java 源码的宿主 JVM 回归；Android、Binder 和 native 边界使用确定性替身，没有重新运行历史 native/FD/弱引用压力测试，也没有电视 PSS/RSS、节点握手或分片性能实测。恢复后的云环境不含历史外置压力 harness，历史结果继续作为历史证据，不能冒充本轮验证。后续优先把有长期价值的最小、无敏感信息的压力 fixture 纳入现有 `tests/`，并固定真机启停、播放切换、待机唤醒及网络切换的验收步骤；在出现失败证据前维持当前实现和可选分片参数，不增加强制 GC 或新的恢复状态机。
