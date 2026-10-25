@@ -1,10 +1,11 @@
 package com.fingmi.xray.util;
 
-import java.util.Locale;
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * Behavior-faithful reconstruction of the shipped sanitizer (R8 name: kz3).
+ * Reconstruction of the shipped sanitizer (R8 name: kz3), with fail-closed
+ * handling of quoted assignments and truncated JSON error text.
  */
 public final class XrayErrorSanitizer {
 
@@ -57,7 +58,7 @@ public final class XrayErrorSanitizer {
 
         String result = SHARE_LINK.matcher(value).replaceAll("<redacted-share-link>");
         result = UUID.matcher(result).replaceAll("<redacted-uuid>");
-        result = SECRET_ASSIGNMENT.matcher(result).replaceAll("$1$2<redacted>");
+        result = redactAssignments(result);
 
         for (String key : SECRET_KEYS) {
             result = redactJsonStringValue(result, key);
@@ -66,17 +67,46 @@ public final class XrayErrorSanitizer {
         return result.length() > 1024 ? result.substring(0, 1024) : result;
     }
 
+    private static String redactAssignments(String input) {
+        Matcher matcher = SECRET_ASSIGNMENT.matcher(input);
+        StringBuilder result = new StringBuilder(input.length());
+        int copiedThrough = 0;
+        while (matcher.find(copiedThrough)) {
+            int valueStart = matcher.end(2);
+            int valueEnd = matcher.end();
+            char quote = input.charAt(valueStart);
+            if (quote == '"' || quote == '\'') {
+                // A quoted credential may contain spaces, delimiters or escaped
+                // quotes. If it is truncated, redact the rest rather than leak it.
+                valueEnd = input.length();
+                for (int cursor = valueStart + 1; cursor < input.length(); cursor++) {
+                    char c = input.charAt(cursor);
+                    if (c == '\\') {
+                        cursor++;
+                    } else if (c == quote) {
+                        valueEnd = cursor + 1;
+                        break;
+                    }
+                }
+            }
+            result.append(input, copiedThrough, valueStart).append("<redacted>");
+            copiedThrough = valueEnd;
+        }
+        return result.append(input, copiedThrough, input.length()).toString();
+    }
+
     private static String redactJsonStringValue(String input, String key) {
         String result = input;
         String needle = "\"" + key + "\"";
         int searchFrom = 0;
 
         while (true) {
-            String lower = result.toLowerCase(Locale.ROOT);
-            int keyStart = lower.indexOf(needle, searchFrom);
+            // Case-folding the whole message can expand Unicode characters
+            // (for example U+0130), so its offsets are not offsets in result.
+            int keyStart = indexOfIgnoreCase(result, needle, searchFrom);
             if (keyStart < 0) return result;
 
-            int colon = lower.indexOf(':', keyStart + needle.length());
+            int colon = result.indexOf(':', keyStart + needle.length());
             if (colon < 0) return result;
 
             int valueQuote = colon + 1;
@@ -106,13 +136,22 @@ public final class XrayErrorSanitizer {
                 cursor++;
             }
 
-            if (cursor >= result.length()) return result;
+            if (cursor >= result.length()) {
+                return result.substring(0, valueStart) + "<redacted>";
+            }
 
             result = result.substring(0, valueStart)
                     + "<redacted>"
                     + result.substring(cursor);
             searchFrom = valueStart + "<redacted>".length();
         }
+    }
+
+    private static int indexOfIgnoreCase(String value, String needle, int from) {
+        for (int i = from; i <= value.length() - needle.length(); i++) {
+            if (value.regionMatches(true, i, needle, 0, needle.length())) return i;
+        }
+        return -1;
     }
 
     private static boolean isBlank(String value) {

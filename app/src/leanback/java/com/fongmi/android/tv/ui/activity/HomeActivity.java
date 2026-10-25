@@ -123,7 +123,12 @@ public class HomeActivity extends BaseActivity implements CustomTitleView.Listen
                 () -> { if (mViewModel != null) mViewModel.cancelResultRequest(); },
                 () -> mBinding.progressLayout.showProgress(),
                 () -> !isFinishing() && !isDestroyed(),
-                () -> { showContent(); getVideo(); });
+                () -> {
+                    // Refresh Home without replaying its already-handled launch Intent.
+                    mBinding.progressLayout.showContent();
+                    setFocus();
+                    getVideo();
+                });
 
         mResult = Result.empty();
         mClock = Clock.create(mBinding.clock);
