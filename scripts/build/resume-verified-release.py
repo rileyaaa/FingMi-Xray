@@ -170,7 +170,7 @@ def verify_report(run, report, tag):
     stage_keys = {stage_tag}
     if report["phase"] == "failed:backup_published":
         backup_tag = report.get("backup_tag", "")
-        require(re.fullmatch(r"source-backup-\\d{4}-\\d{2}-\\d{2}-main-" + run["head_sha"][:8],
+        require(re.fullmatch(r"source-backup-\d{4}-\d{2}-\d{2}-main-" + run["head_sha"][:8],
                              backup_tag) is not None, "Published backup tag has wrong source")
         backup_stage_tag = stage_tag + "-backup"
         stage_keys.add(backup_stage_tag)
