@@ -41,8 +41,8 @@ jobs:
       JADX_VERSION: "1.5.6"
       JADX_SHA256: "545ea2be9c242511bc145755cf4bda2485ade42966e096f8b4d3da2a230e8974"
       PREVIOUS_BACKUP_TAG: "source-backup-2026-10-13-main-93a69dc7"
-      ALLOW_EXISTING_RELEASE: ${{ inputs.replace_existing || (github.event_name == 'push' && github.event.head_commit.message == 'ci: trigger authorized v5.6.3-xray.1 release') }}
-      PRUNE_SUPERSEDED: ${{ inputs.prune_superseded || (github.event_name == 'push' && github.event.head_commit.message == 'ci: trigger authorized v5.6.3-xray.1 release') }}
+      ALLOW_EXISTING_RELEASE: "${{ inputs.replace_existing || (github.event_name == 'push' && github.event.head_commit.message == 'ci: trigger authorized v5.6.3-xray.1 release') }}"
+      PRUNE_SUPERSEDED: "${{ inputs.prune_superseded || (github.event_name == 'push' && github.event.head_commit.message == 'ci: trigger authorized v5.6.3-xray.1 release') }}"
       ROLLBACK_TAG: ${{ inputs.rollback_tag }}
       RELEASE_TAG: "v5.6.3-xray.1"
       BUILD_SOURCE_SHA: ${{ github.sha }}
