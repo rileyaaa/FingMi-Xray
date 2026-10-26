@@ -326,7 +326,9 @@ Release 的 APK 发布集合长期保留 `v5.6.0-xray.5` 黄金参考和一个�
 
 GitHub 的按 tag 获取已发布 Release 接口不会返回草稿；草稿创建和旧版转 rollback 后，必须使用已知 Release ID 校验状态、tag 和全部资产。存在性检查同时包含分页草稿列表；最终正式发布仍检查公开 tag、Git ref、资产摘要及 latest，不能因草稿查询 404 就放松校验。测试替身必须保留“draft 按 tag 查询为 404、按 ID 可读”的真实区别。
 
-仅发布阶段失败时，可用纯手动 `resume-verified-release.yml` 续发原 Actions 已验证 APK，避免重复编译。2026-10-26 发布 `.1` 的完整编译与双 ABI 校验通过，但因 `GITHUB_TOKEN` 对旧 `.1` 源提交创建 rollback tag 返回 HTTP 403，失败停留在 `failed:backup_published`、正式切换前；本次续发入口允许精确校验的 marker-only push run 和已有来源一致的备份。首次手动续发（run `40257381398`）完成原始 APK 的摘要、签名、Manifest 与 DEX 复验，但由于 `GITHUB_TOKEN` 无法 `PATCH git/refs/tags/v5.6.3-xray.1` 再次返回 HTTP 403。该次开始时旧 `.1` Release 已不存在，原 `.1` tag 仍指向 `943357e2fec8c9948b82ea7ae4990fd92ee5d4b3`；新 APK 草稿仍为 `stage-v5.6.3-xray.1-40252299406-1`、目标源码 `4bea3a54ece68fbb439374e7d7944ec94fe28683`。后续必须先由仓库所有者以具备 Git 标签权限的凭据将现有 `.1` ref 显式调整到此已验证源码，再以 `verified_run_id=40252299406`、`replace_existing=true`、`prune_superseded=true` 手动续发；此状态不需要回滚标签。发布器在 ref 已经准确指向新源码时跳过冗余 PATCH；仅在新 Release、备份和 Latest 均验证后才清理旧 Release。若 GitHub Actions Token 对删除旧标签仍返回 403，记录 `pending_tag_cleanup` 和 `complete_pending_tag_cleanup`，必须由仓库所有者复核并手动删除这些标签，不可声称标签全部清理完成。所有安全门槛保持启用，不重建未经必要验证的 APK。续发先验证原 run 的仓库、workflow、触发方式、源码及全部构建/验收步骤，再读取该 run 的失败报告，通过明确草稿 ID 下载原资产并重验摘要、签名、Media3 DEX 类链接、Manifest 和内嵌源码。源码 ZIP 仍归档原 APK 的构建 SHA；执行续发工具的较新 main 仅含发布基础设施修复时，也不得把它冒称 APK 的构建来源。原 run、报告或资产不满足条件就停止，不能拿本地包或未经完整验收的草稿补位。
+仅发布阶段失败时，可用纯手动 `resume-verified-release.yml` 或在具备对应仓库权限的环境执行同一续发工具，续发原 Actions 已验证 APK，避免重复编译。续发先验证原 run 的仓库、workflow、触发方式、源码及全部构建/验收步骤，再读取该 run 的失败报告，通过明确草稿 ID 下载原资产并重验摘要、签名、Media3 DEX 类链接、Manifest 和内嵌源码；源码 ZIP 仍归档原 APK 的构建 SHA。当前运行代码必须与原构建一致，不能将较新发布工具的提交冒称 APK 来源。原 run、报告或资产不满足条件就停止。
+
+2026-10-26 的完整构建通过，但发布与首次续发因 Actions `GITHUB_TOKEN` 创建 rollback tag、移动正式 tag 返回 HTTP 403 而失败，已经上传的新 APK 无需因此重编译。遇到该权限错误，使用已授权且实际能操作目标仓库 Git ref 的凭据处理精确标签；发布器仅在目标 ref 已准确指向原验证源码时跳过冗余 PATCH。所有验证门槛继续保留。删除标签返回 403 时，结果记录 `pending_tag_cleanup` / `complete_pending_tag_cleanup`，必须完成对应清理并复核远端标签集合后才能声称全部完成；不得把 Release 已删除等同于 tag 已删除。
 
 切换后期失败没有自动回滚，正式入口可能暂时缺失；此时先读取失败 artifact 内 `publication-before.json` / `publication-result.json`，核对正式 tag、rollback 草稿和新草稿，再恢复入口或继续切换，不能直接复用已占用的 rollback tag 盲目重跑。需要时可通过 `rollback_tag` 手动输入一个预先指向旧 APK 源码的 tag，避免 runner token 为旧提交创建 tag 的权限限制；成功后该临时 tag 自动清理。
 
@@ -841,3 +843,12 @@ Xray 当前源码重新验证 9000 次 Controller/Client 清理序列、102 次�
 重新独立阅读配置/安全/分片、Settings/Binder/Service、播放资源所有权和待机恢复；本轮执行 normalizer（33 个边界、8 个显示边界及发布样例/HY2 回归）、分片配置 36 项、传输安全、session 18 项及 settings 生命周期、client 生命周期、Service 10 项、播放接线/旁路、135 项播放地址、TV recovery 双 flavor/冷入口/代际竞态，以及 core parity、ART API、自更新禁用和构建 hygiene 检查，均通过。未确认新的可复现运行缺陷，没有修改生产代码、Xray 核心、签名或版本，没有触发 Actions 或重新发布 APK。
 
 本轮证据为静态审查与实际 Java 源码的宿主 JVM 回归；Android、Binder 和 native 边界使用确定性替身，没有重新运行历史 native/FD/弱引用压力测试，也没有电视 PSS/RSS、节点握手或分片性能实测。恢复后的云环境不含历史外置压力 harness，历史结果继续作为历史证据，不能冒充本轮验证。后续优先把有长期价值的最小、无敏感信息的压力 fixture 纳入现有 `tests/`，并固定真机启停、播放切换、待机唤醒及网络切换的验收步骤；在出现失败证据前维持当前实现和可选分片参数，不增加强制 GC 或新的恢复状态机。
+
+
+### 2026-10-26 — 完成 `.1` 发布续传与双版本清理
+
+原 Actions `40252299406` 已从 `4bea3a54ece68fbb439374e7d7944ec94fe28683` 完成双 ABI 的完整编译、native/DEX/Manifest/签名验收及草稿上传；失败原因是后续 tag 操作权限，不是编译失败。当前 main 的应用、两模块与兼容层同该构建逐文件一致，后续提交仅调整发布工具与文档。本轮使用环境已有的仓库授权成功创建 `.1` ref，执行同一续发工具，重新下载草稿资产并核对摘要、内嵌来源、固定证书、版本、DEX、Manifest 和 16 KB 对齐，未重复完整编译或触发新的 Actions，也不将当前 main 冒称 APK 构建来源。发布事务 21 项、续发来源 14 项、DEX 检查器 12 项回归通过。
+
+新正式 `.1` / `563001` 为非草稿、非预览且 latest；arm64 SHA-256 为 `004cd5e003a644a7e421a859cd7a7187e98e729bea94af157127dd3d20609bd5`，v7 为 `64fdc38928f96185e924444e9c4ca33c582021e732df4b7e041daa4321615424`，与原 Actions 报告一致。完整源码归档先验证通过再按本次用户要求删除；远端 Release 与 tag 最终只保留 `v5.6.0-xray.5` 和 `v5.6.3-xray.1`，黄金资产不变。临时草稿、stage/backup 标签与旧 `.4` 已清理，失败证据提取后清理 Actions artifacts。
+
+本次版本重置是用户指定的一次性例外，`.2`～`.4` 的安装 versionCode 高于 `563001`，通常不能直接降级覆盖；Release 和 README 已说明先备份配置。固定包名、签名、公开上游和 Xray 核心未变，后续正常发布继续按版本规则递增。本轮证据不包含电视安装、实际节点和设备内存测试。
