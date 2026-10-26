@@ -11,6 +11,14 @@ on:
         description: "Optional pre-created rollback tag pointing at the existing APK source"
         type: string
         default: ""
+      prune_superseded:
+        description: "After verified publication keep only the golden and current APK Releases"
+        type: boolean
+        default: false
+  push:
+    branches: [main]
+    paths:
+      - '.github/.trigger-publish-current-main-test'
 
 concurrency:
   group: fingmi-formal-release
@@ -32,10 +40,11 @@ jobs:
       LIBASS_CANDIDATE_SHA256: "f047f8ad84be08aeddb0672500e9b263cafd6f2a009812392554dc55b2019861"
       JADX_VERSION: "1.5.6"
       JADX_SHA256: "545ea2be9c242511bc145755cf4bda2485ade42966e096f8b4d3da2a230e8974"
-      PREVIOUS_BACKUP_TAG: "source-backup-2026-10-11-main-b01e193a"
-      ALLOW_EXISTING_RELEASE: ${{ inputs.replace_existing || false }}
+      PREVIOUS_BACKUP_TAG: "source-backup-2026-10-13-main-93a69dc7"
+      ALLOW_EXISTING_RELEASE: ${{ inputs.replace_existing || (github.event_name == 'push' && github.event.head_commit.message == 'ci: trigger authorized v5.6.3-xray.1 release') }}
+      PRUNE_SUPERSEDED: ${{ inputs.prune_superseded || (github.event_name == 'push' && github.event.head_commit.message == 'ci: trigger authorized v5.6.3-xray.1 release') }}
       ROLLBACK_TAG: ${{ inputs.rollback_tag }}
-      RELEASE_TAG: "v5.6.3-xray.4"
+      RELEASE_TAG: "v5.6.3-xray.1"
       BUILD_SOURCE_SHA: ${{ github.sha }}
 
     steps:
@@ -89,6 +98,9 @@ jobs:
           python3 tests/test-player-candidate-linkage.py
           python3 tests/test-libass-native-input.py
           python3 tests/test-tv-network-recovery.py
+          python3 tests/test-xray-error-sanitizer.py
+          python3 tests/test-tv-recovery-intent-replay.py
+          python3 tests/test-xray-recovery-state-audit.py
 
       - name: Prepare Android SDK 36 and 37
         shell: bash

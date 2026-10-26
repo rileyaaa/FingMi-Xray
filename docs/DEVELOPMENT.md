@@ -316,13 +316,13 @@ on:
 
 `.github/workflows/publish-current-main-test-release.yml`
 
-Release 的 APK 发布集合长期保留 `v5.6.0-xray.5` 黄金参考和一个当前正式版。构建输入、恢复材料、临时归档和旧测试版不得长期堆在 APK 发布集合中；用户要求的最新完整源码备份由同一发布流程生成，使用 `source-backup-<UTC 日期>-main-<源码 SHA 前八位>` 独立 Release。备份通过 `git archive` 导出确切 `BUILD_SOURCE_SHA` 的 tracked tree，包含本私有项目的固定签名及恢复配置，不包含 ignored AAR、缓存或临时构建文件；可重建输入继续由脚本及 hash 管理。若使用临时 marker 触发，归档也忠实包含该构建提交的临时 trigger/marker，备份说明必须指出这一点；run 完整结束后另恢复 main 的纯手动工作流，不重写归档并冒称原 SHA。
+Release 的 APK 发布集合长期保留 `v5.6.0-xray.5` 黄金参考和一个当前正式版。用户本次明确要求最终只保留这两份 Release，全部 `source-backup-*` 只用作发布过程的短暂校验归档，不作为长期 Release 保留。构建输入、恢复材料、临时归档和旧测试版不得长期堆在 APK 发布集合中；用户要求的最新完整源码备份由同一发布流程生成，使用 `source-backup-<UTC 日期>-main-<源码 SHA 前八位>` 独立 Release。备份通过 `git archive` 导出确切 `BUILD_SOURCE_SHA` 的 tracked tree，包含本私有项目的固定签名及恢复配置，不包含 ignored AAR、缓存或临时构建文件；可重建输入继续由脚本及 hash 管理。若使用临时 marker 触发，归档也忠实包含该构建提交的临时 trigger/marker，备份说明必须指出这一点；run 完整结束后另恢复 main 的纯手动工作流，不重写归档并冒称原 SHA。
 
 `test.7` 构建源码为 `439cea8d7a9d3cdb1a17b4ed962c6d68ed164508`，缺少后续 Hysteria2 备注查询边界修复；正式版替换旧测试发布。构建源码、资产 hash 与当前验收结果记录在对应 GitHub Release，历史 test.7 证据保留在本文维护记录，不能当作正式版的验证。
 
-发布 workflow 以 `BUILD_SOURCE_SHA` 作为唯一构建与发布源码，重新准备固定依赖、执行源码 guard 与双 ABI 黄金 Xray chain parity，只编译/assemble Android TV / Leanback Release 两个 ABI，并核对最终 native provenance、Manifest、签名、应用版本、non-debuggable 与 16 KB alignment。当前显式配置 `RELEASE_TAG=v5.6.3-xray.4` 与指定旧源码备份 `PREVIOUS_BACKUP_TAG`，不会自动递增修订号。正常手动触发时 `BUILD_SOURCE_SHA = github.sha`，权限保持 `contents: write + actions: read`，同一发布流程使用 concurrency 排队而不取消正在进行的发布。
+发布 workflow 以 `BUILD_SOURCE_SHA` 作为唯一构建与发布源码，重新准备固定依赖、执行源码 guard 与双 ABI 黄金 Xray chain parity，只编译/assemble Android TV / Leanback Release 两个 ABI，并核对最终 native provenance、Manifest、签名、应用版本、non-debuggable 与 16 KB alignment。当前按用户一次性同名替换要求配置 `RELEASE_TAG=v5.6.3-xray.1` 与指定旧源码备份 `PREVIOUS_BACKUP_TAG`，不会自动递增修订号。正常手动触发时 `BUILD_SOURCE_SHA = github.sha`，权限保持 `contents: write + actions: read`，同一发布流程使用 concurrency 排队而不取消正在进行的发布。
 
-`scripts/build/publish-current-release.py` 负责上传和替换，`tests/test-release-publication.py` 验证发布失败与清理顺序。两个 APK 和源码 ZIP 先分别上传到草稿并逐文件核对 name / digest / size；两份新产物完整后才进入切换。已有同名正式版必须由用户明确要求并选中 `replace_existing`；旧 APK 暂存为 rollback 草稿，直到新正式 APK、源码备份及各自 Git tag 都验证成功才清理。只删除显式指定的旧备份，不按 `source-backup-*` 通配删除。失败时保留可诊断/恢复的草稿，不把失败说成替换成功；正常收尾只留下黄金版、当前正式版及最新源码备份。
+`scripts/build/publish-current-release.py` 负责上传和替换，`tests/test-release-publication.py` 验证发布失败与清理顺序。两个 APK 和源码 ZIP 先分别上传到草稿并逐文件核对 name / digest / size；两份新产物完整后才进入切换。已有同名正式版必须由用户明确要求并选中 `replace_existing`；旧 APK 暂存为 rollback 草稿，直到新正式 APK、源码备份及各自 Git tag 都验证成功才清理。只删除显式指定的旧备份，不按 `source-backup-*` 通配删除。失败时保留可诊断/恢复的草稿，不把失败说成替换成功；用户明确选择 `prune_superseded` 时，仅在新正式版与临时源码归档完全验证、成功切换后，清理所有其他 Release（包含原 `source-backup-*` 及新建的临时源码归档），最终只留黄金版与当前正式版。
 
 GitHub 的按 tag 获取已发布 Release 接口不会返回草稿；草稿创建和旧版转 rollback 后，必须使用已知 Release ID 校验状态、tag 和全部资产。存在性检查同时包含分页草稿列表；最终正式发布仍检查公开 tag、Git ref、资产摘要及 latest，不能因草稿查询 404 就放松校验。测试替身必须保留“draft 按 tag 查询为 404、按 ID 可读”的真实区别。
 

@@ -174,6 +174,27 @@ class PublicationTest(unittest.TestCase):
             self.publisher().run()
         self.assert_old_preserved()
 
+    def test_user_authorized_prerelease_same_tag_can_be_replaced(self):
+        # The retired .1 is a prerelease, unlike the new verified formal APK.
+        self.github.releases[1]["prerelease"] = True
+        result = self.publisher().run()
+        self.assertEqual(result["phase"], "complete")
+        self.assertFalse(next(r for r in self.github.releases.values()
+                              if r["tag_name"] == TAG)["prerelease"])
+
+    def test_explicit_cleanup_retains_only_golden_and_new_formal_release(self):
+        from dataclasses import replace
+        other = "v5.6.3-xray.2"
+        self.github.releases[6] = self.github.row(6, other, True)
+        self.github.refs[other] = self.github.make_ref(other, OLD)
+        result = self.publisher(replace(self.config, prune_superseded=True)).run()
+        self.assertEqual(result["phase"], "complete")
+        self.assertEqual({r["tag_name"] for r in self.github.releases.values()},
+                         {TAG, "v5.6.0-xray.5"})
+        self.assertEqual(set(self.github.refs), {TAG, "v5.6.0-xray.5"})
+        self.assertIn(PREVIOUS, result["pruned_releases"] if PREVIOUS in result["pruned_releases"] else [PREVIOUS])
+        self.assertIn(other, result["pruned_releases"])
+
     def test_known_drafts_are_verified_by_id_in_staging_and_rollback(self):
         result = self.publisher().run()
         self.assertEqual(result["phase"], "complete")

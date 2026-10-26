@@ -51,6 +51,7 @@ class Config:
     directory: Path = Path("release")
     resume_stage_id: int = 0
     resume_stage_tag: str = ""
+    prune_superseded: bool = False
 
     @classmethod
     def environment(cls):
@@ -59,6 +60,9 @@ class Config:
         allow = os.environ.get("ALLOW_EXISTING_RELEASE", "false")
         if allow not in ("true", "false"):
             raise PublicationError("ALLOW_EXISTING_RELEASE must be true or false")
+        prune = os.environ.get("PRUNE_SUPERSEDED", "false")
+        if prune not in ("true", "false"):
+            raise PublicationError("PRUNE_SUPERSEDED must be true or false")
         resume_id = os.environ.get("RESUME_STAGE_ID", "")
         if resume_id and (not resume_id.isdigit() or int(resume_id) <= 0):
             raise PublicationError("RESUME_STAGE_ID must be a positive release ID")
@@ -66,7 +70,8 @@ class Config:
                    values[required[3]], values[required[4]], values[required[5]],
                    allow == "true", os.environ.get("ROLLBACK_TAG", ""),
                    resume_stage_id=int(resume_id) if resume_id else 0,
-                   resume_stage_tag=os.environ.get("RESUME_STAGE_TAG", ""))
+                   resume_stage_tag=os.environ.get("RESUME_STAGE_TAG", ""),
+                   prune_superseded=(prune == "true"))
 
     def validate(self):
         if not re.fullmatch(r"[^/\s]+/[^/\s]+", self.repository):
@@ -257,6 +262,68 @@ class Publisher:
                 raise PublicationError(f"Ref changed; refusing cleanup: {tag}")
             self.gh.api("git/refs/tags/" + quote(tag, safe=""), "DELETE")
 
+    def prune_superseded(self):
+        """Owner-authorized one-time cleanup, only after verified new publication.
+
+        Golden APKs and the exact current source/asset set are protected. Every
+        other Release (including transient source backups) is retired only after
+        the complete new APK release was verified and became Latest.
+        """
+        keep = {"v5.6.0-xray.5", self.c.tag}
+        expected = [Asset.read(self.c.directory / f"FongMi-Xray-TV-{self.c.tag}-{abi}.apk")
+                    for abi in ("armeabi-v7a", "arm64-v8a")]
+        current = self.verify(self.c.tag, expected, False, False, self.c.source)
+        golden = self.release("v5.6.0-xray.5")
+        if (not golden or golden.get("draft") or golden.get("prerelease")
+                or not self.ref("v5.6.0-xray.5")):
+            raise PublicationError("Golden release/reference unavailable; refusing cleanup")
+        if self.gh.api("releases/latest")["id"] != current["id"]:
+            raise PublicationError("Current release is not Latest; refusing cleanup")
+
+        rows = []
+        for page in range(1, 100):
+            batch = self.gh.api(f"releases?per_page=100&page={page}")
+            if not isinstance(batch, list):
+                raise PublicationError("Invalid release listing; refusing cleanup")
+            rows.extend(batch)
+            if len(batch) < 100:
+                break
+        else:
+            raise PublicationError("Release listing too large; refusing cleanup")
+        by_tag = {}
+        for row in rows:
+            tag = row.get("tag_name")
+            if not tag or tag in by_tag:
+                raise PublicationError("Duplicate/empty release tag; refusing cleanup")
+            by_tag[tag] = row
+        if not keep.issubset(by_tag):
+            raise PublicationError("Protected release missing; refusing cleanup")
+        if (self.fingerprint(by_tag[self.c.tag]) != self.fingerprint(current)
+                or self.fingerprint(by_tag["v5.6.0-xray.5"]) != self.fingerprint(golden)):
+            raise PublicationError("Protected release changed; refusing cleanup")
+
+        retire = []
+        for tag, row in by_tag.items():
+            if tag in keep:
+                continue
+            ref = self.ref(tag)
+            retire.append((tag, row, ref, self.commit(ref)))
+
+        for tag, row, ref, source in retire:
+            if (self.fingerprint(self.gh.api(f"releases/{row['id']}")) != self.fingerprint(row)
+                    or self.ref(tag) != ref):
+                raise PublicationError(f"Release changed during cleanup: {tag}")
+            self.gh.api(f"releases/{row['id']}", "DELETE")
+            if ref:
+                self.delete_tag(tag, source)
+            self.result.setdefault("pruned_releases", []).append(tag)
+            self.save("pruning_superseded")
+
+        remaining = self.gh.api("releases?per_page=100&page=1")
+        if len(remaining) != 2 or {r.get("tag_name") for r in remaining} != keep:
+            raise PublicationError("Post-cleanup release set does not match requested two tags")
+        self.save("superseded_pruned")
+
     def source_version(self):
         gradle = command(["git", "show", self.c.source + ":app/build.gradle"]).decode()
         name = re.search(r'versionName\s+"([^"]+)"', gradle)
@@ -279,7 +346,7 @@ class Publisher:
         old_source = self.commit(old_ref)
         if old and not self.c.allow_existing:
             raise PublicationError("Existing release replacement requires ALLOW_EXISTING_RELEASE=true")
-        if old and (old.get("immutable") or old.get("draft") or old.get("prerelease") or not old_source):
+        if old and (old.get("immutable") or old.get("draft") or not old_source):
             raise PublicationError("Existing release is not a replaceable formal release")
         if old_ref and old_source != self.c.source and not self.c.allow_existing:
             raise PublicationError("Existing tag replacement requires explicit authorization")
@@ -311,6 +378,9 @@ class Publisher:
                       f"{version_name} / versionCode {version_code} 保持不变。"
                       "同签名包可手动覆盖安装，但这不是递增版本的新版本检测；安装器行为需设备验证。"
                       "后续正常发布仍递增修订号及 versionCode。\n\n")
+            if self.c.tag == "v5.6.3-xray.1":
+                notes += ("注意：此前 .2/.3/.4 安装包的 versionCode 高于此 .1 同名替换版，"
+                          "Android 通常不允许直接降级覆盖；请先备份应用配置再决定是否卸载重装。\n\n")
         notes += "\n".join(f"{a.path.name}: `{a.digest}` ({a.size} bytes)" for a in apks)
         has_marker = subprocess.run(
             ["git", "cat-file", "-e", self.c.source + ":.github/.trigger-publish-current-main-test"],
@@ -387,6 +457,8 @@ class Publisher:
         self.delete_tag(stage_tag, self.c.source)
         if backup_stage:
             self.delete_tag(backup_stage_tag, self.c.source)
+        if self.c.prune_superseded:
+            self.prune_superseded()
         self.save("complete")
         return self.result
 
