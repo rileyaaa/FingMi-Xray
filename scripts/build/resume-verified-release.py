@@ -88,8 +88,14 @@ class GitHub:
 
 def verify_run(repository, run_id, run, workflow, jobs):
     require(run.get("id") == run_id and run.get("status") == "completed"
-            and run.get("conclusion") == "failure" and run.get("event") == "workflow_dispatch"
-            and run.get("head_branch") == "main", "Run is not a completed manual main publication failure")
+            and run.get("conclusion") == "failure"
+            and run.get("event") in ("workflow_dispatch", "push")
+            and run.get("head_branch") == "main", "Run is not a completed authorized main publication failure")
+    if run.get("event") == "push":
+        commit = run.get("head_commit") or {}
+        require(commit.get("id") == run.get("head_sha")
+                and commit.get("message") == "ci: trigger authorized v5.6.3-xray.1 release",
+                "Push run lacks the exact owner-authorized release marker identity")
     repo, head = run.get("repository", {}), run.get("head_repository", {})
     require(repo.get("full_name") == repository and head.get("full_name") == repository
             and positive_id(repo.get("id")) and head.get("id") == repo["id"], "Run repository identity mismatch")
@@ -107,7 +113,10 @@ def verify_run(repository, run_id, run, workflow, jobs):
     by_name = {}
     for step in steps:
         by_name.setdefault(step.get("name"), []).append(step)
-    for name, conclusion in [(name, "success") for name in REQUIRED_STEPS] + [(PUBLISH_STEP, "failure")]:
+    required = [(name, "success") for name in REQUIRED_STEPS] + [(PUBLISH_STEP, "failure")]
+    if run.get("event") == "push":
+        required.append(("Verify temporary push trigger source", "success"))
+    for name, conclusion in required:
         matches = by_name.get(name, [])
         require(len(matches) == 1 and matches[0].get("status") == "completed"
                 and matches[0].get("conclusion") == conclusion, "Original verification gate missing or failed: " + name)
@@ -154,10 +163,26 @@ def read_report(path, artifact):
 def verify_report(run, report, tag):
     require(re.fullmatch(r"v\d+\.\d+\.\d+-xray\.\d+", tag), "Invalid formal release tag")
     require(report.get("source") == run["head_sha"] and report.get("release_tag") == tag
-            and report.get("phase") == "failed:uploading", "Report is not a pre-cutover upload failure for this source")
+            and report.get("phase") in ("failed:uploading", "failed:backup_published"),
+            "Report is not a permitted pre-cutover failure for this source")
     stage_tag = f"stage-{tag}-{run['id']}-{run['run_attempt']}"
     staged = report.get("staged", {})
-    require(set(staged) == {stage_tag} and positive_id(staged[stage_tag]), "Unexpected staged release identity")
+    stage_keys = {stage_tag}
+    if report["phase"] == "failed:backup_published":
+        backup_tag = report.get("backup_tag", "")
+        require(re.fullmatch(r"source-backup-\\d{4}-\\d{2}-\\d{2}-main-" + run["head_sha"][:8],
+                             backup_tag) is not None, "Published backup tag has wrong source")
+        backup_stage_tag = stage_tag + "-backup"
+        stage_keys.add(backup_stage_tag)
+        backup_id = report.get("backup_release_id")
+        backup_asset = report.get("backup_asset") or {}
+        require(positive_id(backup_id) and staged.get(backup_stage_tag) == backup_id
+                and backup_asset.get("name") == f"FingMi-Xray-{backup_tag}.zip"
+                and re.fullmatch(r"sha256:[0-9a-f]{64}", backup_asset.get("digest", ""))
+                and positive_id(backup_asset.get("size")),
+                "Completed source backup identity is incomplete")
+    require(set(staged) == stage_keys and positive_id(staged.get(stage_tag)),
+            "Unexpected staged release identity")
     expected = {f"FongMi-Xray-TV-{tag}-{abi}.apk" for abi in ("armeabi-v7a", "arm64-v8a")}
     assets = report.get("assets", [])
     require(len(assets) == 2 and {a.get("name") for a in assets} == expected, "Report must contain both exact APK names")
@@ -165,6 +190,31 @@ def verify_report(run, report, tag):
         require(re.fullmatch(r"sha256:[0-9a-f]{64}", asset.get("digest", ""))
                 and positive_id(asset.get("size")), "Invalid APK report digest/size")
     return stage_tag, staged[stage_tag]
+
+
+def verify_completed_backup(gh, run, report):
+    """Verify the previously published source backup before resuming an APK cutover."""
+    if report.get("phase") != "failed:backup_published":
+        return
+    tag = report["backup_tag"]
+    identity = report["backup_release_id"]
+    asset = report["backup_asset"]
+    release = gh.api(f"releases/{identity}")
+    require(release.get("id") == identity and release.get("tag_name") == tag
+            and release.get("draft") is False and release.get("prerelease") is True,
+            "Previously published source backup changed")
+    actual = release.get("assets", [])
+    require(len(actual) == 1 and positive_id(actual[0].get("id"))
+            and actual[0].get("name") == asset["name"]
+            and actual[0].get("digest") == asset["digest"]
+            and actual[0].get("size") == asset["size"]
+            and actual[0].get("state") == "uploaded",
+            "Previously published source backup asset changed")
+    ref = gh.api("git/ref/tags/" + tag)
+    require(ref.get("ref") == "refs/tags/" + tag
+            and ref.get("object", {}).get("type") == "commit"
+            and ref["object"].get("sha") == run["head_sha"],
+            "Previously published backup tag moved")
 
 
 def verify_stage(release, report, stage_tag, stage_id):
@@ -211,6 +261,7 @@ def main():
     parser.add_argument("--tag", default="v5.6.3-xray.1")
     parser.add_argument("--previous-backup", default="source-backup-2026-10-13-main-93a69dc7")
     parser.add_argument("--replace-existing", action="store_true")
+    parser.add_argument("--prune-superseded", action="store_true")
     parser.add_argument("--rollback-tag", default="")
     parser.add_argument("--directory", type=Path, default=Path("release"))
     parser.add_argument("--sdk", type=Path, required=True)
@@ -232,6 +283,7 @@ def main():
     report = read_report(archive, artifact)
     stage_tag, stage_id = verify_report(run, report, args.tag)
     assets = verify_stage(gh.api(f"releases/{stage_id}"), report, stage_tag, stage_id)
+    verify_completed_backup(gh, run, report)
     source = run["head_sha"]
     ref = gh.api("git/ref/tags/" + stage_tag)
     require(ref.get("ref") == "refs/tags/" + stage_tag
@@ -265,7 +317,8 @@ def main():
     spec.loader.exec_module(publisher)
     config = publisher.Config(args.repository, source, args.tag, str(run["id"]), str(attempt),
                               args.previous_backup, args.replace_existing, args.rollback_tag,
-                              args.directory, resume_stage_id=stage_id, resume_stage_tag=stage_tag)
+                              args.directory, resume_stage_id=stage_id, resume_stage_tag=stage_tag,
+                              prune_superseded=args.prune_superseded)
     transaction = publisher.Publisher(config, publisher.GitHub(args.repository))
     try:
         result = transaction.run()

@@ -15,10 +15,6 @@ on:
         description: "After verified publication keep only the golden and current APK Releases"
         type: boolean
         default: false
-  push:
-    branches: [main]
-    paths:
-      - '.github/.trigger-publish-current-main-test'
 
 concurrency:
   group: fingmi-formal-release

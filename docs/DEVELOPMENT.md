@@ -326,7 +326,7 @@ Release 的 APK 发布集合长期保留 `v5.6.0-xray.5` 黄金参考和一个�
 
 GitHub 的按 tag 获取已发布 Release 接口不会返回草稿；草稿创建和旧版转 rollback 后，必须使用已知 Release ID 校验状态、tag 和全部资产。存在性检查同时包含分页草稿列表；最终正式发布仍检查公开 tag、Git ref、资产摘要及 latest，不能因草稿查询 404 就放松校验。测试替身必须保留“draft 按 tag 查询为 404、按 ID 可读”的真实区别。
 
-仅发布阶段失败时，可用纯手动 `resume-verified-release.yml` 续发原 Actions 已验证 APK，避免重复编译。续发先验证原 run 的仓库、workflow、触发方式、源码及全部构建/验收步骤，再读取该 run 的失败报告，通过明确草稿 ID 下载原资产并重验摘要、签名、Media3 DEX 类链接、Manifest 和内嵌源码。源码 ZIP 仍归档原 APK 的构建 SHA；执行续发工具的较新 main 仅含发布基础设施修复时，也不得把它冒称 APK 的构建来源。原 run、报告或资产不满足条件就停止，不能拿本地包或未经完整验收的草稿补位。
+仅发布阶段失败时，可用纯手动 `resume-verified-release.yml` 续发原 Actions 已验证 APK，避免重复编译。2026-10-26 发布 `.1` 的完整编译与双 ABI 校验通过，但因 `GITHUB_TOKEN` 对旧 `.1` 源提交创建 rollback tag 返回 HTTP 403，失败停留在 `failed:backup_published`、正式切换前；本次续发入口允许精确校验的 marker-only push run 和已有来源一致的备份。必须由有权限的仓库凭据事先创建 `rollback-v5.6.3-xray.1-40252299406-1` 并指向旧 `.1` 提交 `943357e2fec8c9948b82ea7ae4990fd92ee5d4b3`，然后手动使用 `verified_run_id=40252299406`、`replace_existing=true`、`prune_superseded=true`、`rollback_tag=rollback-v5.6.3-xray.1-40252299406-1` 续发；仍需严格验证原始 APK、备份、tag、Digest、签名与 Manifest。续发先验证原 run 的仓库、workflow、触发方式、源码及全部构建/验收步骤，再读取该 run 的失败报告，通过明确草稿 ID 下载原资产并重验摘要、签名、Media3 DEX 类链接、Manifest 和内嵌源码。源码 ZIP 仍归档原 APK 的构建 SHA；执行续发工具的较新 main 仅含发布基础设施修复时，也不得把它冒称 APK 的构建来源。原 run、报告或资产不满足条件就停止，不能拿本地包或未经完整验收的草稿补位。
 
 切换后期失败没有自动回滚，正式入口可能暂时缺失；此时先读取失败 artifact 内 `publication-before.json` / `publication-result.json`，核对正式 tag、rollback 草稿和新草稿，再恢复入口或继续切换，不能直接复用已占用的 rollback tag 盲目重跑。需要时可通过 `rollback_tag` 手动输入一个预先指向旧 APK 源码的 tag，避免 runner token 为旧提交创建 tag 的权限限制；成功后该临时 tag 自动清理。
 

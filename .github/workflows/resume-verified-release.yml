@@ -12,9 +12,13 @@ on:
         type: boolean
         default: false
       rollback_tag:
-        description: "Optional pre-created rollback tag pointing at the existing APK source"
+        description: "Pre-created rollback tag pointing at the old .1 source; required if run token cannot create it"
         type: string
         default: ""
+      prune_superseded:
+        description: "After successful verified cutover remove all Releases except golden and new .1"
+        type: boolean
+        default: false
 
 concurrency:
   group: fingmi-formal-release
@@ -63,6 +67,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           VERIFIED_RUN_ID: ${{ inputs.verified_run_id }}
           ALLOW_REPLACEMENT: ${{ inputs.replace_existing }}
+          PRUNE_SUPERSEDED: ${{ inputs.prune_superseded }}
           ROLLBACK_TAG: ${{ inputs.rollback_tag }}
         run: |
           set -euo pipefail
@@ -70,6 +75,9 @@ jobs:
           args=(--verified-run-id "$VERIFIED_RUN_ID" --sdk "$sdk_root" --rollback-tag "$ROLLBACK_TAG")
           if [ "$ALLOW_REPLACEMENT" = true ]; then
             args+=(--replace-existing)
+          fi
+          if [ "$PRUNE_SUPERSEDED" = true ]; then
+            args+=(--prune-superseded)
           fi
           python3 scripts/build/resume-verified-release.py "${args[@]}"
 
