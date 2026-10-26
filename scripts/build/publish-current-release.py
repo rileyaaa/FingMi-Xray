@@ -260,7 +260,18 @@ class Publisher:
         if ref:
             if self.commit(ref) != expected_source:
                 raise PublicationError(f"Ref changed; refusing cleanup: {tag}")
-            self.gh.api("git/refs/tags/" + quote(tag, safe=""), "DELETE")
+            try:
+                self.gh.api("git/refs/tags/" + quote(tag, safe=""), "DELETE")
+            except PublicationError as error:
+                # GITHUB_TOKEN can publish verified Release assets but may be
+                # forbidden from deleting refs. Never hide an uncompleted tag
+                # deletion or let it erase a successful, verified APK cutover.
+                if "(HTTP 403)" not in str(error):
+                    raise
+                pending = self.result.setdefault("pending_tag_cleanup", [])
+                pending.append({"tag": tag, "expected_commit": expected_source,
+                                "reason": "GitHub Actions token refused tag DELETE (HTTP 403)"})
+                self.save("tag_cleanup_requires_owner")
 
     def prune_superseded(self):
         """Owner-authorized one-time cleanup, only after verified new publication.
@@ -348,6 +359,8 @@ class Publisher:
             raise PublicationError("Existing release replacement requires ALLOW_EXISTING_RELEASE=true")
         if old and (old.get("immutable") or old.get("draft") or not old_source):
             raise PublicationError("Existing release is not a replaceable formal release")
+        if old and old_source == self.c.source and self.c.resume_stage_id:
+            raise PublicationError("Prepositioned tag still belongs to an existing old release; refusing ambiguous cutover")
         if old_ref and old_source != self.c.source and not self.c.allow_existing:
             raise PublicationError("Existing tag replacement requires explicit authorization")
         previous = self.release(self.c.previous_backup) if self.c.previous_backup else None
@@ -427,7 +440,12 @@ class Publisher:
                 raise PublicationError("Rollback publication was not preserved")
             self.result["rollback_release_id"] = old["id"]
         self.save("rollback_preserved")
-        if old_ref:
+        if old_ref and old_source == self.c.source:
+            # The owner has moved the tag to the exact verified build before
+            # the resume run. GitHub Actions cannot force-update this tag (403).
+            # The unchanged ref was checked immediately before this cutover.
+            self.result["prepositioned_owner_tag"] = self.c.tag
+        elif old_ref:
             self.gh.api("git/refs/tags/" + quote(self.c.tag, safe=""), "PATCH", {"sha": self.c.source, "force": True})
         else:
             self.ensure_tag(self.c.tag, self.c.source)
@@ -459,7 +477,7 @@ class Publisher:
             self.delete_tag(backup_stage_tag, self.c.source)
         if self.c.prune_superseded:
             self.prune_superseded()
-        self.save("complete")
+        self.save("complete_pending_tag_cleanup" if self.result.get("pending_tag_cleanup") else "complete")
         return self.result
 
 

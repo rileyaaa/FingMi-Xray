@@ -42,6 +42,7 @@ class FakeGitHub:
         self.bad_final_digest = False
         self.change_old_ref = False
         self.bad_rollback_tag = False
+        self.forbid_tag_deletions = False
         self.private = True
 
     @staticmethod
@@ -85,6 +86,8 @@ class FakeGitHub:
             return copy.deepcopy(self.refs[tag])
         if path.startswith("git/refs/tags/"):
             tag = unquote(path.removeprefix("git/refs/tags/"))
+            if method == "DELETE" and self.forbid_tag_deletions:
+                raise PUB.PublicationError("gh: Resource not accessible by integration (HTTP 403)")
             if method == "PATCH":
                 self.refs[tag] = self.make_ref(tag, data["sha"])
             elif method == "DELETE":
@@ -194,6 +197,47 @@ class PublicationTest(unittest.TestCase):
         self.assertEqual(set(self.github.refs), {TAG, "v5.6.0-xray.5"})
         self.assertNotIn(PREVIOUS, self.github.refs)
         self.assertIn(other, result["pruned_releases"])
+
+    def test_manual_tag_preposition_resumes_when_original_release_was_removed(self):
+        # The exact 2026-10-26 failure left a verified APK draft, but no
+        # published .1 release. GitHub Actions could not PATCH the old tag.
+        from dataclasses import replace
+        del self.github.releases[1]
+        self.github.latest = 3
+        self.github.refs[TAG] = self.github.make_ref(TAG, SOURCE)
+        result = self.publisher(replace(self.config, prune_superseded=True)).run()
+        self.assertEqual(result["phase"], "complete")
+        self.assertEqual(result["prepositioned_owner_tag"], TAG)
+        self.assertEqual({r["tag_name"] for r in self.github.releases.values()},
+                         {TAG, "v5.6.0-xray.5"})
+        self.assertFalse(any(method == "PATCH" and path == "git/refs/tags/" + TAG
+                             for method, path, _ in self.github.events))
+
+    def test_manual_tag_preposition_refuses_ambiguous_old_release(self):
+        from dataclasses import replace
+        self.github.refs[TAG] = self.github.make_ref(TAG, SOURCE)
+        resume = replace(self.config, resume_stage_id=21,
+                         resume_stage_tag="stage-" + TAG + "-123-1")
+        with self.assertRaisesRegex(PUB.PublicationError, "ambiguous cutover"):
+            self.publisher(resume).run()
+        self.assertIn(1, self.github.releases)
+
+    def test_tag_delete_permission_denied_records_pending_without_skipping_release_verification(self):
+        from dataclasses import replace
+        self.github.forbid_tag_deletions = True
+        other = "v5.6.3-xray.4"
+        self.github.releases[9] = self.github.row(9, other, False)
+        self.github.refs[other] = self.github.make_ref(other, OLD)
+        result = self.publisher(replace(self.config, prune_superseded=True)).run()
+        self.assertEqual(result["phase"], "complete_pending_tag_cleanup")
+        self.assertEqual({r["tag_name"] for r in self.github.releases.values()},
+                         {TAG, "v5.6.0-xray.5"})
+        pending = {row["tag"] for row in result["pending_tag_cleanup"]}
+        self.assertIn(other, pending)
+        self.assertIn(PREVIOUS, pending)
+        self.assertIn("stage-" + TAG + "-123-1", pending)
+        self.assertIn(other, self.github.refs)
+        self.assertEqual(self.github.refs[TAG]["object"]["sha"], SOURCE)
 
     def test_known_drafts_are_verified_by_id_in_staging_and_rollback(self):
         result = self.publisher().run()
