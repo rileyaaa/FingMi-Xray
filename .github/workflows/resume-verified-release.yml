@@ -87,7 +87,7 @@ jobs:
         run: |
           if [ -f release/resume-verification.json ]; then
             {
-              echo 'APKs and source backup retain the original verified build commit; current checkout supplies publication tooling only.'
+              echo 'APKs retain the original verified build commit; current checkout supplies publication tooling only.'
               echo '```json'
               cat release/resume-verification.json
               echo '```'

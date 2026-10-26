@@ -188,38 +188,27 @@ for path in sorted((ROOT / ".github/workflows").glob("*.yml")):
 
 current_workflow = (ROOT / ".github/workflows/current-main-build.yml").read_text(encoding="utf-8")
 publish_workflow = (ROOT / ".github/workflows/publish-current-main-test-release.yml").read_text(encoding="utf-8")
-recovery_player_workflow = (ROOT / ".github/workflows/recovery-player-aars.yml").read_text(encoding="utf-8")
-recovery_native_workflow = (ROOT / ".github/workflows/recovery-restore-ffmpegjni.yml").read_text(encoding="utf-8")
-recovery_faithful_workflow = (ROOT / ".github/workflows/recovery-build.yml").read_text(encoding="utf-8")
-
-current_marker_exists = (ROOT / ".github/.trigger-current-main-build").exists()
-publish_marker_exists = (ROOT / ".github/.trigger-publish-current-main-test").exists()
-for name, text in (
-    ("current-main-build.yml", current_workflow),
-    ("publish-current-main-test-release.yml", publish_workflow),
-):
-    if "on:\n  workflow_dispatch:" not in text:
-        errors.append(f"{name} must retain workflow_dispatch")
-    for trigger in ("pull_request:", "schedule:", "workflow_call:"):
-        if f"\n  {trigger}" in text:
-            errors.append(f"{name} must not enable automatic trigger {trigger}")
-    has_push = "\n  push:" in text
-    marker_push_allowed = (
-        (name == "current-main-build.yml" and current_marker_exists)
-        or (name == "publish-current-main-test-release.yml" and publish_marker_exists)
-    )
-    if has_push and not marker_push_allowed:
-        errors.append(f"{name} must remain manual-only outside the marker trigger commit")
-    if name == "current-main-build.yml" and current_marker_exists and not has_push:
-        errors.append("current-main marker exists but current-main workflow is not armed with temporary push")
-    if name == "publish-current-main-test-release.yml" and publish_marker_exists and not has_push:
-        errors.append("publish marker exists but publish workflow is not armed with temporary push")
+# Require canonical block syntax; reject shorthand/inline/alias event forms.
+expected_workflows = {"current-main-build.yml", "publish-current-main-test-release.yml",
+                      "resume-verified-release.yml"}
+actual_workflows = {p.name for p in (ROOT / ".github/workflows").iterdir()
+                    if p.suffix in (".yml", ".yaml")}
+if actual_workflows != expected_workflows:
+    errors.append("Only build, publish and verified-resume workflows may remain")
+for name in actual_workflows:
+    text = (ROOT / ".github/workflows" / name).read_text()
+    block = re.search(r"(?m)^on:\n((?:[ \t]+[^\n]*\n|\n)*)", text)
+    events = re.findall(r"(?m)^  (\S[^:\n]*):", block.group(1)) if block else []
+    if events != ["workflow_dispatch"] or len(re.findall(r"(?m)^on:", text)) != 1:
+        errors.append(f"{name} must support only manual workflow_dispatch")
+    if ".trigger-" in text or "github.event_name == 'push'" in text:
+        errors.append(f"{name} retains retired marker/push logic")
+if list((ROOT / ".github").glob(".trigger-*")):
+    errors.append("Retired trigger marker files must not be present")
 
 for required in (
     "BUILD_SOURCE_SHA: ${{ github.sha }}",
-    "Verify temporary push trigger source",
     "ref: ${{ env.BUILD_SOURCE_SHA }}",
-    'test "$changed" = ".github/.trigger-current-main-build"',
 ):
     if required not in current_workflow:
         errors.append(f"current-main workflow is missing stable source targeting guard: {required}")
@@ -233,9 +222,7 @@ if "permissions:\n  contents: write\n  actions: read" not in publish_workflow:
 
 for required in (
     "BUILD_SOURCE_SHA: ${{ github.sha }}",
-    "Verify temporary push trigger source",
     "ref: ${{ env.BUILD_SOURCE_SHA }}",
-    'test "$changed" = ".github/.trigger-publish-current-main-test"',
     "python3 scripts/build/publish-current-release.py",
     "python3 tests/test-release-publication.py",
 ):
@@ -401,20 +388,6 @@ for name, text in (
         if any(not path.is_file() or path.read_bytes() != b"verified-input" for path in retained):
             errors.append(f"{name} cleanup damaged a later build input")
 
-for name, text in (
-    ("recovery-player-aars.yml", recovery_player_workflow),
-    ("recovery-restore-ffmpegjni.yml", recovery_native_workflow),
-    ("recovery-build.yml", recovery_faithful_workflow),
-):
-    if "bash scripts/build/build-player-aar-candidate.sh" not in text:
-        errors.append(f"{name} must rebuild the pinned player candidate from source")
-    for forbidden in (
-        "10859533459",
-        "0ed42581af11ac7163ebde148b318807c244e2a318f40c41d33f50b70bf967ee",
-    ):
-        if forbidden in text:
-            errors.append(f"{name} still depends on retired player artifact storage: {forbidden}")
-
 if "fingmi-xray-5.6.3-current-main-release" not in current_workflow:
     errors.append("current-main-build.yml must retain the short-lived TV debug artifact")
 if "retention-days: 2" not in current_workflow:
@@ -430,8 +403,6 @@ for required in (
 if "fingmi-xray-5.6.3-current-main-release" in publish_workflow:
     errors.append("publish workflow must not duplicate successful APKs into Actions artifacts")
 
-if not re.search(r'PREVIOUS_BACKUP_TAG: "source-backup-[^\"]+"', publish_workflow):
-    errors.append("publish workflow must explicitly select the previous source backup")
 if 'RELEASE_TAG: "v5.6.3-xray.1"' not in publish_workflow:
     errors.append("publish workflow must target the v5.6.3-xray.1 formal release")
 for required in (
@@ -442,10 +413,10 @@ for required in (
     "  cancel-in-progress: false",
     "      ALLOW_EXISTING_RELEASE:",
     "      ROLLBACK_TAG:",
-    "Publish verified APKs and matching complete source backup",
+    "Publish verified APKs",
 ):
     if required not in publish_workflow:
-        errors.append(f"publish workflow lost staged replacement/source backup contract: {required}")
+        errors.append(f"publish workflow lost staged replacement contract: {required}")
 
 for name, text in (
     ("current-main-build.yml", current_workflow),
@@ -462,19 +433,17 @@ if version_name != "v5.6.3-xray.1" or version_code != 563001:
 if f'RELEASE_TAG: "{version_name}"' not in publish_workflow:
     errors.append("publish tag must equal the versionName embedded in the APK")
 resume_helper = (ROOT / "scripts/build/resume-verified-release.py").read_text(encoding="utf-8")
-previous_backup = re.search(r'PREVIOUS_BACKUP_TAG: "([^"]+)"', publish_workflow).group(1)
-for argument, expected in (("--tag", version_name), ("--previous-backup", previous_backup)):
-    if f'parser.add_argument("{argument}", default="{expected}")' not in resume_helper:
-        errors.append(f"resume publication default {argument} must match the full publication workflow")
+if f'parser.add_argument("--tag", default="{version_name}")' not in resume_helper:
+    errors.append("resume publication tag must match the full publication workflow")
+for text in (publish_workflow, resume_helper):
+    if "PREVIOUS_BACKUP_TAG" in text or "--previous-backup" in text:
+        errors.append("Publication must not depend on source backups")
 for name, text in (("current-main", current_workflow), ("publish", publish_workflow)):
     if "keytool -genkeypair" in text or "current-main-debug.jks" in text:
         errors.append(f"{name} must never generate a replacement release key")
     for required in ("python3 scripts/build/check-release-signing.py", "--build-type release"):
         if required not in text:
             errors.append(f"{name} lost persistent signing/release verification: {required}")
-# APK formal status and backup-only prerelease status are asserted by the
-# publication transaction tests; a whole-workflow '--prerelease' text ban
-# cannot distinguish the two intentionally different release types.
 if "signing/release-signing.properties" not in app_build or "signingConfigs.release" not in app_build:
     errors.append("app must use the persistent private-project release signing configuration")
 

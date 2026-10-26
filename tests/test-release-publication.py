@@ -4,7 +4,6 @@
 import copy
 import importlib.util
 import json
-import os
 from pathlib import Path
 import subprocess
 import sys
@@ -130,7 +129,7 @@ class FakeGitHub:
                          for i, asset in enumerate(assets)]
         if self.bad_stage_digest and self.uploads == 1:
             row["assets"][0]["digest"] = "sha256:wrong"
-        if self.change_old_ref and self.uploads == 2:
+        if self.change_old_ref and self.uploads == 1:
             self.refs[TAG] = self.make_ref(TAG, "f" * 40)
 
 
@@ -141,21 +140,16 @@ class PublicationTest(unittest.TestCase):
         self.directory = Path(self.temp.name)
         for abi in ("armeabi-v7a", "arm64-v8a"):
             (self.directory / f"FongMi-Xray-TV-{TAG}-{abi}.apk").write_bytes(("synthetic apk " + abi).encode())
-        self.config = PUB.Config("private/project", SOURCE, TAG, "123", "1", PREVIOUS,
+        self.config = PUB.Config("private/project", SOURCE, TAG, "123", "1",
                                  True, "release-rollback-test", self.directory)
         self.github = FakeGitHub()
         self.original = copy.deepcopy(self.github.releases[1])
-
-    def archive(self, config, tag):
-        path = config.directory / f"FingMi-Xray-{tag}.zip"
-        path.write_bytes(b"synthetic source archive")
-        return PUB.Asset.read(path)
 
     def publisher(self, config=None):
         class TestedPublisher(PUB.Publisher):
             def source_version(self):
                 return TAG, 563001
-        return TestedPublisher(config or self.config, self.github, self.archive)
+        return TestedPublisher(config or self.config, self.github)
 
     def assert_old_preserved(self):
         self.assertEqual(self.github.releases[1], self.original)
@@ -163,7 +157,7 @@ class PublicationTest(unittest.TestCase):
         self.assertFalse(any(method == "DELETE" for method, _, _ in self.github.events))
 
     def test_each_upload_failure_preserves_current_publication(self):
-        for upload in (1, 2):
+        for upload in (1,):
             with self.subTest(upload=upload):
                 self.github = FakeGitHub()
                 self.github.fail_upload = upload
@@ -244,7 +238,6 @@ class PublicationTest(unittest.TestCase):
         self.assertEqual(result["phase"], "complete")
         gets = [path for method, path, _ in self.github.events if method == "GET"]
         self.assertIn("releases/4", gets)
-        self.assertIn("releases/5", gets)
         self.assertIn("releases/1", gets)
         self.assertIn("releases/tags/" + TAG, gets)
 
@@ -291,10 +284,9 @@ class PublicationTest(unittest.TestCase):
         self.assertEqual(result["phase"], "complete")
         self.assertEqual(result["release_id"], identity)
         self.assertEqual(result["resumed_stage"], {"id": identity, "tag_name": config.resume_stage_tag})
-        self.assertEqual(self.github.uploads, 1)  # Only the source backup is new.
+        self.assertEqual(self.github.uploads, 0)
         created = [data for method, path, data in self.github.events if method == "POST" and path == "releases"]
-        self.assertEqual(len(created), 1)
-        self.assertTrue(created[0]["tag_name"].endswith("-backup"))
+        self.assertEqual(created, [])
         self.assertNotIn(config.resume_stage_tag, self.github.refs)
 
     def test_explicit_resume_rejects_changed_remote_assets_state_and_source(self):
@@ -375,16 +367,16 @@ class PublicationTest(unittest.TestCase):
             with self.assertRaisesRegex(PUB.PublicationError, "HTTP 403"):
                 client.api("releases/tags/private", optional=True)
 
-    def test_success_cleans_only_after_both_final_publications_verify(self):
+    def test_success_cleans_only_after_apks_and_latest_verify(self):
         # A precreated rollback tag is accepted only at the old source.
         self.github.refs[self.config.rollback_tag] = self.github.make_ref(self.config.rollback_tag, OLD)
         result = self.publisher().run()
         self.assertEqual(result["phase"], "complete")
         self.assertEqual(self.github.refs[TAG]["object"]["sha"], SOURCE)
         self.assertNotIn(1, self.github.releases)
-        self.assertNotIn(2, self.github.releases)
+        self.assertIn(2, self.github.releases)
         self.assertIn(3, self.github.releases)
-        self.assertNotIn(PREVIOUS, self.github.refs)
+        self.assertIn(PREVIOUS, self.github.refs)
         self.assertFalse(any(tag.startswith(("stage-", "release-rollback-")) for tag in self.github.refs))
         actions = self.github.events
         retired = next(i for i, (m, p, d) in enumerate(actions) if m == "PATCH" and p == "releases/1")
@@ -397,37 +389,33 @@ class PublicationTest(unittest.TestCase):
         self.assertEqual(before["release"]["id"], 1)
         self.assertEqual(json.loads((self.directory / "publication-result.json").read_text())["phase"], "complete")
 
-    def test_source_archive_restores_exact_committed_signing_and_source_bytes(self):
-        repository = self.directory / "repository"
-        repository.mkdir()
-        previous_cwd = Path.cwd()
-        try:
-            os.chdir(repository)
-            def git(*args):
-                return subprocess.check_output(["git", *args], stderr=subprocess.DEVNULL)
-            git("init", "--quiet")
-            git("config", "user.name", "Archive test")
-            git("config", "user.email", "archive@example.invalid")
-            Path("signing").mkdir()
-            for name in ("fingmi-xray-release.p12", "release-signing.properties", "release-certificate.sha256"):
-                (Path("signing") / name).write_bytes(b"synthetic signing fixture")
-            Path("source.java").write_bytes(b"committed source\n")
-            Path("app").mkdir()
-            Path("app/build.gradle").write_text(f'versionName "{TAG}"\nversionCode 563001\n')
-            git("add", ".")
-            git("commit", "--quiet", "-m", "archive fixture")
-            source = git("rev-parse", "HEAD").decode().strip()
-            Path("source.java").write_bytes(b"uncommitted dirty bytes must not enter archive\n")
-            from dataclasses import replace
-            source_config = replace(self.config, source=source)
-            self.assertEqual(PUB.Publisher(source_config, None).source_version(), (TAG, 563001))
-            asset = PUB.source_archive(source_config, "source-backup-test")
-            import zipfile
-            with zipfile.ZipFile(asset.path) as archive:
-                self.assertEqual(archive.read("FingMi-Xray/source.java"), b"committed source\n")
-                self.assertEqual(len([i for i in archive.infolist() if not i.is_dir()]), 5)
-        finally:
-            os.chdir(previous_cwd)
+    def test_environment_requires_only_apk_publication_identity(self):
+        environment = {"GITHUB_REPOSITORY": "private/project", "BUILD_SOURCE_SHA": SOURCE,
+                       "RELEASE_TAG": TAG, "GITHUB_RUN_ID": "123", "GITHUB_RUN_ATTEMPT": "1",
+                       "ALLOW_EXISTING_RELEASE": "true", "PRUNE_SUPERSEDED": "true"}
+        with mock.patch.dict(PUB.os.environ, environment, clear=True):
+            config = PUB.Config.environment()
+            config.validate()
+        self.assertEqual(config.source, SOURCE)
+        self.assertTrue(config.allow_existing)
+        self.assertTrue(config.prune_superseded)
+
+    def test_success_uploads_only_two_apks_and_creates_no_source_archive(self):
+        # Private signing/source files in the work directory must never be uploaded.
+        (self.directory / "source-backup.zip").write_bytes(b"synthetic private fixture")
+        (self.directory / "release-signing.properties").write_bytes(b"synthetic private fixture")
+        before = set(self.directory.iterdir())
+        self.publisher().run()
+        created = [data for method, path, data in self.github.events
+                   if method == "POST" and path == "releases"]
+        self.assertEqual(len(created), 1)
+        self.assertFalse(created[0]["prerelease"])
+        self.assertFalse(any("backup" in row["tag_name"] for row in created))
+        current = self.github.releases[self.github.latest]
+        self.assertEqual({a["name"] for a in current["assets"]},
+                         {p.name for p in before if p.suffix == ".apk"})
+        self.assertEqual(self.github.uploads, 1)
+        self.assertFalse(any(p.suffix == ".zip" for p in set(self.directory.iterdir()) - before))
 
 
 if __name__ == "__main__":

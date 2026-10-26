@@ -19,22 +19,22 @@
 - 向用户报告 Actions 状态前，先刷新仓库最新 runs 列表，再定位目标 run。
 - 之前读取的单个 run、jobs 或日志结果只能代表当时状态，不能直接当成当前状态。
 - 最新 runs 列表确认 run 已完成后，才读取该 run 的 jobs / logs 核对实际成功步骤或失败原因。
-- 临时 `push` trigger 只允许用于必要验证；完整 run 入队后不得继续向 `main` 提交任何内容，也不得提前恢复 `workflow_dispatch`；必须等该 run 完整结束后再恢复 manual-only。`current-main-build.yml` 与 publish workflow 都使用两阶段 marker：先用只修改 workflow 的 arm commit 增加仅监听对应 marker path 的 `push`，该 arm commit 本身不得触发完整构建；再用只修改 `.github/.trigger-current-main-build` 或 `.github/.trigger-publish-current-main-test` 的 marker commit 作为真正 checkout / build source，并由 workflow source guard 验证 marker-only diff。publish 还必须等 Release 创建、tag / digest 校验与上一测试版替换全部完成后才能撤回 trigger。不得把直接修改 workflow YAML 的 arm commit 当成 current build 或 Release target。验证结束还要确认 current-main 与 publish workflow 都是纯手动且 marker 已删除。
+- 所有现存和新增 Actions workflow 只能使用 `workflow_dispatch` 手动触发；不再允许临时 push trigger、marker 文件、定时器或自动串联。构建、正式发布和失败续发分别使用三个保留入口，历史恢复/临时研究入口已移除。
 - 如果当前自动化环境既没有 `workflow_dispatch` 调用能力，又明确阻止修改 workflow trigger，则不得通过强制移动 `main`、回退默认分支、复用旧自动 trigger commit 或其他方式绕过平台安全限制。保持仓库 pure manual-only，由用户在 GitHub Actions 页面使用 `Run workflow` 触发；AI 继续完成不依赖该触发动作的审计、文档、存储清理和后续结果核验。
-- GitHub Releases 主要用于发布产物，不作为长期文件仓库。正常 APK 发布集合只保留 `v5.6.0-xray.5` 黄金参考和一个当前正式发布版本；构建输入、recovery 材料、旧测试版和临时文件应改为项目内源码 / 脚本 / fixture / hash 或短期 Actions artifact。**唯一例外是用户明确要求的完整源码备份**，可使用 `source-backup-*` Release，并必须与 APK 发布集合分开识别；不得为了省事新建 build-input Release。
+- GitHub Releases 只发布 APK，长期保留 `v5.6.0-xray.5` 黄金参考和一个当前正式版。**今后不生成、上传或暂存项目源码 ZIP / `source-backup-*` Release**；源码和固定签名继续由私有 Git 仓库管理。
+
 
 ## 3. 正常开发只保留 `main` 一个分支
 
 - 仓库正常开发状态只保留默认分支 `main`；普通开发、审计、验证、上游同步和文档维护都直接在 `main` 上进行。
 - 未经用户明确要求，不得为了普通工作长期创建第二条开发分支，也不得把临时分支留成并行开发线。
 - 如果受平台能力限制确实必须临时创建额外分支，只允许作为短期机制使用；相关工作合回 `main` 后必须立即删除。
-- 临时 Actions marker / trigger 属于 CI 机制，不等同于开发分支，但仍必须遵守本文的 CI 清理规则。
 - 交接、发布和工作阶段收尾前检查仓库 branches；正常状态应只剩 `main`。发现已完全并入 `main` 的遗留分支时应优先清理，不得继续搁置。
 
 ## 4. 会话接近平台时限时立即交接
 
 - 如果判断当前会话接近平台时限、上下文容量限制或可能被系统中断，不再开启新的长流程、批量审计、CI 等待或大范围修改。
-- 立即返回可继续接手的信息：当前 `main` HEAD、已完成提交、未完成事项、临时 workflow trigger 状态、下一步最具体的文件 / run / commit / 操作入口。
+- 立即返回可继续接手的信息：当前 `main` HEAD、已完成提交、未完成事项、手动工作流状态、下一步最具体的文件 / run / commit / 操作入口。
 - 不等会话被强制中断后留下半截工作。
 - 用户再次发送“继续工作”后，直接从交接状态继续，不重复已经确认的检查。
 
@@ -85,10 +85,10 @@
 ## 7. CI 产物必须区分长期存留与临时使用
 
 - 在创建、上传或保留较大的 APK、AAR、ZIP、构建报告或测试证据前，先判断它是发布产物、可重建输入、不可重建的黄金证据，还是一次性临时产物。
-- GitHub Releases 的正常 APK 集合只承载发布版本：`v5.6.0-xray.5` 黄金参考和一个当前正式发布版本。用户明确要求的 `source-backup-*` 完整源码备份可作为独立例外保留，但不得被发布器当成 APK 发布版；player AAR、recovery ZIP、构建缓存或其他 build input 仍不得另建 Release 长期存放。
+- GitHub Releases 只保留黄金 APK 与当前正式 APK，不再承载完整项目备份、player AAR、recovery ZIP 或 build input。发布失败所需最小 JSON 报告仍可使用短期 Actions artifact，提取完成后清理。
 - 可重建的长期输入应保存固定 source commit、构建脚本、最小 fixture / patch 和校验规则；构建时现场重建并验证。不可重建且确属黄金发布来源的二进制只能从保留的黄金 Release 按固定 digest 取证。
 - 适合 Git 长期保存的证据应是最小、可复核的文本、源码、patch、fixture 与 hash；不要把大型 APK / AAR / SO 直接塞入普通 Git 历史。
-- Actions artifacts 是一次性提取区，不是备份仓库。用户已授权清理本项目全部已完成用途的 Actions 产物；AI 保存必要排错日志、确认重要发布产物或源码备份已在 Releases 等指定位置后，应主动删除这些 artifacts，无需每次重新请求确认。缓存同样不作为备份，失效或无用缓存可清理；不能把 runner 本地磁盘、远端 artifact 配额和下载失败混为一谈。
+- Actions artifacts 是一次性提取区，不是备份仓库。用户已授权清理本项目全部已完成用途的 Actions 产物；AI 保存必要排错日志、确认重要发布产物已在 Releases 后，应主动删除这些 artifacts，无需每次重新请求确认。缓存同样不作为备份，失效或无用缓存可清理；不能把 runner 本地磁盘、远端 artifact 配额和下载失败混为一谈。
 - artifacts 仍在当前构建、提取或排错中使用时，采用短 retention 并只保留必要副本；提取完成后清理，不以“尚未到自动过期日”为由保留。清理后重新核对远端数量，不把 Actions 产物清理扩大成删除 Release、源码备份、签名、run 历史或排错日志。
 - 临时产物如果仍在当前工作阶段会被继续使用可以暂留；一旦用途结束，应在同一阶段或最近一次收尾中清理。
 - 具体 workflow 的 retention、自动 pruning、源码重建输入与发布清理规则统一维护在 `DEVELOPMENT.md`，本文件只约束 AI 的存储决策。
@@ -125,7 +125,7 @@
 
 - 每次准备发布 APK 或跟随上游升级前，必须读取并遵守 [PROJECT.md 的版本命名与覆盖升级规则](PROJECT.md#版本命名与覆盖升级)。版本规则是长期项目约定，不能只写在开发日志、发布记录或聊天里；规则变更必须同步本节执行约束。
 - 正式发布使用 `v<公开 FongMi 版本>-xray.<fork 修订号>`；前半段只来自采用的公开上游源码，后半段表示本 fork 的修补发布，不是 Xray-core 版本。同一上游基线的新 APK 发布递增修订号；跟随公开新基线时从 `.1` 开始。未经用户明确要求，不得复用已发布修订号承载修改后的 APK。
-- 用户明确要求同名替换时，按 PROJECT 的单次例外执行，并显式启用发布器的 `replace_existing` 输入；不能因手动重跑 Actions 就自行取得替换授权。替换前必须完成新产物上传和摘要验证，保留旧产物至新 APK 与源码备份均核验完成；更新 Release 的源码/构建/摘要记录，并说明同 versionCode 手动重装限制。
+- 用户明确要求同名替换时，按 PROJECT 的单次例外执行，并显式启用发布器的 `replace_existing` 输入；不能因手动重跑 Actions 就自行取得替换授权。替换前必须完成新产物上传和摘要验证，保留旧产物至新 APK、来源 tag 与 latest 均核验完成；更新 Release 的源码/构建/摘要记录，并说明同 versionCode 手动重装限制。
 - 发布前必须同步检查 `app/build.gradle` 的 `versionName` / `versionCode`、publish workflow 的新 tag / 上一版清理目标，以及 `tests/test-build-hygiene.py` 的版本约束。Release tag 必须与软件内显示版本一致，versionCode 按项目公式计算并严格大于上一安装版本；同步上游时不得直接用其原始版本配置覆盖本 fork 的发布版本。
 - 正常 APK 发布为非预览的正式版，使用固定正式签名及 Release variant。不得重新生成签名、回退临时开发证书或更新 Xray 核心来迎合发布名称；签名及产物校验按 [DEVELOPMENT.md](DEVELOPMENT.md#固定签名与-release-构建校验) 执行。
 - 纯文档修改、代码审查或未发布 APK 的开发提交，不自动递增版本、不重编译或重发当前正式版。需要发布新的 APK 时才执行上述递增及产物验证；未经用户要求，不扩大应用更新范围。

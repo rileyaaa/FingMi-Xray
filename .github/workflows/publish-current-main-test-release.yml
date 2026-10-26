@@ -36,9 +36,8 @@ jobs:
       LIBASS_CANDIDATE_SHA256: "f047f8ad84be08aeddb0672500e9b263cafd6f2a009812392554dc55b2019861"
       JADX_VERSION: "1.5.6"
       JADX_SHA256: "545ea2be9c242511bc145755cf4bda2485ade42966e096f8b4d3da2a230e8974"
-      PREVIOUS_BACKUP_TAG: "source-backup-2026-10-13-main-93a69dc7"
-      ALLOW_EXISTING_RELEASE: "${{ inputs.replace_existing || (github.event_name == 'push' && github.event.head_commit.message == 'ci: trigger authorized v5.6.3-xray.1 release') }}"
-      PRUNE_SUPERSEDED: "${{ inputs.prune_superseded || (github.event_name == 'push' && github.event.head_commit.message == 'ci: trigger authorized v5.6.3-xray.1 release') }}"
+      ALLOW_EXISTING_RELEASE: ${{ inputs.replace_existing }}
+      PRUNE_SUPERSEDED: ${{ inputs.prune_superseded }}
       ROLLBACK_TAG: ${{ inputs.rollback_tag }}
       RELEASE_TAG: "v5.6.3-xray.1"
       BUILD_SOURCE_SHA: ${{ github.sha }}
@@ -47,19 +46,6 @@ jobs:
       - uses: actions/checkout@v7
         with:
           ref: ${{ env.BUILD_SOURCE_SHA }}
-
-      - name: Verify temporary push trigger source
-        if: github.event_name == 'push'
-        shell: bash
-        run: |
-          set -euo pipefail
-          test -n "$BUILD_SOURCE_SHA"
-          test "$BUILD_SOURCE_SHA" = "$GITHUB_SHA"
-          git fetch --no-tags --depth=2 origin "$GITHUB_SHA"
-          parent="$(git rev-parse "$GITHUB_SHA^")"
-          test -n "$parent"
-          changed="$(git diff --name-only "$parent" "$GITHUB_SHA")"
-          test "$changed" = ".github/.trigger-publish-current-main-test"
 
       - uses: actions/setup-java@v6
         with:
@@ -400,7 +386,7 @@ jobs:
 
           sha256sum release/*.apk
 
-      - name: Publish verified APKs and matching complete source backup
+      - name: Publish verified APKs
         if: success()
         shell: bash
         env:

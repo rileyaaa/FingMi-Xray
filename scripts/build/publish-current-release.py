@@ -1,8 +1,7 @@
 #!/usr/bin/env python3
-"""Stage verified APKs and an exact source archive before retiring a release."""
+"""Stage verified APKs before retiring a release."""
 
 from dataclasses import dataclass
-from datetime import datetime, timezone
 import hashlib
 import json
 import os
@@ -10,7 +9,6 @@ from pathlib import Path
 import re
 import subprocess
 from urllib.parse import quote
-import zipfile
 
 
 class PublicationError(RuntimeError):
@@ -45,7 +43,6 @@ class Config:
     tag: str
     run_id: str
     attempt: str
-    previous_backup: str
     allow_existing: bool
     rollback_tag: str = ""
     directory: Path = Path("release")
@@ -55,7 +52,7 @@ class Config:
 
     @classmethod
     def environment(cls):
-        required = ["GITHUB_REPOSITORY", "BUILD_SOURCE_SHA", "RELEASE_TAG", "GITHUB_RUN_ID", "GITHUB_RUN_ATTEMPT", "PREVIOUS_BACKUP_TAG"]
+        required = ["GITHUB_REPOSITORY", "BUILD_SOURCE_SHA", "RELEASE_TAG", "GITHUB_RUN_ID", "GITHUB_RUN_ATTEMPT"]
         values = {key: os.environ[key] for key in required}
         allow = os.environ.get("ALLOW_EXISTING_RELEASE", "false")
         if allow not in ("true", "false"):
@@ -67,7 +64,7 @@ class Config:
         if resume_id and (not resume_id.isdigit() or int(resume_id) <= 0):
             raise PublicationError("RESUME_STAGE_ID must be a positive release ID")
         return cls(values[required[0]], values[required[1]], values[required[2]],
-                   values[required[3]], values[required[4]], values[required[5]],
+                   values[required[3]], values[required[4]],
                    allow == "true", os.environ.get("ROLLBACK_TAG", ""),
                    resume_stage_id=int(resume_id) if resume_id else 0,
                    resume_stage_tag=os.environ.get("RESUME_STAGE_TAG", ""),
@@ -82,8 +79,6 @@ class Config:
             raise PublicationError("Invalid formal release tag")
         if not self.run_id.isdigit() or not self.attempt.isdigit():
             raise PublicationError("Invalid workflow run identity")
-        if self.previous_backup and not self.previous_backup.startswith("source-backup-"):
-            raise PublicationError("Only a named source-backup tag may be retired")
         if self.rollback_tag and not self.rollback_tag.startswith(("rollback-", "release-rollback-")):
             raise PublicationError("ROLLBACK_TAG must use a rollback prefix")
         if bool(self.resume_stage_id) != bool(self.resume_stage_tag):
@@ -108,7 +103,7 @@ class GitHub:
         if result.returncode:
             if optional and "(HTTP 404)" in result.stderr.decode(errors="replace"):
                 return None
-            # Do not echo request bodies: the private archive contains signing material.
+            # Do not echo request bodies: request bodies may contain private release metadata.
             raise PublicationError(f"GitHub {method} {path} failed: {result.stderr.decode(errors='replace').strip()}")
         return json.loads(result.stdout) if result.stdout.strip() else None
 
@@ -117,43 +112,10 @@ class GitHub:
                         *[str(asset.path) for asset in assets]], check=True)
 
 
-def source_archive(config, backup_tag):
-    """Verify every archived tracked blob, including the fixed signing files."""
-    output = config.directory / f"FingMi-Xray-{backup_tag}.zip"
-    command(["git", "cat-file", "-e", config.source + "^{commit}"])
-    command(["git", "archive", "--format=zip", "--prefix=FingMi-Xray/",
-             "--output=" + str(output), config.source])
-    object_format = command(["git", "rev-parse", "--show-object-format"]).decode().strip()
-    records = command(["git", "ls-tree", "-rz", "--full-tree", config.source]).split(b"\0")
-    expected = {}
-    for record in records:
-        if not record:
-            continue
-        metadata, name = record.split(b"\t", 1)
-        _, kind, oid = metadata.decode().split()
-        if kind != "blob":
-            raise PublicationError("Source backup cannot silently omit submodule contents")
-        expected["FingMi-Xray/" + name.decode()] = oid
-    for name in ("signing/fingmi-xray-release.p12", "signing/release-signing.properties", "signing/release-certificate.sha256"):
-        if "FingMi-Xray/" + name not in expected:
-            raise PublicationError("Source commit lacks fixed signing recovery files")
-    with zipfile.ZipFile(output) as archive:
-        members = [entry.filename for entry in archive.infolist() if not entry.is_dir()]
-        if len(members) != len(expected) or set(members) != set(expected):
-            raise PublicationError("Source archive does not contain exactly the tracked files")
-        for name in members:
-            data = archive.read(name)
-            oid = hashlib.new(object_format, b"blob " + str(len(data)).encode() + b"\0" + data).hexdigest()
-            if oid != expected[name]:
-                raise PublicationError(f"Archived tracked bytes differ: {name}")
-    return Asset.read(output)
-
-
 class Publisher:
-    def __init__(self, config, github, archive_factory=source_archive):
+    def __init__(self, config, github):
         self.c = config
         self.gh = github
-        self.archive_factory = archive_factory
         self.result = {"source": config.source, "release_tag": config.tag, "phase": "preflight"}
 
     def save(self, phase):
@@ -346,7 +308,7 @@ class Publisher:
     def run(self):
         self.c.validate()
         if self.gh.api("").get("private") is not True:
-            raise PublicationError("Signing recovery archive may only be uploaded to the private project")
+            raise PublicationError("Publication is restricted to the private project")
         self.c.directory.mkdir(parents=True, exist_ok=True)
         apks = [Asset.read(self.c.directory / f"FongMi-Xray-TV-{self.c.tag}-{abi}.apk")
                 for abi in ("armeabi-v7a", "arm64-v8a")]
@@ -363,18 +325,13 @@ class Publisher:
             raise PublicationError("Prepositioned tag still belongs to an existing old release; refusing ambiguous cutover")
         if old_ref and old_source != self.c.source and not self.c.allow_existing:
             raise PublicationError("Existing tag replacement requires explicit authorization")
-        previous = self.release(self.c.previous_backup) if self.c.previous_backup else None
-        previous_ref = self.ref(self.c.previous_backup) if self.c.previous_backup else None
-        backup_tag = "source-backup-" + datetime.now(timezone.utc).strftime("%Y-%m-%d") + "-main-" + self.c.source[:8]
-        backup = self.archive_factory(self.c, backup_tag)
         token = self.c.run_id + "-" + self.c.attempt
         attempt_stage_tag = "stage-" + self.c.tag + "-" + token
         stage_tag = self.c.resume_stage_tag or attempt_stage_tag
-        backup_stage_tag = attempt_stage_tag + "-backup"
         rollback_tag = self.c.rollback_tag or "rollback-" + self.c.tag + "-" + token
-        self.result.update({"backup_tag": backup_tag, "rollback_tag": rollback_tag if old else None,
-                            "assets": [a.metadata() for a in apks], "backup_asset": backup.metadata()})
-        before = {"release": old, "ref": old_ref, "previous_backup": previous, "previous_backup_ref": previous_ref}
+        self.result.update({"rollback_tag": rollback_tag if old else None,
+                            "assets": [a.metadata() for a in apks]})
+        before = {"release": old, "ref": old_ref}
         (self.c.directory / "publication-before.json").write_text(json.dumps(before, indent=2) + "\n")
         self.save("prepared")
         version_name, version_code = self.source_version()
@@ -395,34 +352,8 @@ class Publisher:
                 notes += ("注意：此前 .2/.3/.4 安装包的 versionCode 高于此 .1 同名替换版，"
                           "Android 通常不允许直接降级覆盖；请先备份应用配置再决定是否卸载重装。\n\n")
         notes += "\n".join(f"{a.path.name}: `{a.digest}` ({a.size} bytes)" for a in apks)
-        has_marker = subprocess.run(
-            ["git", "cat-file", "-e", self.c.source + ":.github/.trigger-publish-current-main-test"],
-            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL).returncode == 0
-        trigger_note = ("本归档保留构建时的临时 push trigger/marker；恢复使用前删除 "
-                        "`.github/.trigger-publish-current-main-test`，并将发布 workflow 的 on 还原为仅 workflow_dispatch。"
-                        "当前 main 在整个发布 run 完成后也会执行此还原。\n\n") if has_marker else ""
-        backup_notes = (f"完整 tracked 源码归档：`{self.c.source}`。包含固定签名及私有恢复配置，"
-                        "不包含 Git 历史、ignored AAR 或构建缓存；所有归档文件与该 commit 的 blob 字节核对。\n\n"
-                        + trigger_note +
-                        f"{backup.path.name}: `{backup.digest}` ({backup.size} bytes)")
         stage = self.resume_stage(apks) if self.c.resume_stage_id else self.stage(stage_tag, apks, False, notes)
-        existing_backup = self.find_release(backup_tag)
-        if existing_backup:
-            self.verify(backup_tag, [backup], False, True, self.c.source)
-            backup_stage = None
-        else:
-            backup_stage = self.stage(backup_stage_tag, [backup], True, backup_notes)
-        self.save("both_uploads_verified")
-        if backup_stage:
-            self.ensure_tag(backup_tag, self.c.source)
-            self.gh.api(f"releases/{backup_stage['id']}", "PATCH", {
-                "tag_name": backup_tag, "name": backup_tag, "body": backup_notes,
-                "target_commitish": self.c.source, "draft": False,
-                "prerelease": True, "make_latest": "false",
-            })
-        published_backup = self.verify(backup_tag, [backup], False, True, self.c.source)
-        self.result["backup_release_id"] = published_backup["id"]
-        self.save("backup_published")
+        self.save("staging_verified")
         if self.fingerprint(self.release(self.c.tag)) != self.fingerprint(old) or self.ref(self.c.tag) != old_ref:
             raise PublicationError("Old publication changed during staging; refusing cutover")
         if old:
@@ -456,25 +387,15 @@ class Publisher:
         })
         self.save("cutover_published")
         current = self.verify(self.c.tag, apks, False, False, self.c.source)
-        self.verify(backup_tag, [backup], False, True, self.c.source)
         if self.gh.api("releases/latest")["id"] != current["id"]:
             raise PublicationError("Formal release is not latest")
         self.result["release_id"] = current["id"]
         self.save("final_verified")
-        # Destructive cleanup is strictly after both final publications verify.
-        if self.c.previous_backup and self.c.previous_backup != backup_tag:
-            if self.fingerprint(self.release(self.c.previous_backup)) != self.fingerprint(previous) or self.ref(self.c.previous_backup) != previous_ref:
-                raise PublicationError("Previous backup changed; refusing cleanup")
-            if previous:
-                self.gh.api(f"releases/{previous['id']}", "DELETE")
-            if previous_ref:
-                self.delete_tag(self.c.previous_backup, self.commit(previous_ref))
+        # Retire old assets only after exact APK/source/latest verification.
         if old:
             self.gh.api(f"releases/{old['id']}", "DELETE")
             self.delete_tag(rollback_tag, old_source)
         self.delete_tag(stage_tag, self.c.source)
-        if backup_stage:
-            self.delete_tag(backup_stage_tag, self.c.source)
         if self.c.prune_superseded:
             self.prune_superseded()
         self.save("complete_pending_tag_cleanup" if self.result.get("pending_tag_cleanup") else "complete")

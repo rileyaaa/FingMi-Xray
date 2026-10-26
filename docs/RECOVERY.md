@@ -372,6 +372,8 @@ faithful recovery 生成的 decoder AAR SHA-256 为 `31a1db2570416147cc6889643d2
 
 ## 9. 归档 faithful 构建工具（非 `main` 构建链）
 
+2026-10-26 已移除五个历史 `recovery-*` Actions 入口。以下 workflow 描述仅保留历史取证背景，文件可从 Git 历史恢复；对应 `scripts/recovery/`、源码、fixture 与 hash 继续保留，当前手动构建不依赖这些旧入口。
+
 这一节保留的是历史重建工具。它们只在需要复核旧发布版、重新提取历史 native 来源或研究旧行为时使用；正常 `main` 开发和发布**不要求执行本节流程**。
 
 本地入口：

@@ -53,63 +53,18 @@ class ResumeTests(unittest.TestCase):
         self.assertEqual(RESUME.verify_report(self.run, self.report, TAG), (STAGE_TAG, 30))
         self.assertEqual(len(RESUME.verify_stage(self.stage, self.report, STAGE_TAG, 30)), 2)
 
-    def test_authorized_marker_push_must_have_matching_successful_source_guard(self):
+    def test_automatic_runs_and_retired_backup_reports_are_rejected(self):
         self.run["event"] = "push"
-        self.run["head_commit"] = {
-            "id": SOURCE, "message": "ci: trigger authorized v5.6.3-xray.1 release"}
-        guard = {"name": "Verify temporary push trigger source",
-                 "status": "completed", "conclusion": "success", "number": 0}
-        self.jobs[0]["steps"].insert(0, guard)
-        self.check_run()
-        for bad in ("unexpected", "ci: trigger authorized v5.6.3-xray.2 release"):
-            with self.subTest(bad=bad), self.assertRaises(ValueError):
-                self.run["head_commit"]["message"] = bad
-                self.check_run()
-        self.run["head_commit"]["message"] = "ci: trigger authorized v5.6.3-xray.1 release"
-        for bad in ("failure", "skipped"):
-            with self.subTest(bad=bad), self.assertRaises(ValueError):
-                guard["conclusion"] = bad
-                self.check_run()
-        guard["conclusion"] = "success"
-        guard["name"] = "different guard"
+        self.run["head_commit"] = {"id": SOURCE,
+                                   "message": "ci: trigger authorized v5.6.3-xray.1 release"}
         with self.assertRaises(ValueError):
             self.check_run()
-
-    def test_accepts_only_the_identified_backup_published_stage(self):
-        backup_tag = "source-backup-2026-10-26-main-" + SOURCE[:8]
-        backup_stage_tag = STAGE_TAG + "-backup"
-        backup_asset = {"name": "FingMi-Xray-" + backup_tag + ".zip",
-                        "digest": "sha256:" + "d" * 64, "size": 110}
-        self.report.update(phase="failed:backup_published",
-                           staged={STAGE_TAG: 30, backup_stage_tag: 31},
-                           backup_tag=backup_tag, backup_release_id=31,
-                           backup_asset=backup_asset)
-        self.assertEqual(RESUME.verify_report(self.run, self.report, TAG),
-                         (STAGE_TAG, 30))
-        release = {"id": 31, "tag_name": backup_tag,
-                   "draft": False, "prerelease": True,
-                   "assets": [{"id": 111, "state": "uploaded", **backup_asset}]}
-        ref = {"ref": "refs/tags/" + backup_tag,
-               "object": {"type": "commit", "sha": SOURCE}}
-        gh = mock.Mock()
-        gh.api.side_effect = lambda name: {
-            "releases/31": release, "git/ref/tags/" + backup_tag: ref
-        }[name]
-        RESUME.verify_completed_backup(gh, self.run, self.report)
-        for field, bad in (("digest", "sha256:" + "f" * 64), ("state", "uploading")):
-            actual = release["assets"][0][field]
-            release["assets"][0][field] = bad
-            with self.subTest(field=field), self.assertRaises(ValueError):
-                RESUME.verify_completed_backup(gh, self.run, self.report)
-            release["assets"][0][field] = actual
-        for mutation in (
-            {"phase": "failed:rollback_preserved"},
-            {"backup_release_id": 0},
-            {"backup_tag": "source-backup-2026-10-26-main-bad00000"},
-            {"staged": {STAGE_TAG: 30}},
-        ):
-            with self.subTest(mutation=mutation), self.assertRaises(ValueError):
-                RESUME.verify_report(self.run, {**self.report, **mutation}, TAG)
+        self.run["event"] = "workflow_dispatch"
+        self.report["phase"] = "failed:backup_published"
+        with self.assertRaises(ValueError):
+            RESUME.verify_report(self.run, self.report, TAG)
+        self.report["phase"] = "failed:staging_verified"
+        self.assertEqual(RESUME.verify_report(self.run, self.report, TAG), (STAGE_TAG, 30))
 
     def test_binary_api_media_types_follow_each_endpoint_contract(self):
         with tempfile.TemporaryDirectory() as directory, mock.patch.object(RESUME.subprocess, "run") as command:

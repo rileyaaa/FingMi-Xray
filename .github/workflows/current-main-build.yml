@@ -26,19 +26,6 @@ jobs:
         with:
           ref: ${{ env.BUILD_SOURCE_SHA }}
 
-      - name: Verify temporary push trigger source
-        if: github.event_name == 'push'
-        shell: bash
-        run: |
-          set -euo pipefail
-          test -n "$BUILD_SOURCE_SHA"
-          test "$BUILD_SOURCE_SHA" = "$GITHUB_SHA"
-          git fetch --no-tags --depth=2 origin "$GITHUB_SHA"
-          parent="$(git rev-parse "$GITHUB_SHA^")"
-          test -n "$parent"
-          changed="$(git diff --name-only "$parent" "$GITHUB_SHA")"
-          test "$changed" = ".github/.trigger-current-main-build"
-
       - uses: actions/setup-java@v6
         with:
           distribution: jetbrains
