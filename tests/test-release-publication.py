@@ -192,7 +192,7 @@ class PublicationTest(unittest.TestCase):
         self.assertEqual({r["tag_name"] for r in self.github.releases.values()},
                          {TAG, "v5.6.0-xray.5"})
         self.assertEqual(set(self.github.refs), {TAG, "v5.6.0-xray.5"})
-        self.assertIn(PREVIOUS, result["pruned_releases"] if PREVIOUS in result["pruned_releases"] else [PREVIOUS])
+        self.assertNotIn(PREVIOUS, self.github.refs)
         self.assertIn(other, result["pruned_releases"])
 
     def test_known_drafts_are_verified_by_id_in_staging_and_rollback(self):
