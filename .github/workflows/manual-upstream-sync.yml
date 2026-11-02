@@ -85,6 +85,10 @@ jobs:
           python3 tests/test-tv-recovery-intent-replay.py
           python3 tests/test-xray-error-sanitizer.py
           python3 tests/test-build-hygiene.py
+          # Do not update main with uncompiled app integration. For a new
+          # upstream requiring native inputs, this safely fails until the
+          # one-click path gains the corresponding verified build preflight.
+          ./gradlew --no-daemon :catvod:testDebugUnitTest :xray:testDebugUnitTest :tv-recovery:testDebugUnitTest :app:compileLeanbackReleaseJavaWithJavac
           # No APK build is performed here. Owner must still run separate manual
           # TV build and publish workflows after source integration.
           version="$(python3 -c 'import json; print(json.load(open("scripts/upstream/baseline.json"))["version"])')"
