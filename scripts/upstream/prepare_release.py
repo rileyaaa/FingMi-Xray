@@ -311,6 +311,26 @@ def prepare(root,upstream,target,report):
     for filename, transform in ui_hooks:
         additions[filename] = transform(original(upstream, tree, filename))
 
+    # 5.8.7 dropped its old PushActivity and replaced the public web UI.
+    # Retain Xray's phone QR flow as a self-contained xray.html page, served
+    # by the unchanged Nano static-asset handler. No old Push business code.
+    setting_xray_name="app/src/leanback/java/com/fongmi/android/tv/ui/activity/SettingXrayActivity.java"
+    setting_xray=(root/setting_xray_name).read_text(encoding="utf-8")
+    setting_xray=one(setting_xray,"import com.fongmi.android.tv.R;",
+        "import com.fongmi.android.tv.R;\nimport com.fingmi.integration.xray.XrayPhoneImportDialog;")
+    setting_xray=one(setting_xray,"PushActivity.start(this, 6);",
+        "XrayPhoneImportDialog.show(this);")
+    additions[setting_xray_name]=setting_xray
+    additions["app/src/main/java/com/fingmi/integration/xray/XrayPhoneImportDialog.java"]=(
+        root/"scripts/upstream/templates/XrayPhoneImportDialog.java.in").read_text(encoding="utf-8")
+    xray_page=(root/"scripts/upstream/templates/xray.html.in").read_text(encoding="utf-8")
+    if 'new URLSearchParams({do:"xray",link:value})' not in xray_page:
+        raise ValueError("Missing Xray page safe form encoding")
+    additions["app/src/main/assets/xray.html"]=xray_page
+    nano=original(upstream,tree,"app/src/main/java/com/fongmi/android/tv/server/Nano.java")
+    if "return getAssets(url.substring(1));" not in nano or "InputStream is = Asset.open(path);" not in nano:
+        raise ValueError("New upstream no longer serves the standalone Xray asset page")
+
     # Regenerate the old fork's recovery hooks from the selected *new*
     # public FongMi implementations, never carry forward 5.6.3 business code.
     recovery_hooks = (
