@@ -171,18 +171,15 @@ def rewrite_guards(root, upstream, tree):
 
 def metadata(root,old_tag,tag,new_upstream,code,upsha):
     old_upstream=old_tag.removeprefix("v").split("-xray.")[0]
-    for name in (".github/workflows/current-main-build.yml",
-                 ".github/workflows/publish-current-main-test-release.yml",
-                 "scripts/build/resume-verified-release.py"):
-        path=root/name
-        s=path.read_text()
-        s=s.replace("fingmi-xray-"+old_upstream,"fingmi-xray-"+new_upstream)
-        s=s.replace("Compile current "+old_upstream+" Leanback source","Compile current "+new_upstream+" Leanback source")
-        s=s.replace("Build and publish signed "+old_upstream+" fork release","Build and publish signed "+new_upstream+" fork release")
-        s=s.replace('RELEASE_TAG: "'+old_tag+'"','RELEASE_TAG: "'+tag+'"')
-        if name.endswith("resume-verified-release.py"):
-            s=s.replace('default="'+old_tag+'"','default="'+tag+'"')
-        path.write_text(s)
+    # GitHub's built-in Actions token cannot rewrite .github/workflows files.
+    # Manual workflows now resolve their artifact names and release tags from
+    # the checked-out app version; only the ordinary resume helper changes.
+    path=root/"scripts/build/resume-verified-release.py"
+    s=path.read_text()
+    old_default='default="'+old_tag+'"'
+    if s.count(old_default)!=1:
+        raise ValueError("Current resume helper release tag anchor changed")
+    path.write_text(s.replace(old_default,'default="'+tag+'"',1))
     readme=root/"README.md"
     s=readme.read_text()
     tick=chr(96)
