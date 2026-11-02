@@ -16,7 +16,8 @@ def rejects(fn,source):
 ignore=".idea/\n.gradle/\n"
 new=gitignore(ignore)
 for required in ("/recovery/work/","/recovery/evidence/",
-                 "/libxray/libs/libXray.aar","/app/libs/media3-container-1.11.0.aar"):
+                 "/libxray/libs/libXray.aar","/app/libs/media3-container-1.11.0.aar",
+                 "__pycache__/","*.py[cod]"):
     assert required in new
 assert gitignore(new)==new
 
