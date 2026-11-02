@@ -111,7 +111,7 @@ from xml.etree import ElementTree as ET
 XML = """<settings xmlns:android="http://schemas.android.com/apk/res/android"
                  xmlns:tools="http://schemas.android.com/tools">
     <androidx.appcompat.widget.LinearLayoutCompat>
-        <androidx.appcompat.widget.LinearLayoutCompat android:id="@+id/size" />
+        <androidx.appcompat.widget.LinearLayoutCompat android:id="@+id/size">\n            <com.google.android.material.textview.MaterialTextView />\n        </androidx.appcompat.widget.LinearLayoutCompat>
     </androidx.appcompat.widget.LinearLayoutCompat>
     <androidx.appcompat.widget.LinearLayoutCompat android:id="@+id/incognito" />
 </settings>"""
