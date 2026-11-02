@@ -171,19 +171,19 @@
       "scope": "xray"
     },
     "app/src/main/java/com/fongmi/android/tv/player/engine/PlayerEngineFactory.java": {
-      "strategy": "rebase",
+      "strategy": "generate",
       "scope": "xray"
     },
     "app/src/main/java/com/fongmi/android/tv/player/exo/ExoMediaSourceFactory.java": {
-      "strategy": "rebase",
+      "strategy": "generate",
       "scope": "xray"
     },
     "app/src/main/java/com/fongmi/android/tv/player/exo/ExoPlayerEngine.java": {
-      "strategy": "rebase",
+      "strategy": "generate",
       "scope": "xray"
     },
     "app/src/main/java/com/fongmi/android/tv/player/exo/ExoPlayerSession.java": {
-      "strategy": "rebase",
+      "strategy": "generate",
       "scope": "xray"
     },
     "app/src/main/java/com/fongmi/android/tv/player/mpv/MpvPlayerEngine.java": {

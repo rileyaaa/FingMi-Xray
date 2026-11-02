@@ -87,6 +87,14 @@
 
 `:app` 同时依赖 `:tv-recovery`；恢复模块没有对 `:app`、`:catvod` 或 `:xray` 的反向依赖。`app/src/main/java/com/fingmi/integration/` 保存项目自有的 FongMi 适配代码，属于接线层，不能把普通上游功能复制到这里长期维护。
 
+### 2026-11-02 5.8.7 官方 Exo 接线适配（候选生成器，未发布）
+
+- 新增 `scripts/upstream/exo_adapters.py`，从目标公开 `FongMi/TV@8626650...` 的 4 个 Exo 文件**原样开始**，以精确 anchor 注入会话 Xray 连接：`ExoMediaSourceFactory`、`ExoPlayerSession`、`ExoPlayerEngine`、`PlayerEngineFactory`。新版 `ISO/光碟导航`、`CMG`、`DecoderManager`、`SubtitleTranscriptSession`、`EndTrimMediaSource` 等路径依旧来自公开上游，不从 5.6.3 搬回整份实现。
+- 增加只在升级到新版时生成的 `XrayPlaybackDataSourceFactory.java` 模板。特别注意现有 5.6.3 `catvod` **没有 `Auth.Context`**：模板留在 `scripts/upstream/templates`，不参与现版 App 编译；升级器校验目标原始 Exo API 后再生成它。媒体、DRM license、ISO 导航的 HTTP 数据源共享 Xray SOCKS client，并保留公开上游与来源相同的 origin-limited URL / Authorization 处理；RTSP / RTSPT 采用 Xray socket factory，不经过普通直连数据源。
+- 5.8.7 `ExoDiskPreload` 自行建立普通 client，故有代理时禁止磁盘预载，其他时间按官方逻辑执行；`DefaultPreloadManager` 仍使用同一会话的代理 supplier。這属于 Xray 播放身份隔离，不修改 FongMi 通用预载业务。
+- `tests/test-upstream-exo-adapters.py` 以 fixture 检查这 4 种形态与未知 upstream API 的 fail-closed 行为；升级入口获取公开 commit 后再将其对**实际目标 Git Tree**执行一遍。新 `tests/test-upstream-xray-auth.py` 用 javac 17 编译新版模板 + 当前实际 `XrayGuardedPlaybackDataSource`，测试 HTTP/UA/认证上下文/禁止 FTP 无直连泄漏；该 JVM 边界测试不是新播放器 Android APK 成功证据。
+- **仍有阻断**：5.8.7 `PlayerManager`、`PlaybackService` 和 Live/VOD 页面与当前 fork 差异大，尚未完成新生命周期接线、旁路请求/封面取消时序及新媒体 ABI 验证。此阶段只建立不会误用旧版 Exo 的可重放生成器。当前 `main` 生产源码及正式 APK **仍是 5.6.3**，不能放开默认发布。
+
 ### 2026-11-02 Xray 播放器接线解耦（5.8.7 迁移第一阶段）
 
 - **已落地于当前 5.6.3 `main` 的生产源码改造**（不是 5.8.7 升级完成）：新增 `app/src/main/java/com/fingmi/integration/xray/XrayGuardedPlaybackDataSource.java`，把原先 `ExoMediaSourceFactory` 的 Xray 私有 `GuardedPlaybackDataSource` 原样迁入独立适配类。普通直连仍使用上游源工厂，只有 Xray 代理活跃时包装新 `DataSource`。HTTP(S) 通过该播放会话网络通道，本地 `file/content/asset/data/rawresource/android.resource` 等资源仍走本地，其他网络 scheme 立即拒绝；RTSP/RTSPT 仍通过独立 Xray SocketFactory，绝不偷偷回退直连。

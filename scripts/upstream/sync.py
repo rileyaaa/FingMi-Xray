@@ -39,6 +39,11 @@ REGENERATED_FILES = {
     "app/src/main/java/com/fongmi/android/tv/server/process/Action.java",
     "app/src/leanback/java/com/fongmi/android/tv/ui/activity/SettingActivity.java",
     "app/src/leanback/res/layout/activity_setting.xml",
+    # Public 5.8.7 Exo media/decoder/ISO implementation with Xray-only hooks.
+    "app/src/main/java/com/fongmi/android/tv/player/exo/ExoMediaSourceFactory.java",
+    "app/src/main/java/com/fongmi/android/tv/player/exo/ExoPlayerSession.java",
+    "app/src/main/java/com/fongmi/android/tv/player/exo/ExoPlayerEngine.java",
+    "app/src/main/java/com/fongmi/android/tv/player/engine/PlayerEngineFactory.java",
 }
 PRESERVED_FILES = {
     "app/proguard-rules-media.pro",

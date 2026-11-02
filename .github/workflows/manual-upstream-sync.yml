@@ -61,6 +61,8 @@ jobs:
           python3 tests/test-upstream-prepare.py
           python3 tests/test-upstream-recovery-adapters.py
           python3 tests/test-upstream-xray-adapters.py
+          python3 tests/test-upstream-exo-adapters.py
+          python3 tests/test-upstream-xray-auth.py
 
       - name: Fetch public FongMi/TV baseline and latest
         shell: bash
@@ -112,6 +114,10 @@ jobs:
             echo "Rebuilding the already integrated but unpublished source: $release_tag"
             exit 0
           fi
+          # Check the actual public Exo APIs even when an unrelated file
+          # will later stop the full three-way merge. No APK work here.
+          python3 tests/test-upstream-exo-adapters.py \
+            --upstream "$UPSTREAM_DIRECTORY" --target "$UPSTREAM_TARGET"
           python3 scripts/upstream/sync.py \
             --upstream "$UPSTREAM_DIRECTORY" \
             --target "$UPSTREAM_TARGET" \

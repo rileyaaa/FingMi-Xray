@@ -10,6 +10,7 @@ from recovery_adapters import (
     site_view_model, base_loader, ok_http, ok_dns, img_util, ok_glide,
 )
 from xray_adapters import xray_import_action, disable_upstream_apk_update, setting_activity, setting_layout
+from exo_adapters import media_factory, exo_session, exo_engine, engine_factory
 
 
 def one(s, a, b):
@@ -234,6 +235,24 @@ def prepare(root,upstream,target,report):
     )
     for filename, transform in xray_hooks:
         additions[filename] = transform(original(upstream, tree, filename))
+    # Build Xray transport on top of the *selected new* FongMi Media3/Exo
+    # implementations. 5.6.3's player implementations are never reused.
+    exo_hooks = (
+        ("app/src/main/java/com/fongmi/android/tv/player/exo/ExoMediaSourceFactory.java", media_factory),
+        ("app/src/main/java/com/fongmi/android/tv/player/exo/ExoPlayerSession.java", exo_session),
+        ("app/src/main/java/com/fongmi/android/tv/player/exo/ExoPlayerEngine.java", exo_engine),
+        ("app/src/main/java/com/fongmi/android/tv/player/engine/PlayerEngineFactory.java", engine_factory),
+    )
+    for filename, transform in exo_hooks:
+        additions[filename] = transform(original(upstream, tree, filename))
+    # Auth.Context does not exist in the current 5.6.3 fork: compile this
+    # source only when the target upstream's new API is being integrated.
+    template = root / "scripts/upstream/templates/XrayPlaybackDataSourceFactory.java.in"
+    bridge = template.read_text(encoding="utf-8")
+    if "Auth.Context auth" not in bridge or "proxy.client()" not in bridge:
+        raise ValueError("Missing guarded Xray 5.8.7 HTTP Auth adapter template")
+    additions["app/src/main/java/com/fingmi/integration/xray/XrayPlaybackDataSourceFactory.java"] = bridge
+
     # Regenerate the old fork's recovery hooks from the selected *new*
     # public FongMi implementations, never carry forward 5.6.3 business code.
     recovery_hooks = (
