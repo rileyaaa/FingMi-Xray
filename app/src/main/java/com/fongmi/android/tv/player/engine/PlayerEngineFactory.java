@@ -6,6 +6,7 @@ import static com.fongmi.android.tv.player.engine.PlayerEngine.Type.MPV;
 import androidx.media3.common.Player;
 
 import com.fongmi.android.tv.player.exo.ExoPlayerEngine;
+import com.fingmi.integration.xray.XrayPlaybackRouting;
 import com.fingmi.xray.network.XrayHttpClient;
 import com.fongmi.android.tv.player.media.PlaySpec;
 import com.fongmi.android.tv.player.mpv.MpvPlayerEngine;
@@ -39,9 +40,14 @@ public final class PlayerEngineFactory {
 
     public static boolean matches(PlayerEngine engine, PlaySpec spec, XrayHttpClient proxy) {
         if (engine == null) return false;
-        if (proxy != null) return engine instanceof ExoPlayerEngine exo && exo.proxy() == proxy && !engine.needsRebuild();
-        if (engine instanceof ExoPlayerEngine exo && exo.proxy() != null) return false;
-        return engine.getType() == resolve(spec) && !engine.needsRebuild();
+        // Keep upstream engine selection independent of the Xray transport.
+        boolean upstreamMatches = proxy == null && engine.getType() == resolve(spec);
+        return XrayPlaybackRouting.canReuseEngine(
+                proxy,
+                engine instanceof ExoPlayerEngine exo ? exo.proxy() : null,
+                engine instanceof ExoPlayerEngine,
+                upstreamMatches,
+                engine.needsRebuild());
     }
 
     private static PlayerEngine.Type resolve(PlaySpec spec) {

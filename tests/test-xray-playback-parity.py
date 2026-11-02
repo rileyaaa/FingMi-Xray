@@ -131,10 +131,24 @@ require(
 )
 
 require(
+    "app/src/main/java/com/fingmi/integration/xray/XrayPlaybackRouting.java",
+    "engineProxy != null ? engineProxy : requestedProxy",
+    "return requestedProxy != null || engineProxy != null;",
+    "engineProxy == requestedProxy",
+    "engineProxy == null && upstreamEngineMatches",
+)
+
+require(
+    "app/src/main/java/com/fongmi/android/tv/player/PlayerManager.java",
+    "XrayPlaybackRouting.hasSession(playbackProxy, bound)",
+    "XrayPlaybackRouting.activeProxy(playbackProxy, bound)",
+)
+
+require(
     "app/src/main/java/com/fongmi/android/tv/player/engine/PlayerEngineFactory.java",
     "return proxy == null ? create(decode, resolve(spec), listener) : new ExoPlayerEngine(decode, listener, proxy);",
-    "if (proxy != null) return engine instanceof ExoPlayerEngine exo && exo.proxy() == proxy && !engine.needsRebuild();",
-    "if (engine instanceof ExoPlayerEngine exo && exo.proxy() != null) return false;",
+    "XrayPlaybackRouting.canReuseEngine(",
+    "engine instanceof ExoPlayerEngine exo ? exo.proxy() : null",
 )
 
 require(

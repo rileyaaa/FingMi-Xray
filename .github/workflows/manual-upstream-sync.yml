@@ -148,6 +148,7 @@ jobs:
           python3 tests/test-xray-core-parity.py
           python3 tests/test-xray-playback-parity.py
           python3 tests/test-xray-guarded-data-source.py
+          python3 tests/test-xray-playback-routing.py
           python3 tests/test-xray-playback-address-parity.py
           python3 tests/test-xray-session-races.py
           python3 tests/test-xray-service-client-lifecycle.py
