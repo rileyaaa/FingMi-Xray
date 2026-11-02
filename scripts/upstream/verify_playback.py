@@ -144,6 +144,33 @@ REQUIRED_587 = {
         "Glide.with(channelHolder.binding.logo).clear(channelHolder.binding.logo)",
         "notifyItemChanged(position, Boolean.TRUE);",
     ),
+    # A seemingly working Xray toggle must ship with exactly the approved
+    # upstream action rows and labels in ALL Leanback locales.
+    "app/src/leanback/res/layout/view_control_live_action.xml": (
+        'android:id="@+id/xray"',
+        'android:text="@string/xray_off"',
+        'android:id="@+id/decoder"',
+    ),
+    "app/src/leanback/res/layout/view_control_vod_action.xml": (
+        'android:id="@+id/xray"',
+        'android:text="@string/xray_off"',
+        'android:id="@+id/decoder"',
+    ),
+    "app/src/leanback/res/values/strings.xml": (
+        'name="xray_on"',
+        'name="xray_off"',
+        'name="xray_setting"',
+    ),
+    "app/src/leanback/res/values-zh-rCN/strings.xml": (
+        'name="xray_on"',
+        'name="xray_off"',
+        'name="xray_setting"',
+    ),
+    "app/src/leanback/res/values-zh-rTW/strings.xml": (
+        'name="xray_on"',
+        'name="xray_off"',
+        'name="xray_setting"',
+    ),
     # UI session ownership and request cancellation are not yet ported: a
     # prospective 5.8.7 build must STOP here even with all Exo helpers present.
     "app/src/leanback/java/com/fongmi/android/tv/ui/activity/LiveActivity.java": (
