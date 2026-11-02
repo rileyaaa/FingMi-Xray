@@ -77,6 +77,7 @@ public class OkHttp {
    return direct.newCall(new Request.Builder().url(url).post(body).tag(tag).build());
  }
  public static String string(String url){return "direct-metadata";}
+ public static void cancel(String tag){cancel(direct,tag);}
  public static void cancel(OkHttpClient client,String tag){
    for(OkHttpClient.FakeCall call:client.calls)
      if(tag.equals(call.request().tag()))call.cancel();
@@ -105,6 +106,7 @@ public class SideGateHarness {
    check(dl.client==player.proxy,"multipart downloads use proxy");
    XraySideRequestGate.cancel("danmaku");
    check(((OkHttpClient.FakeCall)xray).canceled,"cancel active proxy request");
+   check(((OkHttpClient.FakeCall)normal).canceled,"cancel old direct tagged request too");
    check(!((OkHttpClient.FakeCall)posted).canceled,"do not cancel other request");
    check("xray-metadata".equals(XraySideRequestGate.string("https://example.org/epg","epg")),
          "EPG metadata uses the bound proxy client");
@@ -118,7 +120,9 @@ public class SideGateHarness {
    XraySideRequestGate.cancelRemoteDownloads();
    check(dl.canceled,"in-flight Xray downloads canceled on transition");
    player.active=false;
-   XraySideRequestGate.newCall("https://example.org/direct2","subtitle");
+   Call direct2=XraySideRequestGate.newCall("https://example.org/direct2","subtitle");
+   XraySideRequestGate.cancel("subtitle");
+   check(((OkHttpClient.FakeCall)direct2).canceled,"direct-mode cancel restores upstream behavior");
    check("direct-metadata".equals(XraySideRequestGate.string("https://example.org/epg","epg")),
          "direct metadata retains upstream behavior");
    check(OkHttp.direct.calls.size()==2,"direct restored");
@@ -128,7 +132,9 @@ public class SideGateHarness {
    catch(IllegalStateException expected){}
    check(OkHttp.direct.calls.size()==2,"must not leak to direct");
    XraySideRequestGate.unbind(player);
-   XraySideRequestGate.newCall("https://example.org/unbound","subtitle");
+   Call unbound=XraySideRequestGate.newCall("https://example.org/unbound","subtitle");
+   XraySideRequestGate.cancel("subtitle");
+   check(((OkHttpClient.FakeCall)unbound).canceled,"unbound service must still cancel direct calls");
    check(OkHttp.direct.calls.size()==3,"unbound manager uses ordinary upstream");
    System.out.println("PASS side request gate: direct/proxy/POST/download/tag cancel/missing client");
  }
