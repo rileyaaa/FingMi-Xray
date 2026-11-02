@@ -27,6 +27,13 @@ REGENERATED_FILES = {
     "app/build.gradle", "settings.gradle",
     "app/src/leanback/java/com/fongmi/android/tv/ui/activity/HomeActivity.java",
     "catvod/src/main/java/com/github/catvod/net/OkProxySelector.java",
+    # App/HTTP hooks exclusively for TV standby network generation.
+    "app/src/main/java/com/fongmi/android/tv/model/SiteViewModel.java",
+    "app/src/main/java/com/fongmi/android/tv/api/loader/BaseLoader.java",
+    "catvod/src/main/java/com/github/catvod/net/OkHttp.java",
+    "catvod/src/main/java/com/github/catvod/net/OkDns.java",
+    "app/src/main/java/com/fongmi/android/tv/utils/ImgUtil.java",
+    "app/src/main/java/com/fongmi/android/tv/utils/OkGlideModule.java",
 }
 PRESERVED_FILES = {
     "app/proguard-rules-media.pro",
