@@ -6,6 +6,7 @@ commits, pushes, publishes or triggers CI. It only updates the working tree and
 writes a concise JSON report. A caller must review validation before pushing.
 """
 import argparse
+import hashlib
 import json
 from pathlib import Path, PurePosixPath
 import re
@@ -44,6 +45,8 @@ PRESERVED_PREFIXES = (
     "app/src/mobile/java/com/fingmi/",
 )
 BASELINE = "scripts/upstream/baseline.json"
+SCOPE_MANIFEST = "scripts/upstream/fork_scope.json"
+SCOPE_STRATEGIES = {"generate", "upstream", "rebase", "project"}
 
 
 def run(*args, cwd=None, input_bytes=None, check=True):
@@ -103,6 +106,47 @@ def three_way(ours, base, theirs):
         return result.stdout if result.returncode == 0 else None
 
 
+
+def file_blob_sha(data):
+    """Git SHA-1 blob identity for a tracked source snapshot."""
+    return hashlib.sha1(b"blob " + str(len(data)).encode("ascii") + b"\0" + data).hexdigest()
+
+
+def load_scope(root, baseline):
+    """Only previously reviewed fork drift is eligible for an automatic merge."""
+    path = root / SCOPE_MANIFEST
+    scope = json.loads(path.read_text(encoding="utf-8"))
+    if scope.get("schema") != 1 or scope.get("baseline_commit") != baseline:
+        raise ValueError("Fork scope inventory is stale relative to pinned public baseline")
+    files = scope.get("files")
+    if not isinstance(files, dict):
+        raise ValueError("Fork scope inventory lacks a path map")
+    for name, data in files.items():
+        if not isinstance(data, dict) or data.get("strategy") not in SCOPE_STRATEGIES:
+            raise ValueError("Unreviewed fork scope strategy: " + name)
+        if not data.get("scope") or not name.strip():
+            raise ValueError("Unclassified original source deviation: " + name)
+        safe_path(root, name)
+        if data["strategy"] == "upstream" and not tracked(name):
+            raise ValueError("Upstream-first file is outside source sync paths: " + name)
+    return scope
+
+
+def inspect_existing_drift(root, original, policies):
+    """Cover original files even if upstream did not touch them this release."""
+    missing = []
+    for name, (mode, oid) in original.items():
+        if mode not in ("100644", "100755"):
+            continue
+        path = safe_path(root, name)
+        ours = path.read_bytes() if path.exists() else None
+        if ours is not None and file_blob_sha(ours) == oid:
+            continue
+        if name not in policies:
+            missing.append(name)
+    return missing
+
+
 def upstream_version(upstream, target):
     tree = git_tree(upstream, target)
     item = tree.get("app/build.gradle")
@@ -126,6 +170,9 @@ def sync(root, upstream, target, report):
     base_tree = git_tree(upstream, base)
     target_tree = git_tree(upstream, target)
     version, code = upstream_version(upstream, target)
+    scope = load_scope(root, base)
+    policies = scope["files"]
+    unaudited = inspect_existing_drift(root, base_tree, policies)
     changed = []
     unchanged = 0
     plans = {}
@@ -134,10 +181,16 @@ def sync(root, upstream, target, report):
 
     for name in sorted(set(base_tree) | set(target_tree)):
         old, new = base_tree.get(name), target_tree.get(name)
-        if old == new:
+        policy = policies.get(name, {}).get("strategy")
+        if policy in ("generate", "project"):
+            if old != new:
+                ignored.append(name)
+            continue
+        if old == new and policy != "upstream":
             continue
         if not tracked(name):
-            ignored.append(name)
+            if old != new:
+                ignored.append(name)
             continue
         changed.append(name)
         path = safe_path(root, name)
@@ -149,6 +202,11 @@ def sync(root, upstream, target, report):
             continue
         if ours == new_bytes:
             unchanged += 1
+            continue
+        if policy == "upstream":
+            # An explicitly audited obsolete patch must NOT leak across the
+            # new upstream baseline, even when the upstream blob is unchanged.
+            plans[name] = (new_bytes, new[0] if new else None)
             continue
         if ours == old_bytes:
             plans[name] = (new_bytes, new[0] if new else None)
@@ -168,14 +226,19 @@ def sync(root, upstream, target, report):
         "upstream_changed_paths": len(changed) + len(ignored),
         "sync_eligible_paths": len(changed), "protected_or_excluded_paths": ignored,
         "already_equal": unchanged, "planned_paths": sorted(plans),
-        "conflicts": conflicts, "status": "blocked" if conflicts else "prepared",
+        "scope_inventory_paths": len(policies),
+        "upstream_first_paths": sorted(p for p in plans if policies.get(p, {}).get("strategy") == "upstream"),
+        "unreviewed_fork_drift": unaudited,
+        "conflicts": conflicts + [p + " [unreviewed fork edit]" for p in unaudited],
+        "status": "blocked" if conflicts or unaudited else "prepared",
         "note": "Source sync only; not a build, APK, release, or on-device verification",
     }
     report.parent.mkdir(parents=True, exist_ok=True)
     report.write_text(json.dumps(result, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-    if conflicts:
-        print(f"BLOCKED: {len(conflicts)} conflicting paths; no files changed. Report: {report}")
-        for name in conflicts[:80]:
+    blocked = conflicts + [p + " [unreviewed fork edit]" for p in unaudited]
+    if blocked:
+        print(f"BLOCKED: {len(blocked)} source paths need review; no files changed. Report: {report}")
+        for name in blocked[:80]:
             print(" - " + name)
         return 2
 
@@ -191,6 +254,8 @@ def sync(root, upstream, target, report):
     lock["commit"] = target
     lock["version"] = version
     lock_path.write_text(json.dumps(lock, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    scope["baseline_commit"] = target
+    (root / SCOPE_MANIFEST).write_text(json.dumps(scope, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     print(f"PREPARED: FongMi/TV {version}, {len(plans)} file changes; report: {report}")
     return 0
 
