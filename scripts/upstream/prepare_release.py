@@ -210,7 +210,9 @@ def metadata(root,old_tag,tag,new_upstream,code,upsha):
            "FingMi-Xray 版本 "+tag+"，versionCode "+str(code)+"。"
            "本 fork 只维护 Xray 与待机网络恢复及必要接线；"
            "原 OkProxySelector 空 Host 崩溃修复已改为跟随上游 HttpUrl 版本。"
-           "完整构建与设备验证仍以实际运行证据为准。\n\n")
+           "完整构建与设备验证仍以实际运行证据为准。"
+           "下方按日期保留的 5.6.3→5.8.7 候选迁移笔记属于历史阶段记录；"
+           "其中当时的未升级、未发布状态不得覆盖本段的当前源码基线。\n\n")
     s = s[:a] + intro + s[b:]
     # Keep pre-integration status reports as dated history, not the current
     # main or Release state after a verified upstream integration.
