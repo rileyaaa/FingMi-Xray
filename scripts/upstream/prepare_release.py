@@ -211,7 +211,25 @@ def metadata(root,old_tag,tag,new_upstream,code,upsha):
            "本 fork 只维护 Xray 与待机网络恢复及必要接线；"
            "原 OkProxySelector 空 Host 崩溃修复已改为跟随上游 HttpUrl 版本。"
            "完整构建与设备验证仍以实际运行证据为准。\n\n")
-    dev.write_text(s[:a]+intro+s[b:])
+    s = s[:a] + intro + s[b:]
+    # Keep pre-integration status reports as dated history, not the current
+    # main or Release state after a verified upstream integration.
+    if old_upstream == "5.6.3" and new_upstream == "5.8.7":
+        dated = (
+            "### 2026-11-02 上游 5.8.7 与通用一键升级 Actions",
+            "### 2026-11-02 5.8.7 官方 Exo 接线适配（候选生成器，未发布）",
+            "### 2026-11-02 Xray 播放器接线解耦（5.8.7 迁移第一阶段）",
+        )
+        for heading in dated:
+            if s.count(heading) != 1:
+                raise ValueError("Cannot identify historical migration notes: " + heading)
+            s = s.replace(
+                heading,
+                heading + "\n\n> 历史记录：本节保留原 5.6.3 迁移期间的候选状态和判断；"
+                "当前源码版本以本文第一节为准，APK 验证与正式发布以 GitHub 记录为准。",
+                1,
+            )
+    dev.write_text(s)
 
 
 def prepare(root,upstream,target,report):
