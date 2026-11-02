@@ -145,7 +145,11 @@ with tempfile.TemporaryDirectory(prefix="upstream-doc-version-contract-") as tem
         "# Development\n## 1. 当前工程基线\n原 5.6.3 基线\n"
         "### 维护范围\n仅 Xray 和 TV 网络恢复\n"
         "### 2026-11-02 上游 5.8.7 与通用一键升级 Actions\n"
-        "5.8.7 当时尚未发布。\n", encoding="utf-8")
+        "5.8.7 当时尚未发布。\n"
+        "### 2026-11-02 5.8.7 官方 Exo 接线适配（候选生成器，未发布）\n"
+        "适配进行中。\n"
+        "### 2026-11-02 Xray 播放器接线解耦（5.8.7 迁移第一阶段）\n"
+        "当时尚未编译。\n", encoding="utf-8")
     metadata(root, old, new, "5.8.7", 587001, sha)
     updated = development.read_text(encoding="utf-8")
     assert "固定源码 5.8.7（" + sha + "）" in updated
