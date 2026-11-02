@@ -76,6 +76,8 @@ def playback_service(s):
         "import com.fongmi.android.tv.bean.History;\n"
         "import com.fongmi.android.tv.api.DanmakuApi;\n"
         "import com.fongmi.android.tv.api.SubtitleApi;\n"
+        "import com.fongmi.android.tv.api.LiveApi;\n"
+        "import com.github.catvod.net.OkHttp;\n"
         "import com.fingmi.integration.xray.XrayArtworkBitmapLoader;\n"
         "import com.fingmi.integration.xray.XraySideRequestGate;","service media gate imports")
     s=one(s,"    private PlayerManager player;",
@@ -98,6 +100,9 @@ def playback_service(s):
         // Retire callbacks and proxy clients before the service disappears.
         DanmakuApi.cancel();
         SubtitleApi.cancel();
+        // Cancel metadata calls before the old HTTP session disappears.
+        OkHttp.cancel(LiveApi.METADATA_TAG);
+        XraySideRequestGate.cancel(LiveApi.METADATA_TAG);
         if (xrayBitmapLoader != null) xrayBitmapLoader.cancelRemoteLoads();
         XraySideRequestGate.cancelRemoteDownloads();
         XraySideRequestGate.unbind(player);
@@ -110,6 +115,9 @@ def playback_service(s):
         // Also invalidates upstream request IDs for delayed callbacks.
         DanmakuApi.cancel();
         SubtitleApi.cancel();
+        // Cancel metadata calls before the old HTTP session disappears.
+        OkHttp.cancel(LiveApi.METADATA_TAG);
+        XraySideRequestGate.cancel(LiveApi.METADATA_TAG);
         if (xrayBitmapLoader != null) xrayBitmapLoader.cancelRemoteLoads();
         XraySideRequestGate.cancelRemoteDownloads();
     }
@@ -122,6 +130,8 @@ def playback_service(s):
                      "XraySideRequestGate.unbind(player);",
                      "xrayBitmapLoader.cancelRemoteLoads()",
                      "XraySideRequestGate.cancelRemoteDownloads();",
+                     "OkHttp.cancel(LiveApi.METADATA_TAG);",
+                     "XraySideRequestGate.cancel(LiveApi.METADATA_TAG);",
                      "DanmakuApi.cancel();","SubtitleApi.cancel();"):
         if required not in s: raise ValueError("PlaybackService 5.8.7 lifecycle dropped: "+required)
     return s
