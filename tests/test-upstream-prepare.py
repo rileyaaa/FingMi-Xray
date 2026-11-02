@@ -124,23 +124,23 @@ with tempfile.TemporaryDirectory(prefix="upstream-doc-version-contract-") as tem
                  "scripts/build/resume-verified-release.py"):
         file = root / name
         file.parent.mkdir(parents=True, exist_ok=True)
-        file.write_text('RELEASE_TAG: "' + old + '"\\n'
-                        'fingmi-xray-5.6.3-build-failure-reports\\n'
-                        'Compile current 5.6.3 Leanback source\\n'
-                        'default="' + old + '"\\n', encoding="utf-8")
+        file.write_text('RELEASE_TAG: "' + old + '"\n'
+                        'fingmi-xray-5.6.3-build-failure-reports\n'
+                        'Compile current 5.6.3 Leanback source\n'
+                        'default="' + old + '"\n', encoding="utf-8")
     readme = root / "README.md"
     readme.write_text(
-        '当前 `main` 以 FongMi/TV 5.6.3（`' + "c616c0aa3613e87529791587a9f71b78c278c991" + '`）\\n'
-        '当前正式版为 `' + old + '` / `563001`\\n'
-        '| FongMi/TV | **5.6.3**（commit `c616c0aa3613e87529791587a9f71b78c278c991`） |\\n',
+        '当前 `main` 以 FongMi/TV 5.6.3（`' + "c616c0aa3613e87529791587a9f71b78c278c991" + '`）\n'
+        '当前正式版为 `' + old + '` / `563001`\n'
+        '| FongMi/TV | **5.6.3**（commit `c616c0aa3613e87529791587a9f71b78c278c991`） |\n',
         encoding="utf-8")
     development = root / "docs/DEVELOPMENT.md"
     development.parent.mkdir(parents=True, exist_ok=True)
     development.write_text(
-        "# Development\\n## 1. 当前工程基线\\n原 5.6.3 基线\\n"
-        "### 维护范围\\n仅 Xray 和 TV 网络恢复\\n"
-        "### 2026-11-02 上游 5.8.7 与通用一键升级 Actions\\n"
-        "5.8.7 当时尚未发布。\\n", encoding="utf-8")
+        "# Development\n## 1. 当前工程基线\n原 5.6.3 基线\n"
+        "### 维护范围\n仅 Xray 和 TV 网络恢复\n"
+        "### 2026-11-02 上游 5.8.7 与通用一键升级 Actions\n"
+        "5.8.7 当时尚未发布。\n", encoding="utf-8")
     metadata(root, old, new, "5.8.7", 587001, sha)
     updated = development.read_text(encoding="utf-8")
     assert "固定源码 5.8.7（" + sha + "）" in updated
