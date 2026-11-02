@@ -99,6 +99,7 @@ def playback_service(s):
         DanmakuApi.cancel();
         SubtitleApi.cancel();
         if (xrayBitmapLoader != null) xrayBitmapLoader.cancelRemoteLoads();
+        XraySideRequestGate.cancelRemoteDownloads();
         XraySideRequestGate.unbind(player);
         running = false;""",
         "service exit session cleanup")
@@ -110,6 +111,7 @@ def playback_service(s):
         DanmakuApi.cancel();
         SubtitleApi.cancel();
         if (xrayBitmapLoader != null) xrayBitmapLoader.cancelRemoteLoads();
+        XraySideRequestGate.cancelRemoteDownloads();
     }
 
     @Override
@@ -119,6 +121,7 @@ def playback_service(s):
                      "XraySideRequestGate.bind(player);",
                      "XraySideRequestGate.unbind(player);",
                      "xrayBitmapLoader.cancelRemoteLoads()",
+                     "XraySideRequestGate.cancelRemoteDownloads();",
                      "DanmakuApi.cancel();","SubtitleApi.cancel();"):
         if required not in s: raise ValueError("PlaybackService 5.8.7 lifecycle dropped: "+required)
     return s
