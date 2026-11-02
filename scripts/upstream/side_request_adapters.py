@@ -5,7 +5,7 @@ Keep ordinary upstream APIs and cancellation generations. Side network calls
 use the active Xray proxy client (including all subtitle download parts);
 new calls during direct playback still use public upstream behavior.
 """
-from exo_adapters import one
+from exo_adapters import one, counted
 
 def danmaku_api(s):
     s=one(s,"import com.fongmi.android.tv.R;",
@@ -36,13 +36,11 @@ def subtitle_api(s):
         'Download task = SubtitleArchive.createDownload(item.getName(), item.getUrl()).tag(TAG);',
         'Download task = XraySideRequestGate.usePlaybackTransport(SubtitleArchive.createDownload(item.getName(), item.getUrl()).tag(TAG));',
         "subtitle multi-part download proxy")
-    s=one(s,'return OkHttp.newCall(builder.build().toString(), TAG);',
+    # The public 5.8.7 search and detail builders intentionally have the
+    # same call expression. Replace exactly two occurrences, fail on drift.
+    s=counted(s,'return OkHttp.newCall(builder.build().toString(), TAG);',
         'return XraySideRequestGate.newCall(builder.build().toString(), TAG);',
-        "subtitle search")
-    # Search and detail have identical source; second occurrence remains.
-    s=one(s,'return OkHttp.newCall(builder.build().toString(), TAG);',
-        'return XraySideRequestGate.newCall(builder.build().toString(), TAG);',
-        "subtitle detail")
+        2,"subtitle search and detail")
     for required in ("ApiCallback.post(requestId, REQUEST_ID",
                      "download != task","XraySideRequestGate.cancel(TAG)",
                      "XraySideRequestGate.usePlaybackTransport("):
@@ -81,15 +79,30 @@ def playback_service(s):
         "import com.fingmi.integration.xray.XrayArtworkBitmapLoader;\n"
         "import com.fingmi.integration.xray.XraySideRequestGate;","service media gate imports")
     s=one(s,
-        "        if (binding != null) binding.onReplaced().run();",
-        """        if (binding != null) {
-            binding.onReplaced().run();
-            // A newly owning activity must never inherit another owner's
-            // active Xray network identity, even if its UI callback is late.
-            if (player != null && player.hasXraySession())
+        "        if (binding != null) binding.onReplaced().run();\n"
+        "        binding = new ActivityBinding(owner, onReplaced);",
+        """        if (binding != null) binding.onReplaced().run();
+        // Clearing after the old owner's callback also handles a delayed
+        // Xray stop; a new playback owner must start without the old proxy.
+        if (player != null && player.hasXraySession())
+            player.clearPlaybackProxyPreservingState();
+        binding = new ActivityBinding(owner, onReplaced);""",
+        "activity playback owner handoff")
+    s=one(s,
+        "            if (!player.browse(result, item.mediaId, item.mediaMetadata, startPositionMs)) return false;\n"
+        "            if (binding != null) binding.onReplaced().run();\n"
+        "            binding = null;",
+        """            // Browse starts media immediately: retire the old Xray
+            // identity BEFORE player.browse(), not after its HTTP calls.
+            boolean hadXray = player.hasXraySession();
+            if (hadXray) {
+                if (binding != null) binding.onReplaced().run();
                 player.clearPlaybackProxyPreservingState();
-        }""",
-        "service ownership transfer cannot inherit Xray transport")
+            }
+            if (!player.browse(result, item.mediaId, item.mediaMetadata, startPositionMs)) return false;
+            if (!hadXray && binding != null) binding.onReplaced().run();
+            binding = null;""",
+        "media-library browse cannot inherit old activity Xray transport")
     s=one(s,"    private PlayerManager player;",
         "    private PlayerManager player;\n"
         "    private XrayArtworkBitmapLoader xrayBitmapLoader;",
