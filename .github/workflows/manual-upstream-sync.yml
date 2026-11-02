@@ -35,7 +35,7 @@ jobs:
       ALLOW_EXISTING_RELEASE: "false"
       PRUNE_SUPERSEDED: "true"
       ROLLBACK_TAG: ""
-      RELEASE_TAG: "v5.6.3-xray.1"
+      RELEASE_TAG: ""
       BUILD_SOURCE_SHA: ${{ github.sha }}
 
     steps:
@@ -110,7 +110,7 @@ jobs:
         run: |
           set -euo pipefail
           if [[ "$UPSTREAM_NO_CHANGE" == "true" ]]; then
-            release_tag="$(sed -n 's/.*versionName "\\(v[0-9.]*-xray\\.[0-9]*\\)".*/\\1/p' app/build.gradle | head -n 1)"
+            release_tag="$(python3 scripts/build/resolve-release-tag.py)"
             test -n "$release_tag"
             if gh release view "$release_tag" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
               echo "Release $release_tag already exists; nothing to upgrade" >&2
@@ -188,6 +188,7 @@ jobs:
           python3 scripts/build/check-final-apk-native.py --self-test
           python3 scripts/build/check-final-apk-manifest.py --self-test
           python3 tests/test-build-hygiene.py
+          python3 tests/test-resolve-release-tag.py
           python3 tests/test-release-publication.py
           python3 tests/test-resume-verified-release.py
           python3 tests/test-media3-dex-linkage.py
@@ -548,7 +549,7 @@ jobs:
         if: ${{ inputs.apply_to_main && failure() }}
         uses: actions/upload-artifact@v7
         with:
-          name: fingmi-xray-5.6.3-build-failure-reports
+          name: fingmi-xray-build-failure-reports
           path: |
             app/build/reports/
             **/build/reports/
