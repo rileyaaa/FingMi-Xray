@@ -43,7 +43,7 @@
 ### 2026-11-02 上游 5.8.7 与通用一键升级 Actions
 
 - 当前已核对公开 `FongMi/TV` 默认 `fongmi` 分支 commit `8626650ebcbc0d028e16d859e826fcf439720f3a`，其源码 `app/build.gradle` 明确为 `5.8.7` / `587`。截至本次修改，**仓库 `main` 业务源码仍为 5.6.3，正式 Release 仍为 `v5.6.3-xray.1`**；已写入的是升级工具和适配策略，不代表 5.8.7 APK 已构建或发布。
-- 5.6.3 原始基线到 5.8.7 Git Tree 涉及约 **810 个路径**，其中约 **56 个路径**与 fork 旧改动有交集（扣除已被专用恢复适配器保护的路径，最初登记 **47 个潜在合并/语义冲突路径**；当前 21 个 rebase 路径均与所选新上游版本存在原始 blob 差异（不等于实际文本合并冲突）；详见 [5.8.7 升级阻断审计](UPSTREAM_5_8_7_MIGRATION_AUDIT.md)）；多处播放器、Home、网络 API 已重构，构建/真机兼容不能凭三方文本合并认定成功。
+- 5.6.3 原始基线到 5.8.7 Git Tree 涉及约 **810 个路径**，其中约 **56 个路径**与 fork 旧改动有交集（扣除已被专用恢复适配器保护的路径，最初登记 **47 个潜在合并/语义冲突路径**；当时存在 21 个待审 rebase 路径；经过后续适配器梳理，当前 fork_scope.json 已不再使用 rebase 策略（不代表实际编译通过）；历史过程见 [5.8.7 升级阻断审计](UPSTREAM_5_8_7_MIGRATION_AUDIT.md)）；多处播放器、Home、网络 API 已重构，构建/真机兼容不能凭三方文本合并认定成功。
 - 已确认旧 `OkProxySelector.Policy` 空 `URI.getHost()` 崩溃在上游源码得到修复：新版接受 `HttpUrl` 并直接读取规范化 scheme/host/port。升级脚本对该类强制采用**完整公开上游**实现，适配保留的旧回归测试；不再另留平行业务补丁。
 - 新版 Home 用 `pendingAction` + `consumeAction()` 一次消费启动 Intent。适配器从**新版 Home 原文件**生成最小 `FongMiNetworkRecovery` 接线、前台/focus check 和销毁清理；不复制旧 `checkAction(getIntent())`。Xray 去敏安全改进仍属于 `:xray`，原样保留。
 - `.github/workflows/manual-upstream-sync.yml` 是**单个、仅 `workflow_dispatch` 手动入口**。**当前安全默认 `apply_to_main=false`（仅预检）**；确认全部兼容迁移并获得真实 Actions 编译验证后才可调整为 `true`。显式选择 `true` 时：从 `scripts/upstream/baseline.json` 固定 commit 与官方最新 commit 做文件级三方合并；遇文本/二进制冲突立即退出，保留日志和短期报告；无冲突后按 `scripts/upstream/prepare_release.py` 对签名、版本、Home、代理测试与普通源码 hash guards 进行上游优先适配，再在 runner **本地**创建候选 commit。
@@ -53,7 +53,7 @@
 
 当前已针对新版 `SiteViewModel` 结果取消接口、`BaseLoader` 异步 Spider 回调、`OkHttp` API-only reset、`OkDns` DoH 代际、`ImgUtil` transient failure 和 `OkGlideModule` client handoff 增加精确匹配的恢复接线生成器 `scripts/upstream/recovery_adapters.py` 及 `tests/test-upstream-recovery-adapters.py`。这些修补仍只属于新版本迁移**候选逻辑**；已复核官方源码锚点，但未验证完整新 APK 或新源码回归，不能据此将工作流标记为已成功。
 
-**后续维护方式**：通用升级器的第一道安全边界已改为 `scripts/upstream/fork_scope.json` 原始差异分类（目前 **31 个接线生成、6 个改用新版上游、21 个三方重放、3 个仓库策略**；当前计数以 fork_scope.json 为准）。`sync.py` 会拒绝未登记的旧版 Fork 源码偏离（即使该文件本次上游未修改），避免误把旧业务补丁传入新版本；`xray_adapters.py` 从新版 Action/设置页/Updater 公共接口生成最小接线。详细状态和 5.8.7 尚未完成的播放路径见 [迁移审计](UPSTREAM_5_8_7_MIGRATION_AUDIT.md)。这些工具改动尚未经过新版完整 AC/双 ABI APK 验证，不得改称升级成功。
+**后续维护方式**：通用升级器的第一道安全边界已改为 `scripts/upstream/fork_scope.json` 原始差异分类（目前 **41 个接线生成（generate）、17 个改用新版上游（upstream）、0 个三方重放（rebase）、3 个仓库策略（project）**，合计 61 个路径；当前计数以 fork_scope.json 为准）。`sync.py` 会拒绝未登记的旧版 Fork 源码偏离（即使该文件本次上游未修改），避免误把旧业务补丁传入新版本；`xray_adapters.py` 从新版 Action/设置页/Updater 公共接口生成最小接线。详细状态和 5.8.7 尚未完成的播放路径见 [迁移审计](UPSTREAM_5_8_7_MIGRATION_AUDIT.md)。这些工具改动尚未经过新版完整 AC/双 ABI APK 验证，不得改称升级成功。
 
 ### 已登记的上游业务修复（升级前必读）
 
