@@ -115,7 +115,7 @@ for required in (
 # upstream changes as Release-only patches. Unknown shapes still fail closed.
 upstream_guard_build = (ROOT / "app/build.gradle").read_text(encoding="utf-8")
 upstream_guard_match = re.search(
-    r'versionName "v(\\d+)\\.(\\d+)\\.(\\d+)-xray\\.\\d+"',
+    r'versionName "v(\d+)\.(\d+)\.(\d+)-xray\.\d+"',
     upstream_guard_build,
 )
 if not upstream_guard_match:
