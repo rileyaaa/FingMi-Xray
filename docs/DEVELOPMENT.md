@@ -61,7 +61,7 @@
 - 消除两项会直接中断升级的旧测试/接线问题：原 `PlaybackService` 同一行 `binding.onReplaced()` 在 5.8.7 的 Activity 接管和媒体库 Browse 两处出现；现按完整语义上下文分别接线，媒体库接管必须在 `player.browse()` 之前解除旧 Xray 代理。原 `SubtitleApi` 搜索/详情具有两条相同请求表达式；改为明确要求恰好两条均通过 Xray。版本合同同时检查 Browse 顺序和两条字幕请求，避免只靠关键方法名放行。旁路 EPG HTTP 入口也改为大小写不敏感地识别 `http://` / `https://`，避免大写协议的元数据请求被意外丢弃；无效协议仍拒绝。
 - 修正候选适配器的离线测试夹具，使新版 `PlaybackActivity` 的 `onServiceConnected()`、Exo Session 字段缩进和 `PlaybackService` 的 Browse 代码形状与实际生成锚点一致。修正 `test-build-hygiene.py` 的版本门槛：当前 5.6.3 与公开 5.8.7 在 `AudioSetting` 增益上限、`Platform` ABI 初始化上的官方行为不同，不应因为跟随新版上游而被误判为本 Fork 的业务改动。
 - Xray 旁路 `cancel(tag)` 保留上游直连请求取消，并在播放网络身份切换时同时取消已绑定代理的同标签请求；即使服务绑定已解除也不遗漏直连取消。`tests/test-upstream-side-gate.py` 增加代理、直连与解绑后三种取消回归。图片网络隔离则增加 `tests/test-xray-artwork-loader.py` 轻量 JVM 测试：使用实际 `XrayArtworkBitmapLoader.java` 和精简 Android/Media3 接口替身，已在离线 JDK 编译执行通过，覆盖代理拒绝远端图片、本地资源放行与异步取消；这不是完整 Android/Glide 真机验证。该测试被提前放入昂贵的原生依赖重建之前；旧版保留原 Glide 生命周期测试，新版改用符合 5.8.7 架构的加载器测试。
-- `test-xray-playback-parity.py` 保留 5.6.3 黄金行为的 Xray 专用约束与 JVM identity 验证；依赖旧版播放器源码布局的断言仅用于旧版，新版使用 `verify_playback.REQUIRED_587` 及其新增顺序合同。**本阶段没有运行所有 Python/JVM 用例、Android 编译、两个 ABI APK 或真机验证**，也没有合并 5.8.7 源码或发布新版本；`manual-upstream-sync.yml` 仍仅供手动触发，`apply_to_main` 默认 `false`。
+- 另核实一个发布流程权限阻断：Actions 内建 `GITHUB_TOKEN` 只有本工作流声明的 contents/actions 权限，不能依赖它提交修改过的 `.github/workflows` 定义。因此已把三个手动工作流的 APK/报告 artifact 名称改为跨版本稳定名称；正式发布时使用 `scripts/build/resolve-release-tag.py` 按当前源码解析 tag；`prepare_release.metadata()` 不再改写任何 workflow YAML，只更新 README、DEVELOPMENT 和普通续发脚本。升级候选在 native 构建前还会检查 `.github/workflows` 是否产生变更，若有立即失败。相关离线源合同和版本解析测试已补齐，但未在 GitHub runner 实际执行或证明远端权限行为。\n- `test-xray-playback-parity.py` 保留 5.6.3 黄金行为的 Xray 专用约束与 JVM identity 验证；依赖旧版播放器源码布局的断言仅用于旧版，新版使用 `verify_playback.REQUIRED_587` 及其新增顺序合同。**本阶段没有运行所有 Python/JVM 用例、Android 编译、两个 ABI APK 或真机验证**，也没有合并 5.8.7 源码或发布新版本；`manual-upstream-sync.yml` 仍仅供手动触发，`apply_to_main` 默认 `false`。
 
 ### 已登记的上游业务修复（升级前必读）
 
@@ -360,7 +360,7 @@ Release 只保留 `v5.6.0-xray.5` 黄金参考和一个当前正式版，均只�
 
 `test.7` 构建源码为 `439cea8d7a9d3cdb1a17b4ed962c6d68ed164508`，缺少后续 Hysteria2 备注查询边界修复；正式版替换旧测试发布。构建源码、资产 hash 与当前验收结果记录在对应 GitHub Release，历史 test.7 证据保留在本文维护记录，不能当作正式版的验证。
 
-发布 workflow 以 `BUILD_SOURCE_SHA` 作为唯一构建与发布源码，重新准备固定依赖、执行源码 guard 与双 ABI 黄金 Xray chain parity，只编译/assemble Android TV / Leanback Release 两个 ABI，并核对最终 native provenance、Manifest、签名、应用版本、non-debuggable 与 16 KB alignment。当前按用户一次性同名替换要求配置 `RELEASE_TAG=v5.6.3-xray.1`，不会自动递增修订号。正常手动触发时 `BUILD_SOURCE_SHA = github.sha`，权限保持 `contents: write + actions: read`，同一发布流程使用 concurrency 排队而不取消正在进行的发布。
+发布 workflow 以 `BUILD_SOURCE_SHA` 作为唯一构建与发布源码，重新准备固定依赖、执行源码 guard 与双 ABI 黄金 Xray chain parity，只编译/assemble Android TV / Leanback Release 两个 ABI，并核对最终 native provenance、Manifest、签名、应用版本、non-debuggable 与 16 KB alignment。发布 tag 不再写死在 workflow YAML 中：`scripts/build/resolve-release-tag.py` 会从已检出的 `app/build.gradle` 读取并核对 `baseline.json`，运行时写入 `RELEASE_TAG`；这不会单独递增修订号，版本递增仍由正式发布/升级流程按项目规则决定。正常手动触发时 `BUILD_SOURCE_SHA = github.sha`，权限保持 `contents: write + actions: read`，同一发布流程使用 concurrency 排队而不取消正在进行的发布。
 
 `scripts/build/publish-current-release.py` 只处理两份 APK 的草稿上传和正式切换，`tests/test-release-publication.py` 验证失败和清理顺序。先逐文件核对 name / digest / size 与来源 tag，验证通过后才进入切换。已有同名版本必须由用户明确要求并选中 `replace_existing`；旧 APK 暂存为 rollback 草稿，直到新正式 APK、Git ref 和 latest 全部核验后才清理。失败时保留可诊断/恢复的草稿，不把失败说成替换成功。显式选择 `prune_superseded` 时，验证成功后再删除黄金版与当前正式版之外的 Release/tag。
 
