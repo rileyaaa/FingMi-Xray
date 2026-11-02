@@ -90,9 +90,9 @@ class PlaybackService {
         binding = new ActivityBinding(owner, onReplaced);
     }
     private boolean setBrowseItem(MediaItem item, long startPositionMs) {
-        if (!player.browse(result, item.mediaId, item.mediaMetadata, startPositionMs)) return false;
-        if (binding != null) binding.onReplaced().run();
-        binding = null;
+            if (!player.browse(result, item.mediaId, item.mediaMetadata, startPositionMs)) return false;
+            if (binding != null) binding.onReplaced().run();
+            binding = null;
         return true;
     }
     private PlayerManager player;
