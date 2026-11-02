@@ -43,5 +43,5 @@ with tempfile.TemporaryDirectory(prefix="fingmi-release-tag-test-") as td:
     write(root, "app/build.gradle", 'versionCode 587001\nversionName "v5.8.7-xray.1"\nversionName "v5.8.7-xray.2"\n')
     rejected(root)
 
-assert tag.resolve(ROOT) == "v5.6.3-xray.1", "Current main release source baseline drifted"
+assert tag.resolve(ROOT).startswith("v" + json.loads((ROOT / "scripts/upstream/baseline.json").read_text())["version"] + "-xray."), "Current source tag and pinned public baseline disagree"
 print("PASS: signed release tags come from app/build.gradle and pinned upstream, not workflow YAML")
