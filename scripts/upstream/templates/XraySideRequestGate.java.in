@@ -8,6 +8,12 @@ import okhttp3.Call;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.RequestBody;
+import okhttp3.Response;
+
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Set;
+import java.util.WeakHashMap;
 
 /**
  * App-side request network identity for the active Xray playback session.
@@ -17,6 +23,11 @@ import okhttp3.RequestBody;
 public final class XraySideRequestGate {
 
     private static volatile PlayerManager player;
+
+    // Weak identity tracking: completed EPG/subtitle Download instances are not
+    // retained indefinitely; a playback transition still cancels live work.
+    private static final Set<Download> remoteDownloads =
+            Collections.newSetFromMap(new WeakHashMap<>());
 
     private XraySideRequestGate() {}
 
@@ -50,10 +61,36 @@ public final class XraySideRequestGate {
         return proxy.newCall(new Request.Builder().url(url).post(body).tag(tag).build());
     }
 
-    /** A multipart subtitle download must use the SAME client for every part. */
+    /** A multipart EPG/subtitle download must use one Xray client for every part. */
     public static Download usePlaybackTransport(Download download) {
         OkHttpClient proxy = activeProxyClient();
-        return proxy == null ? download : download.transport(proxy);
+        if (proxy == null) return download;
+        synchronized (remoteDownloads) {
+            remoteDownloads.add(download);
+        }
+        return download.transport(proxy);
+    }
+
+    /** Cancel downloads started on the previous Xray network generation. */
+    public static void cancelRemoteDownloads() {
+        ArrayList<Download> previous;
+        synchronized (remoteDownloads) {
+            previous = new ArrayList<>(remoteDownloads);
+            remoteDownloads.clear();
+        }
+        for (Download task : previous) task.cancel();
+    }
+
+    /** Live metadata HTTP is direct normally, but never direct during Xray. */
+    public static String string(String url, String tag) {
+        if (url == null || !url.startsWith("http")) return "";
+        if (activeProxyClient() == null) return OkHttp.string(url);
+        try (Response response = newCall(url, tag).execute()) {
+            return response.body().string();
+        } catch (Exception error) {
+            error.printStackTrace();
+            return "";
+        }
     }
 
     /** Cancel Xray requests as well as upstream's ordinary tagged calls. */
