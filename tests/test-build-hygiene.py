@@ -444,7 +444,7 @@ if upstream_lock["version"] != upstream_version:
     errors.append("Fork version must match pinned public upstream source baseline")
 if "version_code" in upstream_lock and version_code != int(upstream_lock["version_code"]) * 1000 + fork_revision:
     errors.append("Fork versionCode must equal upstream versionCode * 1000 + revision")
-artifact_prefix = "fingmi-xray-" + upstream_version
+artifact_prefix = "fingmi-xray"
 if artifact_prefix + "-current-main-release" not in current_workflow:
     errors.append("current-main-build.yml must retain the short-lived TV debug artifact")
 if "retention-days: 2" not in current_workflow:
@@ -460,8 +460,23 @@ for required in (
 if artifact_prefix + "-current-main-release" in publish_workflow:
     errors.append("publish workflow must not duplicate successful APKs into Actions artifacts")
 
-if f'RELEASE_TAG: "{version_name}"' not in publish_workflow:
-    errors.append("publish workflow must target the version embedded in the app")
+# Formal publication resolves its tag from the checked-out, pinned source,
+# never from a version literal that an upgrade would need to push into a
+# GitHub Actions workflow definition with insufficient workflow permissions.
+if 'RELEASE_TAG: ""' not in publish_workflow:
+    errors.append("publish workflow must not hard-code a source release version")
+for required in (
+    'release_tag="$(python3 scripts/build/resolve-release-tag.py)"',
+    'echo "RELEASE_TAG=$release_tag" >> "$GITHUB_ENV"',
+    'python3 tests/test-resolve-release-tag.py',
+):
+    if required not in publish_workflow:
+        errors.append(f"publish workflow lost source-bound release tag contract: {required}")
+if "Bind release tag to checked-out source" not in publish_workflow or (
+    publish_workflow.index("Bind release tag to checked-out source") >
+    publish_workflow.index("Run fork source guards")
+):
+    errors.append("publish source-tag validation must precede expensive rebuild")
 for required in (
     "      replace_existing:",
     "        type: boolean",
@@ -482,8 +497,22 @@ for name, text in (
     if artifact_prefix + "-build-failure-reports" not in text or "retention-days: 1" not in text:
         errors.append(f"{name} failure reports must remain short-lived (1 day)")
 
-if f'RELEASE_TAG: "{version_name}"' not in publish_workflow:
-    errors.append("publish tag must equal the versionName embedded in the APK")
+if 'REPORT_NAME = "fingmi-xray-build-failure-reports"' not in (
+        ROOT / "scripts/build/resume-verified-release.py").read_text(encoding="utf-8"):
+    errors.append("resume helper must use the stable short-lived failure artifact name")
+manual_workflow = (ROOT / ".github/workflows/manual-upstream-sync.yml").read_text(encoding="utf-8")
+if 'RELEASE_TAG: ""' not in manual_workflow or (
+        'release_tag="$(python3 scripts/build/resolve-release-tag.py)"' not in manual_workflow):
+    errors.append("upstream sync must not pin the previous fork release in workflow YAML")
+for name, workflow in (
+    ("current-main-build.yml", current_workflow),
+    ("publish-current-main-test-release.yml", publish_workflow),
+    ("manual-upstream-sync.yml", manual_workflow),
+):
+    if "python3 tests/test-resolve-release-tag.py" not in workflow:
+        errors.append(f"{name} lost the source-derived release tag test")
+    if re.search(r'fingmi-xray-\\d+\\.\\d+\\.\\d+-', workflow):
+        errors.append(f"{name} contains a version-pinned Actions artifact name")
 resume_helper = (ROOT / "scripts/build/resume-verified-release.py").read_text(encoding="utf-8")
 if f'parser.add_argument("--tag", default="{version_name}")' not in resume_helper:
     errors.append("resume publication tag must match the full publication workflow")
