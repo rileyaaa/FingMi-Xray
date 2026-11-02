@@ -83,8 +83,10 @@ jobs:
             exit 1
           fi
           if [[ "$base" == "$target" ]]; then
-            echo "No public upstream changes since the pinned baseline ($target)"
-            exit 1
+            echo "No upstream code delta; recheck whether the pinned fork release still needs publishing"
+            echo "UPSTREAM_NO_CHANGE=true" >> "$GITHUB_ENV"
+          else
+            echo "UPSTREAM_NO_CHANGE=false" >> "$GITHUB_ENV"
           fi
           echo "UPSTREAM_DIRECTORY=$upstream" >> "$GITHUB_ENV"
           echo "UPSTREAM_TARGET=$target" >> "$GITHUB_ENV"
@@ -95,6 +97,18 @@ jobs:
           APPLY_TO_MAIN: ${{ inputs.apply_to_main }}
         run: |
           set -euo pipefail
+          if [[ "$UPSTREAM_NO_CHANGE" == "true" ]]; then
+            release_tag="$(sed -n 's/.*versionName "\\(v[0-9.]*-xray\\.[0-9]*\\)".*/\\1/p' app/build.gradle | head -n 1)"
+            test -n "$release_tag"
+            if gh release view "$release_tag" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+              echo "Release $release_tag already exists; nothing to upgrade" >&2
+              exit 1
+            fi
+            echo "BUILD_SOURCE_SHA=$GITHUB_SHA" >> "$GITHUB_ENV"
+            echo "RELEASE_TAG=$release_tag" >> "$GITHUB_ENV"
+            echo "Rebuilding the already integrated but unpublished source: $release_tag"
+            exit 0
+          fi
           python3 scripts/upstream/sync.py \
             --upstream "$UPSTREAM_DIRECTORY" \
             --target "$UPSTREAM_TARGET" \
@@ -476,7 +490,10 @@ jobs:
         run: |
           set -euo pipefail
           test "$(git rev-parse HEAD)" = "$BUILD_SOURCE_SHA"
-          test "$BUILD_SOURCE_SHA" != "$GITHUB_SHA"
+          if [[ "$BUILD_SOURCE_SHA" == "$GITHUB_SHA" ]]; then
+            echo 'Rebuilding already pushed source; no main update necessary'
+            exit 0
+          fi
           remote_head="$(git ls-remote origin refs/heads/main | cut -f1)"
           if [[ "$remote_head" != "$GITHUB_SHA" ]]; then
             echo 'Refusing to push: main changed while the candidate was building' >&2
