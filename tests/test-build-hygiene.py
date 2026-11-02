@@ -511,7 +511,7 @@ for name, workflow in (
 ):
     if "python3 tests/test-resolve-release-tag.py" not in workflow:
         errors.append(f"{name} lost the source-derived release tag test")
-    if re.search(r'fingmi-xray-\\d+\\.\\d+\\.\\d+-', workflow):
+    if re.search(r'fingmi-xray-\d+\.\d+\.\d+-', workflow):
         errors.append(f"{name} contains a version-pinned Actions artifact name")
 resume_helper = (ROOT / "scripts/build/resume-verified-release.py").read_text(encoding="utf-8")
 if f'parser.add_argument("--tag", default="{version_name}")' not in resume_helper:
