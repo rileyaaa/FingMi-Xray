@@ -53,6 +53,7 @@ REGENERATED_FILES = {
     "app/src/main/java/com/fongmi/android/tv/api/LiveApi.java",
     "app/src/main/java/com/fongmi/android/tv/api/parser/EpgParser.java",
     "app/src/main/java/com/fongmi/android/tv/model/LiveViewModel.java",
+    "app/src/leanback/java/com/fongmi/android/tv/ui/adapter/ChannelAdapter.java",
 }
 PRESERVED_FILES = {
     "app/proguard-rules-media.pro",

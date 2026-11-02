@@ -14,6 +14,7 @@ from exo_adapters import media_factory, exo_session, exo_engine, engine_factory
 from player_manager_adapter import player_manager
 from side_request_adapters import playback_service, danmaku_api, subtitle_api, download
 from live_metadata_adapters import live_api, epg_parser, live_view_model
+from live_ui_adapters import channel_adapter
 
 
 def one(s, a, b):
@@ -268,6 +269,7 @@ def prepare(root,upstream,target,report):
         ("app/src/main/java/com/fongmi/android/tv/api/LiveApi.java", live_api),
         ("app/src/main/java/com/fongmi/android/tv/api/parser/EpgParser.java", epg_parser),
         ("app/src/main/java/com/fongmi/android/tv/model/LiveViewModel.java", live_view_model),
+        ("app/src/leanback/java/com/fongmi/android/tv/ui/adapter/ChannelAdapter.java", channel_adapter),
     )
     for filename, transform in side_request_hooks:
         additions[filename] = transform(original(upstream, tree, filename))

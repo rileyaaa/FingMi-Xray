@@ -55,7 +55,7 @@
       "scope": "xray"
     },
     "app/src/leanback/java/com/fongmi/android/tv/ui/adapter/ChannelAdapter.java": {
-      "strategy": "rebase",
+      "strategy": "generate",
       "scope": "xray"
     },
     "app/src/leanback/res/layout/activity_setting.xml": {

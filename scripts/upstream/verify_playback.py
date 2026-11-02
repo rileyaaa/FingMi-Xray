@@ -139,6 +139,11 @@ REQUIRED_587 = {
         "tasks.cancel(TaskType.EPG);",
         "tasks.cancel(TaskType.XML);",
     ),
+    "app/src/leanback/java/com/fongmi/android/tv/ui/adapter/ChannelAdapter.java": (
+        "setXrayLogoSuppressed(boolean suppressed)",
+        "Glide.with(channelHolder.binding.logo).clear(channelHolder.binding.logo)",
+        "notifyItemChanged(position, Boolean.TRUE);",
+    ),
     # UI session ownership and request cancellation are not yet ported: a
     # prospective 5.8.7 build must STOP here even with all Exo helpers present.
     "app/src/leanback/java/com/fongmi/android/tv/ui/activity/LiveActivity.java": (
