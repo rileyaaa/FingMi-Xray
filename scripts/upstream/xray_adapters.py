@@ -45,6 +45,107 @@ def xray_import_action(s):
     return s
 
 
+
+
+def setting_activity(s):
+    """Keep the current upstream settings page, adding just Xray entry points."""
+    if "mBinding.xray.setOnClickListener(this::onXray);" in s:
+        if "setXrayText();" not in s or "SettingXrayActivity.start(this);" not in s:
+            raise ValueError("Unrecognized existing Xray settings integration")
+        return s
+    s = once(s, "import com.fongmi.android.tv.BuildConfig;",
+        "import com.fongmi.android.tv.BuildConfig;\n"
+        "import com.fingmi.xray.config.XrayDisplay;\n"
+        "import com.fingmi.xray.config.XrayPreferences;", "settings imports")
+    s = once(s, "        mBinding.versionText.setText(BuildConfig.VERSION_NAME);",
+        "        mBinding.versionText.setText(BuildConfig.VERSION_NAME);\n"
+        "        setXrayText();", "settings Xray state")
+    s = once(s, "        mBinding.danmaku.setOnClickListener(this::onDanmaku);",
+        "        mBinding.danmaku.setOnClickListener(this::onDanmaku);\n"
+        "        mBinding.xray.setOnClickListener(this::onXray);", "settings Xray click")
+    if "protected void onResume()" in s:
+        raise ValueError("Upstream added its own settings onResume; manual Xray review required")
+    s = once(s, "    private void onDanmaku(View view) {",
+        """    private void onXray(View view) {
+        SettingXrayActivity.start(this);
+    }
+
+    private void setXrayText() {
+        try {
+            XrayPreferences preferences = new XrayPreferences(this);
+            if (!preferences.isConfigured()) {
+                mBinding.xrayText.setText(R.string.xray_not_configured);
+                return;
+            }
+            mBinding.xrayText.setText(XrayDisplay.describe(preferences.getShareLink()));
+        } catch (Exception | LinkageError ignored) {
+            mBinding.xrayText.setText(R.string.xray_not_configured);
+        }
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        if (mBinding != null) setXrayText();
+    }
+
+    private void onDanmaku(View view) {""", "settings Xray UI hook")
+    return s
+
+
+def setting_layout(s):
+    """Add one Xray row without replacing newer upstream module/settings rows."""
+    if 'android:id="@+id/xray"' in s:
+        if 'android:id="@+id/xrayText"' not in s:
+            raise ValueError("Unrecognized existing Xray settings row")
+        return s
+    size='android:id="@+id/size"'
+    if s.count(size) != 1 or s.count('android:id="@+id/incognito"') != 1:
+        raise ValueError("Upstream settings layout no longer has unique row anchors")
+    start=s.index(size)
+    closing="</androidx.appcompat.widget.LinearLayoutCompat>"
+    inner=s.find(closing,start)
+    if inner < 0: raise ValueError("Missing settings size row close tag")
+    outer=s.find(closing,inner+len(closing))
+    if outer < 0: raise ValueError("Missing settings size container close tag")
+    after=outer+len(closing)
+    if s.find('android:id="@+id/incognito"',after,after+2500)<0:
+        raise ValueError("Upstream settings rows changed; manual Xray layout review")
+    row="""
+
+        <androidx.appcompat.widget.LinearLayoutCompat
+            android:id="@+id/xray"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:background="@drawable/selector_item"
+            android:focusable="true"
+            android:focusableInTouchMode="true"
+            android:orientation="horizontal">
+
+            <com.google.android.material.textview.MaterialTextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginEnd="16dp"
+                android:text="@string/xray_setting"
+                android:textColor="@color/white"
+                android:textSize="18sp" />
+
+            <com.google.android.material.textview.MaterialTextView
+                android:id="@+id/xrayText"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:ellipsize="end"
+                android:gravity="end"
+                android:singleLine="true"
+                android:textColor="@color/white"
+                android:textSize="18sp"
+                tools:text="VLESS  e***.com:443" />
+
+        </androidx.appcompat.widget.LinearLayoutCompat>"""
+    return s[:after]+row+s[after:]
+
+
 # The public 5.8.7 API. Stop when future upstream adds a new method rather
 # than generating an incomplete stub that compiles only by accident.
 UPDATER_PUBLIC_API = {
