@@ -43,7 +43,7 @@ def live_activity(s):
             @Override
             public void onProxyChanged(XrayHttpClient resources, boolean preservePlayback) {
                 if (mViewModel != null) mViewModel.cancelXrayMetadataRequests();
-                if (service() != null && isOwner() && isBindingOwner()) {
+                if (service() != null && isPlaybackCurrent() && !isWebPlaybackActive()) {
                     clearXrayDanmakuSource();
                     player().setPlaybackProxy(resources, preservePlayback);
                 } else if (resources != null) {
@@ -59,7 +59,7 @@ def live_activity(s):
             @Override
             public void onProxyError() {
                 mXrayPendingStart = false;
-                if (service() != null && isOwner() && isBindingOwner()) {
+                if (service() != null && isPlaybackCurrent() && !isWebPlaybackActive()) {
                     clearXrayDanmakuSource();
                     player().clearPlaybackProxyPreservingState();
                 }
@@ -78,7 +78,7 @@ def live_activity(s):
                         R.string.xray_off);
                 if (state == XraySessionListener.RUNNING && mXrayPendingStart) {
                     mXrayPendingStart = false;
-                    if (service() != null && isOwner() && isBindingOwner() && mLive != null)
+                    if (service() != null && isPlaybackCurrent() && !isWebPlaybackActive() && mLive != null)
                         mLive.refresh();
                 } else if (state == XraySessionListener.ERROR || state == XraySessionListener.IDLE) {
                     mXrayPendingStart = false;
@@ -90,7 +90,7 @@ def live_activity(s):
     }
 
     private void onXray() {
-        if (mXray == null || service() == null || !isOwner() || !isBindingOwner()) return;
+        if (mXray == null || service() == null || !isPlaybackCurrent() || isWebPlaybackActive()) return;
         int state = mXray.state();
         if (state == XraySessionListener.RUNNING || state == XraySessionListener.STARTING) {
             mXrayPendingStart = false;
@@ -152,6 +152,7 @@ def live_activity(s):
     for required in ("mLive.onPlaybackServiceReady();",
                      "mViewModel.cancelXrayMetadataRequests();",
                      "clearXrayDanmakuSource();",
+                     "isWebPlaybackActive()",
                      "mChannelAdapter.setXrayLogoSuppressed(resources != null);",
                      "mBinding.control.action.xray.setOnClickListener(view -> onXray());",
                      "startPlayer(mPlaybackKey, result, false, getHome().getTimeout(), position, metadata);",
@@ -191,7 +192,7 @@ def video_activity(s):
             public void onProxyChanged(XrayHttpClient resources, boolean preservePlayback) {
                 if (resources != null && mViewModel != null)
                     mViewModel.cancelXrayTransitionRequests();
-                if (service() != null && isOwner() && isBindingOwner()) {
+                if (service() != null && isPlaybackCurrent() && !isWebPlaybackActive()) {
                     clearXrayDanmakuSource();
                     player().setPlaybackProxy(resources, preservePlayback);
                 } else if (resources != null) {
@@ -201,7 +202,7 @@ def video_activity(s):
 
             @Override
             public void onProxyError() {
-                if (service() == null || !isOwner() || !isBindingOwner()) return;
+                if (service() == null || !isPlaybackCurrent() || isWebPlaybackActive()) return;
                 mXrayProxyFailed = player().hasXraySession();
                 if (!mXrayProxyFailed) return;
                 clearXrayDanmakuSource();
@@ -235,7 +236,7 @@ def video_activity(s):
     }
 
     private void onXray() {
-        if (mXray == null || service() == null || !isOwner() || !isBindingOwner()) return;
+        if (mXray == null || service() == null || !isPlaybackCurrent() || isWebPlaybackActive()) return;
         int state = mXray.state();
         if (state == XraySessionListener.RUNNING || state == XraySessionListener.STARTING) {
             mXray.stop(true);
@@ -290,6 +291,7 @@ def video_activity(s):
                      "mBinding.control.action.xray.setOnClickListener(view -> onXray());",
                      "mViewModel.cancelXrayTransitionRequests();",
                      "clearXrayDanmakuSource();",
+                     "isWebPlaybackActive()",
                      "new XrayPlaybackSession(this, OkHttp.player()",
                      "if (mXray != null) mXray.close();"):
         if required not in s:

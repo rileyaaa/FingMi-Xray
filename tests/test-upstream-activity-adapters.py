@@ -93,6 +93,7 @@ for needle in ('new XrayPlaybackSession(this, OkHttp.player()', 'mXray.enableFor
                'mXray.close();','clearXrayDanmakuSource();'):
     assert needle in z,needle
 assert "startPlayer(mPlaybackKey, result, false, getHome().getTimeout(), position, metadata);" in z
+assert "isWebPlaybackActive()" in z
 refuse(live_activity,LIVE.replace("renderChannelSelection(Channel channel)",
                                   "renderOtherSelection(Channel channel)"))
 
@@ -137,6 +138,7 @@ for needle in ("new XrayPlaybackSession(this, OkHttp.player()",
                "mBinding.control.action.xray.setOnClickListener(view -> onXray());"):
     assert needle in z,needle
 assert "stopWebPlayback();" in z
+assert "isWebPlaybackActive()" in z
 assert "getPlayerView().setDanmakuSource(null)" not in z
 refuse(video_activity,VOD.replace("stopPlaybackForRefresh()","stopSourceForRefresh()"))
 
