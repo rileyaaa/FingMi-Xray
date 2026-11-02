@@ -65,6 +65,7 @@ jobs:
           python3 tests/test-upstream-xray-auth.py
           python3 tests/test-upstream-side-requests.py
           python3 tests/test-upstream-side-gate.py
+          python3 tests/test-upstream-live-metadata.py
 
       - name: Fetch public FongMi/TV baseline and latest
         shell: bash
@@ -121,6 +122,8 @@ jobs:
           python3 tests/test-upstream-exo-adapters.py \
             --upstream "$UPSTREAM_DIRECTORY" --target "$UPSTREAM_TARGET"
           python3 tests/test-upstream-side-requests.py \
+            --upstream "$UPSTREAM_DIRECTORY" --target "$UPSTREAM_TARGET"
+          python3 tests/test-upstream-live-metadata.py \
             --upstream "$UPSTREAM_DIRECTORY" --target "$UPSTREAM_TARGET"
           python3 scripts/upstream/sync.py \
             --upstream "$UPSTREAM_DIRECTORY" \
