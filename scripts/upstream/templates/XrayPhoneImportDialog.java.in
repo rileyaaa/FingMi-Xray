@@ -22,7 +22,7 @@ public final class XrayPhoneImportDialog {
         // Xray-only page, while regular FongMi web UI remains untouched.
         String url = Server.get().getAddress() + "/xray.html";
         Bitmap bitmap = QRCode.getBitmap(url, 240, 1);
-        if (bitmap == null) throw new IllegalStateException("Xray pairing QR could not be generated");
+        // When QR rendering is unavailable the URL remains selectable below.
 
         int padding = Math.round(activity.getResources().getDisplayMetrics().density * 20);
         LinearLayout content = new LinearLayout(activity);
@@ -32,8 +32,10 @@ public final class XrayPhoneImportDialog {
 
         ImageView code = new ImageView(activity);
         code.setContentDescription(url);
-        code.setImageBitmap(bitmap);
-        content.addView(code);
+        if (bitmap != null) {
+            code.setImageBitmap(bitmap);
+            content.addView(code);
+        }
 
         TextView message = new TextView(activity);
         message.setGravity(Gravity.CENTER);
