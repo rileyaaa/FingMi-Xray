@@ -56,6 +56,7 @@ jobs:
           python3 scripts/build/check-final-apk-native.py --self-test
           python3 scripts/build/check-final-apk-manifest.py --self-test
           python3 tests/test-build-hygiene.py
+          python3 tests/test-resolve-release-tag.py
           python3 tests/test-release-publication.py
           python3 tests/test-resume-verified-release.py
           python3 tests/test-media3-dex-linkage.py
