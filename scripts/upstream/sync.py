@@ -21,7 +21,15 @@ OWNED_FILES = {
     ".gitignore", "build.gradle", "settings.gradle", "gradle.properties",
     "scripts/runtime_catalog.py", "scripts/sync_python_runtime.py",
 }
+# Upstream files regenerated from the selected public commit by prepare_release.py.
+# Never three-way-merge their old fork versions into the new upstream.
+REGENERATED_FILES = {
+    "app/build.gradle", "settings.gradle",
+    "app/src/leanback/java/com/fongmi/android/tv/ui/activity/HomeActivity.java",
+    "catvod/src/main/java/com/github/catvod/net/OkProxySelector.java",
+}
 PRESERVED_FILES = {
+    "app/proguard-rules-media.pro",
     "catvod/src/test/java/com/github/catvod/net/OkProxySelectorTest.java",
 }
 PRESERVED_PREFIXES = (
@@ -57,6 +65,7 @@ def git_tree(repo, rev):
 def tracked(path):
     return ((path in OWNED_FILES or path.startswith(OWNED_PREFIXES))
             and path not in PRESERVED_FILES
+            and path not in REGENERATED_FILES
             and not path.startswith(PRESERVED_PREFIXES))
 
 
