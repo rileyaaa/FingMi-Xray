@@ -40,15 +40,16 @@
 
 任何超出上述范围的代码修改，在提交前都应先判断：**这个变化是否是 Xray 或 TV 网络恢复的必要条件？如果不是，默认跟随上游。** 用户允许的例外仅限像已发生的主机名崩溃一样，有明确证据、明显影响实际使用的上游故障；只做最小修补，并在下方登记，不能据理论风险扩展普通业务维护。
 
-### 2026-11-02 上游 5.8.7 迁移预检（尚未完成源码升级）
+### 2026-11-02 上游 5.8.7 与通用一键升级 Actions
 
-- 公开目标：`FongMi/TV` 的 `fongmi` 分支，`8626650ebcbc0d028e16d859e826fcf439720f3a`，官方 `app/build.gradle` 声明 `5.8.7` / `587`。
-- 当前 `main` **仍为 5.6.3 源码与已发布 5.6.3 APK**；以下仅是升级前源码审计，不代表已编译、运行或发布 5.8.7。
-- 旧上游 `c616c0aa...` 与目标 Git Tree 比较有 **810 个路径变化**；其中当前 fork 与新版上游同时有差异约 **56 个路径**，含 Xray / TV 恢复的页面和网络接线；上游删除而 fork 仍修改的路径有 3 个。不能直接覆盖，也不能把文本三方合并成功当作编译通过。
-- 已确认官方新版 `OkProxySelector.Policy` 改为接收 OkHttp `HttpUrl` 并读取 `scheme()/host()/port()`，已从源码层面避开旧 `URI.getHost().toLowerCase()` NPE。正式迁移时应采用完整上游实现，移除 fork 相同目的的业务补丁，并迁移保留 `OkProxySelectorTest` 的空 Host / origin / 重定向回归；目前**尚未执行新版回归**。
-- 新版 Home 使用 `pendingAction` + `consumeAction()` 一次性处理启动 Intent；本 fork 的恢复回调仍要单独保留、适配、回归，不得把旧 `checkAction(getIntent())` 恢复流程直接搬回新版；Xray 去敏等项目自有修复上游没有替代实现。
-- 新增 `.github/workflows/manual-upstream-sync.yml`，仅 `workflow_dispatch`。默认 `apply_to_main=false`：按 `scripts/upstream/baseline.json` 固定旧基线，拉取公开分支并尝试文件级三方合并，报告冲突、无冲突则在临时 runner 生成候选；不写入 Git、不编译、不发布。显式选中应用时仍必须满足零冲突、原项目 source guards、版本配置与当前分支 head 校验才可能提交；**现阶段 5.8.7 存在结构差异，先以预检与人工适配为主**。短期报告仅保留 2 天。
-- 离线模拟测试：`python3 tests/test-upstream-sync.py`，已验证 fork 自有内容保护、非冲突三方合并、上游删除和冲突时无写入。完成首次适配并完成真实编译/回归后，才可将该入口作为常规一键升级流程评估；发布仍走独立手动发布入口，保持正式签名、黄金版本和 Libass 原生输入证据不变。
+- 当前已核对公开 `FongMi/TV` 默认 `fongmi` 分支 commit `8626650ebcbc0d028e16d859e826fcf439720f3a`，其源码 `app/build.gradle` 明确为 `5.8.7` / `587`。截至本次修改，**仓库 `main` 业务源码仍为 5.6.3，正式 Release 仍为 `v5.6.3-xray.1`**；已写入的是升级工具和适配策略，不代表 5.8.7 APK 已构建或发布。
+- 5.6.3 原始基线到 5.8.7 Git Tree 涉及约 **810 个路径**，其中约 **56 个路径**与 fork 旧改动有交集；多处播放器、Home、网络 API 已重构，构建/真机兼容不能凭三方文本合并认定成功。
+- 已确认旧 `OkProxySelector.Policy` 空 `URI.getHost()` 崩溃在上游源码得到修复：新版接受 `HttpUrl` 并直接读取规范化 scheme/host/port。升级脚本对该类强制采用**完整公开上游**实现，适配保留的旧回归测试；不再另留平行业务补丁。
+- 新版 Home 用 `pendingAction` + `consumeAction()` 一次消费启动 Intent。适配器从**新版 Home 原文件**生成最小 `FongMiNetworkRecovery` 接线、前台/focus check 和销毁清理；不复制旧 `checkAction(getIntent())`。Xray 去敏安全改进仍属于 `:xray`，原样保留。
+- `.github/workflows/manual-upstream-sync.yml` 是**单个、仅 `workflow_dispatch` 手动入口**。默认 `apply_to_main=true`：从 `scripts/upstream/baseline.json` 固定 commit 与官方最新 commit 做文件级三方合并；遇文本/二进制冲突立即退出，保留日志和短期报告；无冲突后按 `scripts/upstream/prepare_release.py` 对签名、版本、Home、代理测试与普通源码 hash guards 进行上游优先适配，再在 runner **本地**创建候选 commit。
+- 同一次 run 复用现有完整正式版编译链：固定签名、Xray/parity、TV 息屏恢复测试、原生库摘要、TV 双 ABI APK、最终 Manifest、Media3/DEX、签名与 16KB 对齐。**所有检查通过并完成 APK staging 后才将候选 source commit 推送 `main`，随后由原发布器验证与发布两份 APK**；只有发布成功才清理过时 Release，永久保留黄金版 `v5.6.0-xray.5`。正式版的新 `versionName` 自动取公开上游版本，`versionCode = upstreamCode × 1000 + revision`，同上游版本再更新则修订号递增。
+- 同一 commit 代码已升级但发布阶段失败时，可再次运行这个一键入口，对已推送但尚未发布的源码重新构建并尝试发布；已存在正式 Release 时拒绝重复消耗构建额度。该恢复方式与原独立手动 `resume-verified-release.yml` 不同；不要把失败 run 当作已发布成功。
+- `apply_to_main=false` 则只在一次性 runner 上合并、输出报告，不运行 Gradle、提交、发布；所有工作流仍不使用 push/schedule 自动触发。新通用脚本已配置离线 fixture 测试，**尚未经过对应新版本的实际 Actions 编译验收**；首次 5.8.7 仍可能因上游重构而 fail-closed，不能承诺任意未来版本绝无冲突。原生/Media3 API 大幅变化时依旧需要人工审查，而不能采用自动覆盖、拼接旧业务代码或跳过回归的方式放行。
 
 ### 已登记的上游业务修复（升级前必读）
 
