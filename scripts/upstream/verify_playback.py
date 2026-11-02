@@ -272,6 +272,28 @@ def audit(sources, requirements=None):
         tv_manifest = sources.get("app/src/leanback/AndroidManifest.xml") or ""
         if 'android:name=".ui.activity.PushActivity"' in tv_manifest:
             errors.append("app/src/leanback/AndroidManifest.xml: removed upstream PushActivity retained")
+        # Media-library browse starts playback synchronously. It must not
+        # inherit the previous Activity's SOCKS client before owner cleanup.
+        service_path = "app/src/main/java/com/fongmi/android/tv/service/PlaybackService.java"
+        service = sources.get(service_path) or ""
+        start = service.find("private boolean setBrowseItem(")
+        end = service.find("private void redirectPush(", start) if start >= 0 else -1
+        if start < 0 or end < 0:
+            errors.append(service_path + ": unrecognized media-library takeover structure")
+        else:
+            browse = service[start:end]
+            release = browse.find("player.clearPlaybackProxyPreservingState();")
+            launch = browse.find("if (!player.browse(")
+            if release < 0 or launch < 0 or release >= launch:
+                errors.append(service_path + ": Xray proxy must be detached BEFORE browse playback")
+            if "if (!hadXray && binding != null) binding.onReplaced().run();" not in browse:
+                errors.append(service_path + ": browse owner callback can be replayed after Xray stop")
+        # Both search and detail subtitle requests must use the Xray gate.
+        subtitle_path = "app/src/main/java/com/fongmi/android/tv/api/SubtitleApi.java"
+        subtitle = sources.get(subtitle_path) or ""
+        gated_subtitle = "return XraySideRequestGate.newCall(builder.build().toString(), TAG);"
+        if subtitle.count(gated_subtitle) != 2:
+            errors.append(subtitle_path + ": both subtitle search/detail calls must use Xray")
     return errors
 
 
