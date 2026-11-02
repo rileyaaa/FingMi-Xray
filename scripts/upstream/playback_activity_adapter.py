@@ -16,6 +16,13 @@ def playback_activity(s):
     /** Stop old Xray sessions when another screen claims this playback. */
     protected void onXrayBindingReplaced() {
     }""","Xray owner callback declaration")
+    s=one(s,"    protected void onServiceConnected() {",
+        """    /** Xray-only hook used when user actually changes the engine choice. */
+    public void onXrayEngineChanged() {
+    }
+
+    protected void onServiceConnected() {""",
+        "engine selection is an Xray playback identity boundary")
     s=one(s,"    private void setDanmakuSource(@Nullable Uri uri) {",
         """    /** Clear both modern upstream LiveDanmaku and DanmakuController. */
     protected final void clearXrayDanmakuSource() {
@@ -33,7 +40,8 @@ def playback_activity(s):
                 "playbackPlayerState.setValue(null);",
                 "getSeekView().setPlayer(null);",
                 "releasePlaybackService();",
-                "protected final void clearXrayDanmakuSource()"):
+                "protected final void clearXrayDanmakuSource()",
+                "public void onXrayEngineChanged()"):
         if key not in s:
             raise ValueError("Upstream playback owner behavior changed: "+key)
     return s
