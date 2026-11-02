@@ -120,4 +120,11 @@ out=ok_glide(glide)
 assert "new OkHttpUrlLoader.Factory(request -> OkHttp.client().newCall(request))" in out
 assert ok_glide(out)==out
 check_failure(ok_glide,"registry.replace(null,null,null);")
+# Existing upstream methods must still preserve semantics, not merely names.
+check_failure(site_view_model, "public void cancelResultRequest() { }")
+check_failure(base_loader, "public void clear(Runnable onComplete) { }")
+check_failure(ok_http, "public static void resetApiNetworkForResume() { get().player = null; }")
+check_failure(ok_dns, "public synchronized void resetForNetworkChange() { }")
+check_failure(img_util, "public static void resetNetworkFailures() { failed.clear(); }")
+
 print("PASS: SiteViewModel, BaseLoader, OkHttp, DoH, Glide epoch and network handoff overlays")
