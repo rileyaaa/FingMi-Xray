@@ -32,6 +32,9 @@ def site_view_model(s):
 
 def base_loader(s):
     if "public void clear(Runnable onComplete)" in s:
+        for required in ("clearLoaders(previous, retired);", "if (onComplete != null) App.post(onComplete);"):
+            if required not in s:
+                raise ValueError("Upstream BaseLoader callback no longer waits for cleanup")
         return s
     s=replace_once(s,"import android.text.TextUtils;",
          "import android.text.TextUtils;\nimport com.fongmi.android.tv.App;",
@@ -64,6 +67,10 @@ def base_loader(s):
 
 def ok_http(s):
     if "public static void resetApiNetworkForResume()" in s:
+        body = s.split("public static void resetApiNetworkForResume()", 1)[1].split("public static void cleanupClientAsync", 1)[0]
+        if ("get().client = null;" not in body or "dns().resetForNetworkChange();" not in body
+                or "get().player = null" in body or "selector().clear()" in body):
+            raise ValueError("Unknown API-only network recovery semantics")
         return s
     s=replace_once(s,"import java.util.Objects;",
         """import java.util.Objects;
@@ -114,6 +121,9 @@ import java.util.concurrent.ThreadPoolExecutor;""", "OkHttp executor imports")
 
 def ok_dns(s):
     if "public synchronized void resetForNetworkChange()" in s:
+        for required in ("rebuildDoh(", "resolver = doh != null ? doh : Dns.SYSTEM;", "return resolver.lookup(get(hostname));"):
+            if required not in s:
+                raise ValueError("Unknown DoH generation semantics")
         return s
     s=replace_once(s,"    private volatile DnsOverHttps doh;",
         """    private volatile DnsOverHttps doh;
@@ -178,6 +188,10 @@ def ok_dns(s):
 
 def img_util(s):
     if "public static void resetNetworkFailures()" in s:
+        for required in ("networkFailureEpoch.incrementAndGet();",
+                         "if (requestEpoch != networkFailureEpoch.get()) return true;", "failed.clear();"):
+            if required not in s:
+                raise ValueError("Unknown transient Glide failure isolation")
         return s
     s=replace_once(s,"import java.util.regex.Pattern;",
         "import java.util.regex.Pattern;\nimport java.util.concurrent.atomic.AtomicLong;", "Glide network failure epoch import")
