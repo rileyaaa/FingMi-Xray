@@ -28,6 +28,17 @@
 - **网络/业务调用及脚本装载**：`LiveApi.java`、`SubtitleApi.java`、`JarLoader.java`、`JsLoader.java`、`PyLoader.java`、`EpgParser.java`、`LiveViewModel.java`、`VideoViewModel.java`、`ViewModelTaskRunner.java`、`Action.java`、`Download.java`。
 - **界面/资源与应用边界**：`SettingActivity.java`、`PushActivity.java`（上游已删）、`DanmakuSearchDialog.java`、`SubtitleSearchDialog.java`、`Updater.java`、Leanback 与主 `AndroidManifest.xml`、`activity_setting.xml`、`view_control_live_action.xml`、`view_control_vod_action.xml`、三套 `strings.xml`、主页 `assets/index.html` / `assets/js/script.js`、`app/proguard-rules.pro`、`.gitignore`、`website/README.md`。
 
+
+## 通用升级架构迭代：原始差异白名单与上游优先接线
+
+- 增加 `scripts/upstream/fork_scope.json`：以旧公开基线 `c616c0aa...` 为依据，记录原始上游文件在本 Fork 中的 **61 个已知差异路径**及处理策略。未在清单登记、但已偏离当前上游基线的原有文件，即使本次上游未改它，也会被 `sync.py` 拒绝带入新版。
+- 按当前清单分为 **14 个 `generate`（从新版上游生成最小接线）、6 个 `upstream`（完全采用公开上游以移除过时的 fork 补丁）、38 个 `rebase`（只能三方重放，遇冲突停止）、3 个 `project`（私人仓库的工作流/文档策略，不参与公开上游源码合并）**。这是**处理策略**计数，不是已合并成功的文件数。
+- 6 个上游优先路径是旧版三类 `JarLoader/JsLoader/PyLoader` Spider 清理、`ViewModelTaskRunner` 任务取消、MPV 的 `MpvUtil/MpvPlayerEngine` 旧字幕扩展。前四项已有新版对应的官方能力，MPV 字幕不是我们授权维护范围，所以后续默认跟随新版原样；**保留的媒体 ABI/Libass 兼容输入依旧要以真实编译与 native parity 审核**。
+- 专用生成器包括 `recovery_adapters.py`（Android TV 网络恢复）与 `xray_adapters.py`（网页导入 `Action.java`、设置页及 XML、上游 APK 更新入口保护）。特别注意 5.8.7 `Updater` 的公共 API 已由 `create()/force()` 转向 `get()/start(activity, force)`，不得直接保留旧版本空实现；生成器严格核对本次新版的全部公共方法，出现未知接口立即停止。
+- 在 5.8.7 三份 Git Tree 的原始路径审计中，上述 `rebase` 仍有 **37 条路径同时被本 Fork 与上游修改**；这是潜在三方冲突数量，不代表已经运行真实合并或修复成功。下一阶段重点是把 Live/VOD、`PlayerManager`、`ExoPlayerEngine`、`PlaybackService` 的 Xray 代理与生命周期差异逐步抽离为稳定、可回归的接线；不能采用“全部选旧版本”掩盖上游重构。
+- 本 Fork 另外保留 4 个未包含在两个业务模块内、为历史固定 FongMi Media3 输入重建的兼容类：`LibassFontFile`、`SecondaryTextOutput`、`SecondaryTextTrackSelector`、`DanmakuPlayerViewController`。它们是**既存兼容债**，并非可以持续扩展的第三个业务维护范围；升级 5.8.7 时要核实是否仍被调用、所对应的 native/AAR API 是否匹配，不得因固定旧源码通过测试就宣称新播放器已兼容。
+- 离线宿主 Python Git fixture 已验证：非冲突三方合并、按清单清除过时 fork 修改、未登记的旧改动在上游未变时也拦截、真实冲突时不写入工作树。这**不等于 GitHub Actions 对整个私有项目运行成功**；新加的 Xray 适配器 Java 编译测试配置为手动 AC 预检入口，尚无该入口实际 run 结果。
+
 ## 通用 Actions 的正确成功定义
 
 `manual-upstream-sync.yml` 仍然只有 `workflow_dispatch`。在当前冲突适配未完成前，`apply_to_main` **默认关闭（仅预检）**，防止将尚未验收的模板当作正式自动升级工具。
