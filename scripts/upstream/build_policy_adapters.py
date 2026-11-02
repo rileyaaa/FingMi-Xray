@@ -8,6 +8,8 @@ FORK_IGNORE=(
     "/recovery/evidence/",
     "/libxray/libs/libXray.aar",
     "/app/libs/media3-container-1.11.0.aar",
+    "__pycache__/",
+    "*.py[cod]",
 )
 
 def gitignore(s):
