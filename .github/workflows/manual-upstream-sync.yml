@@ -37,6 +37,9 @@ jobs:
       ROLLBACK_TAG: ""
       RELEASE_TAG: ""
       BUILD_SOURCE_SHA: ${{ github.sha }}
+      # Python integration tests import local adapters. Do not dirty the checkout
+      # with bytecode before the strict Git status check.
+      PYTHONDONTWRITEBYTECODE: "1"
 
     steps:
       - uses: actions/checkout@v7
@@ -70,6 +73,12 @@ jobs:
           python3 tests/test-upstream-activity-adapters.py
           python3 tests/test-upstream-build-policy.py
           python3 tests/test-upstream-phone-import.py
+          # Failure here must explain the path, not silently exit in the next step.
+          if [[ -n "$(git status --porcelain --untracked-files=all)" ]]; then
+            echo "BLOCKED: local upgrade tests modified or left files in the source checkout:" >&2
+            git status --short --untracked-files=all >&2
+            exit 1
+          fi
 
       - name: Fetch public FongMi/TV baseline and latest
         shell: bash
@@ -79,7 +88,11 @@ jobs:
           set -euo pipefail
           test "$GITHUB_REF" = 'refs/heads/main'
           test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
-          test -z "$(git status --porcelain)"
+          if [[ -n "$(git status --porcelain --untracked-files=all)" ]]; then
+            echo "BLOCKED: source checkout is not clean before public upstream fetch:" >&2
+            git status --short --untracked-files=all >&2
+            exit 1
+          fi
           upstream="$RUNNER_TEMP/fongmi-tv-upstream"
           git init -q "$upstream"
           git -C "$upstream" remote add origin https://github.com/FongMi/TV.git
