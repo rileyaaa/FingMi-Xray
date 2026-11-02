@@ -16,7 +16,7 @@ media='''import androidx.media3.exoplayer.drm.DrmSessionManagerProvider;
 import com.fongmi.android.tv.App;
 import java.io.File;
 public class ExoMediaSourceFactory {
- private final SubtitleTranscriptSession subtitleTranscriptSession;
+    private final SubtitleTranscriptSession subtitleTranscriptSession;
     private ExoMediaSourceFactory(LibassPlaybackSession libassPlaybackSession, SubtitleTranscriptSession subtitleTranscriptSession) {
       this.subtitleTranscriptSession=subtitleTranscriptSession;
     }
