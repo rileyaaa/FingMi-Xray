@@ -87,8 +87,15 @@ jobs:
           EXPECTED_SHA: ${{ inputs.expected_upstream_sha }}
         run: |
           set -euo pipefail
-          test "$GITHUB_REF" = 'refs/heads/main'
-          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          if [[ "$GITHUB_REF" != "refs/heads/main" ]]; then
+            echo "BLOCKED: expected main branch, got GITHUB_REF=$GITHUB_REF" >&2
+            exit 1
+          fi
+          checkout_sha="$(git rev-parse HEAD)"
+          if [[ "$checkout_sha" != "$GITHUB_SHA" ]]; then
+            echo "BLOCKED: checked-out source $checkout_sha differs from requested run $GITHUB_SHA" >&2
+            exit 1
+          fi
           if [[ -n "$(git status --porcelain --untracked-files=all)" ]]; then
             echo "BLOCKED: source checkout is not clean before public upstream fetch:" >&2
             git status --short --untracked-files=all >&2
