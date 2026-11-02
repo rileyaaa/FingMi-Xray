@@ -105,6 +105,7 @@ refuse(live_activity,LIVE.replace("renderChannelSelection(Channel channel)",
 VOD='''import com.fongmi.android.tv.R;
 class VideoActivity {
     private VideoViewModel mViewModel;
+    void onConnected() {mVod.onPlaybackServiceReady();}
     protected void onNewIntent(Intent intent) {
         super.onNewIntent(intent);
         saveHistory(true);
