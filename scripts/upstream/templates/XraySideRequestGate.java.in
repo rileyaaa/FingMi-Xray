@@ -1,0 +1,66 @@
+package com.fingmi.integration.xray;
+
+import com.fongmi.android.tv.player.PlayerManager;
+import com.github.catvod.net.Download;
+import com.github.catvod.net.OkHttp;
+
+import okhttp3.Call;
+import okhttp3.OkHttpClient;
+import okhttp3.Request;
+import okhttp3.RequestBody;
+
+/**
+ * App-side request network identity for the active Xray playback session.
+ * Direct mode continues to use the upstream OkHttp API unmodified.
+ * Existing upstream request IDs suppress late UI callbacks after cancel().
+ */
+public final class XraySideRequestGate {
+
+    private static volatile PlayerManager player;
+
+    private XraySideRequestGate() {}
+
+    public static void bind(PlayerManager manager) {
+        if (manager == null) throw new IllegalArgumentException("manager");
+        player = manager;
+    }
+
+    public static void unbind(PlayerManager manager) {
+        if (player == manager) player = null;
+    }
+
+    private static OkHttpClient activeProxyClient() {
+        PlayerManager current = player;
+        if (current == null || !current.hasXraySession()) return null;
+        OkHttpClient client = current.getPlaybackHttpClient(null);
+        // A live Xray session must never fall through to the direct client.
+        if (client == null) throw new IllegalStateException("Active Xray playback has no HTTP client");
+        return client;
+    }
+
+    public static Call newCall(String url, String tag) {
+        OkHttpClient proxy = activeProxyClient();
+        if (proxy == null) return OkHttp.newCall(url, tag);
+        return proxy.newCall(new Request.Builder().url(url).tag(tag).build());
+    }
+
+    public static Call newCall(String url, RequestBody body, String tag) {
+        OkHttpClient proxy = activeProxyClient();
+        if (proxy == null) return OkHttp.newCall(url, body, tag);
+        return proxy.newCall(new Request.Builder().url(url).post(body).tag(tag).build());
+    }
+
+    /** A multipart subtitle download must use the SAME client for every part. */
+    public static Download usePlaybackTransport(Download download) {
+        OkHttpClient proxy = activeProxyClient();
+        return proxy == null ? download : download.transport(proxy);
+    }
+
+    /** Cancel Xray requests as well as upstream's ordinary tagged calls. */
+    public static void cancel(String tag) {
+        PlayerManager current = player;
+        if (current == null) return;
+        OkHttpClient client = current.getPlaybackHttpClient(null);
+        if (client != null) OkHttp.cancel(client, tag);
+    }
+}
