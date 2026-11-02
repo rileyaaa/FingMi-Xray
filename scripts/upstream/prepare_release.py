@@ -16,6 +16,8 @@ from side_request_adapters import playback_service, danmaku_api, subtitle_api, d
 from live_metadata_adapters import live_api, epg_parser, live_view_model
 from live_ui_adapters import channel_adapter
 from xray_resources import xray_strings, xray_control_layout
+from playback_activity_adapter import playback_activity, video_view_model
+from activity_adapters import live_activity, video_activity
 
 
 def one(s, a, b):
@@ -295,6 +297,17 @@ def prepare(root,upstream,target,report):
         "app/src/leanback/res/layout/view_control_vod_action.xml",
     ):
         additions[filename]=xray_control_layout(original(upstream,tree,filename))
+
+    # PlaybackActivity's owner-lost hook must remain narrow: the official
+    # service, PIP, picture/decoder, focus and browser controls stay untouched.
+    ui_hooks = (
+        ("app/src/main/java/com/fongmi/android/tv/ui/activity/PlaybackActivity.java", playback_activity),
+        ("app/src/main/java/com/fongmi/android/tv/model/VideoViewModel.java", video_view_model),
+        ("app/src/leanback/java/com/fongmi/android/tv/ui/activity/LiveActivity.java", live_activity),
+        ("app/src/leanback/java/com/fongmi/android/tv/ui/activity/VideoActivity.java", video_activity),
+    )
+    for filename, transform in ui_hooks:
+        additions[filename] = transform(original(upstream, tree, filename))
 
     # Regenerate the old fork's recovery hooks from the selected *new*
     # public FongMi implementations, never carry forward 5.6.3 business code.

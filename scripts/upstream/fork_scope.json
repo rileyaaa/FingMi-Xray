@@ -39,7 +39,7 @@
       "scope": "xray"
     },
     "app/src/leanback/java/com/fongmi/android/tv/ui/activity/LiveActivity.java": {
-      "strategy": "rebase",
+      "strategy": "generate",
       "scope": "xray"
     },
     "app/src/leanback/java/com/fongmi/android/tv/ui/activity/PushActivity.java": {
@@ -51,7 +51,7 @@
       "scope": "xray"
     },
     "app/src/leanback/java/com/fongmi/android/tv/ui/activity/VideoActivity.java": {
-      "strategy": "rebase",
+      "strategy": "generate",
       "scope": "xray"
     },
     "app/src/leanback/java/com/fongmi/android/tv/ui/adapter/ChannelAdapter.java": {
@@ -139,7 +139,7 @@
       "scope": "tv-recovery"
     },
     "app/src/main/java/com/fongmi/android/tv/model/VideoViewModel.java": {
-      "strategy": "rebase",
+      "strategy": "generate",
       "scope": "xray"
     },
     "app/src/main/java/com/fongmi/android/tv/model/ViewModelTaskRunner.java": {
@@ -203,7 +203,7 @@
       "scope": "xray"
     },
     "app/src/main/java/com/fongmi/android/tv/ui/activity/PlaybackActivity.java": {
-      "strategy": "rebase",
+      "strategy": "generate",
       "scope": "xray"
     },
     "app/src/main/java/com/fongmi/android/tv/ui/dialog/DanmakuSearchDialog.java": {
