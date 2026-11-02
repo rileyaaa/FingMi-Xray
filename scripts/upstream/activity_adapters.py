@@ -285,7 +285,7 @@ def video_activity(s):
     for required in ("mVod.onPlaybackServiceReady();",
                      "stopWebPlayback();",
                      "externalPlaybackCompleted = false;",
-                     "setText(R.string.xray",  # not always direct? text nested ternary, Xray button string present
+                     "R.string.xray_on",
                      "mBinding.control.action.xray.setOnClickListener(view -> onXray());",
                      "mViewModel.cancelXrayTransitionRequests();",
                      "new XrayPlaybackSession(this, OkHttp.player()",
