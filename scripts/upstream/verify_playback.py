@@ -172,7 +172,36 @@ REQUIRED_587 = {
         'name="xray_off"',
         'name="xray_setting"',
     ),
-    # UI session ownership and request cancellation are not yet ported: a
+    # Preserve only the Xray-specific phone UI and JNI bindings, while
+    # following the official 5.8.7 manifests and web UI.
+    "app/src/leanback/AndroidManifest.xml": (
+        'android:name=".ui.activity.SettingXrayActivity"',
+    ),
+    "app/src/main/AndroidManifest.xml": (
+        'android:name=".service.PlaybackService"',
+        'android.permission.INTERNET',
+    ),
+    "app/proguard-rules.pro": (
+        "-keep class libXray.**",
+        "-keep class go.**",
+    ),
+    "app/src/leanback/java/com/fongmi/android/tv/ui/activity/SettingXrayActivity.java": (
+        "XrayPhoneImportDialog.show(this);",
+    ),
+    "app/src/main/java/com/fingmi/integration/xray/XrayPhoneImportDialog.java": (
+        "QRCode.getBitmap(url, 240, 1)",
+        'Server.get().getAddress() + "/xray.html"',
+    ),
+    "app/src/main/assets/xray.html": (
+        'new URLSearchParams({do:"xray",link:value})',
+        'fetch("/action"',
+    ),
+    "app/src/main/java/com/fongmi/android/tv/ui/dialog/PlayerEngineDialog.java": (
+        "owner.onXrayEngineChanged();",
+        "PlaybackDialog.isCurrentPlayer(this, player)",
+        "player.setEngine(engine);",
+    ),
+    # Live/VOD Xray controls must keep a single service owner.
     # prospective 5.8.7 build must STOP here even with all Exo helpers present.
     "app/src/leanback/java/com/fongmi/android/tv/ui/activity/LiveActivity.java": (
         "new XrayPlaybackSession(",
@@ -208,11 +237,6 @@ REQUIRED_587 = {
         "public void onXrayEngineChanged()",
         "mService.claimBinding(getNavigationCallback(), this::onPlaybackReplaced);",
     ),
-    "app/src/main/java/com/fongmi/android/tv/ui/dialog/PlayerEngineDialog.java": (
-        "owner.onXrayEngineChanged();",
-        "PlaybackDialog.isCurrentPlayer(this, player)",
-        "player.setEngine(engine);",
-    ),
     "app/src/main/java/com/fongmi/android/tv/model/VideoViewModel.java": (
         "cancelXrayTransitionRequests()",
         "requestTasks.cancel(TaskType.DETAIL)",
@@ -241,6 +265,13 @@ def audit(sources, requirements=None):
         for anchor in anchors:
             if anchor not in code:
                 errors.append(f"{path}: missing {anchor}")
+    if requirements is REQUIRED_587:
+        manifest = sources.get("app/src/main/AndroidManifest.xml") or ""
+        if "android.permission.REQUEST_INSTALL_PACKAGES" in manifest:
+            errors.append("app/src/main/AndroidManifest.xml: upstream APK installer privilege forbidden")
+        tv_manifest = sources.get("app/src/leanback/AndroidManifest.xml") or ""
+        if 'android:name=".ui.activity.PushActivity"' in tv_manifest:
+            errors.append("app/src/leanback/AndroidManifest.xml: removed upstream PushActivity retained")
     return errors
 
 
