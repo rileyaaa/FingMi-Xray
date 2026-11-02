@@ -87,6 +87,15 @@
 
 `:app` 同时依赖 `:tv-recovery`；恢复模块没有对 `:app`、`:catvod` 或 `:xray` 的反向依赖。`app/src/main/java/com/fingmi/integration/` 保存项目自有的 FongMi 适配代码，属于接线层，不能把普通上游功能复制到这里长期维护。
 
+### 2026-11-02 Xray 播放器接线解耦（5.8.7 迁移第一阶段）
+
+- **已落地于当前 5.6.3 `main` 的生产源码改造**（不是 5.8.7 升级完成）：新增 `app/src/main/java/com/fingmi/integration/xray/XrayGuardedPlaybackDataSource.java`，把原先 `ExoMediaSourceFactory` 的 Xray 私有 `GuardedPlaybackDataSource` 原样迁入独立适配类。普通直连仍使用上游源工厂，只有 Xray 代理活跃时包装新 `DataSource`。HTTP(S) 通过该播放会话网络通道，本地 `file/content/asset/data/rawresource/android.resource` 等资源仍走本地，其他网络 scheme 立即拒绝；RTSP/RTSPT 仍通过独立 Xray SocketFactory，绝不偷偷回退直连。
+- 新增 `XrayPlaybackRouting.java`：把“引擎仍绑定的代理优先于 pending 代理”“是否仍有 Xray 会话”“只有同一实例的 Exo 代理可复用引擎，直连则遵循上游引擎选择”抽成**与 Android/Media3/FongMi 无关的纯 Java 判断**。当前 `PlayerManager.getPlaybackHttpClient()/hasXraySession()`、`PlayerEngineFactory.matches()` 已改为调用它；播放快照/重启/资源关闭顺序维持原行为。
+- **实际执行的离线 JVM 验证**：使用 OpenJDK 21 的 `javac --release 17` 对拟提交的同一适配类和边界替身编译并执行，`XrayGuardedPlaybackDataSource` 覆盖 15 类允许、11 类阻断、双次 close、失败 open 后 cleanup、URI/headers/transfer listener 透传；`XrayPlaybackRouting` 覆盖代理身份引用不等价、Exo/MPV、direct→Xray / Xray→direct、rebuild gate。两组均通过。已新增可重跑的 `tests/test-xray-guarded-data-source.py`、`tests/test-xray-playback-routing.py`，并接入当前 build、正式 publish 和手动上游升级三个工作流的源码守卫。
+- 两个组件存放在 `:app` 的 `com.fingmi.integration.xray`，**不增加 `:xray` 对上游的反向依赖**。这是一轮保持当前正式行为的薄层拆分，不把普通 FongMi 播放器、字幕、DRM/ISO、弹幕等业务复制进二开模块。
+- **尚未证明 / 下一阶段**：5.8.7 官方 `ExoMediaSourceFactory` 已重构为 `ContentTypeResolvingMediaSource` 和新的字幕/ISO 逻辑；需要从**新版**文件本身注入 `XrayGuardedPlaybackDataSource` 与当次代理 `OkHttpClient`，并重接 `ExoPlayerSession` → `ExoPlayerEngine` → `PlayerEngineFactory` → `PlayerManager` 的代理身份传递。Live/VOD、`PlaybackService` 播放身份及旁路请求仍需单独适配。绝不将旧版整份 Exo 实现覆盖新版，也不因这两项 JVM 测试通过就放行 5.8.7 APK。
+- **证据边界**：未执行当前仓库完整 Gradle、GitHub Actions / 双 ABI Release APK 或设备待机验证；`manual-upstream-sync.yml` 仍为 `workflow_dispatch` 且默认 `apply_to_main=false`。正式版仍为 `v5.6.3-xray.1`，黄金版仍为 `v5.6.0-xray.5`，本阶段未发布任何新 APK。
+
 ## 3. 当前 Xray 接线
 
 ### `:xray`
