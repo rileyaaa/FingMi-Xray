@@ -26,4 +26,32 @@ for path, anchors in policy.REQUIRED.items():
         errors = policy.audit(modified)
         assert any(path in e and needle in e for e in errors), f"Lost Xray hook accepted: {path}: {needle}"
 
+
+# A new upstream version selects a genuinely different contract. It must
+# never be allowed to pass just because the old 5.6.3 strings are still around.
+assert policy.required_for_version('versionName "v5.6.3-xray.1"') is policy.REQUIRED
+assert policy.required_for_version('versionName "v5.8.7-xray.1"') is policy.REQUIRED_587
+assert policy.required_for_version('versionName "v5.9.0-xray.1"') is policy.REQUIRED_587
+try:
+    policy.required_for_version('versionName "latest"')
+    raise AssertionError("unknown future version accepted")
+except ValueError:
+    pass
+# Synthesize the *expected* post-upgrade source shapes. Fail if any individual
+# Xray or side-request hook disappears, even in a newer upstream component.
+candidate = {name: "\n".join(anchors)
+             for name, anchors in policy.REQUIRED_587.items()}
+assert policy.audit(candidate, policy.REQUIRED_587) == []
+for path, anchors in policy.REQUIRED_587.items():
+    for needle in anchors:
+        broken = dict(candidate)
+        broken[path] = broken[path].replace(needle, "")
+        assert any(path in reason and needle in reason
+                   for reason in policy.audit(broken, policy.REQUIRED_587)), (path, needle)
+# The current local 5.6.3 source MUST fail the new upstream contract.
+missing_new = {name: (ROOT / name).read_text(encoding="utf-8")
+               if (ROOT / name).is_file() else None
+               for name in policy.REQUIRED_587}
+assert policy.audit(missing_new, policy.REQUIRED_587), "Never accept 5.6.3 as upgraded"
+
 print(f"PASS Xray integration contract guard: {len(policy.REQUIRED)} real source files and missing-hook cases")
