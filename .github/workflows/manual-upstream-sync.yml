@@ -144,20 +144,30 @@ jobs:
           fi
           # Check the actual public Exo APIs even when an unrelated file
           # will later stop the full three-way merge. No APK work here.
-          python3 tests/test-upstream-exo-adapters.py \
-            --upstream "$UPSTREAM_DIRECTORY" --target "$UPSTREAM_TARGET"
-          python3 tests/test-upstream-side-requests.py \
-            --upstream "$UPSTREAM_DIRECTORY" --target "$UPSTREAM_TARGET"
-          python3 tests/test-upstream-live-metadata.py \
-            --upstream "$UPSTREAM_DIRECTORY" --target "$UPSTREAM_TARGET"
-          python3 tests/test-upstream-xray-resources.py \
-            --upstream "$UPSTREAM_DIRECTORY" --target "$UPSTREAM_TARGET"
-          python3 tests/test-upstream-activity-adapters.py \
-            --upstream "$UPSTREAM_DIRECTORY" --target "$UPSTREAM_TARGET"
-          python3 tests/test-upstream-build-policy.py \
-            --upstream "$UPSTREAM_DIRECTORY" --target "$UPSTREAM_TARGET"
-          python3 tests/test-upstream-phone-import.py \
-            --upstream "$UPSTREAM_DIRECTORY" --target "$UPSTREAM_TARGET"
+          # Collect ALL public API adapter failures in one cheap preview run.
+          # Nothing is merged or published unless every independent check passes.
+          upstream_preflight_failed=0
+          for test_script in \
+              tests/test-upstream-exo-adapters.py \\
+              tests/test-upstream-side-requests.py \\
+              tests/test-upstream-live-metadata.py \\
+              tests/test-upstream-xray-resources.py \\
+              tests/test-upstream-activity-adapters.py \\
+              tests/test-upstream-build-policy.py \\
+              tests/test-upstream-phone-import.py; do
+            echo "::group::Public upstream adapter preflight: $test_script"
+            if python3 "$test_script" --upstream "$UPSTREAM_DIRECTORY" --target "$UPSTREAM_TARGET"; then
+              echo "PASS: $test_script"
+            else
+              echo "::error file=$test_script::Upstream adapter preflight failed"
+              upstream_preflight_failed=1
+            fi
+            echo "::endgroup::"
+          done
+          if [[ "$upstream_preflight_failed" != "0" ]]; then
+            echo "BLOCKED: public upstream adapter preflight found errors; all checks above were attempted. No source changes." >&2
+            exit 1
+          fi
           python3 scripts/upstream/sync.py \
             --upstream "$UPSTREAM_DIRECTORY" \
             --target "$UPSTREAM_TARGET" \
