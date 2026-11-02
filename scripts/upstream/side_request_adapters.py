@@ -80,6 +80,16 @@ def playback_service(s):
         "import com.github.catvod.net.OkHttp;\n"
         "import com.fingmi.integration.xray.XrayArtworkBitmapLoader;\n"
         "import com.fingmi.integration.xray.XraySideRequestGate;","service media gate imports")
+    s=one(s,
+        "        if (binding != null) binding.onReplaced().run();",
+        """        if (binding != null) {
+            binding.onReplaced().run();
+            // A newly owning activity must never inherit another owner's
+            // active Xray network identity, even if its UI callback is late.
+            if (player != null && player.hasXraySession())
+                player.clearPlaybackProxyPreservingState();
+        }""",
+        "service ownership transfer cannot inherit Xray transport")
     s=one(s,"    private PlayerManager player;",
         "    private PlayerManager player;\n"
         "    private XrayArtworkBitmapLoader xrayBitmapLoader;",
@@ -127,6 +137,7 @@ def playback_service(s):
         "service Xray switching callback")
     for required in ("liveMetadata = new LiveMetadata(player, library)",
                      "XraySideRequestGate.bind(player);",
+                     "player.clearPlaybackProxyPreservingState();",
                      "XraySideRequestGate.unbind(player);",
                      "xrayBitmapLoader.cancelRemoteLoads()",
                      "XraySideRequestGate.cancelRemoteDownloads();",
