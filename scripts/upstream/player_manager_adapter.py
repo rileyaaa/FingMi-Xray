@@ -82,9 +82,10 @@ def player_manager(code):
             snapshot = next != null && saved != null && saved.spec() == spec
                     ? saved.snapshot() : PlaybackSnapshot.capture(this);
         }
+        // Cancel requests while the previous client is still reachable.
+        if (next != null || hasXraySession()) callback.onXrayTransitionStarted();
         xrayRestore = null;
         playbackProxy = next;
-        if (next != null) callback.onXrayTransitionStarted();
         clearPreload();
         if (next == null && !preservePlayback) {
             if (spec != null) ensureEngine(spec.checkUa());
@@ -106,6 +107,7 @@ def player_manager(code):
     public synchronized void clearPlaybackProxyPreservingState() {
         XrayHttpClient bound = engine instanceof ExoPlayerEngine exo ? exo.proxy() : null;
         if (!XrayPlaybackRouting.hasSession(playbackProxy, bound)) return;
+        callback.onXrayTransitionStarted();
         xrayRestore = spec == null || player == null
                 ? null : new XrayRestore(spec, PlaybackSnapshot.capture(this));
         playbackProxy = null;
@@ -135,7 +137,8 @@ def player_manager(code):
                      "timeshift.isReplaying()","PlaybackSnapshot.capture(this)",
                      "snapshot.restorePlayerState(this)",
                      "XrayPlaybackRouting.activeProxy(playbackProxy, bound)",
-                     "if (next != null) callback.onXrayTransitionStarted();",
+                     "if (next != null || hasXraySession()) callback.onXrayTransitionStarted();",
+                     "callback.onXrayTransitionStarted();",
                      "else if (bound != null) replaceEngine(PlayerEngineFactory.create(listener));"):
         if required not in code:
             raise ValueError("New PlayerManager lost essential upstream/Xray behavior: "+required)
