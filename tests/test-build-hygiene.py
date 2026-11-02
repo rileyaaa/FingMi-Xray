@@ -388,23 +388,42 @@ for name, text in (
         if any(not path.is_file() or path.read_bytes() != b"verified-input" for path in retained):
             errors.append(f"{name} cleanup damaged a later build input")
 
-if "fingmi-xray-5.6.3-current-main-release" not in current_workflow:
+app_build = (ROOT / "app/build.gradle").read_text(encoding="utf-8")
+version_name_match = re.search(r'versionName "([^"]+)"', app_build)
+version_code_match = re.search(r'versionCode (\d+)', app_build)
+if not version_name_match or not version_code_match:
+    raise SystemExit("Fork app release version not found")
+version_name = version_name_match.group(1)
+version_code = int(version_code_match.group(1))
+fork_match = re.fullmatch(r"v(\d+\.\d+\.\d+)-xray\.(\d+)", version_name)
+if not fork_match:
+    raise SystemExit("Fork app must have v<upstream>-xray.<revision> format")
+upstream_version = fork_match.group(1)
+fork_revision = int(fork_match.group(2))
+import json
+upstream_lock = json.loads((ROOT / "scripts/upstream/baseline.json").read_text(encoding="utf-8"))
+if upstream_lock["version"] != upstream_version:
+    errors.append("Fork version must match pinned public upstream source baseline")
+if "version_code" in upstream_lock and version_code != int(upstream_lock["version_code"]) * 1000 + fork_revision:
+    errors.append("Fork versionCode must equal upstream versionCode * 1000 + revision")
+artifact_prefix = "fingmi-xray-" + upstream_version
+if artifact_prefix + "-current-main-release" not in current_workflow:
     errors.append("current-main-build.yml must retain the short-lived TV debug artifact")
 if "retention-days: 2" not in current_workflow:
     errors.append("current-main-build.yml debug artifact must remain short-lived (2 days)")
 for required in (
     "actions: write",
     "Remove superseded current-main release artifacts",
-    'select(.name == "fingmi-xray-5.6.3-current-main-release")',
+    'select(.name == "' + artifact_prefix + '-current-main-release")',
     'gh api --method DELETE "repos/${GITHUB_REPOSITORY}/actions/artifacts/$id"',
 ):
     if required not in current_workflow:
         errors.append(f"current-main-build.yml must auto-prune superseded debug artifacts: {required}")
-if "fingmi-xray-5.6.3-current-main-release" in publish_workflow:
+if artifact_prefix + "-current-main-release" in publish_workflow:
     errors.append("publish workflow must not duplicate successful APKs into Actions artifacts")
 
-if 'RELEASE_TAG: "v5.6.3-xray.1"' not in publish_workflow:
-    errors.append("publish workflow must target the v5.6.3-xray.1 formal release")
+if f'RELEASE_TAG: "{version_name}"' not in publish_workflow:
+    errors.append("publish workflow must target the version embedded in the app")
 for required in (
     "      replace_existing:",
     "        type: boolean",
@@ -422,14 +441,9 @@ for name, text in (
     ("current-main-build.yml", current_workflow),
     ("publish-current-main-test-release.yml", publish_workflow),
 ):
-    if "fingmi-xray-5.6.3-build-failure-reports" not in text or "retention-days: 1" not in text:
+    if artifact_prefix + "-build-failure-reports" not in text or "retention-days: 1" not in text:
         errors.append(f"{name} failure reports must remain short-lived (1 day)")
 
-app_build = (ROOT / "app/build.gradle").read_text(encoding="utf-8")
-version_name = re.search(r'versionName "([^"]+)"', app_build).group(1)
-version_code = int(re.search(r'versionCode (\d+)', app_build).group(1))
-if version_name != "v5.6.3-xray.1" or version_code != 563001:
-    errors.append("fork release version must match v5.6.3-xray.1 / 563001")
 if f'RELEASE_TAG: "{version_name}"' not in publish_workflow:
     errors.append("publish tag must equal the versionName embedded in the APK")
 resume_helper = (ROOT / "scripts/build/resume-verified-release.py").read_text(encoding="utf-8")
