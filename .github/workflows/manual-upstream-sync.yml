@@ -80,6 +80,12 @@ jobs:
         run: |
           set -euo pipefail
           python3 tests/test-upstream-sync.py
+          # The one approved upstream crash fix is already present in 5.8.7.
+          # Require upstream's whole implementation, not our old parallel patch.
+          cmp catvod/src/main/java/com/github/catvod/net/OkProxySelector.java \
+              <(git -C "$UPSTREAM_DIRECTORY" show "$UPSTREAM_TARGET:catvod/src/main/java/com/github/catvod/net/OkProxySelector.java")
+          grep -q 'consumeAction()' app/src/leanback/java/com/fongmi/android/tv/ui/activity/HomeActivity.java
+          grep -q 'new FongMiNetworkRecovery(' app/src/leanback/java/com/fongmi/android/tv/ui/activity/HomeActivity.java
           python3 tests/test-upstream-update-disabled.py
           python3 tests/test-fork-module-boundaries.py
           python3 tests/test-tv-recovery-intent-replay.py
