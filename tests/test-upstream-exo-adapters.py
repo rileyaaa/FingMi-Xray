@@ -31,11 +31,13 @@ public class ExoMediaSourceFactory {
         return new ContentTypeResolvingMediaSource.Factory(factory, dataSourceFactory);
     }
     void preserve() {
+        for (ConcatenatingUrl.Segment segment : segments) builder.add(factory.createMediaSource(mediaItem.buildUpon().setUri(UriUtil.uri(segment.url())).build()), segment.durationMs());
        new ConcatenatingMediaSource2.Builder();
        ProgressiveIsoCache.withDiskCache(factory, cache);
     }
 }'''
 m=media_factory(media)
+assert "createMediaSourceFactory(segmentItem)" in m, "mixed-protocol media must use its own Xray factory"
 for marker in ("XrayPlaybackDataSourceFactory.create(","proxy.rtspSocketFactory()",
                "drm.setDrmHttpDataSourceFactory(dataSourceFactory)",
                "ConcatenatingMediaSource2.Builder","ProgressiveIsoCache.withDiskCache",

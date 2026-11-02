@@ -44,6 +44,15 @@ def media_factory(code):
         "return new ExoMediaSourceFactory(libassPlaybackSession, subtitleTranscriptSession, proxy);",
         "media supplier session ownership")
     code=one(code,
+        "        for (ConcatenatingUrl.Segment segment : segments) builder.add(factory.createMediaSource(mediaItem.buildUpon().setUri(UriUtil.uri(segment.url())).build()), segment.durationMs());",
+        """        for (ConcatenatingUrl.Segment segment : segments) {
+            MediaItem segmentItem = mediaItem.buildUpon().setUri(UriUtil.uri(segment.url())).build();
+            // Resolve each part independently. A concatenation can mix
+            // HTTP and RTSP; never let RTSP bypass the Xray socket factory.
+            MediaSource.Factory segmentFactory = proxy == null ? factory : createMediaSourceFactory(segmentItem);
+            builder.add(segmentFactory.createMediaSource(segmentItem), segment.durationMs());
+        }""","Xray per-segment transport isolation")
+    code=one(code,
         "    private MediaSource.Factory createMediaSourceFactory(MediaItem mediaItem) {\n"
         "        SubtitleTranscript transcript = subtitleTranscriptSession.forMediaItem(mediaItem);",
         """    private MediaSource.Factory createMediaSourceFactory(MediaItem mediaItem) {
