@@ -1,0 +1,3 @@
+FingMi-Xray GitHub Connector I/O probe
+Date: 2026-11-02
+Purpose: verify create/read/delete. Temporary only.
