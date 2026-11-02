@@ -32,10 +32,10 @@
 ## 通用升级架构迭代：原始差异白名单与上游优先接线
 
 - 增加 `scripts/upstream/fork_scope.json`：以旧公开基线 `c616c0aa...` 为依据，记录原始上游文件在本 Fork 中的 **61 个已知差异路径**及处理策略。未在清单登记、但已偏离当前上游基线的原有文件，即使本次上游未改它，也会被 `sync.py` 拒绝带入新版。
-- 目前按当前清单分为 **19 个 `generate`（从新版上游生成最小接线）、6 个 `upstream`（完全采用公开上游以移除过时的 fork 补丁）、33 个 `rebase`（只能三方重放，遇冲突停止）、3 个 `project`（私人仓库的工作流/文档策略，不参与公开上游源码合并）**。这是**处理策略**计数，不是已合并成功的文件数。
+- 目前按当前清单分为 **31 个 `generate`（从新版上游生成最小接线）、6 个 `upstream`（完全采用公开上游以移除过时的 fork 补丁）、21 个 `rebase`（只能三方重放，遇冲突停止）、3 个 `project`（私人仓库的工作流/文档策略，不参与公开上游源码合并）**。这是**处理策略**计数，不是已合并成功的文件数。
 - 6 个上游优先路径是旧版三类 `JarLoader/JsLoader/PyLoader` Spider 清理、`ViewModelTaskRunner` 任务取消、MPV 的 `MpvUtil/MpvPlayerEngine` 旧字幕扩展。前四项已有新版对应的官方能力，MPV 字幕不是我们授权维护范围，所以后续默认跟随新版原样；**保留的媒体 ABI/Libass 兼容输入依旧要以真实编译与 native parity 审核**。
 - 专用生成器包括 `recovery_adapters.py`（Android TV 网络恢复）与 `xray_adapters.py`（网页导入 `Action.java`、设置页及 XML、上游 APK 更新入口保护）。特别注意 5.8.7 `Updater` 的公共 API 已由 `create()/force()` 转向 `get()/start(activity, force)`，不得直接保留旧版本空实现；生成器严格核对本次新版的全部公共方法，出现未知接口立即停止。
-- 在 5.8.7 三份 Git Tree 的原始路径审计中，上述 `rebase` 仍有 **32 条路径同时被本 Fork 与上游修改**；这是潜在三方冲突数量，不代表已经运行真实合并或修复成功。`PlayerManager`、`ExoPlayerEngine`、`ExoMediaSourceFactory` 已配置新版優先的候選接線生成器；下一階段重點轉向 Live/VOD、`PlaybackService`、字幕與彈幕等旁路請求；不能采用“全部选旧版本”掩盖上游重构。
+- 在 5.8.7 三份 Git Tree 的原始路径审计中，上述 `rebase` 仍有 **21 条路径同时被本 Fork 与上游修改**；这是潜在三方冲突数量，不代表已经运行真实合并或修复成功。`PlayerManager`、`ExoPlayerEngine`、`ExoMediaSourceFactory` 已配置新版優先的候選接線生成器；`PlaybackService`、字幕、彈幕、EPG、XMLTV 及頻道 Logo 已配置候選生成器；接下來重點轉向 Live/VOD Activity 播放所有權、切台／換集回調與剩餘版本差異；不能采用“全部选旧版本”掩盖上游重构。
 - 本 Fork 另外保留 4 个未包含在两个业务模块内、为历史固定 FongMi Media3 输入重建的兼容类：`LibassFontFile`、`SecondaryTextOutput`、`SecondaryTextTrackSelector`、`DanmakuPlayerViewController`。它们是**既存兼容债**，并非可以持续扩展的第三个业务维护范围；升级 5.8.7 时要核实是否仍被调用、所对应的 native/AAR API 是否匹配，不得因固定旧源码通过测试就宣称新播放器已兼容。
 - 离线宿主 Python Git fixture 已验证：非冲突三方合并、按清单清除过时 fork 修改、未登记的旧改动在上游未变时也拦截、真实冲突时不写入工作树。这**不等于 GitHub Actions 对整个私有项目运行成功**；新加的 Xray 适配器 Java 编译测试配置为手动 AC 预检入口，尚无该入口实际 run 结果。
 
@@ -44,7 +44,15 @@
 - 新增上游優先 `exo_adapters.py` / `player_manager_adapter.py`：直接以官方 5.8.7 原始碼生成 `ExoMediaSourceFactory`、`ExoPlayerSession`、`ExoPlayerEngine`、`PlayerEngineFactory` 和 `PlayerManager` 的 Xray 接線，維持新版 ISO、CMG、DecoderManager、SubtitleTranscript、預載結構。這五份已由 `rebase` 調整為 `generate`，**尚未當作 APK 編譯成功**。
 - 新增只在升級時實體生成的 `XrayPlaybackDataSourceFactory.java` 模板。5.6.3 `Auth.Context` 尚不存在，模板不加入當前編譯樹；5.8.7 原始碼接入後，媒体／DRM／ISO 導航 HTTP 沿用 Xray client，RTSP/RTSPT 使用專屬 SOCKS socket。串接媒體逐段選擇 source factory；有代理時禁止普通磁碟預載，避免邊緣路徑無意走直連。
 - `test-upstream-exo-adapters.py` 的離線 fixtures 和新版 API fail-closed 檢查通過；`test-upstream-xray-auth.py` 的 JVM 替身測試驗證會話 client、授權資訊、UA 和非法協議攔截。正式 AC 預檢會對所選**真實**公開 commit 的五個檔案重新套用 exact-anchor 變換；未經編譯和 Android/TV 驗收不得宣稱新播放器相容。
-- **下一個實際阻斷**：5.8.7 `PlaybackService`、Live/VOD 路由和新版 `DanmakuApi` / `SubtitleApi` 已變更 API。舊 fork 的取消／請求 client 身份介面不能機械回拷；需重建必要的旁路請求隔離和回調代際，避免影片走 Xray 但字幕／彈幕／封面仍可能直連。這些路徑尚未驗收，預設繼續只做預檢。
+- **目前仍待正式驗收**：`PlaybackService`、`DanmakuApi`、`SubtitleApi`、下載與 EPG 的 5.8.7 API 已建立候選生成器，並在工作流加入帶真實目標 Git Tree 的 anchor 檢查；但尚未執行完整 Python/JVM 測試或 Android 編譯。Live/VOD Activity 的 Xray session 生命週期／所有權尚未移植，仍可能在真正合併／編譯時失敗。預設只做預檢。
+
+### 2026-11-02 Live/VOD 旁路與 UI 資源第二階段（仍在適配）
+
+- `side_request_adapters.py` 提供新版 `PlaybackService` 會話綁定、`DanmakuApi` 和 `SubtitleApi` 顯式透過 Xray Call.Factory、字幕多段下載同一 HTTP client、代理切換與服務關閉時取消舊代際遠端請求。只從官方 5.8.7 檔案生成 Xray 專用改動；普通播放／官方請求解析、重試、字幕格式維持原狀。
+- `live_metadata_adapters.py` 為原始 `LiveApi` EPG HTTP 與 `EpgParser` XMLTV 加上會話網路身份，保留官方 EPG 時區、XMLTV cache、gzip 解壓流程；`LiveViewModel` 增加只撤銷 `TaskType.XML/EPG` 的舊結果能力；`live_ui_adapters.py` 在 `ChannelAdapter` 保留官方 RecyclerView selected payload 邏輯、只阻止 Xray 中舊 logo 請求。
+- `xray_resources.py` 對 5.8.7 的 Live/VOD 控制列只加 `@+id/xray`，並按現有 Fork 各地區譯文複製 `xray_*` 字串，三套 Leanback `values`、`values-zh-rCN`、`values-zh-rTW` 各 25 條；資源碰撞與上游 XML 接線變更會停止，不覆蓋普通上游按鈕或官方多語翻譯。
+- `verify_playback.py` 已有 5.6.3 與 5.8.7+ **不同**的強制檢查表，新版額外要求整條 Exo／Service／Side requests／LiveUI／翻譯／Live+Vod Activity 接線都存在才允許繼續發布；因此目前缺失的頁面接線無法藉由放寬舊版測試跳過。
+- **目前僅提交了 adapter、fixture/JVM 測試腳本和 GitHub Actions 手動預檢設定。尚未真正運行這一批新測試、合併到 5.8.7、Gradle Android 編譯或發布。** Live/VOD Activity 仍是阻斷點；工作流 `apply_to_main=false` 安全預設維持不變。
 
 ## 通用 Actions 的正确成功定义
 
