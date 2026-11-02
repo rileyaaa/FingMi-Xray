@@ -533,6 +533,38 @@ jobs:
           if-no-files-found: ignore
           retention-days: 1
 
+      - name: Explain upstream merge result and next action
+        if: always()
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+          report = Path(os.environ["RUNNER_TEMP"]) / "fingmi-upstream-sync-report.json"
+          out = Path(os.environ["GITHUB_STEP_SUMMARY"])
+          with out.open("a", encoding="utf-8") as stream:
+              stream.write("### FongMi upstream sync\n\n")
+              if not report.exists():
+                  stream.write("**No merge report:** check the failing preparation step.\n")
+              else:
+                  data = json.loads(report.read_text(encoding="utf-8"))
+                  stream.write(f"- Public upstream: {data['upstream_version']} ({data['to'][:12]})\n")
+                  stream.write(f"- Status: **{data['status']}**\n")
+                  stream.write(f"- Reviewed fork source paths: {data.get('scope_inventory_paths', 'n/a')}\n")
+                  stream.write(f"- Upstream-first replacements: {len(data.get('upstream_first_paths', []))}\n")
+                  stream.write(f"- Candidate path edits: {len(data.get('planned_paths', []))}\n")
+                  errors = data.get("conflicts", [])
+                  if errors:
+                      stream.write("\n**Blocked paths — no source push or APK release:**\n\n")
+                      for name in errors[:75]:
+                          stream.write(f"- {name}\n")
+                      if len(errors) > 75:
+                          stream.write(f"- plus {len(errors)-75} paths; see the artifact.\n")
+                  else:
+                      stream.write("\nThe merge is only a candidate; actual Android/APK verification is separate.\n")
+          PY
+
       - name: Upload upstream integration report
         if: always()
         uses: actions/upload-artifact@v7
