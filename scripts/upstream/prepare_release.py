@@ -19,6 +19,7 @@ from xray_resources import xray_strings, xray_control_layout
 from playback_activity_adapter import playback_activity, video_view_model
 from activity_adapters import live_activity, video_activity
 from engine_dialog_adapter import player_engine_dialog
+from build_policy_adapters import gitignore, proguard, leanback_manifest, main_manifest
 
 
 def one(s, a, b):
@@ -330,6 +331,17 @@ def prepare(root,upstream,target,report):
     nano=original(upstream,tree,"app/src/main/java/com/fongmi/android/tv/server/Nano.java")
     if "return getAssets(url.substring(1));" not in nano or "InputStream is = Asset.open(path);" not in nano:
         raise ValueError("New upstream no longer serves the standalone Xray asset page")
+
+    # Preserve official 5.8.7 manifest declarations, R8 behavior and Git
+    # ignore rules; add only Xray settings/JNI/installer safety boundaries.
+    build_hooks = (
+        (".gitignore", gitignore),
+        ("app/proguard-rules.pro", proguard),
+        ("app/src/leanback/AndroidManifest.xml", leanback_manifest),
+        ("app/src/main/AndroidManifest.xml", main_manifest),
+    )
+    for filename, transform in build_hooks:
+        additions[filename] = transform(original(upstream, tree, filename))
 
     # Regenerate the old fork's recovery hooks from the selected *new*
     # public FongMi implementations, never carry forward 5.6.3 business code.

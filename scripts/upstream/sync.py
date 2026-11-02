@@ -64,6 +64,10 @@ REGENERATED_FILES = {
     "app/src/leanback/java/com/fongmi/android/tv/ui/activity/LiveActivity.java",
     "app/src/leanback/java/com/fongmi/android/tv/ui/activity/VideoActivity.java",
     "app/src/main/java/com/fongmi/android/tv/ui/dialog/PlayerEngineDialog.java",
+    ".gitignore",
+    "app/proguard-rules.pro",
+    "app/src/leanback/AndroidManifest.xml",
+    "app/src/main/AndroidManifest.xml",
 }
 PRESERVED_FILES = {
     "app/proguard-rules-media.pro",

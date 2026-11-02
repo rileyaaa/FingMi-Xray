@@ -15,7 +15,7 @@
       "scope": "repository"
     },
     ".gitignore": {
-      "strategy": "rebase",
+      "strategy": "generate",
       "scope": "build"
     },
     "README.md": {
@@ -27,11 +27,11 @@
       "scope": "build"
     },
     "app/proguard-rules.pro": {
-      "strategy": "rebase",
+      "strategy": "generate",
       "scope": "build"
     },
     "app/src/leanback/AndroidManifest.xml": {
-      "strategy": "rebase",
+      "strategy": "generate",
       "scope": "xray"
     },
     "app/src/leanback/java/com/fongmi/android/tv/ui/activity/HomeActivity.java": {
@@ -83,7 +83,7 @@
       "scope": "xray"
     },
     "app/src/main/AndroidManifest.xml": {
-      "strategy": "rebase",
+      "strategy": "generate",
       "scope": "xray"
     },
     "app/src/main/assets/index.html": {
@@ -243,7 +243,7 @@
       "scope": "upstream-crash-fix"
     },
     "catvod/src/test/java/com/github/catvod/net/OkProxySelectorTest.java": {
-      "strategy": "rebase",
+      "strategy": "generate",
       "scope": "upstream-crash-fix"
     },
     "settings.gradle": {
