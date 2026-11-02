@@ -40,6 +40,16 @@
 
 任何超出上述范围的代码修改，在提交前都应先判断：**这个变化是否是 Xray 或 TV 网络恢复的必要条件？如果不是，默认跟随上游。** 用户允许的例外仅限像已发生的主机名崩溃一样，有明确证据、明显影响实际使用的上游故障；只做最小修补，并在下方登记，不能据理论风险扩展普通业务维护。
 
+### 2026-11-02 上游 5.8.7 迁移预检（尚未完成源码升级）
+
+- 公开目标：`FongMi/TV` 的 `fongmi` 分支，`8626650ebcbc0d028e16d859e826fcf439720f3a`，官方 `app/build.gradle` 声明 `5.8.7` / `587`。
+- 当前 `main` **仍为 5.6.3 源码与已发布 5.6.3 APK**；以下仅是升级前源码审计，不代表已编译、运行或发布 5.8.7。
+- 旧上游 `c616c0aa...` 与目标 Git Tree 比较有 **810 个路径变化**；其中当前 fork 与新版上游同时有差异约 **56 个路径**，含 Xray / TV 恢复的页面和网络接线；上游删除而 fork 仍修改的路径有 3 个。不能直接覆盖，也不能把文本三方合并成功当作编译通过。
+- 已确认官方新版 `OkProxySelector.Policy` 改为接收 OkHttp `HttpUrl` 并读取 `scheme()/host()/port()`，已从源码层面避开旧 `URI.getHost().toLowerCase()` NPE。正式迁移时应采用完整上游实现，移除 fork 相同目的的业务补丁，并迁移保留 `OkProxySelectorTest` 的空 Host / origin / 重定向回归；目前**尚未执行新版回归**。
+- 新版 Home 使用 `pendingAction` + `consumeAction()` 一次性处理启动 Intent；本 fork 的恢复回调仍要单独保留、适配、回归，不得把旧 `checkAction(getIntent())` 恢复流程直接搬回新版；Xray 去敏等项目自有修复上游没有替代实现。
+- 新增 `.github/workflows/manual-upstream-sync.yml`，仅 `workflow_dispatch`。默认 `apply_to_main=false`：按 `scripts/upstream/baseline.json` 固定旧基线，拉取公开分支并尝试文件级三方合并，报告冲突、无冲突则在临时 runner 生成候选；不写入 Git、不编译、不发布。显式选中应用时仍必须满足零冲突、原项目 source guards、版本配置与当前分支 head 校验才可能提交；**现阶段 5.8.7 存在结构差异，先以预检与人工适配为主**。短期报告仅保留 2 天。
+- 离线模拟测试：`python3 tests/test-upstream-sync.py`，已验证 fork 自有内容保护、非冲突三方合并、上游删除和冲突时无写入。完成首次适配并完成真实编译/回归后，才可将该入口作为常规一键升级流程评估；发布仍走独立手动发布入口，保持正式签名、黄金版本和 Libass 原生输入证据不变。
+
 ### 已登记的上游业务修复（升级前必读）
 
 **当前只有一项上游业务补丁：`OkProxySelector.Policy` 空主机名崩溃，用户于 2026-10-11 明确授权。**

@@ -19,7 +19,7 @@
 - 向用户报告 Actions 状态前，先刷新仓库最新 runs 列表，再定位目标 run。
 - 之前读取的单个 run、jobs 或日志结果只能代表当时状态，不能直接当成当前状态。
 - 最新 runs 列表确认 run 已完成后，才读取该 run 的 jobs / logs 核对实际成功步骤或失败原因。
-- 所有现存和新增 Actions workflow 只能使用 `workflow_dispatch` 手动触发；不再允许临时 push trigger、marker 文件、定时器或自动串联。构建、正式发布和失败续发分别使用三个保留入口，历史恢复/临时研究入口已移除。
+- 所有现存和新增 Actions workflow 只能使用 `workflow_dispatch` 手动触发；不再允许临时 push trigger、marker 文件、定时器或自动串联。构建、正式发布和失败续发使用三个既有入口；另允许一个专用 `manual-upstream-sync.yml` 手动同步预检入口，默认只生成合并报告，遇冲突不得写入 `main`，也不得自动发布 APK。历史恢复/临时研究入口已移除。
 - 如果当前自动化环境既没有 `workflow_dispatch` 调用能力，又明确阻止修改 workflow trigger，则不得通过强制移动 `main`、回退默认分支、复用旧自动 trigger commit 或其他方式绕过平台安全限制。保持仓库 pure manual-only，由用户在 GitHub Actions 页面使用 `Run workflow` 触发；AI 继续完成不依赖该触发动作的审计、文档、存储清理和后续结果核验。
 - GitHub Releases 只发布 APK，长期保留 `v5.6.0-xray.5` 黄金参考和一个当前正式版。**今后不生成、上传或暂存项目源码 ZIP / `source-backup-*` Release**；源码和固定签名继续由私有 Git 仓库管理。
 

@@ -190,11 +190,11 @@ current_workflow = (ROOT / ".github/workflows/current-main-build.yml").read_text
 publish_workflow = (ROOT / ".github/workflows/publish-current-main-test-release.yml").read_text(encoding="utf-8")
 # Require canonical block syntax; reject shorthand/inline/alias event forms.
 expected_workflows = {"current-main-build.yml", "publish-current-main-test-release.yml",
-                      "resume-verified-release.yml"}
+                      "resume-verified-release.yml", "manual-upstream-sync.yml"}
 actual_workflows = {p.name for p in (ROOT / ".github/workflows").iterdir()
                     if p.suffix in (".yml", ".yaml")}
 if actual_workflows != expected_workflows:
-    errors.append("Only build, publish and verified-resume workflows may remain")
+    errors.append("Only the three release/build workflows and manual upstream sync may remain")
 for name in actual_workflows:
     text = (ROOT / ".github/workflows" / name).read_text()
     block = re.search(r"(?m)^on:\n((?:[ \t]+[^\n]*\n|\n)*)", text)

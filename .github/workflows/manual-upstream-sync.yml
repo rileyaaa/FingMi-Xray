@@ -1,0 +1,117 @@
+name: Manual upstream source sync (preview / guarded apply)
+
+on:
+  workflow_dispatch:
+    inputs:
+      expected_upstream_sha:
+        description: "Optional 40-character FongMi/TV fongmi HEAD SHA guard (empty = current HEAD)"
+        type: string
+        required: false
+        default: "8626650ebcbc0d028e16d859e826fcf439720f3a"
+      apply_to_main:
+        description: "Write to main ONLY after zero conflicts and all source guards pass; does not publish APK"
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+concurrency:
+  group: fingmi-manual-upstream-sync
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 1
+
+      - uses: actions/setup-java@v6
+        with:
+          distribution: jetbrains
+          java-version: '21'
+
+      - name: Verify merge engine against offline fixtures
+        run: python3 tests/test-upstream-sync.py
+
+      - name: Download only public FongMi/TV git objects
+        shell: bash
+        env:
+          EXPECTED_SHA: ${{ inputs.expected_upstream_sha }}
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REF" = 'refs/heads/main'
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          test -z "$(git status --porcelain)"
+          upstream="$RUNNER_TEMP/fongmi-tv-upstream"
+          git init -q "$upstream"
+          git -C "$upstream" remote add origin https://github.com/FongMi/TV.git
+          base="$(python3 -c 'import json; print(json.load(open("scripts/upstream/baseline.json"))["commit"])')"
+          [[ "$base" =~ ^[0-9a-f]{40}$ ]]
+          git -C "$upstream" fetch --no-tags --depth 1 origin "$base"
+          git -C "$upstream" fetch --no-tags --depth 1 origin refs/heads/fongmi
+          target="$(git -C "$upstream" rev-parse FETCH_HEAD)"
+          [[ "$target" =~ ^[0-9a-f]{40}$ ]]
+          if [[ -n "$EXPECTED_SHA" && "$EXPECTED_SHA" != "$target" ]]; then
+            echo "Upstream HEAD differs from requested SHA: expected=$EXPECTED_SHA actual=$target" >&2
+            exit 1
+          fi
+          echo "UPSTREAM_DIRECTORY=$upstream" >> "$GITHUB_ENV"
+          echo "UPSTREAM_TARGET=$target" >> "$GITHUB_ENV"
+
+      - name: Three-way sync from pinned public baseline
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 scripts/upstream/sync.py \
+            --upstream "$UPSTREAM_DIRECTORY" \
+            --target "$UPSTREAM_TARGET" \
+            --report "$RUNNER_TEMP/fingmi-upstream-sync-report.json"
+          git diff --check
+          git status --short
+
+      - name: Guard fork boundaries and publication version
+        if: ${{ inputs.apply_to_main }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 tests/test-upstream-sync.py
+          python3 tests/test-upstream-update-disabled.py
+          python3 tests/test-fork-module-boundaries.py
+          python3 tests/test-tv-recovery-intent-replay.py
+          python3 tests/test-xray-error-sanitizer.py
+          python3 tests/test-build-hygiene.py
+          # No APK build is performed here. Owner must still run separate manual
+          # TV build and publish workflows after source integration.
+          version="$(python3 -c 'import json; print(json.load(open("scripts/upstream/baseline.json"))["version"])')"
+          grep -q "versionName \"v${version}-xray." app/build.gradle
+
+      - name: Commit guarded source sync to main
+        if: ${{ inputs.apply_to_main }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git ls-remote origin refs/heads/main | cut -f1)" = "$GITHUB_SHA"
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          if git diff --cached --quiet; then
+            echo 'No source differences to commit'
+            exit 0
+          fi
+          git diff --cached --check
+          git commit -m "chore(upstream): sync FongMi TV to $UPSTREAM_TARGET"
+          git push origin HEAD:refs/heads/main
+
+      - name: Upload short-lived upstream merge report
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: fingmi-upstream-sync-report
+          path: ${{ runner.temp }}/fingmi-upstream-sync-report.json
+          if-no-files-found: ignore
+          retention-days: 2
