@@ -6,6 +6,7 @@ import sys
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]/"scripts/upstream"))
 from playback_activity_adapter import playback_activity,video_view_model
 from activity_adapters import live_activity,video_activity
+from engine_dialog_adapter import player_engine_dialog
 
 
 def refuse(fn,code):
@@ -145,6 +146,23 @@ assert "public void onXrayEngineChanged()" in z
 assert "getPlayerView().setDanmakuSource(null)" not in z
 refuse(video_activity,VOD.replace("stopPlaybackForRefresh()","stopSourceForRefresh()"))
 
+DIALOG='''class PlayerEngineDialog {
+    void bind() {
+        binding.exo.setOnClickListener(view -> selectEngine(PlayerSetting.ENGINE_EXO));
+        binding.mpv.setOnClickListener(view -> selectEngine(PlayerSetting.ENGINE_MPV));
+    }
+    void change(int engine) {
+        if (!PlaybackDialog.isCurrentPlayer(this, player)) return;
+        player.setEngine(engine);
+    }
+}'''
+out=player_engine_dialog(DIALOG)
+assert "PlaybackAction.getEngine(player) != engine" in out
+assert "owner.onXrayEngineChanged();" in out
+assert "player.setEngine(engine);" in out
+refuse(player_engine_dialog,DIALOG.replace("player.setEngine(engine);",
+                                            "player.changeEngine(engine);"))
+
 parser=argparse.ArgumentParser()
 parser.add_argument("--upstream",type=Path)
 parser.add_argument("--target")
@@ -158,6 +176,7 @@ if args.upstream:
         ("app/src/main/java/com/fongmi/android/tv/model/VideoViewModel.java",video_view_model),
         ("app/src/leanback/java/com/fongmi/android/tv/ui/activity/LiveActivity.java",live_activity),
         ("app/src/leanback/java/com/fongmi/android/tv/ui/activity/VideoActivity.java",video_activity),
+        ("app/src/main/java/com/fongmi/android/tv/ui/dialog/PlayerEngineDialog.java",player_engine_dialog),
     ):
         if name not in tree: raise AssertionError("No official UI source: "+name)
         public=blob(args.upstream,tree[name]).decode("utf-8")
