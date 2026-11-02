@@ -146,6 +146,12 @@ jobs:
             --target "$UPSTREAM_TARGET" \
             --report "$RUNNER_TEMP/fingmi-upstream-release-plan.json"
           git diff --check
+          # GITHUB_TOKEN cannot push modifications to protected workflow YAML.
+          # Fail before expensive native builds if a future adapter drifts.
+          if [[ -n "$(git status --porcelain -- .github/workflows)" ]]; then
+            echo "BLOCKED: upstream candidate changed .github/workflows; built-in token cannot push workflow files" >&2
+            exit 1
+          fi
           git status --short
           if [[ "$APPLY_TO_MAIN" != "true" ]]; then
             echo "Preview mode: source only in this disposable runner; no build or publish"
