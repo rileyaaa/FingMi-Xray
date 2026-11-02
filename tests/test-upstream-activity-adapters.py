@@ -18,6 +18,8 @@ def refuse(fn,code):
 BASE='''class PlaybackActivity {
     protected void onReclaim() {
     }
+    protected void onServiceConnected() {
+    }
     private void setDanmakuSource(@Nullable Uri uri) {}
     private void onPlaybackReplaced() {
         playbackReplaced = true;
