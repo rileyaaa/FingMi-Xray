@@ -128,6 +128,11 @@ with tempfile.TemporaryDirectory(prefix="upstream-doc-version-contract-") as tem
                         'fingmi-xray-5.6.3-build-failure-reports\n'
                         'Compile current 5.6.3 Leanback source\n'
                         'default="' + old + '"\n', encoding="utf-8")
+    # Record the original workflow bytes. Candidate upgrade commits must
+    # never attempt to rewrite protected .github/workflows definitions.
+    workflows = (".github/workflows/current-main-build.yml",
+                 ".github/workflows/publish-current-main-test-release.yml")
+    frozen_workflows = {name: (root / name).read_bytes() for name in workflows}
     readme = root / "README.md"
     readme.write_text(
         '当前 `main` 以 FongMi/TV 5.6.3（`' + "c616c0aa3613e87529791587a9f71b78c278c991" + '`）\n'
@@ -150,10 +155,10 @@ with tempfile.TemporaryDirectory(prefix="upstream-doc-version-contract-") as tem
     readme_output = readme.read_text(encoding="utf-8")
     assert "FongMi/TV 5.8.7（`" + sha + "`）" in readme_output
     assert "| FongMi/TV | **5.8.7**（commit `" + sha + "`） |" in readme_output
-    for name in (".github/workflows/current-main-build.yml",
-                 ".github/workflows/publish-current-main-test-release.yml",
-                 "scripts/build/resume-verified-release.py"):
-        text = (root / name).read_text(encoding="utf-8")
-        assert new in text and "fingmi-xray-5.8.7-build-failure-reports" in text
+    for name in workflows:
+        assert (root / name).read_bytes() == frozen_workflows[name], name
+    helper = (root / "scripts/build/resume-verified-release.py").read_text(encoding="utf-8")
+    assert 'default="' + new + '"' in helper
+    assert 'default="' + old + '"' not in helper
 
 print("PASS fork versioning, signed Gradle overlay, Home one-shot recovery and HttpUrl regressions and regenerated metadata")
