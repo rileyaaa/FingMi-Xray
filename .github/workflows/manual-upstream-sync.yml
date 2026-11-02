@@ -4,9 +4,9 @@ on:
   workflow_dispatch:
     inputs:
       apply_to_main:
-        description: "Run full upgrade, Android TV build, verification and APK release (false = preview only)"
+        description: "Experimental full upgrade; select true only after migration conflicts are resolved (default = safe preview)"
         type: boolean
-        default: true
+        default: false
       expected_upstream_sha:
         description: "Optional exact FongMi/TV fongmi SHA; blank selects the latest public commit"
         type: string
