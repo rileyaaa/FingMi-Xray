@@ -237,7 +237,7 @@ if "return (doh != null ? doh : Dns.SYSTEM).lookup(get(hostname));" in okdns:
 
 for needle in (
     "generation++;",
-    "Policy policy(URI uri, Policy previous)",
+    "Policy policy(HttpUrl url, Policy previous)" if "Policy policy(HttpUrl url, Policy previous)" in selector else "Policy policy(URI uri, Policy previous)",
     "previous.generation == generation",
     "sharesProxyCredentials(Policy other)",
 ):
@@ -245,7 +245,7 @@ for needle in (
         raise SystemExit(f"OkProxySelector missing redirect-policy generation contract: {needle}")
 
 for needle in (
-    "response.request().tag(OkProxySelector.Policy.class)",
+    "request.tag(OkProxySelector.Policy.class)" if "request.tag(OkProxySelector.Policy.class)" in proxy_auth else "response.request().tag(OkProxySelector.Policy.class)",
     "Credentials.basic(username, password, StandardCharsets.UTF_8)",
 ):
     if needle not in proxy_auth:
@@ -253,10 +253,10 @@ for needle in (
 
 for needle in (
     "chain.getProxy() == null && chain.getProxySelector() == selector",
-    "policy.sharesProxyCredentials(previousPolicy)",
+    "policy.sharesProxyCredentials(previous)" if "policy.sharesProxyCredentials(previous)" in proxy_redirect else "policy.sharesProxyCredentials(previousPolicy)",
     'removeHeader("Proxy-Authorization")',
     'removeHeader("Authorization")',
-    "followUpCount > 20",
+    "MAX_FOLLOW_UPS = 20" if "MAX_FOLLOW_UPS = 20" in proxy_redirect else "followUpCount > 20",
     "chain.getFollowSslRedirects()",
 ):
     if needle not in proxy_redirect:
