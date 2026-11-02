@@ -12,7 +12,7 @@ import com.fongmi.android.tv.R;
 import com.fongmi.android.tv.server.Server;
 import com.fongmi.android.tv.utils.QRCode;
 
-/** Xray-only mobile pairing page; no dependency on removed FongMi PushActivity. */
+/** Xray-only mobile pairing page; independent of retired upstream push UI. */
 public final class XrayPhoneImportDialog {
 
     private XrayPhoneImportDialog() {}
