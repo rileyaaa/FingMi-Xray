@@ -15,6 +15,7 @@ from player_manager_adapter import player_manager
 from side_request_adapters import playback_service, danmaku_api, subtitle_api, download
 from live_metadata_adapters import live_api, epg_parser, live_view_model
 from live_ui_adapters import channel_adapter
+from xray_resources import xray_strings, xray_control_layout
 
 
 def one(s, a, b):
@@ -278,6 +279,22 @@ def prepare(root,upstream,target,report):
     if "getPlaybackHttpClient(null)" not in gate_source or "usePlaybackTransport(" not in gate_source:
         raise ValueError("Missing Xray side-request network gate")
     additions["app/src/main/java/com/fingmi/integration/xray/XraySideRequestGate.java"] = gate_source
+
+    # Regenerate three Leanback locale resources from the new upstream.
+    # Preserve ONLY approved xray_* labels from each old fork locale.
+    for strings_name in (
+        "app/src/leanback/res/values/strings.xml",
+        "app/src/leanback/res/values-zh-rCN/strings.xml",
+        "app/src/leanback/res/values-zh-rTW/strings.xml",
+    ):
+        additions[strings_name]=xray_strings(
+            original(upstream,tree,strings_name),
+            (root/strings_name).read_text(encoding="utf-8"))
+    for filename in (
+        "app/src/leanback/res/layout/view_control_live_action.xml",
+        "app/src/leanback/res/layout/view_control_vod_action.xml",
+    ):
+        additions[filename]=xray_control_layout(original(upstream,tree,filename))
 
     # Regenerate the old fork's recovery hooks from the selected *new*
     # public FongMi implementations, never carry forward 5.6.3 business code.

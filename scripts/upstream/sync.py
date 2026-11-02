@@ -54,6 +54,11 @@ REGENERATED_FILES = {
     "app/src/main/java/com/fongmi/android/tv/api/parser/EpgParser.java",
     "app/src/main/java/com/fongmi/android/tv/model/LiveViewModel.java",
     "app/src/leanback/java/com/fongmi/android/tv/ui/adapter/ChannelAdapter.java",
+    "app/src/leanback/res/values/strings.xml",
+    "app/src/leanback/res/values-zh-rCN/strings.xml",
+    "app/src/leanback/res/values-zh-rTW/strings.xml",
+    "app/src/leanback/res/layout/view_control_live_action.xml",
+    "app/src/leanback/res/layout/view_control_vod_action.xml",
 }
 PRESERVED_FILES = {
     "app/proguard-rules-media.pro",

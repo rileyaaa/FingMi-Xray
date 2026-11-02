@@ -63,23 +63,23 @@
       "scope": "xray"
     },
     "app/src/leanback/res/layout/view_control_live_action.xml": {
-      "strategy": "rebase",
+      "strategy": "generate",
       "scope": "xray"
     },
     "app/src/leanback/res/layout/view_control_vod_action.xml": {
-      "strategy": "rebase",
+      "strategy": "generate",
       "scope": "xray"
     },
     "app/src/leanback/res/values-zh-rCN/strings.xml": {
-      "strategy": "rebase",
+      "strategy": "generate",
       "scope": "xray"
     },
     "app/src/leanback/res/values-zh-rTW/strings.xml": {
-      "strategy": "rebase",
+      "strategy": "generate",
       "scope": "xray"
     },
     "app/src/leanback/res/values/strings.xml": {
-      "strategy": "rebase",
+      "strategy": "generate",
       "scope": "xray"
     },
     "app/src/main/AndroidManifest.xml": {
