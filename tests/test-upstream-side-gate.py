@@ -109,6 +109,12 @@ public class SideGateHarness {
    check("xray-metadata".equals(XraySideRequestGate.string("https://example.org/epg","epg")),
          "EPG metadata uses the bound proxy client");
    check(player.proxy.calls.size()==3,"EPG request did not use Xray client");
+   check("xray-metadata".equals(XraySideRequestGate.string("HTTPS://example.org/epg","epg")),
+         "case-insensitive HTTPS metadata must still be proxied");
+   check(player.proxy.calls.size()==4,"uppercase HTTPS bypassed Xray");
+   check("".equals(XraySideRequestGate.string("httpinvalid","epg")),
+         "invalid non-HTTP URL must not issue a request");
+   check(player.proxy.calls.size()==4,"invalid URL attempted a network request");
    XraySideRequestGate.cancelRemoteDownloads();
    check(dl.canceled,"in-flight Xray downloads canceled on transition");
    player.active=false;
