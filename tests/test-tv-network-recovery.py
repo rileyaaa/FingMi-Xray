@@ -181,25 +181,48 @@ for needle in (
     if needle not in glide:
         raise SystemExit(f"OkGlideModule missing recovered-client handoff: {needle}")
 
-for loader_path in (JAR_LOADER, JS_LOADER, PY_LOADER):
-    loader = loader_path.read_text(encoding="utf-8")
-    if "spiders.values().forEach(Spider::destroy)" in loader:
-        raise SystemExit(
-            f"{loader_path.name} must isolate each Spider.destroy failure like released cleanup"
-        )
+base_loader = (ROOT / "app/src/main/java/com/fongmi/android/tv/api/loader/BaseLoader.java").read_text(encoding="utf-8")
+spider_loader = ROOT / "app/src/main/java/com/fongmi/android/tv/api/loader/SpiderLoader.java"
+if "private void clearLoaders(" in base_loader:
+    # New public FongMi 5.8+ implementation centralized per-Spider disposal.
+    if not spider_loader.exists():
+        raise SystemExit("New BaseLoader lacks its SpiderLoader cleanup owner")
+    spider = spider_loader.read_text(encoding="utf-8")
     for needle in (
-        "for (Spider spider : spiders.values()) {",
+        "for (Spider spider : active) failure = destroySpider(spider, failure);",
+        "for (Spider spider : active) failure = closeSpider(spider, failure);",
         "spider.destroy();",
-        "} catch (Throwable ignored) {",
+        "} catch (RuntimeException | Error error) {",
     ):
-        if needle not in loader:
+        if needle not in spider:
+            raise SystemExit(f"New SpiderLoader lost per-Spider failure isolation: {needle}")
+    for needle in (
+        "public void clear(Runnable onComplete)",
+        "clearLoaders(previous, retired);",
+        "if (onComplete != null) App.post(onComplete);",
+    ):
+        if needle not in base_loader:
+            raise SystemExit(f"New BaseLoader lacks finished-cleanup callback: {needle}")
+else:
+    # Old 5.6.3 upstream has separate Jar/JS/Python implementation.
+    for loader_path in (JAR_LOADER, JS_LOADER, PY_LOADER):
+        loader = loader_path.read_text(encoding="utf-8")
+        if "spiders.values().forEach(Spider::destroy)" in loader:
             raise SystemExit(
-                f"{loader_path.name} missing released per-Spider cleanup tolerance: {needle}"
+                f"{loader_path.name} must isolate each Spider.destroy failure"
             )
-
-js_loader = JS_LOADER.read_text(encoding="utf-8")
-if "try {\n            Module.get().clear();\n        } catch (Throwable ignored) {" not in js_loader:
-    raise SystemExit("JsLoader must tolerate QuickJS module-cache cleanup failure")
+        for needle in (
+            "for (Spider spider : spiders.values()) {",
+            "spider.destroy();",
+            "} catch (Throwable ignored) {",
+        ):
+            if needle not in loader:
+                raise SystemExit(
+                    f"{loader_path.name} missing per-Spider cleanup tolerance: {needle}"
+                )
+    js_loader = JS_LOADER.read_text(encoding="utf-8")
+    if "try {\\n            Module.get().clear();\\n        } catch (Throwable ignored) {" not in js_loader:
+        raise SystemExit("JsLoader must tolerate QuickJS module-cache cleanup failure")
 
 okhttp = OKHTTP.read_text(encoding="utf-8")
 okdns = OKDNS.read_text(encoding="utf-8")
@@ -214,7 +237,8 @@ for needle in (
     "builder.interceptors().removeIf(item -> item instanceof ProxyRedirectInterceptor)",
     "public static void resetApiNetworkForResume()",
     "get().client = null;",
-    "cleanupClientAsync(oldClient);",
+    "cleanupClientAsync(",
+    "NETWORK_CLEANUP.execute(() -> {",
 ):
     if needle not in okhttp:
         raise SystemExit(f"OkHttp missing upstream redirect/current recovery coexistence contract: {needle}")
@@ -237,7 +261,7 @@ if "return (doh != null ? doh : Dns.SYSTEM).lookup(get(hostname));" in okdns:
 
 for needle in (
     "generation++;",
-    "Policy policy(HttpUrl url, Policy previous)" if "Policy policy(HttpUrl url, Policy previous)" in selector else "Policy policy(URI uri, Policy previous)",
+    "Policy policy(",
     "previous.generation == generation",
     "sharesProxyCredentials(Policy other)",
 ):
@@ -245,7 +269,7 @@ for needle in (
         raise SystemExit(f"OkProxySelector missing redirect-policy generation contract: {needle}")
 
 for needle in (
-    "request.tag(OkProxySelector.Policy.class)" if "request.tag(OkProxySelector.Policy.class)" in proxy_auth else "response.request().tag(OkProxySelector.Policy.class)",
+    ".tag(OkProxySelector.Policy.class)",
     "Credentials.basic(username, password, StandardCharsets.UTF_8)",
 ):
     if needle not in proxy_auth:
@@ -253,10 +277,12 @@ for needle in (
 
 for needle in (
     "chain.getProxy() == null && chain.getProxySelector() == selector",
-    "policy.sharesProxyCredentials(previous)" if "policy.sharesProxyCredentials(previous)" in proxy_redirect else "policy.sharesProxyCredentials(previousPolicy)",
+    ".sharesProxyCredentials(",
+
     'removeHeader("Proxy-Authorization")',
     'removeHeader("Authorization")',
-    "MAX_FOLLOW_UPS = 20" if "MAX_FOLLOW_UPS = 20" in proxy_redirect else "followUpCount > 20",
+    "followUpCount",
+
     "chain.getFollowSslRedirects()",
 ):
     if needle not in proxy_redirect:
