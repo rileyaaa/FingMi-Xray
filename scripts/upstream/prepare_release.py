@@ -6,6 +6,9 @@ from pathlib import Path
 import re
 import subprocess
 from sync import git_tree, blob, upstream_version
+from recovery_adapters import (
+    site_view_model, base_loader, ok_http, ok_dns, img_util, ok_glide,
+)
 
 
 def one(s, a, b):
@@ -210,6 +213,19 @@ def prepare(root,upstream,target,report):
     tests=root/"catvod/src/test/java/com/github/catvod/net/OkProxySelectorTest.java"
     if not tests.exists(): raise ValueError("Fork proxy regression suite missing")
     additions["catvod/src/test/java/com/github/catvod/net/OkProxySelectorTest.java"]=tests_proxy(tests.read_text())
+    # Regenerate the old fork's recovery hooks from the selected *new*
+    # public FongMi implementations, never carry forward 5.6.3 business code.
+    recovery_hooks = (
+        ("app/src/main/java/com/fongmi/android/tv/model/SiteViewModel.java", site_view_model),
+        ("app/src/main/java/com/fongmi/android/tv/api/loader/BaseLoader.java", base_loader),
+        ("catvod/src/main/java/com/github/catvod/net/OkHttp.java", ok_http),
+        ("catvod/src/main/java/com/github/catvod/net/OkDns.java", ok_dns),
+        ("app/src/main/java/com/fongmi/android/tv/utils/ImgUtil.java", img_util),
+        ("app/src/main/java/com/fongmi/android/tv/utils/OkGlideModule.java", ok_glide),
+    )
+    for filename, transform in recovery_hooks:
+        additions[filename] = transform(original(upstream, tree, filename))
+
     for rel,text in additions.items():
         dest=root/rel
         dest.parent.mkdir(parents=True,exist_ok=True)
