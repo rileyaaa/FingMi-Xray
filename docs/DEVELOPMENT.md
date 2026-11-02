@@ -40,6 +40,13 @@
 
 任何超出上述范围的代码修改，在提交前都应先判断：**这个变化是否是 Xray 或 TV 网络恢复的必要条件？如果不是，默认跟随上游。** 用户允许的例外仅限像已发生的主机名崩溃一样，有明确证据、明显影响实际使用的上游故障；只做最小修补，并在下方登记，不能据理论风险扩展普通业务维护。
 
+### 2026-11-03 安全预检两次失败的真实日志与防重试措施
+
+- [Run #41485689964](https://github.com/rileyaaa/FingMi-Xray/actions/runs/41485689964)：离线 `tests/test-upstream-activity-adapters.py` 的 VOD fixture 缺少 `mVod.onPlaybackServiceReady();`，未开始获取上游；已补完整 fixture、反向回归。手机二维码导入模板的注释包含旧 `PushActivity` 字样，也已移除以符合对应回归合同。
+- [Run #41491400912](https://github.com/rileyaaa/FingMi-Xray/actions/runs/41491400912)：13 组离线测试**全部通过**，紧接着 `Fetch public FongMi/TV baseline and latest` 以退出码 1 停止；日志没有打印出具体失败的 shell 断言，上游 fetch 命令未执行。该 step 含先决条件 `test -z "$(git status --porcelain)"`，而原仓库 `.gitignore` 未排除 Python 自动产生的 `__pycache__/` 和 `*.pyc`；隔离 Git/Python 实验证明这会让 checkout 变脏。属于高可信根因推断，不能把缺少实际状态输出的日志包装成已直接观测。
+- 修复采取双保险：当前 `.gitignore` 和新上游 `build_policy_adapters.gitignore()` 同时忽略 Python 缓存，升级 Actions 全 job 使用 `PYTHONDONTWRITEBYTECODE=1`；新增 `test-upstream-clean-checkout.py` 在隔离 Git 仓库验证「正常 import 产生的缓存也不能弄脏工作树」及「关闭 bytecode 后不生成缓存」，并在每次离线测试前运行。原来静默的 branch/SHA/工作区断言改为输出失败原因和具体脏文件列表，避免浪费 Actions 额度重复试错。
+- **边界：** 以上两次 run 都未执行真实上游 `sync.py` / `prepare_release.py`，更没有运行 Android 编译和发布。除真实日志、隔离回归与静态核对之外，不应宣称完整升级预检已经通过。未经用户授权不得触发新的 AC。
+
 ### 2026-11-02 上游 5.8.7 与通用一键升级 Actions
 
 - 当前已核对公开 `FongMi/TV` 默认 `fongmi` 分支 commit `8626650ebcbc0d028e16d859e826fcf439720f3a`，其源码 `app/build.gradle` 明确为 `5.8.7` / `587`。截至本次修改，**仓库 `main` 业务源码仍为 5.6.3，正式 Release 仍为 `v5.6.3-xray.1`**；已写入的是升级工具和适配策略，不代表 5.8.7 APK 已构建或发布。
