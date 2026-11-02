@@ -58,7 +58,7 @@
 ### 2026-11-02 升级适配静态复查（不消耗 Actions 额度）
 
 - 已通过 GitHub Connector 直接比对已固定的公开 `FongMi/TV@8626650...` 源码和候选生成器：Exo / PlayerManager 的 40 处文字锚点均匹配；进一步检查 Live/VOD、恢复、字幕、弹幕、元数据、设置等实际上游锚点。此证据属于**逐文件静态比对**，不能替代真正运行 `prepare_release.py`、`javac`、Gradle 或设备测试。
-- 消除两项会直接中断升级的旧测试/接线问题：原 `PlaybackService` 同一行 `binding.onReplaced()` 在 5.8.7 的 Activity 接管和媒体库 Browse 两处出现；现按完整语义上下文分别接线，媒体库接管必须在 `player.browse()` 之前解除旧 Xray 代理。原 `SubtitleApi` 搜索/详情具有两条相同请求表达式；改为明确要求恰好两条均通过 Xray。版本合同同时检查 Browse 顺序和两条字幕请求，避免只靠关键方法名放行。
+- 消除两项会直接中断升级的旧测试/接线问题：原 `PlaybackService` 同一行 `binding.onReplaced()` 在 5.8.7 的 Activity 接管和媒体库 Browse 两处出现；现按完整语义上下文分别接线，媒体库接管必须在 `player.browse()` 之前解除旧 Xray 代理。原 `SubtitleApi` 搜索/详情具有两条相同请求表达式；改为明确要求恰好两条均通过 Xray。版本合同同时检查 Browse 顺序和两条字幕请求，避免只靠关键方法名放行。旁路 EPG HTTP 入口也改为大小写不敏感地识别 `http://` / `https://`，避免大写协议的元数据请求被意外丢弃；无效协议仍拒绝。
 - 修正候选适配器的离线测试夹具，使新版 `PlaybackActivity` 的 `onServiceConnected()`、Exo Session 字段缩进和 `PlaybackService` 的 Browse 代码形状与实际生成锚点一致。修正 `test-build-hygiene.py` 的版本门槛：当前 5.6.3 与公开 5.8.7 在 `AudioSetting` 增益上限、`Platform` ABI 初始化上的官方行为不同，不应因为跟随新版上游而被误判为本 Fork 的业务改动。
 - `test-xray-playback-parity.py` 保留 5.6.3 黄金行为的 Xray 专用约束与 JVM identity 验证；依赖旧版播放器源码布局的断言仅用于旧版，新版使用 `verify_playback.REQUIRED_587` 及其新增顺序合同。**本阶段没有运行所有 Python/JVM 用例、Android 编译、两个 ABI APK 或真机验证**，也没有合并 5.8.7 源码或发布新版本；`manual-upstream-sync.yml` 仍仅供手动触发，`apply_to_main` 默认 `false`。
 
