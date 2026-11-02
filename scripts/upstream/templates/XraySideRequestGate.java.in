@@ -98,8 +98,13 @@ public final class XraySideRequestGate {
     /** Cancel Xray requests as well as upstream's ordinary tagged calls. */
     public static void cancel(String tag) {
         PlayerManager current = player;
-        if (current == null) return;
-        OkHttpClient client = current.getPlaybackHttpClient(null);
-        if (client != null) OkHttp.cancel(client, tag);
+        // Upstream always canceled direct tagged requests. A proxy handoff
+        // must cancel BOTH old direct calls and active Xray calls, even when
+        // the activity lost its player binding just before cancellation.
+        if (current != null) {
+            OkHttpClient client = current.getPlaybackHttpClient(null);
+            if (client != null) OkHttp.cancel(client, tag);
+        }
+        OkHttp.cancel(tag);
     }
 }
