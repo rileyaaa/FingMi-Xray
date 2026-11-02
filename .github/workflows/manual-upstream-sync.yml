@@ -68,6 +68,8 @@ jobs:
           python3 tests/test-upstream-live-metadata.py
           python3 tests/test-upstream-xray-resources.py
           python3 tests/test-upstream-activity-adapters.py
+          python3 tests/test-upstream-build-policy.py
+          python3 tests/test-upstream-phone-import.py
 
       - name: Fetch public FongMi/TV baseline and latest
         shell: bash
@@ -130,6 +132,10 @@ jobs:
           python3 tests/test-upstream-xray-resources.py \
             --upstream "$UPSTREAM_DIRECTORY" --target "$UPSTREAM_TARGET"
           python3 tests/test-upstream-activity-adapters.py \
+            --upstream "$UPSTREAM_DIRECTORY" --target "$UPSTREAM_TARGET"
+          python3 tests/test-upstream-build-policy.py \
+            --upstream "$UPSTREAM_DIRECTORY" --target "$UPSTREAM_TARGET"
+          python3 tests/test-upstream-phone-import.py \
             --upstream "$UPSTREAM_DIRECTORY" --target "$UPSTREAM_TARGET"
           python3 scripts/upstream/sync.py \
             --upstream "$UPSTREAM_DIRECTORY" \
