@@ -83,7 +83,8 @@ public final class XraySideRequestGate {
 
     /** Live metadata HTTP is direct normally, but never direct during Xray. */
     public static String string(String url, String tag) {
-        if (url == null || !url.startsWith("http")) return "";
+        if (url == null || !(url.regionMatches(true, 0, "http://", 0, 7)
+                || url.regionMatches(true, 0, "https://", 0, 8))) return "";
         OkHttpClient proxy = activeProxyClient();
         if (proxy == null) return OkHttp.string(url);
         try (Response response = proxy.newCall(new Request.Builder().url(url).tag(tag).build()).execute()) {
