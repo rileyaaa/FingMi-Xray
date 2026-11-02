@@ -1,4 +1,4 @@
-name: Build and publish signed 5.6.3 fork release
+name: Build and publish signed FongMi TV fork release
 
 on:
   workflow_dispatch:
@@ -39,7 +39,7 @@ jobs:
       ALLOW_EXISTING_RELEASE: ${{ inputs.replace_existing }}
       PRUNE_SUPERSEDED: ${{ inputs.prune_superseded }}
       ROLLBACK_TAG: ${{ inputs.rollback_tag }}
-      RELEASE_TAG: "v5.6.3-xray.1"
+      RELEASE_TAG: ""
       BUILD_SOURCE_SHA: ${{ github.sha }}
 
     steps:
@@ -55,6 +55,15 @@ jobs:
       - uses: actions/setup-python@v7
         with:
           python-version: "3.10"
+
+      - name: Bind release tag to checked-out source
+        shell: bash
+        run: |
+          set -euo pipefail
+          release_tag="$(python3 scripts/build/resolve-release-tag.py)"
+          test -n "$release_tag"
+          echo "RELEASE_TAG=$release_tag" >> "$GITHUB_ENV"
+          echo "Verified source release tag: $release_tag"
 
       - name: Run fork source guards
         shell: bash
@@ -77,6 +86,7 @@ jobs:
           python3 scripts/build/check-final-apk-native.py --self-test
           python3 scripts/build/check-final-apk-manifest.py --self-test
           python3 tests/test-build-hygiene.py
+          python3 tests/test-resolve-release-tag.py
           python3 tests/test-release-publication.py
           python3 tests/test-resume-verified-release.py
           python3 tests/test-media3-dex-linkage.py
@@ -402,7 +412,7 @@ jobs:
         if: failure()
         uses: actions/upload-artifact@v7
         with:
-          name: fingmi-xray-5.6.3-build-failure-reports
+          name: fingmi-xray-build-failure-reports
           path: |
             app/build/reports/
             **/build/reports/
