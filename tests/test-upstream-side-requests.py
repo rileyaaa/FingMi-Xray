@@ -63,6 +63,9 @@ assert "XraySideRequestGate.usePlaybackTransport(" in s
 assert "ApiCallback.post(requestId, REQUEST_ID" in s
 assert "XraySideRequestGate.cancel(TAG);" in s
 reject(subtitle_api,SUBTITLE.replace("download != task","download == task"))
+# Only the two official call sites are permitted, so future drift fails closed.
+reject(subtitle_api,SUBTITLE.replace(
+    "return OkHttp.newCall(builder.build().toString(), TAG);", "return Other.newCall();", 1))
 
 DOWNLOAD='''public final class Download {
     private Call.Factory factory;
@@ -84,6 +87,13 @@ SERVICE='''import com.fongmi.android.tv.bean.History;
 class PlaybackService {
     void claimBinding() {
         if (binding != null) binding.onReplaced().run();
+        binding = new ActivityBinding(owner, onReplaced);
+    }
+    private boolean setBrowseItem(MediaItem item, long startPositionMs) {
+        if (!player.browse(result, item.mediaId, item.mediaMetadata, startPositionMs)) return false;
+        if (binding != null) binding.onReplaced().run();
+        binding = null;
+        return true;
     }
     private PlayerManager player;
     public void onCreate() {
@@ -106,13 +116,22 @@ assert sr.count("SubtitleApi.cancel();")==2
 assert "XrayArtworkBitmapLoader(player, new ArtworkBitmapLoader(this))" in sr
 assert "@Override\n    @Override" not in sr
 assert "onXrayTransitionStarted()" in sr
-assert "player.clearPlaybackProxyPreservingState();" in sr
+assert sr.count("player.clearPlaybackProxyPreservingState();") == 2
+# A media-library browse takeover starts playback synchronously. Never
+# allow new media to inherit the old activity's Xray transport.
+browse_section = sr.split("private boolean setBrowseItem(", 1)[1]
+assert browse_section.index("player.clearPlaybackProxyPreservingState();") < browse_section.index(
+    "if (!player.browse(")
+assert "if (!hadXray && binding != null) binding.onReplaced().run();" in browse_section
 assert "XraySideRequestGate.cancelRemoteDownloads();" in sr
 assert "OkHttp.cancel(LiveApi.METADATA_TAG);" in sr
 assert "XraySideRequestGate.cancelRemoteDownloads();" in sr
 assert "liveMetadata = new LiveMetadata(player, library)" in sr
 reject(playback_service,SERVICE.replace("setBitmapLoader(new ArtworkBitmapLoader(this))",
                                       "setBitmapLoader(new OtherBitmapLoader(this))"))
+reject(playback_service,SERVICE.replace(
+    "if (!player.browse(result, item.mediaId, item.mediaMetadata, startPositionMs)) return false;",
+    "if (player.browse(result, item.mediaId, item.mediaMetadata, startPositionMs)) return true;"))
 
 parser=argparse.ArgumentParser()
 parser.add_argument("--upstream",type=Path)
