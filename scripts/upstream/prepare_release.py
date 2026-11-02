@@ -175,7 +175,7 @@ def metadata(root,old_tag,tag,new_upstream,code,upsha):
     s=re.sub(r"当前 "+tick+r"main"+tick+r" 以 FongMi/TV \d+\.\d+\.\d+（"+tick+r"[a-f0-9]{40}"+tick+r"）",
              "当前 "+tick+"main"+tick+" 以 FongMi/TV "+new_upstream+"（"+tick+upsha+tick+"）",s,count=1)
     s=re.sub(r"当前正式版为 "+tick+r"v\d+\.\d+\.\d+-xray\.\d+"+tick+r" / "+tick+r"\d+"+tick,
-             "当前正式版为 "+tick+tag+tick+" / "+tick+str(code)+tick,s,count=1)
+             "当前源码版本配置： "+tick+tag+tick+" / "+tick+str(code)+tick+"；正式 APK 以 GitHub Releases/latest 为准",s,count=1)
     readme.write_text(s)
     dev=root/"docs/DEVELOPMENT.md"
     s=dev.read_text()
