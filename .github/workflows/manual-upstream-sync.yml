@@ -60,6 +60,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          python3 tests/test-upstream-clean-checkout.py
           python3 tests/test-upstream-sync.py
           python3 tests/test-upstream-prepare.py
           python3 tests/test-upstream-recovery-adapters.py
