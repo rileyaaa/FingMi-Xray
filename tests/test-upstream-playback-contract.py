@@ -43,7 +43,32 @@ except ValueError:
 # Xray or side-request hook disappears, even in a newer upstream component.
 candidate = {name: "\n".join(anchors)
              for name, anchors in policy.REQUIRED_587.items()}
+service_path = "app/src/main/java/com/fongmi/android/tv/service/PlaybackService.java"
+subtitle_path = "app/src/main/java/com/fongmi/android/tv/api/SubtitleApi.java"
+browse_order = """private boolean setBrowseItem() {
+    player.clearPlaybackProxyPreservingState();
+    if (!player.browse(result)) return false;
+    if (!hadXray && binding != null) binding.onReplaced().run();
+}
+private void redirectPush() {}
+"""
+candidate[service_path] += "\n" + browse_order
+subtitle_call = "return XraySideRequestGate.newCall(builder.build().toString(), TAG);"
+candidate[subtitle_path] += "\n" + (subtitle_call + "\n") * 2
 assert policy.audit(candidate, policy.REQUIRED_587) == []
+
+# Altering the takeover order is a network-identity leak even when all
+# required method names still appear elsewhere in the source.
+bad_order = dict(candidate)
+bad_order[service_path] = bad_order[service_path].replace(
+    "    player.clearPlaybackProxyPreservingState();\n    if (!player.browse(result))",
+    "    if (!player.browse(result)) return false;\n    player.clearPlaybackProxyPreservingState();\n    if (false)")
+assert any("BEFORE browse" in reason
+           for reason in policy.audit(bad_order, policy.REQUIRED_587))
+one_subtitle = dict(candidate)
+one_subtitle[subtitle_path] = one_subtitle[subtitle_path].replace(subtitle_call, "", 1)
+assert any("both subtitle" in reason
+           for reason in policy.audit(one_subtitle, policy.REQUIRED_587))
 for path, anchors in policy.REQUIRED_587.items():
     for needle in anchors:
         broken = dict(candidate)
