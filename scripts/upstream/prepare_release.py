@@ -112,6 +112,10 @@ def tests_proxy(s):
         begin=i+len(prefix)
         parts.append(s[pos:begin])
         rest=s[begin:]
+        if rest.startswith("okhttp3.HttpUrl.get(") or rest.startswith("HttpUrl.get("):
+            # Already adapted after an earlier successful upstream upgrade.
+            pos=begin
+            continue
         if rest.startswith("new URI("):
             end=rest.find(")",len("new URI("))
             if end<0 or rest[end+1:end+2]!=",": raise ValueError("Unexpected URI test")
