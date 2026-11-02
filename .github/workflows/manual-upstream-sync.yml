@@ -63,6 +63,8 @@ jobs:
           python3 tests/test-upstream-xray-adapters.py
           python3 tests/test-upstream-exo-adapters.py
           python3 tests/test-upstream-xray-auth.py
+          python3 tests/test-upstream-side-requests.py
+          python3 tests/test-upstream-side-gate.py
 
       - name: Fetch public FongMi/TV baseline and latest
         shell: bash
@@ -117,6 +119,8 @@ jobs:
           # Check the actual public Exo APIs even when an unrelated file
           # will later stop the full three-way merge. No APK work here.
           python3 tests/test-upstream-exo-adapters.py \
+            --upstream "$UPSTREAM_DIRECTORY" --target "$UPSTREAM_TARGET"
+          python3 tests/test-upstream-side-requests.py \
             --upstream "$UPSTREAM_DIRECTORY" --target "$UPSTREAM_TARGET"
           python3 scripts/upstream/sync.py \
             --upstream "$UPSTREAM_DIRECTORY" \
