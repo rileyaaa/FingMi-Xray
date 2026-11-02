@@ -139,12 +139,6 @@ require(
 
 require(
     "app/src/main/java/com/fongmi/android/tv/player/exo/ExoMediaSourceFactory.java",
-    "private static boolean isBlank(String value)",
-    "Character.isWhitespace(codePoint)",
-    '"file".equalsIgnoreCase(scheme)',
-    '"content".equalsIgnoreCase(scheme)',
-    '"android.resource".equalsIgnoreCase(scheme)',
-    "Unsupported data source scheme while Xray is enabled",
     'if ("rtsp".equalsIgnoreCase(scheme) || "rtspt".equalsIgnoreCase(scheme))',
     ".setSocketFactory(proxy.rtspSocketFactory())",
     "DefaultDrmSessionManagerProvider drm = new DefaultDrmSessionManagerProvider();",
@@ -152,7 +146,19 @@ require(
     "factory.setDrmSessionManagerProvider(drm);",
     "new OkHttpDataSource.Factory(proxy == null ? OkHttp.player() : proxy.client())",
     "dataSourceFactory = proxy == null",
-    "new GuardedPlaybackDataSource(upstream.createDataSource())",
+    "new XrayGuardedPlaybackDataSource(upstream.createDataSource())",
+)
+
+require(
+    "app/src/main/java/com/fingmi/integration/xray/XrayGuardedPlaybackDataSource.java",
+    "private static boolean isBlank(String value)",
+    "Character.isWhitespace(codePoint)",
+    '"file".equalsIgnoreCase(scheme)',
+    '"content".equalsIgnoreCase(scheme)',
+    '"android.resource".equalsIgnoreCase(scheme)',
+    "Unsupported data source scheme while Xray is enabled",
+    "opened = true;",
+    "delegate.close();",
 )
 
 require(

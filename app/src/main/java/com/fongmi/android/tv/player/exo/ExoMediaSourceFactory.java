@@ -5,8 +5,6 @@ import androidx.media3.common.C;
 import androidx.media3.common.MediaItem;
 import androidx.media3.database.StandaloneDatabaseProvider;
 import androidx.media3.datasource.DataSource;
-import androidx.media3.datasource.DataSpec;
-import androidx.media3.datasource.TransferListener;
 import androidx.media3.datasource.DefaultDataSource;
 import androidx.media3.datasource.HttpDataSource;
 import androidx.media3.datasource.cache.Cache;
@@ -28,9 +26,8 @@ import androidx.media3.extractor.ts.TsExtractor;
 
 import com.fongmi.android.tv.App;
 import com.fingmi.xray.network.XrayHttpClient;
+import com.fingmi.integration.xray.XrayGuardedPlaybackDataSource;
 import android.net.Uri;
-import java.io.IOException;
-import java.util.List;
 import com.fongmi.android.tv.setting.PreloadSetting;
 import com.github.catvod.net.OkHttp;
 import com.github.catvod.utils.Path;
@@ -165,7 +162,7 @@ public class ExoMediaSourceFactory implements MediaSource.Factory {
             DataSource.Factory upstream = new DefaultDataSource.Factory(App.get(), getHttpDataSourceFactory());
             dataSourceFactory = proxy == null
                     ? () -> getCacheDataSource(upstream).createDataSource()
-                    : () -> new GuardedPlaybackDataSource(upstream.createDataSource());
+                    : () -> new XrayGuardedPlaybackDataSource(upstream.createDataSource());
         }
         return dataSourceFactory;
     }
@@ -177,78 +174,5 @@ public class ExoMediaSourceFactory implements MediaSource.Factory {
     private HttpDataSource.Factory getHttpDataSourceFactory() {
         if (httpDataSourceFactory == null) httpDataSourceFactory = new OkHttpDataSource.Factory(proxy == null ? OkHttp.player() : proxy.client());
         return httpDataSourceFactory;
-    }
-
-    /**
-     * HTTP(S) uses the session proxy; Android/local resource schemes stay
-     * local. Other generic schemes are rejected. RTSP/RTSPT are handled by
-     * the dedicated Xray RTSP factory above.
-     */
-    private static final class GuardedPlaybackDataSource implements DataSource {
-        private final DataSource delegate;
-        private boolean opened;
-
-        GuardedPlaybackDataSource(DataSource delegate) {
-            this.delegate = delegate;
-        }
-
-        @Override
-        public void addTransferListener(TransferListener listener) {
-            delegate.addTransferListener(listener);
-        }
-
-        @Override
-        public long open(DataSpec dataSpec) throws IOException {
-            String scheme = dataSpec.uri.getScheme();
-            if (!isAllowed(scheme)) {
-                throw new IOException("Unsupported data source scheme while Xray is enabled");
-            }
-            opened = true;
-            return delegate.open(dataSpec);
-        }
-
-        @Override
-        public int read(byte[] buffer, int offset, int length) throws IOException {
-            return delegate.read(buffer, offset, length);
-        }
-
-        @Override
-        public Uri getUri() {
-            return delegate.getUri();
-        }
-
-        @Override
-        public Map<String, List<String>> getResponseHeaders() {
-            return delegate.getResponseHeaders();
-        }
-
-        @Override
-        public void close() throws IOException {
-            if (!opened) return;
-            opened = false;
-            delegate.close();
-        }
-
-        private static boolean isAllowed(String scheme) {
-            if (isBlank(scheme)) return true;
-            return "http".equalsIgnoreCase(scheme)
-                    || "https".equalsIgnoreCase(scheme)
-                    || "file".equalsIgnoreCase(scheme)
-                    || "asset".equalsIgnoreCase(scheme)
-                    || "content".equalsIgnoreCase(scheme)
-                    || "data".equalsIgnoreCase(scheme)
-                    || "rawresource".equalsIgnoreCase(scheme)
-                    || "android.resource".equalsIgnoreCase(scheme);
-        }
-
-        private static boolean isBlank(String value) {
-            if (value == null) return true;
-            for (int offset = 0; offset < value.length();) {
-                int codePoint = value.codePointAt(offset);
-                if (!Character.isWhitespace(codePoint)) return false;
-                offset += Character.charCount(codePoint);
-            }
-            return true;
-        }
     }
 }
