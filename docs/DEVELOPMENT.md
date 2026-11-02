@@ -53,6 +53,8 @@
 
 当前已针对新版 `SiteViewModel` 结果取消接口、`BaseLoader` 异步 Spider 回调、`OkHttp` API-only reset、`OkDns` DoH 代际、`ImgUtil` transient failure 和 `OkGlideModule` client handoff 增加精确匹配的恢复接线生成器 `scripts/upstream/recovery_adapters.py` 及 `tests/test-upstream-recovery-adapters.py`。这些修补仍只属于新版本迁移**候选逻辑**；已复核官方源码锚点，但未验证完整新 APK 或新源码回归，不能据此将工作流标记为已成功。
 
+**后续维护方式**：通用升级器的第一道安全边界已改为 `scripts/upstream/fork_scope.json` 原始差异分类（14 个接线生成、6 个改用新版上游、38 个三方重放、3 个仓库策略）。`sync.py` 会拒绝未登记的旧版 Fork 源码偏离（即使该文件本次上游未修改），避免误把旧业务补丁传入新版本；`xray_adapters.py` 从新版 Action/设置页/Updater 公共接口生成最小接线。详细状态和 5.8.7 尚未完成的播放路径见 [迁移审计](UPSTREAM_5_8_7_MIGRATION_AUDIT.md)。这些工具改动尚未经过新版完整 AC/双 ABI APK 验证，不得改称升级成功。
+
 ### 已登记的上游业务修复（升级前必读）
 
 **当前只有一项上游业务补丁：`OkProxySelector.Policy` 空主机名崩溃，用户于 2026-10-11 明确授权。**
