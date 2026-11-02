@@ -32,6 +32,7 @@ z=playback_activity(BASE)
 assert z.count("onXrayBindingReplaced();")==1
 assert "protected void onXrayBindingReplaced()" in z
 assert "protected final void clearXrayDanmakuSource()" in z
+assert "public void onXrayEngineChanged()" in z
 assert "mService.claimBinding(getNavigationCallback(), this::onPlaybackReplaced);" in z
 refuse(playback_activity, BASE.replace("playbackReplaced = true;",
                                        "playbackReplaced = false;"))
@@ -94,6 +95,7 @@ for needle in ('new XrayPlaybackSession(this, OkHttp.player()', 'mXray.enableFor
     assert needle in z,needle
 assert "startPlayer(mPlaybackKey, result, false, getHome().getTimeout(), position, metadata);" in z
 assert "isWebPlaybackActive()" in z
+assert "public void onXrayEngineChanged()" in z
 refuse(live_activity,LIVE.replace("renderChannelSelection(Channel channel)",
                                   "renderOtherSelection(Channel channel)"))
 
@@ -139,6 +141,7 @@ for needle in ("new XrayPlaybackSession(this, OkHttp.player()",
     assert needle in z,needle
 assert "stopWebPlayback();" in z
 assert "isWebPlaybackActive()" in z
+assert "public void onXrayEngineChanged()" in z
 assert "getPlayerView().setDanmakuSource(null)" not in z
 refuse(video_activity,VOD.replace("stopPlaybackForRefresh()","stopSourceForRefresh()"))
 

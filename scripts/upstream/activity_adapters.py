@@ -38,7 +38,13 @@ def live_activity(s):
         "        mBinding.control.action.xray.setOnClickListener(view -> onXray());",
         "Live on-screen button")
     s=one(s,"    private void onPlayer() {\n        PlayerEngineDialog.show(this);",
-        """    private void initXrayPlayback() {
+        """    @Override
+    public void onXrayEngineChanged() {
+        mXrayPendingStart = false;
+        if (mXray != null) mXray.begin("live:" + ++mXrayEpoch);
+    }
+
+    private void initXrayPlayback() {
         mXray = new XrayPlaybackSession(this, OkHttp.player(), new XrayPlaybackSession.Listener() {
             @Override
             public void onProxyChanged(XrayHttpClient resources, boolean preservePlayback) {
@@ -153,6 +159,7 @@ def live_activity(s):
                      "mViewModel.cancelXrayMetadataRequests();",
                      "clearXrayDanmakuSource();",
                      "isWebPlaybackActive()",
+                     "onXrayEngineChanged()",
                      "mChannelAdapter.setXrayLogoSuppressed(resources != null);",
                      "mBinding.control.action.xray.setOnClickListener(view -> onXray());",
                      "startPlayer(mPlaybackKey, result, false, getHome().getTimeout(), position, metadata);",
@@ -186,7 +193,12 @@ def video_activity(s):
         "        mBinding.control.action.xray.setOnClickListener(view -> onXray());",
         "VOD button")
     s=one(s,"    private void onPlayer() {\n        PlayerEngineDialog.show(this);",
-        """    private void initXrayPlayback() {
+        """    @Override
+    public void onXrayEngineChanged() {
+        resetXrayForPlaybackChange();
+    }
+
+    private void initXrayPlayback() {
         mXray = new XrayPlaybackSession(this, OkHttp.player(), new XrayPlaybackSession.Listener() {
             @Override
             public void onProxyChanged(XrayHttpClient resources, boolean preservePlayback) {
@@ -292,6 +304,7 @@ def video_activity(s):
                      "mViewModel.cancelXrayTransitionRequests();",
                      "clearXrayDanmakuSource();",
                      "isWebPlaybackActive()",
+                     "onXrayEngineChanged()",
                      "new XrayPlaybackSession(this, OkHttp.player()",
                      "if (mXray != null) mXray.close();"):
         if required not in s:

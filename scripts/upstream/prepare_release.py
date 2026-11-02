@@ -18,6 +18,7 @@ from live_ui_adapters import channel_adapter
 from xray_resources import xray_strings, xray_control_layout
 from playback_activity_adapter import playback_activity, video_view_model
 from activity_adapters import live_activity, video_activity
+from engine_dialog_adapter import player_engine_dialog
 
 
 def one(s, a, b):
@@ -305,6 +306,7 @@ def prepare(root,upstream,target,report):
         ("app/src/main/java/com/fongmi/android/tv/model/VideoViewModel.java", video_view_model),
         ("app/src/leanback/java/com/fongmi/android/tv/ui/activity/LiveActivity.java", live_activity),
         ("app/src/leanback/java/com/fongmi/android/tv/ui/activity/VideoActivity.java", video_activity),
+        ("app/src/main/java/com/fongmi/android/tv/ui/dialog/PlayerEngineDialog.java", player_engine_dialog),
     )
     for filename, transform in ui_hooks:
         additions[filename] = transform(original(upstream, tree, filename))

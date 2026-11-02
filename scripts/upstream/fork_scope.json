@@ -211,7 +211,7 @@
       "scope": "xray"
     },
     "app/src/main/java/com/fongmi/android/tv/ui/dialog/PlayerEngineDialog.java": {
-      "strategy": "rebase",
+      "strategy": "generate",
       "scope": "xray"
     },
     "app/src/main/java/com/fongmi/android/tv/ui/dialog/SubtitleSearchDialog.java": {
