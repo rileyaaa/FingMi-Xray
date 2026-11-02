@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="color-scheme" content="dark">
+<title>Xray · 傳送節點到電視</title>
+<style>
+  :root{font-family:system-ui,-apple-system,sans-serif;color-scheme:dark;background:#121821;color:#eff4fa}
+  body{max-width:38rem;margin:0 auto;padding:clamp(1rem,5vw,2rem)}
+  h1{font-size:1.65rem}p{line-height:1.65;color:#acb9c9}
+  label{display:block;margin:1rem 0 .5rem;font-weight:600}
+  textarea{box-sizing:border-box;width:100%;min-height:9rem;padding:1rem;border:1px solid #46566b;border-radius:.75rem;background:#1a2533;color:#fff;font:inherit;resize:vertical}
+  button{width:100%;margin-top:1rem;padding:.9rem;border:0;border-radius:.75rem;color:#fff;background:#2563eb;font:inherit;font-weight:600;cursor:pointer}
+  button:disabled{opacity:.55}#status{min-height:2rem;font-weight:600}
+</style>
+</head>
+<body>
+<main>
+<h1>Xray · 傳送節點到電視</h1>
+<p>此頁面來自電視上的 FingMi-Xray。請確保手機與電視在可信任的同一個區域網路中。</p>
+<form id="send" autocomplete="off">
+<label for="xray_link">分享連結（VLESS、VMess、Trojan、Shadowsocks、Hysteria2）</label>
+<textarea id="xray_link" name="xray_link" required autocapitalize="off" spellcheck="false" autocomplete="off" placeholder="貼上 Xray 分享連結"></textarea>
+<button id="action_xray" type="submit">發送到電視</button>
+</form>
+<p id="status" role="status" aria-live="polite"></p>
+</main>
+<script>
+"use strict";
+const form=document.getElementById("send");
+const link=document.getElementById("xray_link");
+const button=document.getElementById("action_xray");
+const status=document.getElementById("status");
+form.addEventListener("submit",async event=>{
+  event.preventDefault();
+  const value=link.value.trim();
+  if(!value)return;
+  button.disabled=true;
+  status.textContent="正在傳送…";
+  try{
+    const response=await fetch("/action",{
+      method:"POST",
+      headers:{"Content-Type":"application/x-www-form-urlencoded;charset=UTF-8"},
+      body:new URLSearchParams({do:"xray",link:value}).toString()
+    });
+    if(!response.ok)throw new Error("HTTP "+response.status);
+    link.value="";
+    status.textContent="已傳送，請在電視確認匯入結果。";
+  }catch(error){
+    status.textContent="傳送失敗，請確認電視與手機的區域網路連線。";
+  }finally{
+    button.disabled=false;
+  }
+});
+</script>
+</body>
+</html>
