@@ -16,6 +16,14 @@ def playback_activity(s):
     /** Stop old Xray sessions when another screen claims this playback. */
     protected void onXrayBindingReplaced() {
     }""","Xray owner callback declaration")
+    s=one(s,"    private void setDanmakuSource(@Nullable Uri uri) {",
+        """    /** Clear both modern upstream LiveDanmaku and DanmakuController. */
+    protected final void clearXrayDanmakuSource() {
+        setDanmakuSource(null);
+    }
+
+    private void setDanmakuSource(@Nullable Uri uri) {""",
+        "5.8.7 official media source owner")
     s=one(s,
         "    private void onPlaybackReplaced() {\n        playbackReplaced = true;",
         "    private void onPlaybackReplaced() {\n        playbackReplaced = true;\n"
@@ -24,7 +32,8 @@ def playback_activity(s):
     for key in ("mService.claimBinding(getNavigationCallback(), this::onPlaybackReplaced);",
                 "playbackPlayerState.setValue(null);",
                 "getSeekView().setPlayer(null);",
-                "releasePlaybackService();"):
+                "releasePlaybackService();",
+                "protected final void clearXrayDanmakuSource()"):
         if key not in s:
             raise ValueError("Upstream playback owner behavior changed: "+key)
     return s

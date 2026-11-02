@@ -17,6 +17,7 @@ def refuse(fn,code):
 BASE='''class PlaybackActivity {
     protected void onReclaim() {
     }
+    private void setDanmakuSource(@Nullable Uri uri) {}
     private void onPlaybackReplaced() {
         playbackReplaced = true;
     }
@@ -30,6 +31,7 @@ BASE='''class PlaybackActivity {
 z=playback_activity(BASE)
 assert z.count("onXrayBindingReplaced();")==1
 assert "protected void onXrayBindingReplaced()" in z
+assert "protected final void clearXrayDanmakuSource()" in z
 assert "mService.claimBinding(getNavigationCallback(), this::onPlaybackReplaced);" in z
 refuse(playback_activity, BASE.replace("playbackReplaced = true;",
                                        "playbackReplaced = false;"))
@@ -88,7 +90,7 @@ for needle in ('new XrayPlaybackSession(this, OkHttp.player()', 'mXray.enableFor
                'mXray.begin("live:" + ++mXrayEpoch);','setXrayLogoSuppressed(resources != null)',
                'protected void onXrayBindingReplaced()', 'mXray.mediaUrlChanged(result.getRealUrl())',
                'mBinding.control.action.xray.setOnClickListener(view -> onXray());',
-               'mXray.close();'):
+               'mXray.close();','clearXrayDanmakuSource();'):
     assert needle in z,needle
 assert "startPlayer(mPlaybackKey, result, false, getHome().getTimeout(), position, metadata);" in z
 refuse(live_activity,LIVE.replace("renderChannelSelection(Channel channel)",
@@ -131,10 +133,11 @@ z=video_activity(VOD)
 for needle in ("new XrayPlaybackSession(this, OkHttp.player()",
                "mViewModel.cancelXrayTransitionRequests();","resetXrayForPlaybackChange()",
                "mXray.mediaUrlChanged(result.getRealUrl());","mXray.enable()",
-               'mXray.begin("vod:" + ++mXrayEpoch);',"mXray.close();",
+               'mXray.begin("vod:" + ++mXrayEpoch);',"mXray.close();","clearXrayDanmakuSource();",
                "mBinding.control.action.xray.setOnClickListener(view -> onXray());"):
     assert needle in z,needle
 assert "stopWebPlayback();" in z
+assert "getPlayerView().setDanmakuSource(null)" not in z
 refuse(video_activity,VOD.replace("stopPlaybackForRefresh()","stopSourceForRefresh()"))
 
 parser=argparse.ArgumentParser()

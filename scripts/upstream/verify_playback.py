@@ -181,6 +181,7 @@ REQUIRED_587 = {
         "player().clearPlaybackProxyPreservingState()",
         "mXray.mediaUrlChanged(result.getRealUrl())",
         "mViewModel.cancelXrayMetadataRequests();",
+        "clearXrayDanmakuSource();",
         "mChannelAdapter.setXrayLogoSuppressed(resources != null)",
         "protected void onXrayBindingReplaced()",
         'mBinding.control.action.xray.setOnClickListener(view -> onXray());',
@@ -190,6 +191,7 @@ REQUIRED_587 = {
         "player().setPlaybackProxy(",
         "player().hasXraySession()",
         "mViewModel.cancelXrayTransitionRequests();",
+        "clearXrayDanmakuSource();",
         "resetXrayForPlaybackChange();",
         "mXray.mediaUrlChanged(result.getRealUrl())",
         "protected void onXrayBindingReplaced()",
@@ -198,6 +200,7 @@ REQUIRED_587 = {
     "app/src/main/java/com/fongmi/android/tv/ui/activity/PlaybackActivity.java": (
         "protected void onXrayBindingReplaced()",
         "onXrayBindingReplaced();",
+        "protected final void clearXrayDanmakuSource()",
         "mService.claimBinding(getNavigationCallback(), this::onPlaybackReplaced);",
     ),
     "app/src/main/java/com/fongmi/android/tv/model/VideoViewModel.java": (
