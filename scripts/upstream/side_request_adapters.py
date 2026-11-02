@@ -102,7 +102,7 @@ def playback_service(s):
         XraySideRequestGate.unbind(player);
         running = false;""",
         "service exit session cleanup")
-    s=one(s,"    public void onPlayerRebuild(Player newPlayer) {",
+    s=one(s,"    @Override\n    public void onPlayerRebuild(Player newPlayer) {",
         """    @Override
     public void onXrayTransitionStarted() {
         // Called while PlayerManager still exposes the old proxy.
@@ -112,6 +112,7 @@ def playback_service(s):
         if (xrayBitmapLoader != null) xrayBitmapLoader.cancelRemoteLoads();
     }
 
+    @Override
     public void onPlayerRebuild(Player newPlayer) {""",
         "service Xray switching callback")
     for required in ("liveMetadata = new LiveMetadata(player, library)",
