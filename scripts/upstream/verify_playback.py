@@ -106,6 +106,8 @@ REQUIRED_587 = {
         "XraySideRequestGate.bind(player);",
         "XraySideRequestGate.unbind(player);",
         "onXrayTransitionStarted()",
+        "OkHttp.cancel(LiveApi.METADATA_TAG);",
+        "XraySideRequestGate.cancelRemoteDownloads();",
         "DanmakuApi.cancel();",
         "SubtitleApi.cancel();",
         "xrayBitmapLoader.cancelRemoteLoads();",
@@ -127,10 +129,15 @@ REQUIRED_587 = {
         "factory.newCall(request)",
     ),
     "app/src/main/java/com/fongmi/android/tv/api/LiveApi.java": (
-        "XraySideRequestGate.newCall(",
+        "XraySideRequestGate.string(",
     ),
     "app/src/main/java/com/fongmi/android/tv/api/parser/EpgParser.java": (
         "XraySideRequestGate.usePlaybackTransport(",
+    ),
+    "app/src/main/java/com/fongmi/android/tv/model/LiveViewModel.java": (
+        "cancelXrayMetadataRequests()",
+        "tasks.cancel(TaskType.EPG);",
+        "tasks.cancel(TaskType.XML);",
     ),
     # UI session ownership and request cancellation are not yet ported: a
     # prospective 5.8.7 build must STOP here even with all Exo helpers present.

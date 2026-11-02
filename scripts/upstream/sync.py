@@ -50,6 +50,9 @@ REGENERATED_FILES = {
     "app/src/main/java/com/fongmi/android/tv/api/DanmakuApi.java",
     "app/src/main/java/com/fongmi/android/tv/api/SubtitleApi.java",
     "catvod/src/main/java/com/github/catvod/net/Download.java",
+    "app/src/main/java/com/fongmi/android/tv/api/LiveApi.java",
+    "app/src/main/java/com/fongmi/android/tv/api/parser/EpgParser.java",
+    "app/src/main/java/com/fongmi/android/tv/model/LiveViewModel.java",
 }
 PRESERVED_FILES = {
     "app/proguard-rules-media.pro",

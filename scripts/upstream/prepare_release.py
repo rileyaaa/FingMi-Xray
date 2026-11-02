@@ -13,6 +13,7 @@ from xray_adapters import xray_import_action, disable_upstream_apk_update, setti
 from exo_adapters import media_factory, exo_session, exo_engine, engine_factory
 from player_manager_adapter import player_manager
 from side_request_adapters import playback_service, danmaku_api, subtitle_api, download
+from live_metadata_adapters import live_api, epg_parser, live_view_model
 
 
 def one(s, a, b):
@@ -264,6 +265,9 @@ def prepare(root,upstream,target,report):
         ("app/src/main/java/com/fongmi/android/tv/api/DanmakuApi.java", danmaku_api),
         ("app/src/main/java/com/fongmi/android/tv/api/SubtitleApi.java", subtitle_api),
         ("catvod/src/main/java/com/github/catvod/net/Download.java", download),
+        ("app/src/main/java/com/fongmi/android/tv/api/LiveApi.java", live_api),
+        ("app/src/main/java/com/fongmi/android/tv/api/parser/EpgParser.java", epg_parser),
+        ("app/src/main/java/com/fongmi/android/tv/model/LiveViewModel.java", live_view_model),
     )
     for filename, transform in side_request_hooks:
         additions[filename] = transform(original(upstream, tree, filename))

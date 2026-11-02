@@ -103,7 +103,7 @@
       "scope": "xray"
     },
     "app/src/main/java/com/fongmi/android/tv/api/LiveApi.java": {
-      "strategy": "rebase",
+      "strategy": "generate",
       "scope": "xray"
     },
     "app/src/main/java/com/fongmi/android/tv/api/SubtitleApi.java": {
@@ -127,11 +127,11 @@
       "scope": "upstream"
     },
     "app/src/main/java/com/fongmi/android/tv/api/parser/EpgParser.java": {
-      "strategy": "rebase",
+      "strategy": "generate",
       "scope": "xray"
     },
     "app/src/main/java/com/fongmi/android/tv/model/LiveViewModel.java": {
-      "strategy": "rebase",
+      "strategy": "generate",
       "scope": "xray"
     },
     "app/src/main/java/com/fongmi/android/tv/model/SiteViewModel.java": {

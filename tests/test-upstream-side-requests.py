@@ -103,6 +103,8 @@ assert sr.count("SubtitleApi.cancel();")==2
 assert "XrayArtworkBitmapLoader(player, new ArtworkBitmapLoader(this))" in sr
 assert "@Override\n    @Override" not in sr
 assert "onXrayTransitionStarted()" in sr
+assert "OkHttp.cancel(LiveApi.METADATA_TAG);" in sr
+assert "XraySideRequestGate.cancelRemoteDownloads();" in sr
 assert "liveMetadata = new LiveMetadata(player, library)" in sr
 reject(playback_service,SERVICE.replace("setBitmapLoader(new ArtworkBitmapLoader(this))",
                                       "setBitmapLoader(new OtherBitmapLoader(this))"))
