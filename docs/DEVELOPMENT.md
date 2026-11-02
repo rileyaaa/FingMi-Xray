@@ -43,13 +43,15 @@
 ### 2026-11-02 上游 5.8.7 与通用一键升级 Actions
 
 - 当前已核对公开 `FongMi/TV` 默认 `fongmi` 分支 commit `8626650ebcbc0d028e16d859e826fcf439720f3a`，其源码 `app/build.gradle` 明确为 `5.8.7` / `587`。截至本次修改，**仓库 `main` 业务源码仍为 5.6.3，正式 Release 仍为 `v5.6.3-xray.1`**；已写入的是升级工具和适配策略，不代表 5.8.7 APK 已构建或发布。
-- 5.6.3 原始基线到 5.8.7 Git Tree 涉及约 **810 个路径**，其中约 **56 个路径**与 fork 旧改动有交集；多处播放器、Home、网络 API 已重构，构建/真机兼容不能凭三方文本合并认定成功。
+- 5.6.3 原始基线到 5.8.7 Git Tree 涉及约 **810 个路径**，其中约 **56 个路径**与 fork 旧改动有交集（扣除已被专用恢复适配器保护的路径，另有 **47 个潜在合并/语义冲突路径**；详见 [5.8.7 升级阻断审计](UPSTREAM_5_8_7_MIGRATION_AUDIT.md)）；多处播放器、Home、网络 API 已重构，构建/真机兼容不能凭三方文本合并认定成功。
 - 已确认旧 `OkProxySelector.Policy` 空 `URI.getHost()` 崩溃在上游源码得到修复：新版接受 `HttpUrl` 并直接读取规范化 scheme/host/port。升级脚本对该类强制采用**完整公开上游**实现，适配保留的旧回归测试；不再另留平行业务补丁。
 - 新版 Home 用 `pendingAction` + `consumeAction()` 一次消费启动 Intent。适配器从**新版 Home 原文件**生成最小 `FongMiNetworkRecovery` 接线、前台/focus check 和销毁清理；不复制旧 `checkAction(getIntent())`。Xray 去敏安全改进仍属于 `:xray`，原样保留。
-- `.github/workflows/manual-upstream-sync.yml` 是**单个、仅 `workflow_dispatch` 手动入口**。默认 `apply_to_main=true`：从 `scripts/upstream/baseline.json` 固定 commit 与官方最新 commit 做文件级三方合并；遇文本/二进制冲突立即退出，保留日志和短期报告；无冲突后按 `scripts/upstream/prepare_release.py` 对签名、版本、Home、代理测试与普通源码 hash guards 进行上游优先适配，再在 runner **本地**创建候选 commit。
+- `.github/workflows/manual-upstream-sync.yml` 是**单个、仅 `workflow_dispatch` 手动入口**。**当前安全默认 `apply_to_main=false`（仅预检）**；确认全部兼容迁移并获得真实 Actions 编译验证后才可调整为 `true`。显式选择 `true` 时：从 `scripts/upstream/baseline.json` 固定 commit 与官方最新 commit 做文件级三方合并；遇文本/二进制冲突立即退出，保留日志和短期报告；无冲突后按 `scripts/upstream/prepare_release.py` 对签名、版本、Home、代理测试与普通源码 hash guards 进行上游优先适配，再在 runner **本地**创建候选 commit。
 - 同一次 run 复用现有完整正式版编译链：固定签名、Xray/parity、TV 息屏恢复测试、原生库摘要、TV 双 ABI APK、最终 Manifest、Media3/DEX、签名与 16KB 对齐。**所有检查通过并完成 APK staging 后才将候选 source commit 推送 `main`，随后由原发布器验证与发布两份 APK**；只有发布成功才清理过时 Release，永久保留黄金版 `v5.6.0-xray.5`。正式版的新 `versionName` 自动取公开上游版本，`versionCode = upstreamCode × 1000 + revision`，同上游版本再更新则修订号递增。
 - 同一 commit 代码已升级但发布阶段失败时，可再次运行这个一键入口，对已推送但尚未发布的源码重新构建并尝试发布；已存在正式 Release 时拒绝重复消耗构建额度。该恢复方式与原独立手动 `resume-verified-release.yml` 不同；不要把失败 run 当作已发布成功。
 - `apply_to_main=false` 则只在一次性 runner 上合并、输出报告，不运行 Gradle、提交、发布；所有工作流仍不使用 push/schedule 自动触发。新通用脚本已配置离线 fixture 测试，**尚未经过对应新版本的实际 Actions 编译验收**；首次 5.8.7 仍可能因上游重构而 fail-closed，不能承诺任意未来版本绝无冲突。原生/Media3 API 大幅变化时依旧需要人工审查，而不能采用自动覆盖、拼接旧业务代码或跳过回归的方式放行。
+
+当前已针对新版 `SiteViewModel` 结果取消接口、`BaseLoader` 异步 Spider 回调、`OkHttp` API-only reset、`OkDns` DoH 代际、`ImgUtil` transient failure 和 `OkGlideModule` client handoff 增加精确匹配的恢复接线生成器 `scripts/upstream/recovery_adapters.py` 及 `tests/test-upstream-recovery-adapters.py`。这些修补仍只属于新版本迁移**候选逻辑**；已复核官方源码锚点，但未验证完整新 APK 或新源码回归，不能据此将工作流标记为已成功。
 
 ### 已登记的上游业务修复（升级前必读）
 
