@@ -55,6 +55,13 @@
 
 **后续维护方式**：通用升级器的第一道安全边界已改为 `scripts/upstream/fork_scope.json` 原始差异分类（目前 **41 个接线生成（generate）、17 个改用新版上游（upstream）、0 个三方重放（rebase）、3 个仓库策略（project）**，合计 61 个路径；当前计数以 fork_scope.json 为准）。`sync.py` 会拒绝未登记的旧版 Fork 源码偏离（即使该文件本次上游未修改），避免误把旧业务补丁传入新版本；`xray_adapters.py` 从新版 Action/设置页/Updater 公共接口生成最小接线。详细状态和 5.8.7 尚未完成的播放路径见 [迁移审计](UPSTREAM_5_8_7_MIGRATION_AUDIT.md)。这些工具改动尚未经过新版完整 AC/双 ABI APK 验证，不得改称升级成功。
 
+### 2026-11-02 升级适配静态复查（不消耗 Actions 额度）
+
+- 已通过 GitHub Connector 直接比对已固定的公开 `FongMi/TV@8626650...` 源码和候选生成器：Exo / PlayerManager 的 40 处文字锚点均匹配；进一步检查 Live/VOD、恢复、字幕、弹幕、元数据、设置等实际上游锚点。此证据属于**逐文件静态比对**，不能替代真正运行 `prepare_release.py`、`javac`、Gradle 或设备测试。
+- 消除两项会直接中断升级的旧测试/接线问题：原 `PlaybackService` 同一行 `binding.onReplaced()` 在 5.8.7 的 Activity 接管和媒体库 Browse 两处出现；现按完整语义上下文分别接线，媒体库接管必须在 `player.browse()` 之前解除旧 Xray 代理。原 `SubtitleApi` 搜索/详情具有两条相同请求表达式；改为明确要求恰好两条均通过 Xray。版本合同同时检查 Browse 顺序和两条字幕请求，避免只靠关键方法名放行。
+- 修正候选适配器的离线测试夹具，使新版 `PlaybackActivity` 的 `onServiceConnected()`、Exo Session 字段缩进和 `PlaybackService` 的 Browse 代码形状与实际生成锚点一致。修正 `test-build-hygiene.py` 的版本门槛：当前 5.6.3 与公开 5.8.7 在 `AudioSetting` 增益上限、`Platform` ABI 初始化上的官方行为不同，不应因为跟随新版上游而被误判为本 Fork 的业务改动。
+- `test-xray-playback-parity.py` 保留 5.6.3 黄金行为的 Xray 专用约束与 JVM identity 验证；依赖旧版播放器源码布局的断言仅用于旧版，新版使用 `verify_playback.REQUIRED_587` 及其新增顺序合同。**本阶段没有运行所有 Python/JVM 用例、Android 编译、两个 ABI APK 或真机验证**，也没有合并 5.8.7 源码或发布新版本；`manual-upstream-sync.yml` 仍仅供手动触发，`apply_to_main` 默认 `false`。
+
 ### 已登记的上游业务修复（升级前必读）
 
 **当前只有一项上游业务补丁：`OkProxySelector.Policy` 空主机名崩溃，用户于 2026-10-11 明确授权。**
