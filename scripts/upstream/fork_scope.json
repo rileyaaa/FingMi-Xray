@@ -99,7 +99,7 @@
       "scope": "fork-self-update-protection"
     },
     "app/src/main/java/com/fongmi/android/tv/api/DanmakuApi.java": {
-      "strategy": "rebase",
+      "strategy": "generate",
       "scope": "xray"
     },
     "app/src/main/java/com/fongmi/android/tv/api/LiveApi.java": {
@@ -107,7 +107,7 @@
       "scope": "xray"
     },
     "app/src/main/java/com/fongmi/android/tv/api/SubtitleApi.java": {
-      "strategy": "rebase",
+      "strategy": "generate",
       "scope": "xray"
     },
     "app/src/main/java/com/fongmi/android/tv/api/loader/BaseLoader.java": {
@@ -199,7 +199,7 @@
       "scope": "xray"
     },
     "app/src/main/java/com/fongmi/android/tv/service/PlaybackService.java": {
-      "strategy": "rebase",
+      "strategy": "generate",
       "scope": "xray"
     },
     "app/src/main/java/com/fongmi/android/tv/ui/activity/PlaybackActivity.java": {

@@ -12,6 +12,7 @@ from recovery_adapters import (
 from xray_adapters import xray_import_action, disable_upstream_apk_update, setting_activity, setting_layout
 from exo_adapters import media_factory, exo_session, exo_engine, engine_factory
 from player_manager_adapter import player_manager
+from side_request_adapters import playback_service, danmaku_api, subtitle_api, download
 
 
 def one(s, a, b):
@@ -254,6 +255,23 @@ def prepare(root,upstream,target,report):
     if "Auth.Context auth" not in bridge or "proxy.client()" not in bridge:
         raise ValueError("Missing guarded Xray 5.8.7 HTTP Auth adapter template")
     additions["app/src/main/java/com/fingmi/integration/xray/XrayPlaybackDataSourceFactory.java"] = bridge
+
+    # PlaybackService owns side-call network identity and remote-artwork
+    # cancellation. Public 5.8.7 subtitle/danmaku APIs keep request IDs
+    # and normal upstream direct-mode behavior unchanged.
+    side_request_hooks = (
+        ("app/src/main/java/com/fongmi/android/tv/service/PlaybackService.java", playback_service),
+        ("app/src/main/java/com/fongmi/android/tv/api/DanmakuApi.java", danmaku_api),
+        ("app/src/main/java/com/fongmi/android/tv/api/SubtitleApi.java", subtitle_api),
+        ("catvod/src/main/java/com/github/catvod/net/Download.java", download),
+    )
+    for filename, transform in side_request_hooks:
+        additions[filename] = transform(original(upstream, tree, filename))
+    side_gate = root / "scripts/upstream/templates/XraySideRequestGate.java.in"
+    gate_source = side_gate.read_text(encoding="utf-8")
+    if "getPlaybackHttpClient(null)" not in gate_source or "usePlaybackTransport(" not in gate_source:
+        raise ValueError("Missing Xray side-request network gate")
+    additions["app/src/main/java/com/fingmi/integration/xray/XraySideRequestGate.java"] = gate_source
 
     # Regenerate the old fork's recovery hooks from the selected *new*
     # public FongMi implementations, never carry forward 5.6.3 business code.

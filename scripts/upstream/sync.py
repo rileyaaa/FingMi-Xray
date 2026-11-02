@@ -45,6 +45,11 @@ REGENERATED_FILES = {
     "app/src/main/java/com/fongmi/android/tv/player/exo/ExoPlayerEngine.java",
     "app/src/main/java/com/fongmi/android/tv/player/engine/PlayerEngineFactory.java",
     "app/src/main/java/com/fongmi/android/tv/player/PlayerManager.java",
+    # PlaybackService-side Xray network identity / old callback cancellation.
+    "app/src/main/java/com/fongmi/android/tv/service/PlaybackService.java",
+    "app/src/main/java/com/fongmi/android/tv/api/DanmakuApi.java",
+    "app/src/main/java/com/fongmi/android/tv/api/SubtitleApi.java",
+    "catvod/src/main/java/com/github/catvod/net/Download.java",
 }
 PRESERVED_FILES = {
     "app/proguard-rules-media.pro",
