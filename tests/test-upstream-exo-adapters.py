@@ -163,7 +163,7 @@ class PlayerManager {
 m=player_manager(manager)
 for marker in ("setPlaybackProxy(XrayHttpClient next, boolean preservePlayback)",
                "clearPlaybackProxyPreservingState()","XrayPlaybackRouting.activeProxy",
-               "if (next != null) callback.onXrayTransitionStarted();",
+               "if (next != null || hasXraySession()) callback.onXrayTransitionStarted();",
                "!hasXraySession() && PreloadSetting.isEnabled()",
                "else if (bound != null) replaceEngine(PlayerEngineFactory.create(listener));"):
     assert marker in m,marker
