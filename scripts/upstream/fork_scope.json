@@ -1,0 +1,258 @@
+{
+  "schema": 1,
+  "upstream_repository": "FongMi/TV",
+  "baseline_commit": "c616c0aa3613e87529791587a9f71b78c278c991",
+  "description": "Reviewed boundaries of original public upstream files modified or removed in the private fork. Fail closed on newly diverged original files.",
+  "strategies": {
+    "generate": "Use selected public upstream file and regenerate only approved Xray/TV recovery/build integration",
+    "upstream": "Discard obsolete fork-only legacy code and follow public upstream exactly",
+    "rebase": "Three-way rebase an existing Xray/TV-related fork edit; stop on merge conflict",
+    "project": "Keep deliberate private-repository policy/document changes outside upstream source sync"
+  },
+  "files": {
+    ".github/workflows/pages.yml": {
+      "strategy": "project",
+      "scope": "repository"
+    },
+    ".gitignore": {
+      "strategy": "rebase",
+      "scope": "build"
+    },
+    "README.md": {
+      "strategy": "project",
+      "scope": "repository"
+    },
+    "app/build.gradle": {
+      "strategy": "generate",
+      "scope": "build"
+    },
+    "app/proguard-rules.pro": {
+      "strategy": "rebase",
+      "scope": "build"
+    },
+    "app/src/leanback/AndroidManifest.xml": {
+      "strategy": "rebase",
+      "scope": "xray"
+    },
+    "app/src/leanback/java/com/fongmi/android/tv/ui/activity/HomeActivity.java": {
+      "strategy": "generate",
+      "scope": "xray"
+    },
+    "app/src/leanback/java/com/fongmi/android/tv/ui/activity/LiveActivity.java": {
+      "strategy": "rebase",
+      "scope": "xray"
+    },
+    "app/src/leanback/java/com/fongmi/android/tv/ui/activity/PushActivity.java": {
+      "strategy": "rebase",
+      "scope": "xray"
+    },
+    "app/src/leanback/java/com/fongmi/android/tv/ui/activity/SettingActivity.java": {
+      "strategy": "rebase",
+      "scope": "xray"
+    },
+    "app/src/leanback/java/com/fongmi/android/tv/ui/activity/VideoActivity.java": {
+      "strategy": "rebase",
+      "scope": "xray"
+    },
+    "app/src/leanback/java/com/fongmi/android/tv/ui/adapter/ChannelAdapter.java": {
+      "strategy": "rebase",
+      "scope": "xray"
+    },
+    "app/src/leanback/res/layout/activity_setting.xml": {
+      "strategy": "rebase",
+      "scope": "xray"
+    },
+    "app/src/leanback/res/layout/view_control_live_action.xml": {
+      "strategy": "rebase",
+      "scope": "xray"
+    },
+    "app/src/leanback/res/layout/view_control_vod_action.xml": {
+      "strategy": "rebase",
+      "scope": "xray"
+    },
+    "app/src/leanback/res/values-zh-rCN/strings.xml": {
+      "strategy": "rebase",
+      "scope": "xray"
+    },
+    "app/src/leanback/res/values-zh-rTW/strings.xml": {
+      "strategy": "rebase",
+      "scope": "xray"
+    },
+    "app/src/leanback/res/values/strings.xml": {
+      "strategy": "rebase",
+      "scope": "xray"
+    },
+    "app/src/main/AndroidManifest.xml": {
+      "strategy": "rebase",
+      "scope": "xray"
+    },
+    "app/src/main/assets/index.html": {
+      "strategy": "rebase",
+      "scope": "xray"
+    },
+    "app/src/main/assets/js/script.js": {
+      "strategy": "rebase",
+      "scope": "xray"
+    },
+    "app/src/main/java/com/fongmi/android/tv/Updater.java": {
+      "strategy": "rebase",
+      "scope": "fork-self-update-protection"
+    },
+    "app/src/main/java/com/fongmi/android/tv/api/DanmakuApi.java": {
+      "strategy": "rebase",
+      "scope": "xray"
+    },
+    "app/src/main/java/com/fongmi/android/tv/api/LiveApi.java": {
+      "strategy": "rebase",
+      "scope": "xray"
+    },
+    "app/src/main/java/com/fongmi/android/tv/api/SubtitleApi.java": {
+      "strategy": "rebase",
+      "scope": "xray"
+    },
+    "app/src/main/java/com/fongmi/android/tv/api/loader/BaseLoader.java": {
+      "strategy": "generate",
+      "scope": "tv-recovery"
+    },
+    "app/src/main/java/com/fongmi/android/tv/api/loader/JarLoader.java": {
+      "strategy": "upstream",
+      "scope": "upstream"
+    },
+    "app/src/main/java/com/fongmi/android/tv/api/loader/JsLoader.java": {
+      "strategy": "upstream",
+      "scope": "upstream"
+    },
+    "app/src/main/java/com/fongmi/android/tv/api/loader/PyLoader.java": {
+      "strategy": "upstream",
+      "scope": "upstream"
+    },
+    "app/src/main/java/com/fongmi/android/tv/api/parser/EpgParser.java": {
+      "strategy": "rebase",
+      "scope": "xray"
+    },
+    "app/src/main/java/com/fongmi/android/tv/model/LiveViewModel.java": {
+      "strategy": "rebase",
+      "scope": "xray"
+    },
+    "app/src/main/java/com/fongmi/android/tv/model/SiteViewModel.java": {
+      "strategy": "generate",
+      "scope": "tv-recovery"
+    },
+    "app/src/main/java/com/fongmi/android/tv/model/VideoViewModel.java": {
+      "strategy": "rebase",
+      "scope": "xray"
+    },
+    "app/src/main/java/com/fongmi/android/tv/model/ViewModelTaskRunner.java": {
+      "strategy": "upstream",
+      "scope": "upstream"
+    },
+    "app/src/main/java/com/fongmi/android/tv/playback/live/LivePlaybackController.java": {
+      "strategy": "rebase",
+      "scope": "xray"
+    },
+    "app/src/main/java/com/fongmi/android/tv/playback/live/LivePlaybackHost.java": {
+      "strategy": "rebase",
+      "scope": "xray"
+    },
+    "app/src/main/java/com/fongmi/android/tv/playback/vod/VodPlaybackController.java": {
+      "strategy": "rebase",
+      "scope": "xray"
+    },
+    "app/src/main/java/com/fongmi/android/tv/playback/vod/VodPlaybackHost.java": {
+      "strategy": "rebase",
+      "scope": "xray"
+    },
+    "app/src/main/java/com/fongmi/android/tv/playback/vod/VodPlaybackMedia.java": {
+      "strategy": "rebase",
+      "scope": "xray"
+    },
+    "app/src/main/java/com/fongmi/android/tv/player/PlayerManager.java": {
+      "strategy": "rebase",
+      "scope": "xray"
+    },
+    "app/src/main/java/com/fongmi/android/tv/player/engine/PlayerEngineFactory.java": {
+      "strategy": "rebase",
+      "scope": "xray"
+    },
+    "app/src/main/java/com/fongmi/android/tv/player/exo/ExoMediaSourceFactory.java": {
+      "strategy": "rebase",
+      "scope": "xray"
+    },
+    "app/src/main/java/com/fongmi/android/tv/player/exo/ExoPlayerEngine.java": {
+      "strategy": "rebase",
+      "scope": "xray"
+    },
+    "app/src/main/java/com/fongmi/android/tv/player/exo/ExoPlayerSession.java": {
+      "strategy": "rebase",
+      "scope": "xray"
+    },
+    "app/src/main/java/com/fongmi/android/tv/player/mpv/MpvPlayerEngine.java": {
+      "strategy": "upstream",
+      "scope": "upstream"
+    },
+    "app/src/main/java/com/fongmi/android/tv/player/mpv/MpvUtil.java": {
+      "strategy": "upstream",
+      "scope": "upstream"
+    },
+    "app/src/main/java/com/fongmi/android/tv/server/process/Action.java": {
+      "strategy": "rebase",
+      "scope": "xray"
+    },
+    "app/src/main/java/com/fongmi/android/tv/service/PlaybackService.java": {
+      "strategy": "rebase",
+      "scope": "xray"
+    },
+    "app/src/main/java/com/fongmi/android/tv/ui/activity/PlaybackActivity.java": {
+      "strategy": "rebase",
+      "scope": "xray"
+    },
+    "app/src/main/java/com/fongmi/android/tv/ui/dialog/DanmakuSearchDialog.java": {
+      "strategy": "rebase",
+      "scope": "xray"
+    },
+    "app/src/main/java/com/fongmi/android/tv/ui/dialog/PlayerEngineDialog.java": {
+      "strategy": "rebase",
+      "scope": "xray"
+    },
+    "app/src/main/java/com/fongmi/android/tv/ui/dialog/SubtitleSearchDialog.java": {
+      "strategy": "rebase",
+      "scope": "xray"
+    },
+    "app/src/main/java/com/fongmi/android/tv/utils/Download.java": {
+      "strategy": "rebase",
+      "scope": "xray"
+    },
+    "app/src/main/java/com/fongmi/android/tv/utils/ImgUtil.java": {
+      "strategy": "generate",
+      "scope": "tv-recovery"
+    },
+    "app/src/main/java/com/fongmi/android/tv/utils/OkGlideModule.java": {
+      "strategy": "generate",
+      "scope": "tv-recovery"
+    },
+    "catvod/src/main/java/com/github/catvod/net/OkDns.java": {
+      "strategy": "generate",
+      "scope": "tv-recovery"
+    },
+    "catvod/src/main/java/com/github/catvod/net/OkHttp.java": {
+      "strategy": "generate",
+      "scope": "tv-recovery"
+    },
+    "catvod/src/main/java/com/github/catvod/net/OkProxySelector.java": {
+      "strategy": "generate",
+      "scope": "upstream-crash-fix"
+    },
+    "catvod/src/test/java/com/github/catvod/net/OkProxySelectorTest.java": {
+      "strategy": "rebase",
+      "scope": "upstream-crash-fix"
+    },
+    "settings.gradle": {
+      "strategy": "generate",
+      "scope": "build"
+    },
+    "website/README.md": {
+      "strategy": "project",
+      "scope": "repository"
+    }
+  }
+}
