@@ -179,6 +179,16 @@ def metadata(root,old_tag,tag,new_upstream,code,upsha):
              "当前 "+tick+"main"+tick+" 以 FongMi/TV "+new_upstream+"（"+tick+upsha+tick+"）",s,count=1)
     s=re.sub(r"当前正式版为 "+tick+r"v\d+\.\d+\.\d+-xray\.\d+"+tick+r" / "+tick+r"\d+"+tick,
              "当前源码版本配置： "+tick+tag+tick+" / "+tick+str(code)+tick+"；正式 APK 以 GitHub Releases/latest 为准",s,count=1)
+    # Keep the current upstream version table synchronized with the APK.
+    old_cell = "| FongMi/TV | **" + old_upstream + "**"
+    new_cell = "| FongMi/TV | **" + new_upstream + "**"
+    if s.count(old_cell) != 1:
+        raise ValueError("README current upstream version table changed")
+    s = s.replace(old_cell, new_cell, 1)
+    row = next((x for x in s.splitlines() if x.startswith(new_cell)), None)
+    if row is None:
+        raise ValueError("README current upstream row missing")
+    s = s.replace(row, new_cell + "（commit " + tick + upsha + tick + "） |", 1)
     readme.write_text(s)
     dev=root/"docs/DEVELOPMENT.md"
     s=dev.read_text()
