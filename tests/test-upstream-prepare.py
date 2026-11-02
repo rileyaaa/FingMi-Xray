@@ -41,6 +41,8 @@ for needle in ("versionCode 587001", 'versionName "v5.8.7-xray.1"',
                "signing/release-signing.properties", "'proguard-rules-media.pro'",
                "implementation project(':xray')", "implementation project(':tv-recovery')"):
     assert needle in converted, needle
+assert "implementation project(':chaquo')" not in converted
+assert "implementation project(':quickjs')" not in converted
 
 HOME = """import android.content.Intent;
 class HomeActivity {
