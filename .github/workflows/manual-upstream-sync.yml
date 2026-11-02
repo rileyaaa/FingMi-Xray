@@ -60,6 +60,7 @@ jobs:
           python3 tests/test-upstream-sync.py
           python3 tests/test-upstream-prepare.py
           python3 tests/test-upstream-recovery-adapters.py
+          python3 tests/test-upstream-xray-adapters.py
 
       - name: Fetch public FongMi/TV baseline and latest
         shell: bash

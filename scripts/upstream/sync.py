@@ -35,6 +35,8 @@ REGENERATED_FILES = {
     "catvod/src/main/java/com/github/catvod/net/OkDns.java",
     "app/src/main/java/com/fongmi/android/tv/utils/ImgUtil.java",
     "app/src/main/java/com/fongmi/android/tv/utils/OkGlideModule.java",
+    "app/src/main/java/com/fongmi/android/tv/Updater.java",
+    "app/src/main/java/com/fongmi/android/tv/server/process/Action.java",
 }
 PRESERVED_FILES = {
     "app/proguard-rules-media.pro",

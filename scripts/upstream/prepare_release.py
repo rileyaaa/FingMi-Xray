@@ -9,6 +9,7 @@ from sync import git_tree, blob, upstream_version
 from recovery_adapters import (
     site_view_model, base_loader, ok_http, ok_dns, img_util, ok_glide,
 )
+from xray_adapters import xray_import_action, disable_upstream_apk_update
 
 
 def one(s, a, b):
@@ -223,6 +224,14 @@ def prepare(root,upstream,target,report):
     tests=root/"catvod/src/test/java/com/github/catvod/net/OkProxySelectorTest.java"
     if not tests.exists(): raise ValueError("Fork proxy regression suite missing")
     additions["catvod/src/test/java/com/github/catvod/net/OkProxySelectorTest.java"]=tests_proxy(tests.read_text())
+    # Fork policy / Xray web import integrations follow the new upstream API;
+    # the APK auto-updater must never overwrite a manually installed Xray build.
+    xray_hooks = (
+        ("app/src/main/java/com/fongmi/android/tv/Updater.java", disable_upstream_apk_update),
+        ("app/src/main/java/com/fongmi/android/tv/server/process/Action.java", xray_import_action),
+    )
+    for filename, transform in xray_hooks:
+        additions[filename] = transform(original(upstream, tree, filename))
     # Regenerate the old fork's recovery hooks from the selected *new*
     # public FongMi implementations, never carry forward 5.6.3 business code.
     recovery_hooks = (

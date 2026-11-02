@@ -95,7 +95,7 @@
       "scope": "xray"
     },
     "app/src/main/java/com/fongmi/android/tv/Updater.java": {
-      "strategy": "rebase",
+      "strategy": "generate",
       "scope": "fork-self-update-protection"
     },
     "app/src/main/java/com/fongmi/android/tv/api/DanmakuApi.java": {
@@ -195,7 +195,7 @@
       "scope": "upstream"
     },
     "app/src/main/java/com/fongmi/android/tv/server/process/Action.java": {
-      "strategy": "rebase",
+      "strategy": "generate",
       "scope": "xray"
     },
     "app/src/main/java/com/fongmi/android/tv/service/PlaybackService.java": {
