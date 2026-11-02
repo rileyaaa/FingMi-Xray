@@ -26,16 +26,22 @@ public final class TestXrayPlaybackRouting {
         check(!XrayPlaybackRouting.hasSession(null,null),"no session");
         check(XrayPlaybackRouting.hasSession(a,null),"requested session");
         check(XrayPlaybackRouting.hasSession(null,a),"engine still active at boundary");
-        check(XrayPlaybackRouting.canReuseEngine(a,a,true,false,false),"reuse exact Exo identity");
-        check(!XrayPlaybackRouting.canReuseEngine(a,b,true,true,false),"cannot reuse different endpoint");
-        check(!XrayPlaybackRouting.canReuseEngine(a,null,true,true,false),"cannot reuse direct engine for Xray");
-        check(!XrayPlaybackRouting.canReuseEngine(a,a,false,true,false),"cannot reuse MPV for Xray");
-        check(!XrayPlaybackRouting.canReuseEngine(a,a,true,true,true),"changed native render config");
-        check(XrayPlaybackRouting.canReuseEngine(null,null,false,true,false),"direct upstream MPV");
-        check(XrayPlaybackRouting.canReuseEngine(null,null,true,true,false),"direct upstream Exo");
-        check(!XrayPlaybackRouting.canReuseEngine(null,a,true,true,false),"direct must unbind Xray");
-        check(!XrayPlaybackRouting.canReuseEngine(null,null,true,false,false),"follow upstream selection");
-        check(!XrayPlaybackRouting.canReuseEngine(null,null,true,true,true),"upstream rebuild gate");
+        check(XrayPlaybackRouting.canReuseEngine(a,a,true,()->false,()->false),"reuse exact Exo identity");
+        check(!XrayPlaybackRouting.canReuseEngine(a,b,true,()->true,()->false),"cannot reuse different endpoint");
+        check(!XrayPlaybackRouting.canReuseEngine(a,null,true,()->true,()->false),"cannot reuse direct engine for Xray");
+        check(!XrayPlaybackRouting.canReuseEngine(a,a,false,()->true,()->false),"cannot reuse MPV for Xray");
+        check(!XrayPlaybackRouting.canReuseEngine(a,a,true,()->true,()->true),"changed native render config");
+        check(XrayPlaybackRouting.canReuseEngine(null,null,false,()->true,()->false),"direct upstream MPV");
+        check(XrayPlaybackRouting.canReuseEngine(null,null,true,()->true,()->false),"direct upstream Exo");
+        check(!XrayPlaybackRouting.canReuseEngine(null,a,true,()->true,()->false),"direct must unbind Xray");
+        check(!XrayPlaybackRouting.canReuseEngine(null,null,true,()->false,()->false),"follow upstream selection");
+        check(!XrayPlaybackRouting.canReuseEngine(null,null,true,()->true,()->true),"upstream rebuild gate");
+        check(!XrayPlaybackRouting.canReuseEngine(a,b,true,
+            ()->{throw new AssertionError("upstream resolution on Xray path");},
+            ()->{throw new AssertionError("rebuild on unmatched Xray");}), "lazy mismatch");
+        check(!XrayPlaybackRouting.canReuseEngine(null,a,true,
+            ()->{throw new AssertionError("upstream should not be selected for bound Xray");},
+            ()->false), "lazy engine-to-direct");
         System.out.println("PASS Xray player identity: strict proxy references, Exo-only and direct upstream routing");
     }
 }"""

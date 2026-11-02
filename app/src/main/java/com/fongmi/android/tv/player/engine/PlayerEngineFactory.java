@@ -40,14 +40,14 @@ public final class PlayerEngineFactory {
 
     public static boolean matches(PlayerEngine engine, PlaySpec spec, XrayHttpClient proxy) {
         if (engine == null) return false;
-        // Keep upstream engine selection independent of the Xray transport.
-        boolean upstreamMatches = proxy == null && engine.getType() == resolve(spec);
+        // Defer upstream resolution and rebuild probing until the proxy
+        // identity matches. This preserves the old engine release ordering.
         return XrayPlaybackRouting.canReuseEngine(
                 proxy,
                 engine instanceof ExoPlayerEngine exo ? exo.proxy() : null,
                 engine instanceof ExoPlayerEngine,
-                upstreamMatches,
-                engine.needsRebuild());
+                () -> engine.getType() == resolve(spec),
+                engine::needsRebuild);
     }
 
     private static PlayerEngine.Type resolve(PlaySpec spec) {

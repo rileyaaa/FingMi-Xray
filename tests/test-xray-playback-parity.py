@@ -135,6 +135,8 @@ require(
     "engineProxy != null ? engineProxy : requestedProxy",
     "return requestedProxy != null || engineProxy != null;",
     "engineProxy == requestedProxy",
+    "BooleanSupplier upstreamEngineMatches",
+    "needsRebuild.getAsBoolean()",
     "engineProxy == null && upstreamEngineMatches",
 )
 

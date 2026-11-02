@@ -1,5 +1,7 @@
 package com.fingmi.integration.xray;
 
+import java.util.function.BooleanSupplier;
+
 /**
  * Identity-only playback routing decisions shared by FongMi engine adapters.
  *
@@ -29,10 +31,11 @@ public final class XrayPlaybackRouting {
             T requestedProxy,
             T engineProxy,
             boolean engineIsExo,
-            boolean upstreamEngineMatches,
-            boolean needsRebuild) {
-        if (needsRebuild) return false;
-        if (requestedProxy != null) return engineIsExo && engineProxy == requestedProxy;
-        return engineProxy == null && upstreamEngineMatches;
+            BooleanSupplier upstreamEngineMatches,
+            BooleanSupplier needsRebuild) {
+        if (requestedProxy != null) {
+            return engineIsExo && engineProxy == requestedProxy && !needsRebuild.getAsBoolean();
+        }
+        return engineProxy == null && upstreamEngineMatches.getAsBoolean() && !needsRebuild.getAsBoolean();
     }
 }
