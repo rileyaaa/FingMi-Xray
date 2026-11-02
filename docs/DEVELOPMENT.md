@@ -13,8 +13,8 @@
 - 上游目标 commit：`c616c0aa3613e87529791587a9f71b78c278c991`
 - 上一固定基线：`4afc4473e22a7ed3d98ee12233e0c2a490061000`（5.6.3）
 - 两者是直接父子 commit；新增 runtime 变化集中在 `catvod` 的 redirect-aware proxy selection/authentication。Release / APK 的更高版本号不改变本项目的公开源码上游基线。
-- app `versionCode`：`563004`
-- app `versionName`：`v5.6.3-xray.4`
+- app `versionCode`：`563001`（当前正式版）
+- app `versionName`：`v5.6.3-xray.1`（当前正式版）
 - Java：21
 - Gradle wrapper：9.7.1
 - Android Gradle Plugin：9.3.1
