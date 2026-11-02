@@ -22,7 +22,7 @@ for path, anchors in policy.REQUIRED.items():
     # combined presence of a media factory or Xray control.
     for needle in anchors:
         modified = dict(sources)
-        modified[path] = sources[path].replace(needle, "", 1)
+        modified[path] = sources[path].replace(needle, "")
         errors = policy.audit(modified)
         assert any(path in e and needle in e for e in errors), f"Lost Xray hook accepted: {path}: {needle}"
 
