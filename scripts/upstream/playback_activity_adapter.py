@@ -28,3 +28,23 @@ def playback_activity(s):
         if key not in s:
             raise ValueError("Upstream playback owner behavior changed: "+key)
     return s
+
+
+def video_view_model(s):
+    s=one(s,"    @Override\n    public void cancelContent() {",
+        """    /** Invalidate any direct-network VOD requests before Xray attach. */
+    public void cancelXrayTransitionRequests() {
+        requestTasks.cancel(TaskType.DETAIL);
+        requestTasks.cancel(TaskType.PLAYBACK);
+        requestTasks.cancel(TaskType.PRELOAD);
+        stopSearch();
+    }
+
+    @Override
+    public void cancelContent() {""","VOD pending direct request cancellation")
+    for key in ("requestTasks.cancel(TaskType.PRELOAD);",
+                "requestTasks.execute(", "stopSearch();",
+                "playbackState.reset();"):
+        if key not in s:
+            raise ValueError("Upstream VOD request generation changed: "+key)
+    return s
