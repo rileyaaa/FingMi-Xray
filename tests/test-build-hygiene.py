@@ -504,6 +504,10 @@ manual_workflow = (ROOT / ".github/workflows/manual-upstream-sync.yml").read_tex
 if 'RELEASE_TAG: ""' not in manual_workflow or (
         'release_tag="$(python3 scripts/build/resolve-release-tag.py)"' not in manual_workflow):
     errors.append("upstream sync must not pin the previous fork release in workflow YAML")
+if ("git status --porcelain -- .github/workflows" not in manual_workflow or
+        manual_workflow.index("git status --porcelain -- .github/workflows") >
+        manual_workflow.index("Rebuild and verify pinned player/native inputs")):
+    errors.append("upstream sync must block workflow modifications before expensive native rebuild")
 for name, workflow in (
     ("current-main-build.yml", current_workflow),
     ("publish-current-main-test-release.yml", publish_workflow),
