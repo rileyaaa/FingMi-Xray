@@ -9,21 +9,23 @@ spec = importlib.util.spec_from_file_location("fingmi_playback_contract", MODULE
 policy = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(policy)
 
-sources = {name: (ROOT / name).read_text(encoding="utf-8")
-           for name in policy.REQUIRED}
-assert policy.audit(sources) == [], "Current-main has already lost Xray wiring"
+gradle = (ROOT / "app/build.gradle").read_text(encoding="utf-8")
+required = policy.required_for_version(gradle)
+sources = {name: (ROOT / name).read_text(encoding="utf-8") if (ROOT / name).is_file() else None
+           for name in required}
+assert policy.audit(sources, required) == [], "Current upstream source has lost Xray wiring"
 
-for path, anchors in policy.REQUIRED.items():
+for path, anchors in required.items():
     # A missing file must be blocked before any native rebuild.
     missing = dict(sources)
     del missing[path]
-    assert any(path in e for e in policy.audit(missing)), f"Lost file accepted: {path}"
+    assert any(path in e for e in policy.audit(missing, required)), f"Lost file accepted: {path}"
     # Every individual required call site must be fail-closed, not just the
     # combined presence of a media factory or Xray control.
     for needle in anchors:
         modified = dict(sources)
         modified[path] = sources[path].replace(needle, "")
-        errors = policy.audit(modified)
+        errors = policy.audit(modified, required)
         assert any(path in e and needle in e for e in errors), f"Lost Xray hook accepted: {path}: {needle}"
 
 
@@ -48,10 +50,11 @@ for path, anchors in policy.REQUIRED_587.items():
         broken[path] = broken[path].replace(needle, "")
         assert any(path in reason and needle in reason
                    for reason in policy.audit(broken, policy.REQUIRED_587)), (path, needle)
-# The current local 5.6.3 source MUST fail the new upstream contract.
-missing_new = {name: (ROOT / name).read_text(encoding="utf-8")
-               if (ROOT / name).is_file() else None
-               for name in policy.REQUIRED_587}
-assert policy.audit(missing_new, policy.REQUIRED_587), "Never accept 5.6.3 as upgraded"
+# A production source tree must never pass the other version's contract by
+# accident: the guard always selects from the actual app version.
+other = policy.REQUIRED_587 if required is policy.REQUIRED else policy.REQUIRED
+other_sources = {name: (ROOT / name).read_text(encoding="utf-8") if (ROOT / name).is_file() else None
+                 for name in other}
+assert policy.audit(other_sources, other), "Different-version playback contract unexpectedly passed"
 
-print(f"PASS Xray integration contract guard: {len(policy.REQUIRED)} real source files and missing-hook cases")
+print(f"PASS Xray integration contract guard: {len(required)} real source files and missing-hook cases")
