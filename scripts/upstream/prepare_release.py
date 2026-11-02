@@ -54,7 +54,7 @@ def gradle(source, tag, code):
         ("storePassword localProps['storePassword']", "storePassword releaseSigning['storePassword']"),
         ("'proguard-rules.pro'", "'proguard-rules.pro', 'proguard-rules-media.pro'"),
         ("    implementation project(':catvod')",
-         "    implementation project(':catvod')\n    implementation project(':chaquo')\n    implementation project(':quickjs')\n    implementation project(':xray')\n    implementation project(':tv-recovery')"),
+         "    implementation project(':catvod')\n    implementation project(':xray')\n    implementation project(':tv-recovery')"),
         ("    coreLibraryDesugaring libs.desugar",
          "    testImplementation 'junit:junit:4.13.2'\n    coreLibraryDesugaring libs.desugar")
     ): s=one(s,a,b)
