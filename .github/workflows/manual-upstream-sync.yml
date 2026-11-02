@@ -59,6 +59,7 @@ jobs:
           set -euo pipefail
           python3 tests/test-upstream-sync.py
           python3 tests/test-upstream-prepare.py
+          python3 tests/test-upstream-recovery-adapters.py
 
       - name: Fetch public FongMi/TV baseline and latest
         shell: bash
