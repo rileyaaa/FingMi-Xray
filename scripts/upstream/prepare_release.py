@@ -11,6 +11,7 @@ from recovery_adapters import (
 )
 from xray_adapters import xray_import_action, disable_upstream_apk_update, setting_activity, setting_layout
 from exo_adapters import media_factory, exo_session, exo_engine, engine_factory
+from player_manager_adapter import player_manager
 
 
 def one(s, a, b):
@@ -242,6 +243,7 @@ def prepare(root,upstream,target,report):
         ("app/src/main/java/com/fongmi/android/tv/player/exo/ExoPlayerSession.java", exo_session),
         ("app/src/main/java/com/fongmi/android/tv/player/exo/ExoPlayerEngine.java", exo_engine),
         ("app/src/main/java/com/fongmi/android/tv/player/engine/PlayerEngineFactory.java", engine_factory),
+        ("app/src/main/java/com/fongmi/android/tv/player/PlayerManager.java", player_manager),
     )
     for filename, transform in exo_hooks:
         additions[filename] = transform(original(upstream, tree, filename))

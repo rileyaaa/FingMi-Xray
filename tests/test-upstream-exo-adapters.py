@@ -5,6 +5,7 @@ from pathlib import Path
 import sys
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]/"scripts/upstream"))
 from exo_adapters import media_factory,exo_session,exo_engine,engine_factory
+from player_manager_adapter import player_manager
 
 def rejects(fn,source):
     try: fn(source)
@@ -115,6 +116,60 @@ assert "XrayPlaybackRouting.canReuseEngine(" in f
 assert "new ExoPlayerEngine(listener, proxy)" in f
 rejects(engine_factory,factory.replace("MpvDrmSupport.supports","MpvDrmSupport.check"))
 
+manager='''import com.fongmi.android.tv.player.exo.ExoPlayerEngine;
+import java.util.UUID;
+class PlayerManager {
+    private PlaySpec spec;
+    public boolean canPreloadNext() {
+        return PreloadSetting.isEnabled() && engine.getType() == EXO;
+    }
+    void setEngine(int target) {
+        if (isEmpty() || PlayerEngineFactory.matches(engine, spec)) return;
+    }
+    public void clear() {
+        spec = null;
+    }
+    public boolean preload(PlaySpec spec, long startPositionMs, Object tag) {
+        if (!canPreloadNext() || spec == null) return false;
+        return true;
+    }
+    private void ensureEngine(PlaySpec spec) {
+        if (mpvDrmExoFallback) {
+            return;
+        }
+        if (PlayerEngineFactory.matches(engine, spec)) return;
+        replaceEngine(PlayerEngineFactory.create(spec, listener));
+    }
+    public void start(PlaySpec spec, long timeout, long startPositionMs) {
+        this.spec = spec;
+    }
+    public void parse(String key, Result result, boolean useParse, MediaMetadata metadata, long startPositionMs, long endingMs) {
+        stopParse();
+    }
+    public interface Callback {}
+    private record PlaybackSnapshot(long selectedIsoEditionIndex) {
+        static PlaybackSnapshot capture(PlayerManager manager) {return null;}
+        void restorePlayerState(PlayerManager manager) {}
+    }
+    private void replaceEngine(PlayerEngine replacement) {}
+    void preserve() {
+        IsoDiscPreparation.isIso(media);
+        PendingPreload queuedPreload;
+        timeshift.isReplaying();
+        PlaybackSnapshot.capture(this);
+        snapshot.restorePlayerState(this);
+    }
+}'''
+m=player_manager(manager)
+for marker in ("setPlaybackProxy(XrayHttpClient next, boolean preservePlayback)",
+               "clearPlaybackProxyPreservingState()","XrayPlaybackRouting.activeProxy",
+               "if (next != null) callback.onXrayTransitionStarted();",
+               "!hasXraySession() && PreloadSetting.isEnabled()",
+               "else if (bound != null) replaceEngine(PlayerEngineFactory.create(listener));"):
+    assert marker in m,marker
+rejects(player_manager,manager.replace("private void replaceEngine(PlayerEngine replacement)",
+                                       "private void installEngine(PlayerEngine replacement)"))
+
 p=argparse.ArgumentParser()
 p.add_argument("--upstream",type=Path)
 p.add_argument("--target")
@@ -129,9 +184,10 @@ if args.upstream:
         ("app/src/main/java/com/fongmi/android/tv/player/exo/ExoPlayerSession.java",exo_session),
         ("app/src/main/java/com/fongmi/android/tv/player/exo/ExoPlayerEngine.java",exo_engine),
         ("app/src/main/java/com/fongmi/android/tv/player/engine/PlayerEngineFactory.java",engine_factory),
+        ("app/src/main/java/com/fongmi/android/tv/player/PlayerManager.java",player_manager),
     ):
         actual=blob(args.upstream,tree[name]).decode("utf-8")
         candidate=transform(actual)
         assert candidate!=actual and len(candidate)>len(actual),name
-    print("PASS four Exo overlays against public commit "+args.target)
+    print("PASS five Exo/manager adapters against public commit "+args.target)
 print("PASS guarded 5.8.7 Exo media/session/engine/factory fixture and drift checks")

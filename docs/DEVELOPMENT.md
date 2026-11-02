@@ -93,7 +93,7 @@
 - 增加只在升级到新版时生成的 `XrayPlaybackDataSourceFactory.java` 模板。特别注意现有 5.6.3 `catvod` **没有 `Auth.Context`**：模板留在 `scripts/upstream/templates`，不参与现版 App 编译；升级器校验目标原始 Exo API 后再生成它。媒体、DRM license、ISO 导航的 HTTP 数据源共享 Xray SOCKS client，并保留公开上游与来源相同的 origin-limited URL / Authorization 处理；RTSP / RTSPT 采用 Xray socket factory，不经过普通直连数据源。
 - 5.8.7 `ExoDiskPreload` 自行建立普通 client，故有代理时禁止磁盘预载，其他时间按官方逻辑执行；`DefaultPreloadManager` 仍使用同一会话的代理 supplier。這属于 Xray 播放身份隔离，不修改 FongMi 通用预载业务。
 - `tests/test-upstream-exo-adapters.py` 以 fixture 检查这 4 种形态与未知 upstream API 的 fail-closed 行为；升级入口获取公开 commit 后再将其对**实际目标 Git Tree**执行一遍。新 `tests/test-upstream-xray-auth.py` 用 javac 17 编译新版模板 + 当前实际 `XrayGuardedPlaybackDataSource`，测试 HTTP/UA/认证上下文/禁止 FTP 无直连泄漏；该 JVM 边界测试不是新播放器 Android APK 成功证据。
-- **仍有阻断**：5.8.7 `PlayerManager`、`PlaybackService` 和 Live/VOD 页面与当前 fork 差异大，尚未完成新生命周期接线、旁路请求/封面取消时序及新媒体 ABI 验证。此阶段只建立不会误用旧版 Exo 的可重放生成器。当前 `main` 生产源码及正式 APK **仍是 5.6.3**，不能放开默认发布。
+- **PlayerManager 已新增候選生成器**：`scripts/upstream/player_manager_adapter.py` 从 5.8.7 官方 `PlayerManager` 增加 Xray session identity、代理／直連引擎重建、`PlaybackSnapshot` 保存與錯誤回滾；沒有覆蓋官方的 timeshift / ISO / preload / decoder 流程。新舊 API 的 exact-anchor 靜態檢查已配置，不等於完整 Android 運行通過。**仍有阻断**：5.8.7 `PlaybackService`、Live/VOD 页面、字幕和彈幕旁路请求取消時序與新媒體 ABI 尚未完整適配。此阶段只建立不会误用旧版 Exo 的可重放生成器。当前 `main` 生产源码及正式 APK **仍是 5.6.3**，不能放开默认发布。
 
 ### 2026-11-02 Xray 播放器接线解耦（5.8.7 迁移第一阶段）
 

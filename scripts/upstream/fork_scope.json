@@ -167,7 +167,7 @@
       "scope": "xray"
     },
     "app/src/main/java/com/fongmi/android/tv/player/PlayerManager.java": {
-      "strategy": "rebase",
+      "strategy": "generate",
       "scope": "xray"
     },
     "app/src/main/java/com/fongmi/android/tv/player/engine/PlayerEngineFactory.java": {

@@ -44,6 +44,7 @@ REGENERATED_FILES = {
     "app/src/main/java/com/fongmi/android/tv/player/exo/ExoPlayerSession.java",
     "app/src/main/java/com/fongmi/android/tv/player/exo/ExoPlayerEngine.java",
     "app/src/main/java/com/fongmi/android/tv/player/engine/PlayerEngineFactory.java",
+    "app/src/main/java/com/fongmi/android/tv/player/PlayerManager.java",
 }
 PRESERVED_FILES = {
     "app/proguard-rules-media.pro",
