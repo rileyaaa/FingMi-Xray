@@ -82,6 +82,9 @@ reject(download,DOWNLOAD.replace("Call.Factory client = OkHttp.client();","Call.
 
 SERVICE='''import com.fongmi.android.tv.bean.History;
 class PlaybackService {
+    void claimBinding() {
+        if (binding != null) binding.onReplaced().run();
+    }
     private PlayerManager player;
     public void onCreate() {
         player = new PlayerManager(this);
@@ -103,6 +106,8 @@ assert sr.count("SubtitleApi.cancel();")==2
 assert "XrayArtworkBitmapLoader(player, new ArtworkBitmapLoader(this))" in sr
 assert "@Override\n    @Override" not in sr
 assert "onXrayTransitionStarted()" in sr
+assert "player.clearPlaybackProxyPreservingState();" in sr
+assert "XraySideRequestGate.cancelRemoteDownloads();" in sr
 assert "OkHttp.cancel(LiveApi.METADATA_TAG);" in sr
 assert "XraySideRequestGate.cancelRemoteDownloads();" in sr
 assert "liveMetadata = new LiveMetadata(player, library)" in sr
