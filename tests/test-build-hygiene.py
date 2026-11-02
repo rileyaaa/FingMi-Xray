@@ -110,15 +110,29 @@ for required in (
     if required not in final_manifest_guard:
         errors.append(f"final APK manifest guard lost security contract: {required}")
 
+# Public 5.8.7 changed its own audio boost limit and Chaquopy ABI loader.
+# Respect the source version selected by our fork instead of treating those
+# upstream changes as Release-only patches. Unknown shapes still fail closed.
+upstream_guard_build = (ROOT / "app/build.gradle").read_text(encoding="utf-8")
+upstream_guard_match = re.search(
+    r'versionName "v(\\d+)\\.(\\d+)\\.(\\d+)-xray\\.\\d+"',
+    upstream_guard_build,
+)
+if not upstream_guard_match:
+    raise SystemExit("Cannot select official upstream business guards for unknown fork version")
+uses_587_upstream = tuple(map(int, upstream_guard_match.groups())) >= (5, 8, 7)
+
 audio_setting = (ROOT / "app/src/main/java/com/fongmi/android/tv/setting/AudioSetting.java").read_text(encoding="utf-8")
+audio_limit = 2000 if uses_587_upstream else 1200
 for required in (
-    "public static final int MAX_BOOST = 1200;",
+    f"public static final int MAX_BOOST = {audio_limit};",
     'Math.clamp(Prefers.getInt("audio_boost"), MIN_BOOST, MAX_BOOST)',
 ):
     if required not in audio_setting:
-        errors.append(f"AudioSetting must follow the pinned FongMi/TV upstream contract: {required}")
-if "public static final int MAX_BOOST = 2000;" in audio_setting:
-    errors.append("AudioSetting must not carry the Release-only 5.6.8 20 dB boost override")
+        errors.append(f"AudioSetting must follow the selected public FongMi/TV source: {required}")
+other_limit = 1200 if uses_587_upstream else 2000
+if f"public static final int MAX_BOOST = {other_limit};" in audio_setting:
+    errors.append("AudioSetting mixes incompatible public upstream audio boost versions")
 
 release_only_paths = (
     "compat/media3-dolby568",
@@ -140,22 +154,46 @@ for relative in release_only_paths:
         errors.append(f"current-main must not restore Release-only FongMi media behavior: {relative}")
 
 platform = (ROOT / "chaquo/src/main/java/com/fongmi/chaquo/Platform.java").read_text(encoding="utf-8")
-for required in (
-    "import com.chaquo.python.android.AndroidPlatform;",
-    "Collections.addAll(supportedAbis, Build.SUPPORTED_ABIS);",
-    "Collections.addAll(supportedAbis, Build.CPU_ABI, Build.CPU_ABI2);",
-    "AndroidPlatform.ABI = ABI;",
-):
+if uses_587_upstream:
+    # Public 5.8.7 delegates ABI selection to PackageAbi and initializes
+    # the versioned Python runtime before passing the selected ABI to Chaquopy.
+    required_platform = (
+        "import com.chaquo.python.android.AndroidPlatform;",
+        "import com.github.catvod.utils.PackageAbi;",
+        "RuntimeModule.PYTHON.load(path -> System.load(path));",
+        "abi = PackageAbi.get();",
+        "setImporterAbi(abi);",
+        "AndroidPlatform.ABI = abi;",
+    )
+    forbidden_platform = (
+        "Collections.addAll(supportedAbis, Build.SUPPORTED_ABIS);",
+        "Collections.addAll(supportedAbis, Build.CPU_ABI, Build.CPU_ABI2);",
+        "AndroidPlatform.ABI = ABI;",
+    )
+else:
+    required_platform = (
+        "import com.chaquo.python.android.AndroidPlatform;",
+        "Collections.addAll(supportedAbis, Build.SUPPORTED_ABIS);",
+        "Collections.addAll(supportedAbis, Build.CPU_ABI, Build.CPU_ABI2);",
+        "AndroidPlatform.ABI = ABI;",
+    )
+    forbidden_platform = (
+        "import com.github.catvod.utils.PackageAbi;",
+        "abi = PackageAbi.get();",
+        "AndroidPlatform.ABI = abi;",
+    )
+for required in required_platform:
     if required not in platform:
-        errors.append(f"Platform.java must follow the pinned FongMi/TV upstream ABI selection: {required}")
+        errors.append(f"Platform.java must follow the selected public FongMi/TV ABI implementation: {required}")
 for forbidden in (
+    *forbidden_platform,
     "android.os.Process.is64Bit()",
     "Build.SUPPORTED_64_BIT_ABIS",
     "Build.SUPPORTED_32_BIT_ABIS",
     "Collections.addAll(supportedAbis, processAbis);",
 ):
     if forbidden in platform:
-        errors.append(f"Platform.java must not carry fork-only Chaquopy ABI selection: {forbidden}")
+        errors.append(f"Platform.java retains a different-version or fork-only Chaquopy ABI implementation: {forbidden}")
 
 required_action_majors = {
     "actions/checkout": 7,
