@@ -95,6 +95,7 @@ jobs:
         shell: bash
         env:
           APPLY_TO_MAIN: ${{ inputs.apply_to_main }}
+          GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
           if [[ "$UPSTREAM_NO_CHANGE" == "true" ]]; then
