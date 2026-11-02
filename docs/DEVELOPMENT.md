@@ -43,7 +43,7 @@
 ### 2026-11-02 上游 5.8.7 与通用一键升级 Actions
 
 - 当前已核对公开 `FongMi/TV` 默认 `fongmi` 分支 commit `8626650ebcbc0d028e16d859e826fcf439720f3a`，其源码 `app/build.gradle` 明确为 `5.8.7` / `587`。截至本次修改，**仓库 `main` 业务源码仍为 5.6.3，正式 Release 仍为 `v5.6.3-xray.1`**；已写入的是升级工具和适配策略，不代表 5.8.7 APK 已构建或发布。
-- 5.6.3 原始基线到 5.8.7 Git Tree 涉及约 **810 个路径**，其中约 **56 个路径**与 fork 旧改动有交集（扣除已被专用恢复适配器保护的路径，最初登记 **47 个潜在合并/语义冲突路径**；当前 33 个 rebase 路径中有 32 个与新上游变更重叠；详见 [5.8.7 升级阻断审计](UPSTREAM_5_8_7_MIGRATION_AUDIT.md)）；多处播放器、Home、网络 API 已重构，构建/真机兼容不能凭三方文本合并认定成功。
+- 5.6.3 原始基线到 5.8.7 Git Tree 涉及约 **810 个路径**，其中约 **56 个路径**与 fork 旧改动有交集（扣除已被专用恢复适配器保护的路径，最初登记 **47 个潜在合并/语义冲突路径**；当前 21 个 rebase 路径均与所选新上游版本存在原始 blob 差异（不等于实际文本合并冲突）；详见 [5.8.7 升级阻断审计](UPSTREAM_5_8_7_MIGRATION_AUDIT.md)）；多处播放器、Home、网络 API 已重构，构建/真机兼容不能凭三方文本合并认定成功。
 - 已确认旧 `OkProxySelector.Policy` 空 `URI.getHost()` 崩溃在上游源码得到修复：新版接受 `HttpUrl` 并直接读取规范化 scheme/host/port。升级脚本对该类强制采用**完整公开上游**实现，适配保留的旧回归测试；不再另留平行业务补丁。
 - 新版 Home 用 `pendingAction` + `consumeAction()` 一次消费启动 Intent。适配器从**新版 Home 原文件**生成最小 `FongMiNetworkRecovery` 接线、前台/focus check 和销毁清理；不复制旧 `checkAction(getIntent())`。Xray 去敏安全改进仍属于 `:xray`，原样保留。
 - `.github/workflows/manual-upstream-sync.yml` 是**单个、仅 `workflow_dispatch` 手动入口**。**当前安全默认 `apply_to_main=false`（仅预检）**；确认全部兼容迁移并获得真实 Actions 编译验证后才可调整为 `true`。显式选择 `true` 时：从 `scripts/upstream/baseline.json` 固定 commit 与官方最新 commit 做文件级三方合并；遇文本/二进制冲突立即退出，保留日志和短期报告；无冲突后按 `scripts/upstream/prepare_release.py` 对签名、版本、Home、代理测试与普通源码 hash guards 进行上游优先适配，再在 runner **本地**创建候选 commit。
@@ -53,7 +53,7 @@
 
 当前已针对新版 `SiteViewModel` 结果取消接口、`BaseLoader` 异步 Spider 回调、`OkHttp` API-only reset、`OkDns` DoH 代际、`ImgUtil` transient failure 和 `OkGlideModule` client handoff 增加精确匹配的恢复接线生成器 `scripts/upstream/recovery_adapters.py` 及 `tests/test-upstream-recovery-adapters.py`。这些修补仍只属于新版本迁移**候选逻辑**；已复核官方源码锚点，但未验证完整新 APK 或新源码回归，不能据此将工作流标记为已成功。
 
-**后续维护方式**：通用升级器的第一道安全边界已改为 `scripts/upstream/fork_scope.json` 原始差异分类（目前 **19 个接线生成、6 个改用新版上游、33 个三方重放、3 个仓库策略**；当前计数以 fork_scope.json 为准）。`sync.py` 会拒绝未登记的旧版 Fork 源码偏离（即使该文件本次上游未修改），避免误把旧业务补丁传入新版本；`xray_adapters.py` 从新版 Action/设置页/Updater 公共接口生成最小接线。详细状态和 5.8.7 尚未完成的播放路径见 [迁移审计](UPSTREAM_5_8_7_MIGRATION_AUDIT.md)。这些工具改动尚未经过新版完整 AC/双 ABI APK 验证，不得改称升级成功。
+**后续维护方式**：通用升级器的第一道安全边界已改为 `scripts/upstream/fork_scope.json` 原始差异分类（目前 **31 个接线生成、6 个改用新版上游、21 个三方重放、3 个仓库策略**；当前计数以 fork_scope.json 为准）。`sync.py` 会拒绝未登记的旧版 Fork 源码偏离（即使该文件本次上游未修改），避免误把旧业务补丁传入新版本；`xray_adapters.py` 从新版 Action/设置页/Updater 公共接口生成最小接线。详细状态和 5.8.7 尚未完成的播放路径见 [迁移审计](UPSTREAM_5_8_7_MIGRATION_AUDIT.md)。这些工具改动尚未经过新版完整 AC/双 ABI APK 验证，不得改称升级成功。
 
 ### 已登记的上游业务修复（升级前必读）
 
@@ -93,7 +93,7 @@
 - 增加只在升级到新版时生成的 `XrayPlaybackDataSourceFactory.java` 模板。特别注意现有 5.6.3 `catvod` **没有 `Auth.Context`**：模板留在 `scripts/upstream/templates`，不参与现版 App 编译；升级器校验目标原始 Exo API 后再生成它。媒体、DRM license、ISO 导航的 HTTP 数据源共享 Xray SOCKS client，并保留公开上游与来源相同的 origin-limited URL / Authorization 处理；RTSP / RTSPT 采用 Xray socket factory，不经过普通直连数据源。
 - 5.8.7 `ExoDiskPreload` 自行建立普通 client，故有代理时禁止磁盘预载，其他时间按官方逻辑执行；`DefaultPreloadManager` 仍使用同一会话的代理 supplier。這属于 Xray 播放身份隔离，不修改 FongMi 通用预载业务。
 - `tests/test-upstream-exo-adapters.py` 以 fixture 检查这 4 种 Exo 形态及新版 PlayerManager 入口与未知 upstream API 的 fail-closed 行为；升级入口获取公开 commit 后再将其对**实际目标 Git Tree**执行一遍。新 `tests/test-upstream-xray-auth.py` 用 javac 17 编译新版模板 + 当前实际 `XrayGuardedPlaybackDataSource`，测试 HTTP/UA/认证上下文/禁止 FTP 无直连泄漏；该 JVM 边界测试不是新播放器 Android APK 成功证据。
-- **PlayerManager 已新增候選生成器**：`scripts/upstream/player_manager_adapter.py` 从 5.8.7 官方 `PlayerManager` 增加 Xray session identity、代理／直連引擎重建、`PlaybackSnapshot` 保存與錯誤回滾；沒有覆蓋官方的 timeshift / ISO / preload / decoder 流程。新舊 API 的 exact-anchor 靜態檢查已配置，不等於完整 Android 運行通過。**仍有阻断**：5.8.7 `PlaybackService`、Live/VOD 页面、字幕和彈幕旁路请求取消時序與新媒體 ABI 尚未完整適配。此阶段只建立不会误用旧版 Exo 的可重放生成器。当前 `main` 生产源码及正式 APK **仍是 5.6.3**，不能放开默认发布。
+- **PlayerManager 已新增候選生成器**：`scripts/upstream/player_manager_adapter.py` 从 5.8.7 官方 `PlayerManager` 增加 Xray session identity、代理／直連引擎重建、`PlaybackSnapshot` 保存與錯誤回滾；沒有覆蓋官方的 timeshift / ISO / preload / decoder 流程。新舊 API 的 exact-anchor 靜態檢查已配置，不等於完整 Android 運行通過。**本輪增加候選生成器**：`side_request_adapters.py` 以新版 `PlaybackService`、字幕／彈幕 API 與 `catvod Download` 為基礎，另加只在升級時生成的 `XraySideRequestGate`；`live_metadata_adapters.py` 維持新版 XMLTV 與 EPG 日期／快取行為，接上 Xray client 與失效代際；`live_ui_adapters.py` 保留新版 ChannelAdapter 的 RecyclerView payload／選取行為並取消舊 logo 請求。`xray_resources.py` 從新版原始檔生成兩個 Xray 播放控制鍵及 Leanback 預設／簡體／繁體三套各 25 個 Xray 專用字串。**仍有阻斷**：5.8.7 Live/VOD Activity 的播放所有權、切台／換集與 Xray session callback、額外上游差異以及媒體 ABI／雙 APK 完整驗證未完成。此阶段只建立不会误用旧版 Exo 的可重放生成器。当前 `main` 生产源码及正式 APK **仍是 5.6.3**，不能放开默认发布。
 
 ### 2026-11-02 Xray 播放器接线解耦（5.8.7 迁移第一阶段）
 
@@ -101,7 +101,7 @@
 - 新增 `XrayPlaybackRouting.java`：把“引擎仍绑定的代理优先于 pending 代理”“是否仍有 Xray 会话”“只有同一实例的 Exo 代理可复用引擎，直连则遵循上游引擎选择”抽成**与 Android/Media3/FongMi 无关的纯 Java 判断**。当前 `PlayerManager.getPlaybackHttpClient()/hasXraySession()`、`PlayerEngineFactory.matches()` 已改为调用它；播放快照/重启/资源关闭顺序维持原行为。
 - **实际执行的离线 JVM 验证**：使用 OpenJDK 21 的 `javac --release 17` 对拟提交的同一适配类和边界替身编译并执行，`XrayGuardedPlaybackDataSource` 覆盖 15 类允许、11 类阻断、双次 close、失败 open 后 cleanup、URI/headers/transfer listener 透传；`XrayPlaybackRouting` 覆盖代理身份引用不等价、Exo/MPV、direct→Xray / Xray→direct、rebuild gate。两组均通过。已新增可重跑的 `tests/test-xray-guarded-data-source.py`、`tests/test-xray-playback-routing.py`，并接入当前 build、正式 publish 和手动上游升级三个工作流的源码守卫。
 - 两个组件存放在 `:app` 的 `com.fingmi.integration.xray`，**不增加 `:xray` 对上游的反向依赖**。这是一轮保持当前正式行为的薄层拆分，不把普通 FongMi 播放器、字幕、DRM/ISO、弹幕等业务复制进二开模块。
-- **尚未证明 / 下一阶段**：5.8.7 官方 `ExoMediaSourceFactory` 已重构为 `ContentTypeResolvingMediaSource` 和新的字幕/ISO 逻辑；上述接線已在候選適配器中按**新版原始碼**生成，但尚未跑通新上游的完整合併與 Android 編譯；`ExoPlayerSession` → `ExoPlayerEngine` → `PlayerEngineFactory` → `PlayerManager` 的真實運行仍須驗收。Live/VOD、`PlaybackService` 播放身份及旁路请求仍需单独适配。绝不将旧版整份 Exo 实现覆盖新版，也不因这两项 JVM 测试通过就放行 5.8.7 APK。
+- **尚未证明 / 下一阶段**：5.8.7 官方 `ExoMediaSourceFactory` 已重构为 `ContentTypeResolvingMediaSource` 和新的字幕/ISO 逻辑；上述接線已在候選適配器中按**新版原始碼**設計生成，但尚未跑通新上游的完整合併與 Android 編譯；`ExoPlayerSession` → `ExoPlayerEngine` → `PlayerEngineFactory` → `PlayerManager` 的真實運行仍須驗收。Live/VOD、`PlaybackService` 播放身份及旁路请求仍需单独适配。绝不将旧版整份 Exo 实现覆盖新版，也不因这两项 JVM 测试通过就放行 5.8.7 APK。
 - **证据边界**：未执行当前仓库完整 Gradle、GitHub Actions / 双 ABI Release APK 或设备待机验证；`manual-upstream-sync.yml` 仍为 `workflow_dispatch` 且默认 `apply_to_main=false`。正式版仍为 `v5.6.3-xray.1`，黄金版仍为 `v5.6.0-xray.5`，本阶段未发布任何新 APK。
 
 ## 3. 当前 Xray 接线
