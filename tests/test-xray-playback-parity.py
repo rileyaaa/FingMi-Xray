@@ -70,399 +70,417 @@ forbid(
     "if (!playback.hasIdentity() || !supports(playback.mediaUrl())) {\n                service.stop();",
 )
 
-if git_blob_sha("app/src/main/java/com/fongmi/android/tv/player/engine/PlayerEngine.java") != "b245171a5a99c05f4f0630468793d947ad65d0c7":
-    raise SystemExit(
-        "PlayerEngine.java must remain byte-identical to FongMi/TV@c616c0aa; "
-        "Xray proxy state belongs in PlayerManager/ExoPlayerEngine/PlayerEngineFactory"
-    )
-forbid(
-    "app/src/main/java/com/fongmi/android/tv/player/engine/PlayerEngine.java",
-    "getXrayPort",
-    "getXrayHttpClient",
-    "XrayHttpClient",
-)
+# The historical parity checks below match the published 5.6.3 source
+# layout, not the newly refactored public FongMi 5.8.7 player. Keep them for
+# the current 5.6.3 release. Newer upstream uses its separately audited
+# integration contract while these Xray-only guards and the JVM identity
+# harness below still run for both versions.
+sys.path.insert(0, str(ROOT / "scripts/upstream"))
+from verify_playback import audit as audit_upgraded_playback, required_for_version, REQUIRED_587
 
-
-require(
-    "app/src/main/java/com/fongmi/android/tv/ui/activity/PlaybackActivity.java",
-    "private void syncPlayerView(Player player)",
-    "getPlayerView().setPlayer(player);\n        updatePlaybackDanmakuClient();",
-    "protected final void updatePlaybackDanmakuClient()",
-)
-
-require(
-    "app/src/main/java/com/fongmi/android/tv/player/PlayerManager.java",
-    "synchronized void setPlaybackProxy",
-    "boolean hasXraySession()",
-    "withHttpClient(",
-    "onXrayTransitionStarted()",
-    "clearPlaybackProxyPreservingState()",
-    "XrayRestore",
-    "xrayRestore == null",
-    "return !hasXraySession()",
-    "if (next == null && !preservePlayback)",
-    "if (spec != null) ensureEngine(spec.checkUa());",
-    "if (next != null) callback.onXrayTransitionStarted();\n\n        clearPreload();",
-    "if (playbackProxy != null || !canPreloadNext()",
-    "PlaybackSnapshot.capture(player)",
-    "private record PlaybackSnapshot(long positionMs, boolean playWhenReady, PlaybackParameters playbackParameters, int repeatMode, float volume, long audioOffsetMs, long textOffsetMs)",
-    "player.setPlaybackParameters(playbackParameters)",
-    "player.setRepeatMode(repeatMode)",
-    "player.setVolume(volume)",
-    "player.setAudioOffsetMs(audioOffsetMs)",
-    "player.setTextOffsetMs(textOffsetMs)",
-    "player.setPlayWhenReady(playWhenReady)",
-)
-
-require_order(
-    "app/src/leanback/res/layout/view_control_vod_action.xml",
-    'android:id="@+id/next"',
-    'android:id="@+id/xray"',
-    'android:id="@+id/prev"',
-    'android:id="@+id/parse"',
-    'android:id="@+id/player"',
-)
-
-require(
-    "app/src/main/java/com/fongmi/android/tv/player/exo/ExoPlayerEngine.java",
-    "this.session = new ExoPlayerSession(decode, listener, effect.getAudioProcessor(), proxy);",
-    "if (proxy == null) session.preload(MediaItemFactory.from(spec), startPositionMs);",
-    "public XrayHttpClient proxy() { return proxy; }",
-)
-
-require(
-    "app/src/main/java/com/fingmi/integration/xray/XrayPlaybackRouting.java",
-    "engineProxy != null ? engineProxy : requestedProxy",
-    "return requestedProxy != null || engineProxy != null;",
-    "engineProxy == requestedProxy",
-    "BooleanSupplier upstreamEngineMatches",
-    "needsRebuild.getAsBoolean()",
-    "engineProxy == null && upstreamEngineMatches",
-)
-
-require(
-    "app/src/main/java/com/fongmi/android/tv/player/PlayerManager.java",
-    "XrayPlaybackRouting.hasSession(playbackProxy, bound)",
-    "XrayPlaybackRouting.activeProxy(playbackProxy, bound)",
-)
-
-require(
-    "app/src/main/java/com/fongmi/android/tv/player/engine/PlayerEngineFactory.java",
-    "return proxy == null ? create(decode, resolve(spec), listener) : new ExoPlayerEngine(decode, listener, proxy);",
-    "XrayPlaybackRouting.canReuseEngine(",
-    "engine instanceof ExoPlayerEngine exo ? exo.proxy() : null",
-)
-
-require(
-    "app/src/main/java/com/fongmi/android/tv/player/exo/ExoMediaSourceFactory.java",
-    'if ("rtsp".equalsIgnoreCase(scheme) || "rtspt".equalsIgnoreCase(scheme))',
-    ".setSocketFactory(proxy.rtspSocketFactory())",
-    "DefaultDrmSessionManagerProvider drm = new DefaultDrmSessionManagerProvider();",
-    "drm.setDrmHttpDataSourceFactory(getDataSourceFactory());",
-    "factory.setDrmSessionManagerProvider(drm);",
-    "new OkHttpDataSource.Factory(proxy == null ? OkHttp.player() : proxy.client())",
-    "dataSourceFactory = proxy == null",
-    "new XrayGuardedPlaybackDataSource(upstream.createDataSource())",
-)
-
-require(
-    "app/src/main/java/com/fingmi/integration/xray/XrayGuardedPlaybackDataSource.java",
-    "private static boolean isBlank(String value)",
-    "Character.isWhitespace(codePoint)",
-    '"file".equalsIgnoreCase(scheme)',
-    '"content".equalsIgnoreCase(scheme)',
-    '"android.resource".equalsIgnoreCase(scheme)',
-    "Unsupported data source scheme while Xray is enabled",
-    "opened = true;",
-    "delegate.close();",
-)
-
-require(
-    "app/src/main/java/com/fongmi/android/tv/server/process/Media.java",
-    'result.addProperty("state", getState(player));',
-    'result.addProperty("speed", player.getSpeed());',
-    'result.addProperty("duration", player.getDuration());',
-    'result.addProperty("position", player.getPosition());',
-    'result.addProperty("url", getString(player.getUrl()));',
-    'result.addProperty("artwork", getString(meta.artworkUri));',
-)
-
-require(
-    "app/src/main/java/com/fongmi/android/tv/ui/activity/PlaybackActivity.java",
-    "PlaybackIntent.choose(this, player.getUrl(), player.getHeaders(), player.isVod(), player.getPosition(), player.getMediaTitle());",
-)
-
-require(
-    "app/src/leanback/java/com/fongmi/android/tv/ui/activity/VideoActivity.java",
-    "clearArtworkTarget();\n        if (isFinishing() || isDestroyed()) return;\n        if (service() != null && isOwner() && player().hasXraySession()) return;",
-)
-
-require(
-    "app/src/main/java/com/fongmi/android/tv/service/PlaybackService.java",
-    "public void onXrayTransitionStarted()",
-    "DanmakuApi.cancelForXrayTransition();",
-    "SubtitleApi.cancelForXrayTransition();",
-    "if (xrayBitmapLoader != null) xrayBitmapLoader.cancelRemoteLoads();",
-)
-
-require(
-    "app/src/main/java/com/fongmi/android/tv/api/DanmakuApi.java",
-    "public static void cancelForXrayTransition()",
-    "completion = runCompletion ? xrayCancelCompletion : null;",
-    "if (completion != null) App.post(completion);",
-)
-
-require(
-    "app/src/main/java/com/fongmi/android/tv/api/SubtitleApi.java",
-    "public static void cancelForXrayTransition()",
-    "if (call != null) call.cancel();",
-    "if (download != null) download.cancel();",
-    "if (completion != null) App.post(completion);",
-)
-
-require(
-    "app/src/main/java/com/fingmi/integration/xray/XrayArtworkBitmapLoader.java",
-    "Remote artwork blocked while Xray is enabled",
-    "cancelRemoteLoads()",
-    '"rawresource".equals(value)',
-)
-
-require(
-    "app/src/main/java/com/fongmi/android/tv/service/PlaybackService.java",
-    "XrayArtworkBitmapLoader",
-    "DanmakuApi.cancelForXrayTransition()",
-    "SubtitleApi.cancelForXrayTransition()",
-    "xrayBitmapLoader.cancelRemoteLoads()",
-)
-
-require(
-    "app/src/main/java/com/fongmi/android/tv/api/DanmakuApi.java",
-    "cancel(int requestId)",
-    "cancelForXrayTransition()",
-    "OkHttpClient client",
-    "xrayCancelCompletion",
-)
-
-require(
-    "app/src/main/java/com/fongmi/android/tv/api/SubtitleApi.java",
-    "cancel(int requestId)",
-    "cancelForXrayTransition()",
-    "OkHttpClient client",
-    "currentDownload",
-    "xrayCancelCompletion",
-)
-
-require(
-    "app/src/main/java/com/fongmi/android/tv/ui/dialog/DanmakuSearchDialog.java",
-    "player.withHttpClient(",
-    "DanmakuApi.cancel(requestId)",
-)
-
-require(
-    "app/src/main/java/com/fongmi/android/tv/ui/dialog/SubtitleSearchDialog.java",
-    "player.withHttpClient(",
-    "SubtitleApi.cancel(requestId)",
-    "onXrayTransitionCancelled()",
-)
-
-require(
-    "app/src/main/java/com/fongmi/android/tv/playback/vod/VodPlaybackMedia.java",
-    "OkHttpClient client",
-    "DanmakuApi.cancel()",
-)
-
-require(
-    "xray/src/main/java/com/fingmi/xray/session/XrayPlaybackSession.java",
-    "supportsDirectLiveSource",
-    "XrayPlaybackAddress.supportsDirectLiveSource(url)",
-    "onProxyError()",
-    "clearResourcesAfterError()",
-    "Throwable clearFailure = clearResources(false);",
-    "failRunningTransition(clearFailure);",
-    "catch (Exception | LinkageError error)",
-    "failRunningTransition(error);",
-    "listener.onProxyError();",
-    "finally {\n            closeQuietly(failed);\n        }",
-    "notifyState(ERROR, XrayErrorSanitizer.sanitize(error));",
-    "service.stop();",
-    "finally {\n            closeQuietly(old);\n        }",
-    "private static void closeQuietly(XrayHttpClient client)",
-    "else retryProxyRollback(clearResources(preservePlayback));",
-    "retryProxyRollback(clearResourcesAfterError());",
-    "retryProxyRollback(clearResources(preserveOnStop));",
-    "private void retryProxyRollback(Throwable failure)",
-)
-
-
-require(
-    "app/src/main/java/com/fongmi/android/tv/model/VideoViewModel.java",
-    "cancelXrayTransitionRequests()",
-    "requestTasks.cancel(TaskType.DETAIL)",
-    "requestTasks.cancel(TaskType.PLAYBACK)",
-    "requestTasks.cancel(TaskType.PRELOAD)",
-)
-
-require(
-    "app/src/main/java/com/fongmi/android/tv/playback/vod/VodPlaybackController.java",
-    "host.resetXrayForPlaybackChange()",
-    "clearPreloadForXray()",
-)
-
-require(
-    "app/src/main/java/com/fongmi/android/tv/ui/dialog/PlayerEngineDialog.java",
-    "Runnable onEngineChanged",
-    "if (engine != previous && onEngineChanged != null) onEngineChanged.run();",
-)
-require_order(
-    "app/src/main/java/com/fongmi/android/tv/ui/dialog/PlayerEngineDialog.java",
-    "if (engine != previous && onEngineChanged != null) onEngineChanged.run();",
-    "else player.setEngine(engine);",
-)
-
-video_activity = read("app/src/leanback/java/com/fongmi/android/tv/ui/activity/VideoActivity.java")
-new_intent = video_activity.split("protected void onNewIntent(Intent intent)", 1)[1].split(
-    "protected void initView(Bundle savedInstanceState)", 1
-)[0]
-if "resetXrayForPlaybackChange();" not in new_intent:
-    raise SystemExit(
-        "VideoActivity new-intent must invalidate READY state and begin a fresh Xray playback identity"
-    )
-if 'mXray.begin("vod:" + ++mPlaybackEpoch);' in new_intent or "mXray.end();" in new_intent:
-    raise SystemExit(
-        "VideoActivity new-intent must use the shared playback-change reset instead of bypassing its READY-state guard"
+source_version = read("app/build.gradle")
+selected_contract = required_for_version(source_version)
+if selected_contract is REQUIRED_587:
+    new_sources = {name: read(name) if (ROOT / name).is_file() else None
+                   for name in selected_contract}
+    lost = audit_upgraded_playback(new_sources, selected_contract)
+    if lost:
+        raise SystemExit("Upgraded Xray playback parity incomplete:\n- " + "\n- ".join(lost))
+else:
+    if git_blob_sha("app/src/main/java/com/fongmi/android/tv/player/engine/PlayerEngine.java") != "b245171a5a99c05f4f0630468793d947ad65d0c7":
+        raise SystemExit(
+            "PlayerEngine.java must remain byte-identical to FongMi/TV@c616c0aa; "
+            "Xray proxy state belongs in PlayerManager/ExoPlayerEngine/PlayerEngineFactory"
+        )
+    forbid(
+        "app/src/main/java/com/fongmi/android/tv/player/engine/PlayerEngine.java",
+        "getXrayPort",
+        "getXrayHttpClient",
+        "XrayHttpClient",
     )
 
 
-require(
-    "app/src/leanback/java/com/fongmi/android/tv/ui/activity/VideoActivity.java",
-    "xrayPlaybackReady",
-    "mViewModel.cancelXrayTransitionRequests()",
-    "Source.get().stop()",
-    "OkHttp.cancelAll()",
-    "clearArtworkTarget()",
-    "DanmakuApi.cancel(mDanmakuRequestId)",
-    "this::resetXrayForPlaybackChange",
-    "player().clearPlaybackProxyPreservingState()",
-    "mXrayProxyFailed",
-    "state == XraySessionListener.IDLE && !message.isEmpty()",
-    "if (mXray != null) mXray.stop(preservePlayback);",
-    "if (mXray != null) mXray.close();",
-)
+    require(
+        "app/src/main/java/com/fongmi/android/tv/ui/activity/PlaybackActivity.java",
+        "private void syncPlayerView(Player player)",
+        "getPlayerView().setPlayer(player);\n        updatePlaybackDanmakuClient();",
+        "protected final void updatePlaybackDanmakuClient()",
+    )
 
-require(
-    "app/src/leanback/java/com/fongmi/android/tv/ui/activity/LiveActivity.java",
-    "clearArtworkTarget()",
-    "this::resetXrayForPlaybackChange",
-    "mXray.stop(preservePlayback)",
-    "player().clearPlaybackProxyPreservingState()",
-    "mXrayPendingChannelResume",
-    "mXrayStartedFromExistingPlayback",
-    "mXrayRefreshMetadataOnDetach",
-    "mLive.resumeChannelAfterXrayStart()",
-    "private OkHttpClient xrayMetadataClient()",
-    "private void refreshXrayAwareMetadata()",
-    "!getHome().getEpgXml().isEmpty() && mChannel.getDataList().isEmpty()",
-    "mViewModel.parseXml(getHome(), client);",
-    "mViewModel.getEpg(mChannel, client);",
-    "boolean startedFromExisting = mXrayStartedFromExistingPlayback;",
-    "if (!startedFromExisting && !message.isEmpty()) showError(message);",
-    "XrayPlaybackSession.supportsDirectLiveSource(mChannel.getCurrent())",
-    "if (!message.isEmpty()) Notify.show(message);",
-    "if (mXray != null) mXray.stop(preservePlayback);",
-    "if (mXray != null) mXray.close();",
-)
+    require(
+        "app/src/main/java/com/fongmi/android/tv/player/PlayerManager.java",
+        "synchronized void setPlaybackProxy",
+        "boolean hasXraySession()",
+        "withHttpClient(",
+        "onXrayTransitionStarted()",
+        "clearPlaybackProxyPreservingState()",
+        "XrayRestore",
+        "xrayRestore == null",
+        "return !hasXraySession()",
+        "if (next == null && !preservePlayback)",
+        "if (spec != null) ensureEngine(spec.checkUa());",
+        "if (next != null) callback.onXrayTransitionStarted();\n\n        clearPreload();",
+        "if (playbackProxy != null || !canPreloadNext()",
+        "PlaybackSnapshot.capture(player)",
+        "private record PlaybackSnapshot(long positionMs, boolean playWhenReady, PlaybackParameters playbackParameters, int repeatMode, float volume, long audioOffsetMs, long textOffsetMs)",
+        "player.setPlaybackParameters(playbackParameters)",
+        "player.setRepeatMode(repeatMode)",
+        "player.setVolume(volume)",
+        "player.setAudioOffsetMs(audioOffsetMs)",
+        "player.setTextOffsetMs(textOffsetMs)",
+        "player.setPlayWhenReady(playWhenReady)",
+    )
 
-forbid(
-    "app/src/leanback/java/com/fongmi/android/tv/ui/activity/LiveActivity.java",
-    "The previous session client may already be closing during a swap.",
-    "catch (IllegalStateException ignored)",
-)
+    require_order(
+        "app/src/leanback/res/layout/view_control_vod_action.xml",
+        'android:id="@+id/next"',
+        'android:id="@+id/xray"',
+        'android:id="@+id/prev"',
+        'android:id="@+id/parse"',
+        'android:id="@+id/player"',
+    )
 
-live_activity = (ROOT / "app/src/leanback/java/com/fongmi/android/tv/ui/activity/LiveActivity.java").read_text(encoding="utf-8")
-live_proxy_changed = live_activity.split(
-    "@Override public void onProxyChanged(XrayHttpClient resources, boolean preserve)", 1
-)[1].split("@Override public void onProxyError()", 1)[0]
-live_proxy_error = live_activity.split(
-    "@Override public void onProxyError()", 1
-)[1].split("@Override public void onStateChanged", 1)[0]
-if "boolean refreshMetadata = resources != null || mXrayRefreshMetadataOnDetach;" not in live_proxy_changed:
-    raise SystemExit("LiveActivity must distinguish proxy install/manual stop from ordinary Xray detach")
-if "if (refreshMetadata) refreshXrayAwareMetadata();" not in live_proxy_changed:
-    raise SystemExit("LiveActivity proxy transition must restart metadata only for the allowed transition kinds")
-if "mXrayRefreshMetadataOnDetach = false;" not in live_proxy_changed:
-    raise SystemExit("LiveActivity must consume the one-shot manual-stop metadata refresh flag")
-if "refreshXrayAwareMetadata();" not in live_proxy_error:
-    raise SystemExit("LiveActivity Xray ERROR rollback must restart XML/EPG metadata on the direct client")
+    require(
+        "app/src/main/java/com/fongmi/android/tv/player/exo/ExoPlayerEngine.java",
+        "this.session = new ExoPlayerSession(decode, listener, effect.getAudioProcessor(), proxy);",
+        "if (proxy == null) session.preload(MediaItemFactory.from(spec), startPositionMs);",
+        "public XrayHttpClient proxy() { return proxy; }",
+    )
 
-live_on_xray = live_activity.split("private void onXray()", 1)[1].split("private void onPlayer()", 1)[0]
-if "mXrayRefreshMetadataOnDetach = mXray.state() == XraySessionListener.RUNNING;" not in live_on_xray:
-    raise SystemExit("LiveActivity manual Xray stop must arm direct metadata refresh only for an installed proxy")
+    require(
+        "app/src/main/java/com/fingmi/integration/xray/XrayPlaybackRouting.java",
+        "engineProxy != null ? engineProxy : requestedProxy",
+        "return requestedProxy != null || engineProxy != null;",
+        "engineProxy == requestedProxy",
+        "BooleanSupplier upstreamEngineMatches",
+        "needsRebuild.getAsBoolean()",
+        "engineProxy == null && upstreamEngineMatches",
+    )
 
-live_on_stop = live_activity.split("protected void onStop()", 1)[1].split("protected void onBackInvoked()", 1)[0]
-if "mXrayRefreshMetadataOnDetach = false;" not in live_on_stop:
-    raise SystemExit("LiveActivity lifecycle stop must not restart Live metadata after Xray detach")
+    require(
+        "app/src/main/java/com/fongmi/android/tv/player/PlayerManager.java",
+        "XrayPlaybackRouting.hasSession(playbackProxy, bound)",
+        "XrayPlaybackRouting.activeProxy(playbackProxy, bound)",
+    )
 
-live_identity_reset = live_activity.split(
-    "public void resetXrayForPlaybackChange()", 1
-)[1].split("public void resetPlaybackForError", 1)[0]
-if "mXrayRefreshMetadataOnDetach = false;" not in live_identity_reset:
-    raise SystemExit("LiveActivity playback identity changes must clear pending manual-stop metadata refresh")
+    require(
+        "app/src/main/java/com/fongmi/android/tv/player/engine/PlayerEngineFactory.java",
+        "return proxy == null ? create(decode, resolve(spec), listener) : new ExoPlayerEngine(decode, listener, proxy);",
+        "XrayPlaybackRouting.canReuseEngine(",
+        "engine instanceof ExoPlayerEngine exo ? exo.proxy() : null",
+    )
 
-require(
-    "xray/src/main/java/com/fingmi/xray/session/XraySettingsController.java",
-    "public long validate(",
-    "replaceClient()",
-    "Xray operation timed out",
-    "XrayOperationIds.next()",
-)
+    require(
+        "app/src/main/java/com/fongmi/android/tv/player/exo/ExoMediaSourceFactory.java",
+        'if ("rtsp".equalsIgnoreCase(scheme) || "rtspt".equalsIgnoreCase(scheme))',
+        ".setSocketFactory(proxy.rtspSocketFactory())",
+        "DefaultDrmSessionManagerProvider drm = new DefaultDrmSessionManagerProvider();",
+        "drm.setDrmHttpDataSourceFactory(getDataSourceFactory());",
+        "factory.setDrmSessionManagerProvider(drm);",
+        "new OkHttpDataSource.Factory(proxy == null ? OkHttp.player() : proxy.client())",
+        "dataSourceFactory = proxy == null",
+        "new XrayGuardedPlaybackDataSource(upstream.createDataSource())",
+    )
+
+    require(
+        "app/src/main/java/com/fingmi/integration/xray/XrayGuardedPlaybackDataSource.java",
+        "private static boolean isBlank(String value)",
+        "Character.isWhitespace(codePoint)",
+        '"file".equalsIgnoreCase(scheme)',
+        '"content".equalsIgnoreCase(scheme)',
+        '"android.resource".equalsIgnoreCase(scheme)',
+        "Unsupported data source scheme while Xray is enabled",
+        "opened = true;",
+        "delegate.close();",
+    )
+
+    require(
+        "app/src/main/java/com/fongmi/android/tv/server/process/Media.java",
+        'result.addProperty("state", getState(player));',
+        'result.addProperty("speed", player.getSpeed());',
+        'result.addProperty("duration", player.getDuration());',
+        'result.addProperty("position", player.getPosition());',
+        'result.addProperty("url", getString(player.getUrl()));',
+        'result.addProperty("artwork", getString(meta.artworkUri));',
+    )
+
+    require(
+        "app/src/main/java/com/fongmi/android/tv/ui/activity/PlaybackActivity.java",
+        "PlaybackIntent.choose(this, player.getUrl(), player.getHeaders(), player.isVod(), player.getPosition(), player.getMediaTitle());",
+    )
+
+    require(
+        "app/src/leanback/java/com/fongmi/android/tv/ui/activity/VideoActivity.java",
+        "clearArtworkTarget();\n        if (isFinishing() || isDestroyed()) return;\n        if (service() != null && isOwner() && player().hasXraySession()) return;",
+    )
+
+    require(
+        "app/src/main/java/com/fongmi/android/tv/service/PlaybackService.java",
+        "public void onXrayTransitionStarted()",
+        "DanmakuApi.cancelForXrayTransition();",
+        "SubtitleApi.cancelForXrayTransition();",
+        "if (xrayBitmapLoader != null) xrayBitmapLoader.cancelRemoteLoads();",
+    )
+
+    require(
+        "app/src/main/java/com/fongmi/android/tv/api/DanmakuApi.java",
+        "public static void cancelForXrayTransition()",
+        "completion = runCompletion ? xrayCancelCompletion : null;",
+        "if (completion != null) App.post(completion);",
+    )
+
+    require(
+        "app/src/main/java/com/fongmi/android/tv/api/SubtitleApi.java",
+        "public static void cancelForXrayTransition()",
+        "if (call != null) call.cancel();",
+        "if (download != null) download.cancel();",
+        "if (completion != null) App.post(completion);",
+    )
+
+    require(
+        "app/src/main/java/com/fingmi/integration/xray/XrayArtworkBitmapLoader.java",
+        "Remote artwork blocked while Xray is enabled",
+        "cancelRemoteLoads()",
+        '"rawresource".equals(value)',
+    )
+
+    require(
+        "app/src/main/java/com/fongmi/android/tv/service/PlaybackService.java",
+        "XrayArtworkBitmapLoader",
+        "DanmakuApi.cancelForXrayTransition()",
+        "SubtitleApi.cancelForXrayTransition()",
+        "xrayBitmapLoader.cancelRemoteLoads()",
+    )
+
+    require(
+        "app/src/main/java/com/fongmi/android/tv/api/DanmakuApi.java",
+        "cancel(int requestId)",
+        "cancelForXrayTransition()",
+        "OkHttpClient client",
+        "xrayCancelCompletion",
+    )
+
+    require(
+        "app/src/main/java/com/fongmi/android/tv/api/SubtitleApi.java",
+        "cancel(int requestId)",
+        "cancelForXrayTransition()",
+        "OkHttpClient client",
+        "currentDownload",
+        "xrayCancelCompletion",
+    )
+
+    require(
+        "app/src/main/java/com/fongmi/android/tv/ui/dialog/DanmakuSearchDialog.java",
+        "player.withHttpClient(",
+        "DanmakuApi.cancel(requestId)",
+    )
+
+    require(
+        "app/src/main/java/com/fongmi/android/tv/ui/dialog/SubtitleSearchDialog.java",
+        "player.withHttpClient(",
+        "SubtitleApi.cancel(requestId)",
+        "onXrayTransitionCancelled()",
+    )
+
+    require(
+        "app/src/main/java/com/fongmi/android/tv/playback/vod/VodPlaybackMedia.java",
+        "OkHttpClient client",
+        "DanmakuApi.cancel()",
+    )
+
+    require(
+        "xray/src/main/java/com/fingmi/xray/session/XrayPlaybackSession.java",
+        "supportsDirectLiveSource",
+        "XrayPlaybackAddress.supportsDirectLiveSource(url)",
+        "onProxyError()",
+        "clearResourcesAfterError()",
+        "Throwable clearFailure = clearResources(false);",
+        "failRunningTransition(clearFailure);",
+        "catch (Exception | LinkageError error)",
+        "failRunningTransition(error);",
+        "listener.onProxyError();",
+        "finally {\n            closeQuietly(failed);\n        }",
+        "notifyState(ERROR, XrayErrorSanitizer.sanitize(error));",
+        "service.stop();",
+        "finally {\n            closeQuietly(old);\n        }",
+        "private static void closeQuietly(XrayHttpClient client)",
+        "else retryProxyRollback(clearResources(preservePlayback));",
+        "retryProxyRollback(clearResourcesAfterError());",
+        "retryProxyRollback(clearResources(preserveOnStop));",
+        "private void retryProxyRollback(Throwable failure)",
+    )
 
 
-require(
-    "app/src/main/java/com/fongmi/android/tv/playback/live/LivePlaybackController.java",
-    "selectChannel(Channel channel, boolean resetXray)",
-    "resumeChannelAfterXrayStart()",
-    "if (resetXray) host.resetXrayForPlaybackChange()",
-    "requestPlayback(request, true, false)",
-)
+    require(
+        "app/src/main/java/com/fongmi/android/tv/model/VideoViewModel.java",
+        "cancelXrayTransitionRequests()",
+        "requestTasks.cancel(TaskType.DETAIL)",
+        "requestTasks.cancel(TaskType.PLAYBACK)",
+        "requestTasks.cancel(TaskType.PRELOAD)",
+    )
 
-require(
-    "app/src/main/java/com/fongmi/android/tv/playback/live/LivePlaybackHost.java",
-    "void resetXrayForPlaybackChange()",
-)
+    require(
+        "app/src/main/java/com/fongmi/android/tv/playback/vod/VodPlaybackController.java",
+        "host.resetXrayForPlaybackChange()",
+        "clearPreloadForXray()",
+    )
 
-require(
-    "app/src/main/java/com/fongmi/android/tv/api/LiveApi.java",
-    "METADATA_TAG",
-    "Thread.currentThread().isInterrupted()",
-    "EpgParser.start(item, url, client, METADATA_TAG)",
-    "OkHttp.newCall(actual, url, METADATA_TAG)",
-)
+    require(
+        "app/src/main/java/com/fongmi/android/tv/ui/dialog/PlayerEngineDialog.java",
+        "Runnable onEngineChanged",
+        "if (engine != previous && onEngineChanged != null) onEngineChanged.run();",
+    )
+    require_order(
+        "app/src/main/java/com/fongmi/android/tv/ui/dialog/PlayerEngineDialog.java",
+        "if (engine != previous && onEngineChanged != null) onEngineChanged.run();",
+        "else player.setEngine(engine);",
+    )
 
-require(
-    "app/src/main/java/com/fongmi/android/tv/api/parser/EpgParser.java",
-    "OkHttpClient client, String tag",
-    "Download.create(url, file).tag(",
-)
+    video_activity = read("app/src/leanback/java/com/fongmi/android/tv/ui/activity/VideoActivity.java")
+    new_intent = video_activity.split("protected void onNewIntent(Intent intent)", 1)[1].split(
+        "protected void initView(Bundle savedInstanceState)", 1
+    )[0]
+    if "resetXrayForPlaybackChange();" not in new_intent:
+        raise SystemExit(
+            "VideoActivity new-intent must invalidate READY state and begin a fresh Xray playback identity"
+        )
+    if 'mXray.begin("vod:" + ++mPlaybackEpoch);' in new_intent or "mXray.end();" in new_intent:
+        raise SystemExit(
+            "VideoActivity new-intent must use the shared playback-change reset instead of bypassing its READY-state guard"
+        )
 
-require(
-    "app/src/leanback/java/com/fongmi/android/tv/ui/adapter/ChannelAdapter.java",
-    "mRecyclerView",
-    "setImageDrawable(null)",
-    "onAttachedToRecyclerView",
-    "onDetachedFromRecyclerView",
-)
 
-require(
-    "app/src/leanback/java/com/fongmi/android/tv/ui/activity/LiveActivity.java",
-    "cancelXrayMetadataRequests()",
-    "OkHttp.cancel(normal, LiveApi.METADATA_TAG)",
-    "player().getPlaybackHttpClient(normal)",
-    "setWidgetLogoSuppressed(resources != null)",
-    "setWidgetLogoSuppressed(false)",
-    "setWidgetLogoSuppressed(mXray != null && mXray.isActive())",
-    "Glide.with(mBinding.widget.logo).clear(mBinding.widget.logo)",
-    "mBinding.widget.logo.setImageDrawable(null)",
-)
+    require(
+        "app/src/leanback/java/com/fongmi/android/tv/ui/activity/VideoActivity.java",
+        "xrayPlaybackReady",
+        "mViewModel.cancelXrayTransitionRequests()",
+        "Source.get().stop()",
+        "OkHttp.cancelAll()",
+        "clearArtworkTarget()",
+        "DanmakuApi.cancel(mDanmakuRequestId)",
+        "this::resetXrayForPlaybackChange",
+        "player().clearPlaybackProxyPreservingState()",
+        "mXrayProxyFailed",
+        "state == XraySessionListener.IDLE && !message.isEmpty()",
+        "if (mXray != null) mXray.stop(preservePlayback);",
+        "if (mXray != null) mXray.close();",
+    )
+
+    require(
+        "app/src/leanback/java/com/fongmi/android/tv/ui/activity/LiveActivity.java",
+        "clearArtworkTarget()",
+        "this::resetXrayForPlaybackChange",
+        "mXray.stop(preservePlayback)",
+        "player().clearPlaybackProxyPreservingState()",
+        "mXrayPendingChannelResume",
+        "mXrayStartedFromExistingPlayback",
+        "mXrayRefreshMetadataOnDetach",
+        "mLive.resumeChannelAfterXrayStart()",
+        "private OkHttpClient xrayMetadataClient()",
+        "private void refreshXrayAwareMetadata()",
+        "!getHome().getEpgXml().isEmpty() && mChannel.getDataList().isEmpty()",
+        "mViewModel.parseXml(getHome(), client);",
+        "mViewModel.getEpg(mChannel, client);",
+        "boolean startedFromExisting = mXrayStartedFromExistingPlayback;",
+        "if (!startedFromExisting && !message.isEmpty()) showError(message);",
+        "XrayPlaybackSession.supportsDirectLiveSource(mChannel.getCurrent())",
+        "if (!message.isEmpty()) Notify.show(message);",
+        "if (mXray != null) mXray.stop(preservePlayback);",
+        "if (mXray != null) mXray.close();",
+    )
+
+    forbid(
+        "app/src/leanback/java/com/fongmi/android/tv/ui/activity/LiveActivity.java",
+        "The previous session client may already be closing during a swap.",
+        "catch (IllegalStateException ignored)",
+    )
+
+    live_activity = (ROOT / "app/src/leanback/java/com/fongmi/android/tv/ui/activity/LiveActivity.java").read_text(encoding="utf-8")
+    live_proxy_changed = live_activity.split(
+        "@Override public void onProxyChanged(XrayHttpClient resources, boolean preserve)", 1
+    )[1].split("@Override public void onProxyError()", 1)[0]
+    live_proxy_error = live_activity.split(
+        "@Override public void onProxyError()", 1
+    )[1].split("@Override public void onStateChanged", 1)[0]
+    if "boolean refreshMetadata = resources != null || mXrayRefreshMetadataOnDetach;" not in live_proxy_changed:
+        raise SystemExit("LiveActivity must distinguish proxy install/manual stop from ordinary Xray detach")
+    if "if (refreshMetadata) refreshXrayAwareMetadata();" not in live_proxy_changed:
+        raise SystemExit("LiveActivity proxy transition must restart metadata only for the allowed transition kinds")
+    if "mXrayRefreshMetadataOnDetach = false;" not in live_proxy_changed:
+        raise SystemExit("LiveActivity must consume the one-shot manual-stop metadata refresh flag")
+    if "refreshXrayAwareMetadata();" not in live_proxy_error:
+        raise SystemExit("LiveActivity Xray ERROR rollback must restart XML/EPG metadata on the direct client")
+
+    live_on_xray = live_activity.split("private void onXray()", 1)[1].split("private void onPlayer()", 1)[0]
+    if "mXrayRefreshMetadataOnDetach = mXray.state() == XraySessionListener.RUNNING;" not in live_on_xray:
+        raise SystemExit("LiveActivity manual Xray stop must arm direct metadata refresh only for an installed proxy")
+
+    live_on_stop = live_activity.split("protected void onStop()", 1)[1].split("protected void onBackInvoked()", 1)[0]
+    if "mXrayRefreshMetadataOnDetach = false;" not in live_on_stop:
+        raise SystemExit("LiveActivity lifecycle stop must not restart Live metadata after Xray detach")
+
+    live_identity_reset = live_activity.split(
+        "public void resetXrayForPlaybackChange()", 1
+    )[1].split("public void resetPlaybackForError", 1)[0]
+    if "mXrayRefreshMetadataOnDetach = false;" not in live_identity_reset:
+        raise SystemExit("LiveActivity playback identity changes must clear pending manual-stop metadata refresh")
+
+    require(
+        "xray/src/main/java/com/fingmi/xray/session/XraySettingsController.java",
+        "public long validate(",
+        "replaceClient()",
+        "Xray operation timed out",
+        "XrayOperationIds.next()",
+    )
+
+
+    require(
+        "app/src/main/java/com/fongmi/android/tv/playback/live/LivePlaybackController.java",
+        "selectChannel(Channel channel, boolean resetXray)",
+        "resumeChannelAfterXrayStart()",
+        "if (resetXray) host.resetXrayForPlaybackChange()",
+        "requestPlayback(request, true, false)",
+    )
+
+    require(
+        "app/src/main/java/com/fongmi/android/tv/playback/live/LivePlaybackHost.java",
+        "void resetXrayForPlaybackChange()",
+    )
+
+    require(
+        "app/src/main/java/com/fongmi/android/tv/api/LiveApi.java",
+        "METADATA_TAG",
+        "Thread.currentThread().isInterrupted()",
+        "EpgParser.start(item, url, client, METADATA_TAG)",
+        "OkHttp.newCall(actual, url, METADATA_TAG)",
+    )
+
+    require(
+        "app/src/main/java/com/fongmi/android/tv/api/parser/EpgParser.java",
+        "OkHttpClient client, String tag",
+        "Download.create(url, file).tag(",
+    )
+
+    require(
+        "app/src/leanback/java/com/fongmi/android/tv/ui/adapter/ChannelAdapter.java",
+        "mRecyclerView",
+        "setImageDrawable(null)",
+        "onAttachedToRecyclerView",
+        "onDetachedFromRecyclerView",
+    )
+
+    require(
+        "app/src/leanback/java/com/fongmi/android/tv/ui/activity/LiveActivity.java",
+        "cancelXrayMetadataRequests()",
+        "OkHttp.cancel(normal, LiveApi.METADATA_TAG)",
+        "player().getPlaybackHttpClient(normal)",
+        "setWidgetLogoSuppressed(resources != null)",
+        "setWidgetLogoSuppressed(false)",
+        "setWidgetLogoSuppressed(mXray != null && mXray.isActive())",
+        "Glide.with(mBinding.widget.logo).clear(mBinding.widget.logo)",
+        "mBinding.widget.logo.setImageDrawable(null)",
+    )
+
 
 
 IDENTITY_GATE = ROOT / "xray/src/main/java/com/fingmi/xray/session/PlaybackIdentityGate.java"
