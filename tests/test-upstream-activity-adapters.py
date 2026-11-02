@@ -148,6 +148,8 @@ assert "isWebPlaybackActive()" in z
 assert "public void onXrayEngineChanged()" in z
 assert "getPlayerView().setDanmakuSource(null)" not in z
 refuse(video_activity,VOD.replace("stopPlaybackForRefresh()","stopSourceForRefresh()"))
+refuse(video_activity,VOD.replace("mVod.onPlaybackServiceReady();",
+                                  "mVod.onUnknownServiceState();"))
 
 DIALOG='''class PlayerEngineDialog {
     void bind() {
