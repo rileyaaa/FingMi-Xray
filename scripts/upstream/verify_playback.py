@@ -106,6 +106,7 @@ REQUIRED_587 = {
         "XraySideRequestGate.bind(player);",
         "XraySideRequestGate.unbind(player);",
         "onXrayTransitionStarted()",
+        "player.clearPlaybackProxyPreservingState();",
         "OkHttp.cancel(LiveApi.METADATA_TAG);",
         "XraySideRequestGate.cancelRemoteDownloads();",
         "DanmakuApi.cancel();",
@@ -175,13 +176,35 @@ REQUIRED_587 = {
     # prospective 5.8.7 build must STOP here even with all Exo helpers present.
     "app/src/leanback/java/com/fongmi/android/tv/ui/activity/LiveActivity.java": (
         "new XrayPlaybackSession(",
+        "mXray.enableForPending(",
         "player().setPlaybackProxy(",
         "player().clearPlaybackProxyPreservingState()",
+        "mXray.mediaUrlChanged(result.getRealUrl())",
+        "mViewModel.cancelXrayMetadataRequests();",
+        "mChannelAdapter.setXrayLogoSuppressed(resources != null)",
+        "protected void onXrayBindingReplaced()",
+        'mBinding.control.action.xray.setOnClickListener(view -> onXray());',
     ),
     "app/src/leanback/java/com/fongmi/android/tv/ui/activity/VideoActivity.java": (
         "new XrayPlaybackSession(",
         "player().setPlaybackProxy(",
         "player().hasXraySession()",
+        "mViewModel.cancelXrayTransitionRequests();",
+        "resetXrayForPlaybackChange();",
+        "mXray.mediaUrlChanged(result.getRealUrl())",
+        "protected void onXrayBindingReplaced()",
+        'mBinding.control.action.xray.setOnClickListener(view -> onXray());',
+    ),
+    "app/src/main/java/com/fongmi/android/tv/ui/activity/PlaybackActivity.java": (
+        "protected void onXrayBindingReplaced()",
+        "onXrayBindingReplaced();",
+        "mService.claimBinding(getNavigationCallback(), this::onPlaybackReplaced);",
+    ),
+    "app/src/main/java/com/fongmi/android/tv/model/VideoViewModel.java": (
+        "cancelXrayTransitionRequests()",
+        "requestTasks.cancel(TaskType.DETAIL)",
+        "requestTasks.cancel(TaskType.PRELOAD)",
+        "requestTasks.cancel(TaskType.PLAYBACK)",
     ),
 }
 
