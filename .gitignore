@@ -12,3 +12,6 @@ lib-*.aar
 /libxray/libs/libXray.aar
 /app/libs/media3-container-1.11.0.aar
 /recovery/evidence/
+# Python bytecode produced by local upgrade tests
+__pycache__/
+*.py[cod]
