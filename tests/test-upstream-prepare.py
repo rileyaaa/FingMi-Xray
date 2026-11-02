@@ -6,7 +6,7 @@ import subprocess
 import tempfile
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts/upstream"))
-from prepare_release import gradle, home, tests_proxy, fork_version
+from prepare_release import gradle, home, tests_proxy, fork_version, metadata
 
 APP = """def localProps = new Properties()
 rootProject.file('local.properties').withInputStream {
@@ -113,4 +113,47 @@ with tempfile.TemporaryDirectory(prefix="upstream-version-contract-") as temp:
     else:
         raise AssertionError("Version rollback allowed")
 
-print("PASS fork versioning, signed Gradle overlay, Home one-shot recovery and HttpUrl regressions")
+
+with tempfile.TemporaryDirectory(prefix="upstream-doc-version-contract-") as temp:
+    root = Path(temp)
+    old = "v5.6.3-xray.1"
+    new = "v5.8.7-xray.1"
+    sha = "8626650ebcbc0d028e16d859e826fcf439720f3a"
+    for name in (".github/workflows/current-main-build.yml",
+                 ".github/workflows/publish-current-main-test-release.yml",
+                 "scripts/build/resume-verified-release.py"):
+        file = root / name
+        file.parent.mkdir(parents=True, exist_ok=True)
+        file.write_text('RELEASE_TAG: "' + old + '"\\n'
+                        'fingmi-xray-5.6.3-build-failure-reports\\n'
+                        'Compile current 5.6.3 Leanback source\\n'
+                        'default="' + old + '"\\n', encoding="utf-8")
+    readme = root / "README.md"
+    readme.write_text(
+        '当前 `main` 以 FongMi/TV 5.6.3（`' + "c616c0aa3613e87529791587a9f71b78c278c991" + '`）\\n'
+        '当前正式版为 `' + old + '` / `563001`\\n'
+        '| FongMi/TV | **5.6.3**（commit `c616c0aa3613e87529791587a9f71b78c278c991`） |\\n',
+        encoding="utf-8")
+    development = root / "docs/DEVELOPMENT.md"
+    development.parent.mkdir(parents=True, exist_ok=True)
+    development.write_text(
+        "# Development\\n## 1. 当前工程基线\\n原 5.6.3 基线\\n"
+        "### 维护范围\\n仅 Xray 和 TV 网络恢复\\n"
+        "### 2026-11-02 上游 5.8.7 与通用一键升级 Actions\\n"
+        "5.8.7 当时尚未发布。\\n", encoding="utf-8")
+    metadata(root, old, new, "5.8.7", 587001, sha)
+    updated = development.read_text(encoding="utf-8")
+    assert "固定源码 5.8.7（" + sha + "）" in updated
+    assert "FingMi-Xray 版本 " + new + "，versionCode 587001" in updated
+    assert "候选迁移笔记属于历史阶段记录" in updated
+    assert "5.8.7 当时尚未发布。" in updated
+    readme_output = readme.read_text(encoding="utf-8")
+    assert "FongMi/TV 5.8.7（`" + sha + "`）" in readme_output
+    assert "| FongMi/TV | **5.8.7**（commit `" + sha + "`） |" in readme_output
+    for name in (".github/workflows/current-main-build.yml",
+                 ".github/workflows/publish-current-main-test-release.yml",
+                 "scripts/build/resume-verified-release.py"):
+        text = (root / name).read_text(encoding="utf-8")
+        assert new in text and "fingmi-xray-5.8.7-build-failure-reports" in text
+
+print("PASS fork versioning, signed Gradle overlay, Home one-shot recovery and HttpUrl regressions and regenerated metadata")
