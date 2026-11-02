@@ -47,7 +47,7 @@
       "scope": "xray"
     },
     "app/src/leanback/java/com/fongmi/android/tv/ui/activity/SettingActivity.java": {
-      "strategy": "rebase",
+      "strategy": "generate",
       "scope": "xray"
     },
     "app/src/leanback/java/com/fongmi/android/tv/ui/activity/VideoActivity.java": {
@@ -59,7 +59,7 @@
       "scope": "xray"
     },
     "app/src/leanback/res/layout/activity_setting.xml": {
-      "strategy": "rebase",
+      "strategy": "generate",
       "scope": "xray"
     },
     "app/src/leanback/res/layout/view_control_live_action.xml": {

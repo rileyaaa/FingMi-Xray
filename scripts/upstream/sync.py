@@ -37,6 +37,8 @@ REGENERATED_FILES = {
     "app/src/main/java/com/fongmi/android/tv/utils/OkGlideModule.java",
     "app/src/main/java/com/fongmi/android/tv/Updater.java",
     "app/src/main/java/com/fongmi/android/tv/server/process/Action.java",
+    "app/src/leanback/java/com/fongmi/android/tv/ui/activity/SettingActivity.java",
+    "app/src/leanback/res/layout/activity_setting.xml",
 }
 PRESERVED_FILES = {
     "app/proguard-rules-media.pro",

@@ -9,7 +9,7 @@ from sync import git_tree, blob, upstream_version
 from recovery_adapters import (
     site_view_model, base_loader, ok_http, ok_dns, img_util, ok_glide,
 )
-from xray_adapters import xray_import_action, disable_upstream_apk_update
+from xray_adapters import xray_import_action, disable_upstream_apk_update, setting_activity, setting_layout
 
 
 def one(s, a, b):
@@ -229,6 +229,8 @@ def prepare(root,upstream,target,report):
     xray_hooks = (
         ("app/src/main/java/com/fongmi/android/tv/Updater.java", disable_upstream_apk_update),
         ("app/src/main/java/com/fongmi/android/tv/server/process/Action.java", xray_import_action),
+        ("app/src/leanback/java/com/fongmi/android/tv/ui/activity/SettingActivity.java", setting_activity),
+        ("app/src/leanback/res/layout/activity_setting.xml", setting_layout),
     )
     for filename, transform in xray_hooks:
         additions[filename] = transform(original(upstream, tree, filename))

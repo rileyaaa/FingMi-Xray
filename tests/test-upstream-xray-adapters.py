@@ -7,7 +7,7 @@ import tempfile
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts/upstream"))
-from xray_adapters import xray_import_action, disable_upstream_apk_update, UPDATER_PUBLIC_API
+from xray_adapters import xray_import_action, disable_upstream_apk_update, setting_activity, setting_layout, UPDATER_PUBLIC_API
 
 
 ACTION = """import com.fongmi.android.tv.event.ServerEvent;
@@ -78,4 +78,54 @@ with tempfile.TemporaryDirectory(prefix="fork-updater-javac-") as tmp:
     subprocess.run(["javac", "-encoding", "UTF-8", "-d", str(root / "classes"),
                     *(str(root / f) for f in stubs)], check=True)
 
-print("PASS upstream Action Xray import and fork-safe Updater API; generated Java compiles")
+
+# Newer FongMi settings pages have module controls absent from the old fork.
+# The overlay must leave those upstream controls untouched.
+SETTINGS = """import com.fongmi.android.tv.BuildConfig;
+class SettingActivity {
+    protected void initView(Bundle savedInstanceState) {
+        mBinding.versionText.setText(BuildConfig.VERSION_NAME);
+    }
+    protected void initEvent() {
+        mBinding.danmaku.setOnClickListener(this::onDanmaku);
+        mBinding.module.setOnClickListener(view -> ModuleActivity.start(this));
+    }
+    private void onDanmaku(View view) {}
+}
+"""
+settings = setting_activity(SETTINGS)
+for value in ("mBinding.xray.setOnClickListener(this::onXray);",
+              "SettingXrayActivity.start(this);", "setXrayText();",
+              "XrayPreferences preferences = new XrayPreferences(this);"):
+    assert value in settings
+assert "ModuleActivity.start(this)" in settings
+assert setting_activity(settings) == settings
+try:
+    setting_activity(SETTINGS.replace("mBinding.danmaku.setOnClickListener", "mBinding.other.setOnClickListener"))
+except ValueError:
+    pass
+else:
+    raise AssertionError("Unknown upstream settings event hooks accepted")
+
+from xml.etree import ElementTree as ET
+XML = """<settings xmlns:android="http://schemas.android.com/apk/res/android"
+                 xmlns:tools="http://schemas.android.com/tools">
+    <androidx.appcompat.widget.LinearLayoutCompat>
+        <androidx.appcompat.widget.LinearLayoutCompat android:id="@+id/size" />
+    </androidx.appcompat.widget.LinearLayoutCompat>
+    <androidx.appcompat.widget.LinearLayoutCompat android:id="@+id/incognito" />
+</settings>"""
+patched_xml = setting_layout(XML)
+ET.fromstring(patched_xml)
+assert patched_xml.count('android:id="@+id/xray"') == 1
+assert patched_xml.count('android:id="@+id/xrayText"') == 1
+assert 'android:id="@+id/size"' in patched_xml
+assert setting_layout(patched_xml) == patched_xml
+try:
+    setting_layout(XML.replace('@+id/incognito', '@+id/changed'))
+except ValueError:
+    pass
+else:
+    raise AssertionError("Unknown upstream settings XML structure accepted")
+
+print("PASS upstream Action Xray import / Updater API, Xray settings and valid XML; generated Java compiles")
