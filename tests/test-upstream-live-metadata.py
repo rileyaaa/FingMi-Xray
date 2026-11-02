@@ -5,6 +5,7 @@ from pathlib import Path
 import sys
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]/"scripts/upstream"))
 from live_metadata_adapters import live_api,epg_parser,live_view_model
+from live_ui_adapters import channel_adapter
 
 
 def fail_closed(fn,content):
@@ -61,6 +62,32 @@ assert "tasks.cancel(TaskType.URL);" in out
 fail_closed(live_view_model,VM.replace("public void getUrl(LivePlayRequest request)",
                                      "public void obtainUrl(LivePlayRequest request)"))
 
+CHANNEL='''package com.fongmi.android.tv.ui.adapter;
+class ChannelAdapter {
+    private final List<Channel> mItems;
+    public void addAll(List<Channel> items) {}
+    private void updateSelection(int position, Channel selected) {
+        notifyItemChanged(position, Boolean.TRUE);
+    }
+    @Override
+    public void onBindViewHolder(@NonNull ViewHolder holder, int position) {
+        item.loadLogo(holder.binding.logo);
+    }
+    @Override
+    public void onBindViewHolder(@NonNull ViewHolder holder, int position, @NonNull List<Object> payloads) {
+        if (!payloads.isEmpty() && payloads.stream().allMatch(Boolean.TRUE::equals)) holder.binding.getRoot().setSelected(mItems.get(position).isSelected());
+    }
+    @Override
+    public void onViewRecycled(@NonNull ViewHolder holder) { }
+}'''
+out=channel_adapter(CHANNEL)
+assert "setXrayLogoSuppressed(boolean suppressed)" in out
+assert "notifyItemChanged(position, Boolean.TRUE);" in out
+assert "payloads.stream().allMatch(Boolean.TRUE::equals)" in out
+assert "Glide.with(channelHolder.binding.logo).clear(channelHolder.binding.logo)" in out
+fail_closed(channel_adapter, CHANNEL.replace("item.loadLogo(holder.binding.logo);",
+                                            "item.loadLogoElsewhere(holder.binding.logo);"))
+
 parser=argparse.ArgumentParser()
 parser.add_argument("--upstream",type=Path)
 parser.add_argument("--target")
@@ -74,6 +101,7 @@ if args.upstream:
         ("app/src/main/java/com/fongmi/android/tv/api/LiveApi.java",live_api),
         ("app/src/main/java/com/fongmi/android/tv/api/parser/EpgParser.java",epg_parser),
         ("app/src/main/java/com/fongmi/android/tv/model/LiveViewModel.java",live_view_model),
+        ("app/src/leanback/java/com/fongmi/android/tv/ui/adapter/ChannelAdapter.java",channel_adapter),
     ):
         if name not in tree: raise AssertionError("Missing official source "+name)
         raw=blob(args.upstream,tree[name]).decode("utf-8")
