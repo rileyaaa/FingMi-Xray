@@ -76,6 +76,7 @@ jobs:
           python3 tests/test-upstream-workflow-shell.py
           python3 tests/test-upstream-build-only-workflow.py
           python3 tests/test-upstream-mode-runtime.py
+          python3 tests/test-upstream-full-source-guards.py
           python3 tests/test-upstream-real-hooks-mock.py
           # Fail malformed user input before the longer local adapter checks.
           python3 scripts/upstream/normalize_sha.py "$REQUESTED_SHA" >/dev/null
@@ -274,35 +275,52 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          python3 tests/test-xray-android-runtime-compat.py
-          python3 tests/test-xray-core-parity.py
-          python3 tests/test-xray-playback-parity.py
-          python3 tests/test-xray-guarded-data-source.py
-          python3 tests/test-xray-playback-routing.py
-          # Fast, SDK-free JVM coverage before costly native/media rebuilds.
-          python3 tests/test-xray-artwork-loader.py
-          python3 tests/test-upstream-playback-contract.py
-          python3 tests/test-xray-playback-address-parity.py
-          python3 tests/test-xray-session-races.py
-          python3 tests/test-xray-service-client-lifecycle.py
-          python3 tests/test-xray-normalizer-parity.py
-          python3 tests/test-xray-transport-security-parity.py
-          python3 tests/test-xray-tls-fragment.py --workdir build/work/xray-tls-fragment
-          python3 tests/test-upstream-update-disabled.py
-          python3 scripts/build/check-elf-runtime.py --self-test
-          python3 scripts/build/check-final-apk-native.py --self-test
-          python3 scripts/build/check-final-apk-manifest.py --self-test
-          python3 tests/test-build-hygiene.py
-          python3 tests/test-resolve-release-tag.py
-          python3 tests/test-release-publication.py
-          python3 tests/test-resume-verified-release.py
-          python3 tests/test-media3-dex-linkage.py
-          python3 tests/test-player-candidate-linkage.py
-          python3 tests/test-libass-native-input.py
-          python3 tests/test-tv-network-recovery.py
-          python3 tests/test-xray-error-sanitizer.py
-          python3 tests/test-tv-recovery-intent-replay.py
-          python3 tests/test-xray-recovery-state-audit.py
+          source_guard_failed=0
+          run_source_guard() {
+            local path="$2"
+            echo "::group::Full build source guard: $path"
+            if "$@"; then
+              echo "PASS: $path"
+            else
+              echo "::error file=$path::Full build source guard failed"
+              source_guard_failed=1
+            fi
+            echo "::endgroup::"
+          }
+          # All checks here use only JVM/stdlib or their own synthetic fixtures;
+          # run every independent gate before spending Android/native build time.
+          run_source_guard python3 tests/test-xray-android-runtime-compat.py
+          run_source_guard python3 tests/test-xray-core-parity.py
+          run_source_guard python3 tests/test-xray-playback-parity.py
+          run_source_guard python3 tests/test-xray-guarded-data-source.py
+          run_source_guard python3 tests/test-xray-playback-routing.py
+          run_source_guard python3 tests/test-xray-artwork-loader.py
+          run_source_guard python3 tests/test-upstream-playback-contract.py
+          run_source_guard python3 tests/test-xray-playback-address-parity.py
+          run_source_guard python3 tests/test-xray-session-races.py
+          run_source_guard python3 tests/test-xray-service-client-lifecycle.py
+          run_source_guard python3 tests/test-xray-normalizer-parity.py
+          run_source_guard python3 tests/test-xray-transport-security-parity.py
+          run_source_guard python3 tests/test-xray-tls-fragment.py --workdir build/work/xray-tls-fragment
+          run_source_guard python3 tests/test-upstream-update-disabled.py
+          run_source_guard python3 scripts/build/check-elf-runtime.py --self-test
+          run_source_guard python3 scripts/build/check-final-apk-native.py --self-test
+          run_source_guard python3 scripts/build/check-final-apk-manifest.py --self-test
+          run_source_guard python3 tests/test-build-hygiene.py
+          run_source_guard python3 tests/test-resolve-release-tag.py
+          run_source_guard python3 tests/test-release-publication.py
+          run_source_guard python3 tests/test-resume-verified-release.py
+          run_source_guard python3 tests/test-media3-dex-linkage.py
+          run_source_guard python3 tests/test-player-candidate-linkage.py
+          run_source_guard python3 tests/test-libass-native-input.py
+          run_source_guard python3 tests/test-tv-network-recovery.py
+          run_source_guard python3 tests/test-xray-error-sanitizer.py
+          run_source_guard python3 tests/test-tv-recovery-intent-replay.py
+          run_source_guard python3 tests/test-xray-recovery-state-audit.py
+          if [[ "$source_guard_failed" != "0" ]]; then
+            echo "BLOCKED: full build source guards failed; see all errors above. No Android SDK/native build or publication." >&2
+            exit 1
+          fi
 
       - name: Prepare Android SDK 36 and 37
         if: ${{ inputs.apply_to_main || inputs.build_without_publish }}
