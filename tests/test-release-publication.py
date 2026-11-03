@@ -156,6 +156,26 @@ class PublicationTest(unittest.TestCase):
         self.assertIn(2, self.github.releases)
         self.assertFalse(any(method == "DELETE" for method, _, _ in self.github.events))
 
+
+    def test_release_notes_use_selected_public_fongmi_version(self):
+        # A 5.8.7 upgrade must not be described as "not updating FongMi".
+        for version in ("5.6.3", "5.8.7"):
+            tag = f"v{version}-xray.1"
+            note = PUB.upstream_release_note(tag)
+            self.assertIn("公开 FongMi/TV " + version + " 源码基线", note)
+            self.assertIn("Xray 核心保持既有固定版本", note)
+            self.assertNotIn("不升级", note)
+        for invalid in ("v5.8.7", "v5.8.7-xray", "v5.8.7-xray.foo"):
+            with self.subTest(invalid=invalid), self.assertRaisesRegex(
+                    PUB.PublicationError, "Invalid app version"):
+                PUB.upstream_release_note(invalid)
+        result = self.publisher().run()
+        self.assertEqual(result["phase"], "complete")
+        published = next(row for row in self.github.releases.values()
+                         if row["tag_name"] == TAG)
+        self.assertIn(PUB.upstream_release_note(TAG), published["body"])
+
+
     def test_each_upload_failure_preserves_current_publication(self):
         for upload in (1,):
             with self.subTest(upload=upload):

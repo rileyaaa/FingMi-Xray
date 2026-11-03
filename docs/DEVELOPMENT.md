@@ -40,6 +40,13 @@
 
 任何超出上述范围的代码修改，在提交前都应先判断：**这个变化是否是 Xray 或 TV 网络恢复的必要条件？如果不是，默认跟随上游。** 用户允许的例外仅限像已发生的主机名崩溃一样，有明确证据、明显影响实际使用的上游故障；只做最小修补，并在下方登记，不能据理论风险扩展普通业务维护。
 
+### 2026-11-03 第七次手动升级安全预检已通过（尚未合入/编译/发布）
+
+- [GitHub Actions #41573448653](https://github.com/rileyaaa/FingMi-Xray/actions/runs/41573448653) 基于 `main@ad3ac9f382b4b2da96e7be27ed922e644d8d8c4c`，使用手动 `workflow_dispatch` 且 `apply_to_main=false`，上游固定 `FongMi/TV/fongmi@305dff233cde512e2c83f71529b7c3ecfd61fefc`。报告与日志一致：8/8 组真实上游适配预检、13/13 项候选源码守卫全部通过（包括真实 Gate/字幕/弹幕组合 JVM），离线引擎测试通过。实际构建的是**隔离 runner 的源码候选**，没有进行 Android Gradle 编译或发布。
+- 已下载比对 `fingmi-upstream-integration-report` 两份原始 JSON，ZIP SHA-256 `94d380507a5b5aad2ea4295f3c9765f84d11e151362601156956912dda56a045`：上游变更路径 810，合格同步路径/计划修改 768，保护或排除 42，按上游优先 17；`status=prepared`、`conflicts=[]`、`unreviewed_fork_drift=[]`；升级生成器计划重建 47 个文件。候选发布 `v5.8.7-xray.1` / `587001`，没有改远程 main、Release 或签名。此报告是临时 Actions artifact，不是源码备份。
+- 下一阶段只剩**显式开启完整升级**后的编译、固定 player/native 输入、签名、双 ABI APK 和最终 manifest/DEX 证明。当前入口 `apply_to_main=true` 会在全部构建验证通过后**自动把 5.8.7 候选推送 main 并发布正式 Release**，并按获准策略只保留新正式版及黄金 `v5.6.0-xray.5`；不是单纯编译预览。用户仍需手动选择入口，AI 不擅自运行 AC。公开上游若移动必须使用原 SHA 固定输入或先重新核对源码。
+- 预发布审计发现正式发布说明还使用旧版固定句子“不升级公开 FongMi 基线”，会误描述 5.8.7 更新。本轮将其改为从实际 `versionName` 推出公开 FongMi/TV 基线版本，保留“Xray 核心固定”事实，并补 `tests/test-release-publication.py` 的纯离线成功/错误版号场景；这不改变签名、构建、上传和旧版发布链的执行逻辑。
+
 ### 2026-11-03 第六次 AC 后新增真实 Gate 与新版 API 组合回归（无新 AC）
 
 - 将 `tests/test-upstream-side-request-integration.py` 纳入生成源码后的安全预检（13 项）。与前一个仅用网络 Gate 替身的 15 项请求生命周期回归不同，新测试从**实际生成的** `XraySideRequestGate.java` 读取源码，要求与仓库审查过的模板逐字节一致，并一起编译实际 5.8.7 `DanmakuApi.java`、`SubtitleApi.java`、`ApiCallback.java`。Android、OkHttp、下载和 PlayerManager 外部边界由 deterministic JVM 替身构建；复用上一份测试的静态模型夹具但不重复执行其整套用例。

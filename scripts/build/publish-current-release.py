@@ -19,6 +19,16 @@ def command(argv):
     return subprocess.check_output(argv)
 
 
+
+def upstream_release_note(version_name: str) -> str:
+    """Describe the selected public FongMi baseline, never the previous release."""
+    match = re.fullmatch(r"v(\d+\.\d+\.\d+)-xray\.\d+", version_name)
+    if match is None:
+        raise PublicationError("Invalid app version for release notes")
+    return (f"本版采用公开 FongMi/TV {match.group(1)} 源码基线；"
+            "Xray 核心保持既有固定版本。")
+
+
 @dataclass(frozen=True)
 class Asset:
     path: Path
@@ -341,7 +351,7 @@ class Publisher:
                  "Xray 设置在 UDP 下增加默认关闭的 TLS 分片开关，预设 tlshello / 80–120 字节 / 5–10 毫秒；"
                  "测试连接与实际播放均传递对应设置，Hysteria2、KCP、QUIC、无 TLS 与 XHTTP 仅 H3 等不适用配置自动跳过。"
                  "该选项用于部分网络的握手兼容，不保证普遍提速，也不能修正节点域名 DNS 污染。"
-                 "保留此前退出清理、主机名崩溃与 decoder 依赖修复；不升级 Xray 核心或公开 FongMi 基线。"
+                 f"{upstream_release_note(version_name)}"
                  "源码、单元、双 ABI native、Release 编译与签名校验已执行；电视真机行为尚未验收。\n\n")
         if old:
             notes += ("本次按用户明确要求同名替换，为一次性版本规则例外；"
