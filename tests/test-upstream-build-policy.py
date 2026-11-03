@@ -44,6 +44,33 @@ assert names.count(".ui.activity.SettingXrayActivity")==1
 assert ".ui.activity.ModuleActivity" in names
 rejects(leanback_manifest,leanback.replace(".ui.activity.SettingActivity", ".ui.activity.OtherSettings"))
 
+# The real public 5.8.7 TV flavor adds a boot receiver and boot permission.
+# They must both be removed without losing other upstream TV declarations.
+boot_permission='    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />\n'
+boot_receiver="""        <receiver
+            android:name=".receiver.BootReceiver"
+            android:exported="true"
+            android:priority="999">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.QUICKBOOT_POWERON" />
+            </intent-filter>
+        </receiver>
+
+"""
+booted=leanback.replace("    <application>",boot_permission+"    <application>")
+booted=booted.replace("    </application>",boot_receiver+"    </application>")
+clean=leanback_manifest(booted)
+ElementTree.fromstring(clean)
+for forbidden in ("android.permission.RECEIVE_BOOT_COMPLETED",".receiver.BootReceiver",
+                  "android.intent.action.BOOT_COMPLETED","android.intent.action.QUICKBOOT_POWERON"):
+    assert forbidden not in clean,forbidden
+assert 'android:name=".ui.activity.ModuleActivity"' in clean
+assert 'android:name=".ui.activity.SettingXrayActivity"' in clean
+rejects(leanback_manifest,booted.replace(boot_receiver,""))
+rejects(leanback_manifest,booted.replace('android:priority="999"','android:priority="500"'))
+
+
 main='''<?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <uses-permission android:name="android.permission.INTERNET" />
@@ -76,5 +103,9 @@ if args.upstream:
         raw=blob(args.upstream,tree[name]).decode("utf-8")
         transformed=fn(raw)
         assert transformed and len(transformed)>10,name
+        if name=="app/src/leanback/AndroidManifest.xml":
+            for forbidden in ("android.permission.RECEIVE_BOOT_COMPLETED", ".receiver.BootReceiver",
+                              "android.intent.action.BOOT_COMPLETED", "android.intent.action.QUICKBOOT_POWERON"):
+                assert forbidden not in transformed,forbidden
     print("PASS all 4 public build policy adapters "+args.target)
 print("PASS Xray JNI, local generated outputs, TV settings and installer permissions")
