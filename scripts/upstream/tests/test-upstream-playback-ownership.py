@@ -10,7 +10,7 @@ import re
 import subprocess
 import tempfile
 
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = Path(__file__).resolve().parents[3]
 BASE = ROOT / "app/src/main/java/com/fongmi/android/tv/ui/activity/PlaybackActivity.java"
 SERVICE = ROOT / "app/src/main/java/com/fongmi/android/tv/service/PlaybackService.java"
 LIVE = ROOT / "app/src/leanback/java/com/fongmi/android/tv/ui/activity/LiveActivity.java"

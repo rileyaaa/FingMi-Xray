@@ -4,10 +4,10 @@ import argparse
 from pathlib import Path
 import sys
 from xml.etree import ElementTree
-sys.path.insert(0,str(Path(__file__).resolve().parents[1]/"scripts/upstream"))
+sys.path.insert(0,str(Path(__file__).resolve().parents[3]/"scripts/upstream"))
 from xray_resources import xray_strings,xray_control_layout
 
-ROOT=Path(__file__).resolve().parents[1]
+ROOT=Path(__file__).resolve().parents[3]
 LOCALES=(
     "app/src/leanback/res/values/strings.xml",
     "app/src/leanback/res/values-zh-rCN/strings.xml",

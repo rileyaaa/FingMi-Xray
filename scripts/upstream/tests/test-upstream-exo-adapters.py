@@ -3,7 +3,7 @@
 import argparse
 from pathlib import Path
 import sys
-sys.path.insert(0,str(Path(__file__).resolve().parents[1]/"scripts/upstream"))
+sys.path.insert(0,str(Path(__file__).resolve().parents[3]/"scripts/upstream"))
 from exo_adapters import media_factory,exo_session,exo_engine,engine_factory
 from player_manager_adapter import player_manager
 

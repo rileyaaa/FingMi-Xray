@@ -276,8 +276,8 @@ for name, text in (
     # Preflight must start a real daemon before expensive native reconstruction.
     if not re.search(r"distribution: jetbrains\s+java-version: [\"']21[\"']", text):
         errors.append(f"{name} must install JetBrains JDK 21 for the upstream daemon criteria")
-    preflight = text.find("Verify upstream Gradle daemon toolchain")
-    native_build = text.find("Rebuild and verify pinned player/native inputs")
+    preflight = text.find("检查上游 Gradle 工具链")
+    native_build = text.find("重建并校验固定播放器及原生依赖")
     if preflight < 0 or native_build < preflight:
         errors.append(f"{name} must preflight the daemon before rebuilding native inputs")
     if "-Porg.gradle.java.installations.auto-download=false" not in text or "help --stacktrace --warning-mode all" not in text:
@@ -306,27 +306,27 @@ for name, text in (
         "python3 scripts/build/check-final-apk-manifest.py --self-test",
         "python3 tests/test-release-publication.py",
         "python3 tests/test-resume-verified-release.py",
-        "Verify MPEG-H survives final TV APK packaging",
+        "校验最终 APK 中的 MPEG-H",
         'entry="lib/${abi}/libmpeghJNI.so"',
         "Landroidx/media3/decoder/mpegh/MpeghAudioRenderer;",
-        "Verify pinned native runtime survives final TV APK packaging",
+        "校验最终 APK 中的原生运行库",
         "python3 scripts/build/check-final-apk-native.py",
         "--apk-dir app/build/outputs/apk/leanback",
-        "Verify imported player startup",
+        "验证播放器组件启动",
         "python3 tests/test-player-startup.py",
-        "Verify Xray artwork lifecycle",
+        "验证 Xray 图片加载生命周期",
         "python3 tests/test-xray-artwork-lifecycle.py",
         "build/work/current-main/artwork-lifecycle/target/surefire-reports/",
         "build/work/current-main/artwork-lifecycle/input-sha256.json",
         "rm -rf build/work/current-main/artwork-lifecycle",
-        "Verify proxy policy host regression",
+        "验证代理主机名崩溃回归",
         ":catvod:testDebugUnitTest",
         "catvod/build/test-results/",
-        "Verify final Media3 DEX linkage",
+        "验证最终 Media3 DEX 依赖",
         "python3 scripts/build/check-final-apk-media3.py",
         "python3 tests/test-media3-dex-linkage.py",
         "python3 tests/test-player-candidate-linkage.py",
-        "Verify final Leanback manifest security contract",
+        "验证最终 Leanback Manifest 安全约束",
         "python3 scripts/build/check-final-apk-manifest.py",
         'apkanalyzer="$sdk_root/cmdline-tools/latest/bin/apkanalyzer"',
         "find app/build/outputs/apk/leanback -type f -name 'leanback-*.apk'",
@@ -385,12 +385,12 @@ for name, text in (
     # Exercise the actual cleanup step in an isolated fake build tree. The
     # verified Xray inputs must go before Maven starts, but Libass inputs and
     # the AARs consumed by later Gradle tasks must survive byte-for-byte.
-    cleanup_marker = "      - name: Reclaim verified Xray scratch before Libass\n"
-    libass_marker = "      - name: Build and import reconstructed Libass candidate\n"
+    cleanup_marker = "      - name: Libass 前清理已验证的 Xray 临时文件\n"
+    libass_marker = "      - name: 重建并导入 Libass 兼容组件\n"
     if cleanup_marker not in text or text.index(cleanup_marker) > text.index(libass_marker):
         errors.append(f"{name} must retire Xray scratch before Libass starts")
         continue
-    native_start = text.index("      - name: Verify current Xray chain")
+    native_start = text.index("      - name: 对照已发布 v7 与 arm64 原生库验证 Xray")
     native = text[native_start:text.index(cleanup_marker)]
     v7_end = native.index('--android-root "$work/v7-harness/android/root"')
     arm64_start = native.index('python3 scripts/recovery/prepare-native-converter-harness.py', v7_end)
@@ -451,7 +451,7 @@ if "retention-days: 2" not in current_workflow:
     errors.append("current-main-build.yml debug artifact must remain short-lived (2 days)")
 for required in (
     "actions: write",
-    "Remove superseded current-main release artifacts",
+    "清理过期的同名构建产物",
     'select(.name == "' + artifact_prefix + '-current-main-release")',
     'gh api --method DELETE "repos/${GITHUB_REPOSITORY}/actions/artifacts/$id"',
 ):
@@ -472,9 +472,9 @@ for required in (
 ):
     if required not in publish_workflow:
         errors.append(f"publish workflow lost source-bound release tag contract: {required}")
-if "Bind release tag to checked-out source" not in publish_workflow or (
-    publish_workflow.index("Bind release tag to checked-out source") >
-    publish_workflow.index("Run fork source guards")
+if "按当前源码确定发布版本" not in publish_workflow or (
+    publish_workflow.index("按当前源码确定发布版本") >
+    publish_workflow.index("运行项目源码检查")
 ):
     errors.append("publish source-tag validation must precede expensive rebuild")
 for required in (
@@ -485,7 +485,7 @@ for required in (
     "  cancel-in-progress: false",
     "      ALLOW_EXISTING_RELEASE:",
     "      ROLLBACK_TAG:",
-    "Publish verified APKs",
+    "发布已验证的 APK",
 ):
     if required not in publish_workflow:
         errors.append(f"publish workflow lost staged replacement contract: {required}")
@@ -506,7 +506,7 @@ if 'RELEASE_TAG: ""' not in manual_workflow or (
     errors.append("upstream sync must not pin the previous fork release in workflow YAML")
 if ("git status --porcelain -- .github/workflows" not in manual_workflow or
         manual_workflow.index("git status --porcelain -- .github/workflows") >
-        manual_workflow.index("Rebuild and verify pinned player/native inputs")):
+        manual_workflow.index("重建并校验固定播放器及原生依赖")):
     errors.append("upstream sync must block workflow modifications before expensive native rebuild")
 for name, workflow in (
     ("current-main-build.yml", current_workflow),

@@ -11,16 +11,16 @@ import re
 import subprocess
 import textwrap
 
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = Path(__file__).resolve().parents[3]
 WORKFLOW = ROOT / '.github/workflows/manual-upstream-sync.yml'
 EXPECTED = (
     'tests/test-xray-android-runtime-compat.py',
     'tests/test-xray-core-parity.py',
     'tests/test-xray-playback-parity.py',
-    'tests/test-xray-guarded-data-source.py',
-    'tests/test-xray-playback-routing.py',
-    'tests/test-xray-artwork-loader.py',
-    'tests/test-upstream-playback-contract.py',
+    'scripts/upstream/tests/test-xray-guarded-data-source.py',
+    'scripts/upstream/tests/test-xray-playback-routing.py',
+    'scripts/upstream/tests/test-xray-artwork-loader.py',
+    'scripts/upstream/tests/test-upstream-playback-contract.py',
     'tests/test-xray-playback-address-parity.py',
     'tests/test-xray-session-races.py',
     'tests/test-xray-service-client-lifecycle.py',
@@ -45,8 +45,8 @@ EXPECTED = (
 )
 
 workflow = WORKFLOW.read_text(encoding='utf-8')
-start = '      - name: Run fork source guards\n'
-finish = '\n      - name: Prepare Android SDK 36 and 37\n'
+start = '      - name: 运行项目源码检查\n'
+finish = '\n      - name: 准备 Android SDK 36 与 37\n'
 assert workflow.count(start) == workflow.count(finish) == 1
 step = workflow.split(start, 1)[1].split(finish, 1)[0]
 assert 'if: ${{ inputs.apply_to_main || inputs.build_without_publish }}' in step

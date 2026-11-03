@@ -12,10 +12,10 @@ import re
 import subprocess
 import tempfile
 
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = Path(__file__).resolve().parents[3]
 GATE = ROOT / 'app/src/main/java/com/fingmi/integration/xray/XraySideRequestGate.java'
 TEMPLATE = ROOT / 'scripts/upstream/templates/XraySideRequestGate.java.in'
-SIBLING = ROOT / 'tests/test-upstream-side-request-lifecycle.py'
+SIBLING = ROOT / 'scripts/upstream/tests/test-upstream-side-request-lifecycle.py'
 DANMAKU = ROOT / 'app/src/main/java/com/fongmi/android/tv/api/DanmakuApi.java'
 SUBTITLE = ROOT / 'app/src/main/java/com/fongmi/android/tv/api/SubtitleApi.java'
 CALLBACK = ROOT / 'app/src/main/java/com/fongmi/android/tv/impl/ApiCallback.java'

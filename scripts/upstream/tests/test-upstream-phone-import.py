@@ -4,7 +4,7 @@ import argparse
 from html.parser import HTMLParser
 from pathlib import Path
 
-ROOT=Path(__file__).resolve().parents[1]
+ROOT=Path(__file__).resolve().parents[3]
 HTML=ROOT/"scripts/upstream/templates/xray.html.in"
 DIALOG=ROOT/"scripts/upstream/templates/XrayPhoneImportDialog.java.in"
 SETTING=ROOT/"app/src/leanback/java/com/fongmi/android/tv/ui/activity/SettingXrayActivity.java"

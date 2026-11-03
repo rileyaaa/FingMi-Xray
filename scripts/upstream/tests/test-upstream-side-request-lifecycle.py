@@ -10,7 +10,7 @@ import re
 import subprocess
 import tempfile
 
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = Path(__file__).resolve().parents[3]
 DANMAKU = ROOT / 'app/src/main/java/com/fongmi/android/tv/api/DanmakuApi.java'
 SUBTITLE = ROOT / 'app/src/main/java/com/fongmi/android/tv/api/SubtitleApi.java'
 CALLBACK = ROOT / 'app/src/main/java/com/fongmi/android/tv/impl/ApiCallback.java'

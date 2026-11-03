@@ -4,7 +4,7 @@ import argparse
 from pathlib import Path
 import sys
 from xml.etree import ElementTree
-sys.path.insert(0,str(Path(__file__).resolve().parents[1]/"scripts/upstream"))
+sys.path.insert(0,str(Path(__file__).resolve().parents[3]/"scripts/upstream"))
 from build_policy_adapters import gitignore,proguard,leanback_manifest,main_manifest
 
 
@@ -89,7 +89,7 @@ rejects(main_manifest,main.replace("REQUEST_INSTALL_PACKAGES","ANOTHER_PERMISSIO
 # Parse only two literal tables from the guard; do not import the guard's
 # top-level Java/SKD test harness during this cheap upstream preflight.
 import ast
-scope_script=(Path(__file__).resolve().parents[0] / "test-tv-network-recovery.py").read_text(encoding="utf-8")
+scope_script=(Path(__file__).resolve().parents[3] / "tests/test-tv-network-recovery.py").read_text(encoding="utf-8")
 scope_ast=ast.parse(scope_script)
 pins={}
 for node in scope_ast.body:

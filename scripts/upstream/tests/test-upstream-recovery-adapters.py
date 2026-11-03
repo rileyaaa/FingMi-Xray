@@ -3,7 +3,7 @@
 from pathlib import Path
 import sys
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts/upstream"))
+sys.path.insert(0, str(Path(__file__).resolve().parents[3] / "scripts/upstream"))
 from recovery_adapters import (
     site_view_model, base_loader, ok_http, ok_dns, img_util, ok_glide,
 )

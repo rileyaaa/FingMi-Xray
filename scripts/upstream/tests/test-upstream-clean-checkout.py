@@ -11,7 +11,7 @@ import subprocess
 import sys
 import tempfile
 
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = Path(__file__).resolve().parents[3]
 ignore = (ROOT / ".gitignore").read_text(encoding="utf-8")
 adapter = (ROOT / "scripts/upstream/build_policy_adapters.py").read_text(encoding="utf-8")
 workflow = (ROOT / ".github/workflows/manual-upstream-sync.yml").read_text(encoding="utf-8")

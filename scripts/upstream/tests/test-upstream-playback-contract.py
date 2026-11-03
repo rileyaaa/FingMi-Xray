@@ -3,7 +3,7 @@
 import importlib.util
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = Path(__file__).resolve().parents[3]
 MODULE = ROOT / "scripts/upstream/verify_playback.py"
 spec = importlib.util.spec_from_file_location("fingmi_playback_contract", MODULE)
 policy = importlib.util.module_from_spec(spec)

@@ -5,7 +5,7 @@ from pathlib import Path
 import subprocess
 import sys
 
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = Path(__file__).resolve().parents[3]
 SCRIPT = ROOT / "scripts/upstream/normalize_sha.py"
 spec = importlib.util.spec_from_file_location("normalize_sha", SCRIPT)
 module = importlib.util.module_from_spec(spec)
@@ -37,8 +37,8 @@ for bad in ("0" * 39, "0" * 41, "not a SHA", "123 " + SHA,
 workflow = (ROOT / ".github/workflows/manual-upstream-sync.yml").read_text(encoding="utf-8")
 normalized_command = 'EXPECTED_SHA="$(python3 scripts/upstream/normalize_sha.py "$EXPECTED_SHA")"'
 assert workflow.count(normalized_command) == 1
-start = workflow.index("- name: Fetch public FongMi/TV baseline and latest")
-end = workflow.index("- name: Three-way merge and regenerate approved fork adapters", start)
+start = workflow.index("- name: 获取公开 FongMi/TV 基线及最新源码")
+end = workflow.index("- name: 三方同步上游并重新生成适配代码", start)
 fetch_step = workflow[start:end]
 assert fetch_step.index(normalized_command) < fetch_step.index('if [[ -n "$EXPECTED_SHA"')
 assert fetch_step.index(normalized_command) < fetch_step.index("git -C \"$upstream\" fetch")

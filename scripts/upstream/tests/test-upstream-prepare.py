@@ -5,12 +5,12 @@ import sys
 import subprocess
 import tempfile
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts/upstream"))
+sys.path.insert(0, str(Path(__file__).resolve().parents[3] / "scripts/upstream"))
 from prepare_release import gradle, home, tests_proxy, fork_version, metadata, rewrite_guards
 
 # The real repository documentation must also satisfy metadata()'s exact
 # anchors. Fixture-only tests previously missed a duplicated historical section.
-audit = (Path(__file__).resolve().parents[1] / "docs/UPSTREAM_5_8_7_MIGRATION_AUDIT.md").read_text(encoding="utf-8")
+audit = (Path(__file__).resolve().parents[3] / "docs/UPSTREAM_5_8_7_MIGRATION_AUDIT.md").read_text(encoding="utf-8")
 for heading in (
     "### 2026-11-02 上游 5.8.7 与通用一键升级 Actions",
     "### 2026-11-02 5.8.7 官方 Exo 接线适配（候选生成器，未发布）",
@@ -183,7 +183,7 @@ from unittest.mock import patch
 import re
 with tempfile.TemporaryDirectory(prefix="upstream-recovery-pins-") as temp:
     root = Path(temp)
-    repo_root = Path(__file__).resolve().parents[1]
+    repo_root = Path(__file__).resolve().parents[3]
     guard_name = "tests/test-tv-network-recovery.py"
     guard = (repo_root / guard_name).read_text(encoding="utf-8")
     pins = re.findall(r'"(app/[^"]+)"\s*:\s*"([a-f0-9]{40})"', guard)

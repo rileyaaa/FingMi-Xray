@@ -1,22 +1,22 @@
-name: Resume verified formal release publication
+name: "异常恢复｜已验证 APK 发布续传"
 
 on:
   workflow_dispatch:
     inputs:
       verified_run_id:
-        description: "Completed failed full publication run whose APK build and verification succeeded"
+        description: "APK 已编译验证成功、但发布阶段失败的原始 Actions Run ID"
         type: string
         required: true
       replace_existing:
-        description: "Explicitly replace the existing same-version formal release"
+        description: "明确授权时替换同版本的正式 Release（默认不替换）"
         type: boolean
         default: false
       rollback_tag:
-        description: "Pre-created rollback tag pointing at the old .1 source; required if run token cannot create it"
+        description: "预先创建的旧版回退标签；如运行 Token 无法创建标签则必填"
         type: string
         default: ""
       prune_superseded:
-        description: "After successful verified cutover remove all Releases except golden and new .1"
+        description: "成功切换发布后，仅保留黄金版和新正式版 Release（默认不清理）"
         type: boolean
         default: false
 
@@ -30,6 +30,7 @@ permissions:
 
 jobs:
   resume:
+    name: "原产物验证与发布续传"
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     timeout-minutes: 20
@@ -45,13 +46,13 @@ jobs:
         with:
           python-version: "3.10"
 
-      - name: Verify publication and recovery guards
+      - name: 运行发布续传安全检查
         run: |
           python3 tests/test-release-publication.py
           python3 tests/test-resume-verified-release.py
           python3 tests/test-media3-dex-linkage.py
 
-      - name: Prepare APK verification tools only
+      - name: 只准备 APK 校验工具
         shell: bash
         run: |
           set -euo pipefail
@@ -61,7 +62,7 @@ jobs:
           yes | "$sdkmanager" --licenses >/dev/null 2>&1 || true
           "$sdkmanager" --channel=3 --install 'build-tools;37.0.0'
 
-      - name: Reverify original Actions APKs and resume publication
+      - name: 重新验证原始 Actions APK 并续传发布
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
@@ -81,7 +82,7 @@ jobs:
           fi
           python3 scripts/build/resume-verified-release.py "${args[@]}"
 
-      - name: Record original build and publication identities
+      - name: 记录原始构建及发布标识
         if: always()
         shell: bash
         run: |
@@ -94,7 +95,7 @@ jobs:
             } >> "$GITHUB_STEP_SUMMARY"
           fi
 
-      - name: Upload publication reports on failure
+      - name: 续传失败时上传报告
         if: failure()
         uses: actions/upload-artifact@v7
         with:

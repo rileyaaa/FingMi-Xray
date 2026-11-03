@@ -6,7 +6,7 @@ import sys
 import tempfile
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts/upstream"))
+sys.path.insert(0, str(Path(__file__).resolve().parents[3] / "scripts/upstream"))
 from xray_adapters import xray_import_action, disable_upstream_apk_update, setting_activity, setting_layout, UPDATER_PUBLIC_API
 
 

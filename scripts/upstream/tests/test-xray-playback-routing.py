@@ -4,7 +4,7 @@ from pathlib import Path
 import subprocess
 import tempfile
 
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = Path(__file__).resolve().parents[3]
 SOURCE = ROOT / "app/src/main/java/com/fingmi/integration/xray/XrayPlaybackRouting.java"
 FACTORY = ROOT / "app/src/main/java/com/fongmi/android/tv/player/engine/PlayerEngineFactory.java"
 MANAGER = ROOT / "app/src/main/java/com/fongmi/android/tv/player/PlayerManager.java"

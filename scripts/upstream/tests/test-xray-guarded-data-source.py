@@ -5,7 +5,7 @@ import subprocess
 import sys
 import tempfile
 
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = Path(__file__).resolve().parents[3]
 SOURCE = ROOT / "app/src/main/java/com/fingmi/integration/xray/XrayGuardedPlaybackDataSource.java"
 MEDIA_SOURCE = ROOT / "app/src/main/java/com/fongmi/android/tv/player/exo/ExoMediaSourceFactory.java"
 

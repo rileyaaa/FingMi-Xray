@@ -9,7 +9,7 @@ import argparse
 from pathlib import Path
 import sys
 
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(ROOT / "scripts/upstream"))
 from sync import git_tree, blob, upstream_version
 from prepare_release import gradle, home

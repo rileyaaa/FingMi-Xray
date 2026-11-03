@@ -8,7 +8,7 @@ import argparse
 from pathlib import Path
 import sys
 
-sys.path.insert(0,str(Path(__file__).resolve().parents[1]/"scripts/upstream"))
+sys.path.insert(0,str(Path(__file__).resolve().parents[3]/"scripts/upstream"))
 from side_request_adapters import playback_service,danmaku_api,subtitle_api,download
 
 

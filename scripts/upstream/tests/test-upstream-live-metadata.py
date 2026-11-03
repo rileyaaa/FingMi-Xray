@@ -3,7 +3,7 @@
 import argparse
 from pathlib import Path
 import sys
-sys.path.insert(0,str(Path(__file__).resolve().parents[1]/"scripts/upstream"))
+sys.path.insert(0,str(Path(__file__).resolve().parents[3]/"scripts/upstream"))
 from live_metadata_adapters import live_api,epg_parser,live_view_model
 from live_ui_adapters import channel_adapter
 

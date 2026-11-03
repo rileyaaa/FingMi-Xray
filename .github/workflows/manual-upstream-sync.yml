@@ -1,18 +1,18 @@
-name: One-click FongMi upgrade, verify and publish
+name: "上游升级｜FongMi 一键同步、验证与发布"
 
 on:
   workflow_dispatch:
     inputs:
       apply_to_main:
-        description: "Full upgrade: after all build checks pass, push candidate to main and publish formal APKs"
+        description: "完整升级：全部检查成功后推送候选源码到 main 并正式发布 APK（慎用）"
         type: boolean
         default: false
       build_without_publish:
-        description: "Build and verify both signed APKs, upload private Actions artifacts, but NEVER push or publish"
+        description: "只构建并验证双 ABI 签名 APK，上传私有 Artifact；绝不推送或发布"
         type: boolean
         default: false
       expected_upstream_sha:
-        description: "Optional exact FongMi/TV fongmi SHA; blank selects the latest public commit"
+        description: "可选：指定 FongMi/TV 的精确 Commit SHA；留空选择最新公开提交"
         type: string
         required: false
         default: ""
@@ -27,6 +27,7 @@ permissions:
 
 jobs:
   build:
+    name: "一键升级候选生成与验证"
     runs-on: ubuntu-latest
     timeout-minutes: 145
     env:
@@ -60,7 +61,7 @@ jobs:
         with:
           python-version: "3.10"
 
-      - name: Verify reusable upgrade engine locally
+      - name: 离线检查一键升级工具
         shell: bash
         env:
           REQUESTED_SHA: ${{ inputs.expected_upstream_sha }}
@@ -73,30 +74,31 @@ jobs:
             exit 1
           fi
           # Validate every Bash block and both preflight/source-guard collectors.
-          python3 tests/test-upstream-workflow-shell.py
-          python3 tests/test-upstream-build-only-workflow.py
-          python3 tests/test-upstream-mode-runtime.py
-          python3 tests/test-upstream-full-source-guards.py
-          python3 tests/test-upstream-media3-source-contract.py
-          python3 tests/test-upstream-real-hooks-mock.py
+          python3 scripts/upstream/tests/test-upstream-layout.py
+          python3 scripts/upstream/tests/test-upstream-workflow-shell.py
+          python3 scripts/upstream/tests/test-upstream-build-only-workflow.py
+          python3 scripts/upstream/tests/test-upstream-mode-runtime.py
+          python3 scripts/upstream/tests/test-upstream-full-source-guards.py
+          python3 scripts/upstream/tests/test-upstream-media3-source-contract.py
+          python3 scripts/upstream/tests/test-upstream-real-hooks-mock.py
           # Fail malformed user input before the longer local adapter checks.
           python3 scripts/upstream/normalize_sha.py "$REQUESTED_SHA" >/dev/null
-          python3 tests/test-upstream-sha-input.py
-          python3 tests/test-upstream-clean-checkout.py
-          python3 tests/test-upstream-vendor-whitespace.py
-          python3 tests/test-upstream-sync.py
-          python3 tests/test-upstream-prepare.py
-          python3 tests/test-upstream-recovery-adapters.py
-          python3 tests/test-upstream-xray-adapters.py
-          python3 tests/test-upstream-exo-adapters.py
-          python3 tests/test-upstream-xray-auth.py
-          python3 tests/test-upstream-side-requests.py
-          python3 tests/test-upstream-side-gate.py
-          python3 tests/test-upstream-live-metadata.py
-          python3 tests/test-upstream-xray-resources.py
-          python3 tests/test-upstream-activity-adapters.py
-          python3 tests/test-upstream-build-policy.py
-          python3 tests/test-upstream-phone-import.py
+          python3 scripts/upstream/tests/test-upstream-sha-input.py
+          python3 scripts/upstream/tests/test-upstream-clean-checkout.py
+          python3 scripts/upstream/tests/test-upstream-vendor-whitespace.py
+          python3 scripts/upstream/tests/test-upstream-sync.py
+          python3 scripts/upstream/tests/test-upstream-prepare.py
+          python3 scripts/upstream/tests/test-upstream-recovery-adapters.py
+          python3 scripts/upstream/tests/test-upstream-xray-adapters.py
+          python3 scripts/upstream/tests/test-upstream-exo-adapters.py
+          python3 scripts/upstream/tests/test-upstream-xray-auth.py
+          python3 scripts/upstream/tests/test-upstream-side-requests.py
+          python3 scripts/upstream/tests/test-upstream-side-gate.py
+          python3 scripts/upstream/tests/test-upstream-live-metadata.py
+          python3 scripts/upstream/tests/test-upstream-xray-resources.py
+          python3 scripts/upstream/tests/test-upstream-activity-adapters.py
+          python3 scripts/upstream/tests/test-upstream-build-policy.py
+          python3 scripts/upstream/tests/test-upstream-phone-import.py
           # Failure here must explain the path, not silently exit in the next step.
           if [[ -n "$(git status --porcelain --untracked-files=all)" ]]; then
             echo "BLOCKED: local upgrade tests modified or left files in the source checkout:" >&2
@@ -104,7 +106,7 @@ jobs:
             exit 1
           fi
 
-      - name: Fetch public FongMi/TV baseline and latest
+      - name: 获取公开 FongMi/TV 基线及最新源码
         shell: bash
         env:
           EXPECTED_SHA: ${{ inputs.expected_upstream_sha }}
@@ -149,7 +151,7 @@ jobs:
           echo "UPSTREAM_DIRECTORY=$upstream" >> "$GITHUB_ENV"
           echo "UPSTREAM_TARGET=$target" >> "$GITHUB_ENV"
 
-      - name: Three-way merge and regenerate approved fork adapters
+      - name: 三方同步上游并重新生成适配代码
         shell: bash
         env:
           APPLY_TO_MAIN: ${{ inputs.apply_to_main }}
@@ -176,14 +178,14 @@ jobs:
           upstream_preflight_failed=0
           # A Bash array avoids YAML/JS escaping mistakes with line-continuation backslashes.
           upstream_tests=(
-            tests/test-upstream-exo-adapters.py
-            tests/test-upstream-side-requests.py
-            tests/test-upstream-live-metadata.py
-            tests/test-upstream-xray-resources.py
-            tests/test-upstream-activity-adapters.py
-            tests/test-upstream-build-policy.py
-            tests/test-upstream-phone-import.py
-            tests/test-upstream-real-hooks.py
+            scripts/upstream/tests/test-upstream-exo-adapters.py
+            scripts/upstream/tests/test-upstream-side-requests.py
+            scripts/upstream/tests/test-upstream-live-metadata.py
+            scripts/upstream/tests/test-upstream-xray-resources.py
+            scripts/upstream/tests/test-upstream-activity-adapters.py
+            scripts/upstream/tests/test-upstream-build-policy.py
+            scripts/upstream/tests/test-upstream-phone-import.py
+            scripts/upstream/tests/test-upstream-real-hooks.py
           )
           for test_script in "${upstream_tests[@]}"; do
             echo "::group::Public upstream adapter preflight: $test_script"
@@ -213,14 +215,14 @@ jobs:
           generated_guards=(
             scripts/upstream/check_media3_source_contract.py
             scripts/upstream/verify_playback.py
-            tests/test-upstream-playback-contract.py
-            tests/test-upstream-playback-ownership.py
+            scripts/upstream/tests/test-upstream-playback-contract.py
+            scripts/upstream/tests/test-upstream-playback-ownership.py
             tests/test-xray-core-parity.py
-            tests/test-xray-guarded-data-source.py
+            scripts/upstream/tests/test-xray-guarded-data-source.py
             tests/test-xray-android-runtime-compat.py
             tests/test-xray-playback-parity.py
-            tests/test-upstream-side-request-integration.py
-            tests/test-xray-playback-routing.py
+            scripts/upstream/tests/test-upstream-side-request-integration.py
+            scripts/upstream/tests/test-xray-playback-routing.py
             tests/test-tv-recovery-intent-replay.py
             tests/test-upstream-update-disabled.py
             tests/test-build-hygiene.py
@@ -272,7 +274,7 @@ jobs:
           echo "Candidate source (not pushed yet): $source_sha"
           echo "Candidate release: $release_tag"
 
-      - name: Run fork source guards
+      - name: 运行项目源码检查
         if: ${{ inputs.apply_to_main || inputs.build_without_publish }}
         shell: bash
         run: |
@@ -294,10 +296,10 @@ jobs:
           run_source_guard python3 tests/test-xray-android-runtime-compat.py
           run_source_guard python3 tests/test-xray-core-parity.py
           run_source_guard python3 tests/test-xray-playback-parity.py
-          run_source_guard python3 tests/test-xray-guarded-data-source.py
-          run_source_guard python3 tests/test-xray-playback-routing.py
-          run_source_guard python3 tests/test-xray-artwork-loader.py
-          run_source_guard python3 tests/test-upstream-playback-contract.py
+          run_source_guard python3 scripts/upstream/tests/test-xray-guarded-data-source.py
+          run_source_guard python3 scripts/upstream/tests/test-xray-playback-routing.py
+          run_source_guard python3 scripts/upstream/tests/test-xray-artwork-loader.py
+          run_source_guard python3 scripts/upstream/tests/test-upstream-playback-contract.py
           run_source_guard python3 tests/test-xray-playback-address-parity.py
           run_source_guard python3 tests/test-xray-session-races.py
           run_source_guard python3 tests/test-xray-service-client-lifecycle.py
@@ -324,7 +326,7 @@ jobs:
             exit 1
           fi
 
-      - name: Prepare Android SDK 36 and 37
+      - name: 准备 Android SDK 36 与 37
         if: ${{ inputs.apply_to_main || inputs.build_without_publish }}
         shell: bash
         run: |
@@ -335,7 +337,7 @@ jobs:
           yes | "$sdkmanager" --licenses >/dev/null 2>&1 || true
           "$sdkmanager" --channel=3 --install 'platforms;android-36' 'build-tools;36.0.0' 'platforms;android-37.0' 'build-tools;37.0.0'
 
-      - name: Verify upstream Gradle daemon toolchain
+      - name: 检查上游 Gradle 工具链
         if: ${{ inputs.apply_to_main || inputs.build_without_publish }}
         shell: bash
         run: |
@@ -343,14 +345,14 @@ jobs:
           bash gradlew --no-daemon -Porg.gradle.java.installations.auto-download=false \
             help --stacktrace --warning-mode all
 
-      - name: Verify persistent private-project release signing
+      - name: 检查项目固定签名配置
         if: ${{ inputs.apply_to_main || inputs.build_without_publish }}
         shell: bash
         run: |
           set -euo pipefail
           python3 scripts/build/check-release-signing.py
 
-      - name: Rebuild and verify pinned player/native inputs
+      - name: 重建并校验固定播放器及原生依赖
         if: ${{ inputs.apply_to_main || inputs.build_without_publish }}
         shell: bash
         env:
@@ -385,7 +387,7 @@ jobs:
           unzip -q build/work/current-main/input/jadx.zip -d build/work/current-main/tools/jadx
           chmod +x build/work/current-main/tools/jadx/bin/jadx
 
-      - name: Prepare public player and Xray native dependencies
+      - name: 准备公开播放器与 Xray 原生依赖
         if: ${{ inputs.apply_to_main || inputs.build_without_publish }}
         shell: bash
         run: |
@@ -398,7 +400,7 @@ jobs:
 
           cp build/work/current-main/restored/libXray.aar libxray/libs/libXray.aar
 
-      - name: Verify current Xray chain against published v7 and arm64 native
+      - name: 对照已发布 v7 与 arm64 原生库验证 Xray
         if: ${{ inputs.apply_to_main || inputs.build_without_publish }}
         shell: bash
         run: |
@@ -449,7 +451,7 @@ jobs:
           rm -rf "$work/arm64-harness"
           df -h .
 
-      - name: Reclaim verified Xray scratch before Libass
+      - name: Libass 前清理已验证的 Xray 临时文件
         if: ${{ inputs.apply_to_main || inputs.build_without_publish }}
         shell: bash
         run: |
@@ -469,7 +471,7 @@ jobs:
             "$work/input/jadx.zip"
           df -h .
 
-      - name: Build and import reconstructed Libass candidate
+      - name: 重建并导入 Libass 兼容组件
         if: ${{ inputs.apply_to_main || inputs.build_without_publish }}
         shell: bash
         run: |
@@ -502,7 +504,7 @@ jobs:
           mkdir -p "$work"
           df -h .
 
-      - name: Verify imported player startup
+      - name: 验证播放器组件启动
         if: ${{ inputs.apply_to_main || inputs.build_without_publish }}
         shell: bash
         run: |
@@ -513,7 +515,7 @@ jobs:
           # The test jars and Android sandbox reports are no longer needed on success.
           rm -rf build/work/current-main/player-startup
 
-      - name: Verify Xray artwork lifecycle
+      - name: 验证 Xray 图片加载生命周期
         if: ${{ inputs.apply_to_main || inputs.build_without_publish }}
         shell: bash
         run: |
@@ -524,14 +526,14 @@ jobs:
           # Retain only failure evidence; resolved jars are disposable test inputs.
           rm -rf build/work/current-main/artwork-lifecycle
 
-      - name: Verify proxy policy host regression
+      - name: 验证代理主机名崩溃回归
         if: ${{ inputs.apply_to_main || inputs.build_without_publish }}
         shell: bash
         run: |
           set -euo pipefail
           bash gradlew --no-daemon :catvod:testDebugUnitTest --stacktrace --warning-mode all
 
-      - name: Compile upgraded Leanback source
+      - name: 编译升级后的 Leanback 源码
         if: ${{ inputs.apply_to_main || inputs.build_without_publish }}
         shell: bash
         run: |
@@ -539,14 +541,14 @@ jobs:
           chmod +x gradlew
           ./gradlew --no-daemon :xray:testDebugUnitTest :tv-recovery:testDebugUnitTest :app:compileLeanbackReleaseJavaWithJavac --stacktrace --warning-mode all
 
-      - name: Assemble Android TV release APKs
+      - name: 打包 Android TV Release APK
         if: ${{ inputs.apply_to_main || inputs.build_without_publish }}
         shell: bash
         run: |
           set -euo pipefail
           ./gradlew --no-daemon :app:assembleLeanbackRelease --stacktrace --warning-mode all
 
-      - name: Verify MPEG-H survives final TV APK packaging
+      - name: 校验最终 APK 中的 MPEG-H
         if: ${{ inputs.apply_to_main || inputs.build_without_publish }}
         shell: bash
         run: |
@@ -563,7 +565,7 @@ jobs:
             echo "PASS MPEG-H ${abi}: ${size} bytes in $apk"
           done
 
-      - name: Verify pinned native runtime survives final TV APK packaging
+      - name: 校验最终 APK 中的原生运行库
         if: ${{ inputs.apply_to_main || inputs.build_without_publish }}
         shell: bash
         run: |
@@ -571,7 +573,7 @@ jobs:
           python3 scripts/build/check-final-apk-native.py \
             --apk-dir app/build/outputs/apk/leanback --build-type release
 
-      - name: Verify final Media3 DEX linkage
+      - name: 验证最终 Media3 DEX 依赖
         if: ${{ inputs.apply_to_main || inputs.build_without_publish }}
         shell: bash
         run: |
@@ -584,7 +586,7 @@ jobs:
             --apk "${apks[0]}" --apk "${apks[1]}" \
             --report build/work/current-main/media3-linkage.json
 
-      - name: Verify final Leanback manifest security contract
+      - name: 验证最终 Leanback Manifest 安全约束
         if: ${{ inputs.apply_to_main || inputs.build_without_publish }}
         shell: bash
         run: |
@@ -603,7 +605,7 @@ jobs:
               --apk "$apk"
             python3 scripts/build/check-release-signing.py --sdk "$sdk_root" --apk "$apk"
           done
-      - name: Record build inputs and outputs
+      - name: 记录构建输入与输出
         if: ${{ (inputs.apply_to_main || inputs.build_without_publish) && success() }}
         shell: bash
         run: |
@@ -617,7 +619,7 @@ jobs:
             find app/build/outputs/apk/leanback -type f -name '*.apk' -print0 | sort -z | xargs -0 sha256sum
           } | tee build/work/current-main/BUILD_RESULT.txt
 
-      - name: Stage Android TV release APKs
+      - name: 暂存已验证的双 ABI APK
         if: ${{ (inputs.apply_to_main || inputs.build_without_publish) && success() }}
         shell: bash
         run: |
@@ -643,7 +645,7 @@ jobs:
 
           sha256sum release/*.apk
 
-      - name: Upload fully verified APKs for private build-only test
+      - name: 仅上传已验证 APK 供内部构建测试
         if: ${{ inputs.build_without_publish && !inputs.apply_to_main && success() }}
         uses: actions/upload-artifact@v7
         with:
@@ -654,7 +656,7 @@ jobs:
           if-no-files-found: error
           retention-days: 2
 
-      - name: Push fully verified candidate source to main
+      - name: 将验证通过的候选代码推送到 main
         if: ${{ inputs.apply_to_main && !inputs.build_without_publish }}
         shell: bash
         run: |
@@ -672,7 +674,7 @@ jobs:
           git push origin HEAD:refs/heads/main
           test "$(git ls-remote origin refs/heads/main | cut -f1)" = "$BUILD_SOURCE_SHA"
 
-      - name: Publish verified APKs
+      - name: 发布已验证的 APK
         if: ${{ inputs.apply_to_main && !inputs.build_without_publish && success() }}
         shell: bash
         env:
@@ -681,7 +683,7 @@ jobs:
           set -euo pipefail
           python3 scripts/build/publish-current-release.py
 
-      - name: Upload build reports on failure
+      - name: 失败时上传构建报告
         if: ${{ (inputs.apply_to_main || inputs.build_without_publish) && failure() }}
         uses: actions/upload-artifact@v7
         with:
@@ -700,7 +702,7 @@ jobs:
           if-no-files-found: ignore
           retention-days: 1
 
-      - name: Explain upstream merge result and next action
+      - name: 汇总上游同步结果及后续操作
         if: always()
         shell: bash
         run: |
@@ -732,7 +734,7 @@ jobs:
                       stream.write("\nThe merge is only a candidate; actual Android/APK verification is separate.\n")
           PY
 
-      - name: Upload upstream integration report
+      - name: 上传上游升级整合报告
         if: always()
         uses: actions/upload-artifact@v7
         with:

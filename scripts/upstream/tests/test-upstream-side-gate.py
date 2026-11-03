@@ -4,7 +4,7 @@ from pathlib import Path
 import subprocess
 import tempfile
 
-ROOT=Path(__file__).resolve().parents[1]
+ROOT=Path(__file__).resolve().parents[3]
 JAVA=ROOT/"scripts/upstream/templates/XraySideRequestGate.java.in"
 
 sources={

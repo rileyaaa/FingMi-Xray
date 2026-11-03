@@ -4,7 +4,7 @@ from pathlib import Path
 import importlib.util
 import tempfile
 
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = Path(__file__).resolve().parents[3]
 SPEC = importlib.util.spec_from_file_location(
     'media3_source_contract', ROOT / 'scripts/upstream/check_media3_source_contract.py')
 contract = importlib.util.module_from_spec(SPEC)

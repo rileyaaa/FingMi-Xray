@@ -10,17 +10,17 @@ import re
 import subprocess
 import textwrap
 
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = Path(__file__).resolve().parents[3]
 WORKFLOW = ROOT / '.github/workflows/manual-upstream-sync.yml'
 EXPECTED = (
-    'tests/test-upstream-exo-adapters.py',
-    'tests/test-upstream-side-requests.py',
-    'tests/test-upstream-live-metadata.py',
-    'tests/test-upstream-xray-resources.py',
-    'tests/test-upstream-activity-adapters.py',
-    'tests/test-upstream-build-policy.py',
-    'tests/test-upstream-phone-import.py',
-    'tests/test-upstream-real-hooks.py',
+    'scripts/upstream/tests/test-upstream-exo-adapters.py',
+    'scripts/upstream/tests/test-upstream-side-requests.py',
+    'scripts/upstream/tests/test-upstream-live-metadata.py',
+    'scripts/upstream/tests/test-upstream-xray-resources.py',
+    'scripts/upstream/tests/test-upstream-activity-adapters.py',
+    'scripts/upstream/tests/test-upstream-build-policy.py',
+    'scripts/upstream/tests/test-upstream-phone-import.py',
+    'scripts/upstream/tests/test-upstream-real-hooks.py',
 )
 
 
@@ -59,8 +59,8 @@ def validate(yaml):
     assert yaml.count(start) == 1 and yaml.count(end) == 1
     body = yaml.split(start, 1)[1].split(end, 1)[0]
     script = textwrap.dedent(start + body)
-    assert tuple(re.findall(r'^  (tests/test-upstream-[^\s]+\.py)$', script, re.M)) == EXPECTED
-    for fail in ('', 'tests/test-upstream-side-requests.py:tests/test-upstream-build-policy.py'):
+    assert tuple(re.findall(r'^  (scripts/upstream/tests/test-upstream-[^\s]+\.py)$', script, re.M)) == EXPECTED
+    for fail in ('', 'scripts/upstream/tests/test-upstream-side-requests.py:scripts/upstream/tests/test-upstream-build-policy.py'):
         wrapper = (
             'python3() {\n'
             '  printf "CALLED %s\\n" "$1"\n'
@@ -91,21 +91,21 @@ def validate(yaml):
     expected_guards = (
         'scripts/upstream/check_media3_source_contract.py',
         'scripts/upstream/verify_playback.py',
-        'tests/test-upstream-playback-contract.py',
-        'tests/test-upstream-playback-ownership.py',
+        'scripts/upstream/tests/test-upstream-playback-contract.py',
+        'scripts/upstream/tests/test-upstream-playback-ownership.py',
         'tests/test-xray-core-parity.py',
-        'tests/test-xray-guarded-data-source.py',
+        'scripts/upstream/tests/test-xray-guarded-data-source.py',
         'tests/test-xray-android-runtime-compat.py',
         'tests/test-xray-playback-parity.py',
-        'tests/test-upstream-side-request-integration.py',
-        'tests/test-xray-playback-routing.py',
+        'scripts/upstream/tests/test-upstream-side-request-integration.py',
+        'scripts/upstream/tests/test-xray-playback-routing.py',
         'tests/test-tv-recovery-intent-replay.py',
         'tests/test-upstream-update-disabled.py',
         'tests/test-build-hygiene.py',
         'tests/test-tv-network-recovery.py',
     )
     assert tuple(re.findall(r'^  ((?:scripts|tests)/[^\s]+\.py)$', guard_script, re.M)) == expected_guards
-    for fail in ('', 'tests/test-upstream-playback-contract.py:tests/test-build-hygiene.py'):
+    for fail in ('', 'scripts/upstream/tests/test-upstream-playback-contract.py:tests/test-build-hygiene.py'):
         result = subprocess.run(['bash', '-e', '-o', 'pipefail', '-c', wrapper + guard_script],
                                 env={**os.environ, 'FAIL_TESTS': fail}, text=True, capture_output=True)
         called = re.findall(r'^CALLED (.+)$', result.stdout, re.M)

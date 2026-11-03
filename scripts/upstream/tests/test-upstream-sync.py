@@ -6,7 +6,7 @@ from pathlib import Path
 import subprocess
 import tempfile
 
-MODULE = Path(__file__).resolve().parents[1] / "scripts/upstream/sync.py"
+MODULE = Path(__file__).resolve().parents[3] / "scripts/upstream/sync.py"
 spec = importlib.util.spec_from_file_location("fingmi_sync", MODULE)
 mod = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(mod)

@@ -1,4 +1,4 @@
-name: Current main Android build
+name: "01｜当前源码编译与 APK 验证"
 
 on:
   workflow_dispatch:
@@ -9,6 +9,7 @@ permissions:
 
 jobs:
   build:
+    name: "只构建与验证，不发布"
     runs-on: ubuntu-latest
     timeout-minutes: 100
 
@@ -35,7 +36,7 @@ jobs:
         with:
           python-version: "3.10"
 
-      - name: Run fork source guards
+      - name: 运行项目源码检查
         shell: bash
         run: |
           set -euo pipefail
@@ -61,7 +62,7 @@ jobs:
           python3 tests/test-libass-native-input.py
           python3 tests/test-tv-network-recovery.py
 
-      - name: Prepare Android SDK 36 and 37
+      - name: 准备 Android SDK 36 与 37
         shell: bash
         run: |
           set -euo pipefail
@@ -71,20 +72,20 @@ jobs:
           yes | "$sdkmanager" --licenses >/dev/null 2>&1 || true
           "$sdkmanager" --channel=3 --install 'platforms;android-36' 'build-tools;36.0.0' 'platforms;android-37.0' 'build-tools;37.0.0'
 
-      - name: Verify upstream Gradle daemon toolchain
+      - name: 检查上游 Gradle 工具链
         shell: bash
         run: |
           set -euo pipefail
           bash gradlew --no-daemon -Porg.gradle.java.installations.auto-download=false \
             help --stacktrace --warning-mode all
 
-      - name: Verify persistent private-project release signing
+      - name: 检查项目固定签名配置
         shell: bash
         run: |
           set -euo pipefail
           python3 scripts/build/check-release-signing.py
 
-      - name: Rebuild and verify pinned player/native inputs
+      - name: 重建并校验固定播放器及原生依赖
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
@@ -118,7 +119,7 @@ jobs:
           unzip -q build/work/current-main/input/jadx.zip -d build/work/current-main/tools/jadx
           chmod +x build/work/current-main/tools/jadx/bin/jadx
 
-      - name: Prepare public player and Xray native dependencies
+      - name: 准备公开播放器与 Xray 原生依赖
         shell: bash
         run: |
           set -euo pipefail
@@ -130,7 +131,7 @@ jobs:
 
           cp build/work/current-main/restored/libXray.aar libxray/libs/libXray.aar
 
-      - name: Verify current Xray chain against published v7 and arm64 native
+      - name: 对照已发布 v7 与 arm64 原生库验证 Xray
         shell: bash
         run: |
           set -euo pipefail
@@ -180,7 +181,7 @@ jobs:
           rm -rf "$work/arm64-harness"
           df -h .
 
-      - name: Reclaim verified Xray scratch before Libass
+      - name: Libass 前清理已验证的 Xray 临时文件
         shell: bash
         run: |
           set -euo pipefail
@@ -199,7 +200,7 @@ jobs:
             "$work/input/jadx.zip"
           df -h .
 
-      - name: Build and import reconstructed Libass candidate
+      - name: 重建并导入 Libass 兼容组件
         shell: bash
         run: |
           set -euo pipefail
@@ -231,7 +232,7 @@ jobs:
           mkdir -p "$work"
           df -h .
 
-      - name: Verify imported player startup
+      - name: 验证播放器组件启动
         shell: bash
         run: |
           set -euo pipefail
@@ -241,7 +242,7 @@ jobs:
           # The test jars and Android sandbox reports are no longer needed on success.
           rm -rf build/work/current-main/player-startup
 
-      - name: Verify Xray artwork lifecycle
+      - name: 验证 Xray 图片加载生命周期
         shell: bash
         run: |
           set -euo pipefail
@@ -251,26 +252,26 @@ jobs:
           # Retain only failure evidence; resolved jars are disposable test inputs.
           rm -rf build/work/current-main/artwork-lifecycle
 
-      - name: Verify proxy policy host regression
+      - name: 验证代理主机名崩溃回归
         shell: bash
         run: |
           set -euo pipefail
           bash gradlew --no-daemon :catvod:testDebugUnitTest --stacktrace --warning-mode all
 
-      - name: Compile checked-out Leanback source
+      - name: 编译当前 Leanback 源码
         shell: bash
         run: |
           set -euo pipefail
           chmod +x gradlew
           ./gradlew --no-daemon :xray:testDebugUnitTest :tv-recovery:testDebugUnitTest :app:compileLeanbackReleaseJavaWithJavac --stacktrace --warning-mode all
 
-      - name: Assemble Android TV release APKs
+      - name: 打包 Android TV Release APK
         shell: bash
         run: |
           set -euo pipefail
           ./gradlew --no-daemon :app:assembleLeanbackRelease --stacktrace --warning-mode all
 
-      - name: Verify MPEG-H survives final TV APK packaging
+      - name: 校验最终 APK 中的 MPEG-H
         shell: bash
         run: |
           set -euo pipefail
@@ -286,14 +287,14 @@ jobs:
             echo "PASS MPEG-H ${abi}: ${size} bytes in $apk"
           done
 
-      - name: Verify pinned native runtime survives final TV APK packaging
+      - name: 校验最终 APK 中的原生运行库
         shell: bash
         run: |
           set -euo pipefail
           python3 scripts/build/check-final-apk-native.py \
             --apk-dir app/build/outputs/apk/leanback --build-type release
 
-      - name: Verify final Media3 DEX linkage
+      - name: 验证最终 Media3 DEX 依赖
         shell: bash
         run: |
           set -euo pipefail
@@ -305,7 +306,7 @@ jobs:
             --apk "${apks[0]}" --apk "${apks[1]}" \
             --report build/work/current-main/media3-linkage.json
 
-      - name: Verify final Leanback manifest security contract
+      - name: 验证最终 Leanback Manifest 安全约束
         shell: bash
         run: |
           set -euo pipefail
@@ -323,7 +324,7 @@ jobs:
               --apk "$apk"
             python3 scripts/build/check-release-signing.py --sdk "$sdk_root" --apk "$apk"
           done
-      - name: Record build inputs and outputs
+      - name: 记录构建输入与输出
         if: success()
         shell: bash
         run: |
@@ -336,7 +337,7 @@ jobs:
             find app/build/outputs/apk/leanback -type f -name '*.apk' -print0 | sort -z | xargs -0 sha256sum
           } | tee build/work/current-main/BUILD_RESULT.txt
 
-      - name: Upload current-main release APKs
+      - name: 上传当前源码构建的 APK
         if: success()
         uses: actions/upload-artifact@v7
         with:
@@ -349,7 +350,7 @@ jobs:
           retention-days: 2
           compression-level: 0
 
-      - name: Remove superseded current-main release artifacts
+      - name: 清理过期的同名构建产物
         if: success()
         shell: bash
         env:
@@ -369,7 +370,7 @@ jobs:
             echo "DELETE superseded release artifact $id"
           done
 
-      - name: Upload build reports on failure
+      - name: 失败时上传构建报告
         if: failure()
         uses: actions/upload-artifact@v7
         with:

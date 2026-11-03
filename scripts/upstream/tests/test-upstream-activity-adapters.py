@@ -3,7 +3,7 @@
 import argparse
 from pathlib import Path
 import sys
-sys.path.insert(0,str(Path(__file__).resolve().parents[1]/"scripts/upstream"))
+sys.path.insert(0,str(Path(__file__).resolve().parents[3]/"scripts/upstream"))
 from playback_activity_adapter import playback_activity,video_view_model
 from activity_adapters import live_activity,video_activity
 from engine_dialog_adapter import player_engine_dialog

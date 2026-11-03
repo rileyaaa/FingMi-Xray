@@ -12,7 +12,7 @@ import subprocess
 import tempfile
 import textwrap
 
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = Path(__file__).resolve().parents[3]
 WORKFLOW = ROOT / '.github/workflows/manual-upstream-sync.yml'
 
 
@@ -29,8 +29,8 @@ def git(root, *args):
 
 
 workflow = WORKFLOW.read_text(encoding='utf-8')
-start = '      - name: Three-way merge and regenerate approved fork adapters\n'
-finish = '\n      - name: Run fork source guards\n'
+start = '      - name: 三方同步上游并重新生成适配代码\n'
+finish = '\n      - name: 运行项目源码检查\n'
 assert workflow.count(start) == 1 and workflow.count(finish) == 1
 full = workflow.split(start, 1)[1].split(finish, 1)[0]
 marker = '          git status --short\n'

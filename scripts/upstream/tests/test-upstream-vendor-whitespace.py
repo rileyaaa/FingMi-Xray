@@ -5,7 +5,7 @@ import importlib.util
 import subprocess
 import tempfile
 
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = Path(__file__).resolve().parents[3]
 SCRIPT = ROOT / "scripts/upstream/check_vendor_whitespace.py"
 spec = importlib.util.spec_from_file_location("fingmi_vendor_whitespace", SCRIPT)
 module = importlib.util.module_from_spec(spec)

@@ -877,3 +877,18 @@ Xray 当前源码重新验证 9000 次 Controller/Client 清理序列、102 次�
 当前四个 workflow 的 `on` **都仅有 `workflow_dispatch`**，无 push、schedule、workflow_run、跨入口触发；仅做静态校验与仓库修改，没有启动 Actions，也没有对回退后版本执行一次新完整编译。5.8.7 的公开 Media3 源码契约仍不满足，保留的升级入口默认预检，不代表可安全进入正式发布。
 
 > **现行版本核对说明（2026-11-03）**：本开发文档开头沿用 2026-10-13 `.4` 阶段记录，仍写 `563004 / v5.6.3-xray.4`；按用户要求不改动此前旧记录。**以当前真实 `app/build.gradle` 为准，运行代码配置及现行正式 Release 均为 `563001 / v5.6.3-xray.1`**，正式 APK 源于 2026-10-26 的 `4bea3a54ece68fbb439374e7d7944ec94fe28683`。不得将历史 `.4` 行误认为回退后当前版本。
+
+
+### 2026-11-03 — 5.6.3 主机名崩溃临时修补与下次上游升级策略
+
+**现行 5.6.3 保留已经验证过的最小修补；下次真正升级上游时，优先改用目标上游的同一套完整接口实现。** 当前上游 5.6.3 的 `OkProxySelector.Policy(URI)` 直接调用 `uri.getHost().toLowerCase()`，在 OkHttp 合法但 Java URI 无法识别主机名的部分地址上会发生 NPE。本 fork 已在该构造函数里使用 `HttpUrl.get(uri.toString())`，从 `url.scheme()/host()/port()` 获取规范化值。这是**针对 5.6.3 的兼容补丁**，不是要求以后永久保留与上游不同的实现；当前已经通过相关回归与原始正式版编译，未获新发布版验证前不改动。
+
+已核对目标为 5.8.7 的公开上游 `OkProxySelector.Policy(HttpUrl)`：它直接接收 OkHttp `HttpUrl`，配套的 `ProxyRedirectInterceptor` 改为传递 `request.url()`，还同步调整了重定向、认证和网络请求的接线。**后续选择比 5.6.3 更新的公开上游时**：
+
+1. 先核对所选公开提交是否仍提供同等或更好的空主机名防护，优先直接采用该提交对应的 `OkProxySelector`、`ProxyRedirectInterceptor`、`OkAuthenticator` 等**成套上游 API**，不要机械地只替换 `Policy` 构造函数，也不要把 5.6.3 临时 `HttpUrl.get(uri.toString())` 再叠加进去。
+2. 用目标上游实际 API 调整本 fork 的 Xray 网络接入及测试，执行 `catvod` 主机名空值/特殊字符、端口、代理规则继承、代理凭据隔离、HTTP 30x 重定向、跨源 Authorization 剥离、普通直连与 Xray 会话的回归；同时做真正的 Java 编译、双 ABI APK 和后续真机验证。不要因为上游方法形式更漂亮就对仍在生产使用的 5.6.3 进行无必要改动。
+3. 如果未来目标上游不存在等价修复，**仅保留能被复现用例证明必须存在的最小补丁**，避免不必要的上游业务分叉；记录其触发证据、测试与重新审查条件。
+
+**更新时机**：上游不更新或没有提供可构建的播放器依赖时，没有为了追版本号而重写播放器的义务。维持已验证的 5.6.3；只有明确的安全问题、Xray/TV 恢复需求或上游提供可验证的完整构建输入时，才决定是否独立维护、升级或重新编译。参考 APK 的 DEX/JADX 取证仅能辅助了解接口和行为，**不能视作公开完整源码**，也不能据此声称逆向就能恢复整套 Media3/Native 工程。
+
+**一键升级文件布局**：四份手动工作流 YAML 继续位于 `.github/workflows/`；一键升级专用适配器、模板、参考 Java 与离线测试集中到 `scripts/upstream/`，测试位置为 `scripts/upstream/tests/`，不再散放根 `tests/`。`tests/test-upstream-update-disabled.py` 和 `tests/test-resolve-release-tag.py` 属于日常构建与一键升级共同使用的回归入口，`scripts/build/resolve-release-tag.py` 属于普通正式打包共享工具，因此仍留原位。所有移动同步修改工作流引用、Python 根路径及离线脚本契约；不改变应用运行源码、正式版 APK 或签名。所有 Actions 只允许 `workflow_dispatch` 手动触发，显示名称中文化；常规构建和正式发布分别标为 01 与 02，恢复与一键升级是独立条件入口，并非自动串联。

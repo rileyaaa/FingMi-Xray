@@ -4,7 +4,7 @@ from pathlib import Path
 import subprocess
 import tempfile
 
-ROOT=Path(__file__).resolve().parents[1]
+ROOT=Path(__file__).resolve().parents[3]
 BRIDGE=ROOT/"scripts/upstream/templates/XrayPlaybackDataSourceFactory.java.in"
 GUARD=ROOT/"scripts/upstream/reference/XrayGuardedPlaybackDataSource.java"
 S={

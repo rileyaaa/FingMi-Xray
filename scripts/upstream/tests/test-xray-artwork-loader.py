@@ -8,7 +8,7 @@ from pathlib import Path
 import subprocess
 import tempfile
 
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = Path(__file__).resolve().parents[3]
 PRODUCTION = ROOT / "app/src/main/java/com/fingmi/integration/xray/XrayArtworkBitmapLoader.java"
 
 STUBS = {
