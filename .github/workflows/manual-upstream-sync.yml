@@ -155,14 +155,17 @@ jobs:
           # Collect ALL public API adapter failures in one cheap preview run.
           # Nothing is merged or published unless every independent check passes.
           upstream_preflight_failed=0
-          for test_script in \
-              tests/test-upstream-exo-adapters.py \\
-              tests/test-upstream-side-requests.py \\
-              tests/test-upstream-live-metadata.py \\
-              tests/test-upstream-xray-resources.py \\
-              tests/test-upstream-activity-adapters.py \\
-              tests/test-upstream-build-policy.py \\
-              tests/test-upstream-phone-import.py; do
+          # A Bash array avoids YAML/JS escaping mistakes with line-continuation backslashes.
+          upstream_tests=(
+            tests/test-upstream-exo-adapters.py
+            tests/test-upstream-side-requests.py
+            tests/test-upstream-live-metadata.py
+            tests/test-upstream-xray-resources.py
+            tests/test-upstream-activity-adapters.py
+            tests/test-upstream-build-policy.py
+            tests/test-upstream-phone-import.py
+          )
+          for test_script in "${upstream_tests[@]}"; do
             echo "::group::Public upstream adapter preflight: $test_script"
             if python3 "$test_script" --upstream "$UPSTREAM_DIRECTORY" --target "$UPSTREAM_TARGET"; then
               echo "PASS: $test_script"
