@@ -45,6 +45,9 @@
 - 审查完整构建前 `Run fork source guards` 所有已有入口时，发现 `tests/test-xray-core-parity.py` 无条件要求早在 5.8.7 被上游删除的 `PushActivity.java`、旧 `index.html` Xray 表单和 `js/script.js` 的 `sendXray()`；而升级器按既定最小接线方案使用 `XrayPhoneImportDialog.java` + 独立 `xray.html`，原旧版测试会把正确的新版源码判为缺失。现按实际 `app/build.gradle` 版本选择合同：5.6.3 保留旧断言，5.8.7 必须具备独立二维码导入与安全 URL 编码表单，并不得恢复旧 PushActivity 或把 Xray 表单塞回普通上游网页。
 - `tests/test-xray-guarded-data-source.py` 原来只检查 5.6.3 Exo 工厂内的 `new XrayGuardedPlaybackDataSource(upstream.createDataSource())`；在 5.8.7 它正确地迁至候选 `XrayPlaybackDataSourceFactory.java` 模板，Exo 工厂只在 Xray 启用时调用桥。现在分别验证旧/新路径，仍保留真实 `XrayGuardedPlaybackDataSource.java` 的 JVM 网络协议 allow/deny、双 close 和失败清理测试，不因新版隔离而放宽直连约束。
 - 两份守卫现提前放入升级候选生成后的 `generated_guards`，由 6 项提升至 8 项；相同文件列表由 `tests/test-upstream-workflow-shell.py` 断言，先于 native/Android 构建收集全部错误。已直接读取官方 `FongMi/TV/fongmi@305dff233cde512e2c83f71529b7c3ecfd61fefc` 新网页资源及仓库现版 Xray 资源，用 GitHub Connector 对照旧/新必备字符串；尚未完成新的仓库整树生成或 Android 编译测试。本阶段未触发 AC，未修改 Release/签名。
+- 又将现有的 `test-xray-android-runtime-compat.py`、`test-xray-playback-parity.py`、`test-xray-playback-routing.py`、`test-tv-recovery-intent-replay.py` 放入生成源码后的安全预览守卫，总计 **12 项**；这些测试原本仅在显式 `apply_to_main=true`、生成本地候选提交后执行。现在不需先进入完整正式构建路径，就能检查 Android ART 不安全 API、5.8.7 播放接线、代理身份与 Home 一次性 Intent。`test-upstream-workflow-shell.py` 同步验证 12 个脚本全部执行且可独立汇总失败。仍须明确区分 SDK-free/JVM 测试与实际 APK 编译；当前没有运行任何新 AC。
+
+
 
 ### 2026-11-03 第五次预检与 5.8.7 播放所有权交接修复（未发布）
 
