@@ -58,8 +58,12 @@ jobs:
 
       - name: Verify reusable upgrade engine locally
         shell: bash
+        env:
+          REQUESTED_SHA: ${{ inputs.expected_upstream_sha }}
         run: |
           set -euo pipefail
+          # Fail malformed user input before the longer local adapter checks.
+          python3 scripts/upstream/normalize_sha.py "$REQUESTED_SHA" >/dev/null
           python3 tests/test-upstream-sha-input.py
           python3 tests/test-upstream-clean-checkout.py
           python3 tests/test-upstream-sync.py
