@@ -40,6 +40,12 @@
 
 任何超出上述范围的代码修改，在提交前都应先判断：**这个变化是否是 Xray 或 TV 网络恢复的必要条件？如果不是，默认跟随上游。** 用户允许的例外仅限像已发生的主机名崩溃一样，有明确证据、明显影响实际使用的上游故障；只做最小修补，并在下方登记，不能据理论风险扩展普通业务维护。
 
+### 2026-11-03 第四次安全预检失败（Bash 语法错误，已修复）
+
+- [Run #41555256058](https://github.com/rileyaaa/FingMi-Xray/actions/runs/41555256058)：本地升级回归通过、公开上游代码成功 fetch；随后在 `Three-way merge and regenerate approved fork adapters` 步骤启动时，Bash 报 `line 21: syntax error near unexpected token tests/test-upstream-side-requests.py`。这是之前修改七组上游预检收集器时，将续行错误编码为双反斜杠导致的**真实语法错误**；没有进入公开上游适配测试、同步或生成，也未编译或发布 APK。
+- 直接改成 `upstream_tests=(...)` Bash 数组和 `for test_script in "${upstream_tests[@]}"`，不再使用容易跨语言误转义的行续接；新增 `tests/test-upstream-workflow-shell.py`：用 Python 标准库抽取手动工作流全部 `run: |` Bash 内容逐块 `bash -n`，并模拟七项适配器全部成功、两项同时失败，断言七项都执行且失败要阻止同步。该回归测试在下一次手动工作流最前端运行，所有源码修改不触发 AC。
+- 审计边界：隔离本地样本上已经执行 Bash 语法检查和七项模拟，不等同于完整真实上游适配、Android 编译或真机验证。不得将上述模拟检查描述成完整升级成功。
+
 ### 2026-11-03 第三次安全预检失败（已由运行日志直接确认）
 
 - [Run #41554240822](https://github.com/rileyaaa/FingMi-Xray/actions/runs/41554240822)：14 组本地升级引擎测试全部通过；随后上游基线 `c616c0aa...` 与最新 `fongmi` 分支均已成功 fetch，但 `expected_upstream_sha` 的输入值前有一个 **Tab**。日志准确显示 `expected=\\t305dff...`，而 `actual=305dff...`，两份 SHA 的 40 位十六进位内容相同。严格字符串比较导致 exit 1，真实适配器集成仍未开始。此根因有实际日志证据，不是推断。
