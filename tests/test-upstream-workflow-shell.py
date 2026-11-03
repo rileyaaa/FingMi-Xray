@@ -95,21 +95,11 @@ def validate(yaml):
         'tests/test-build-hygiene.py',
         'tests/test-tv-network-recovery.py',
     )
-    assert tuple(re.findall(r'^  ((?:scripts|tests)/[^\s]+\.py)
-
-if __name__ == '__main__':
-    print(f'PASS: {validate(WORKFLOW.read_text(encoding="utf-8"))} Bash run blocks parse; '
-          'all 8 upstream API checks and 5 candidate source guards execute under simultaneous failures')
-, guard_script, re.M)) == expected_guards
+    assert tuple(re.findall(r'^  ((?:scripts|tests)/[^\s]+\.py)$', guard_script, re.M)) == expected_guards
     for fail in ('', 'tests/test-upstream-playback-contract.py:tests/test-build-hygiene.py'):
         result = subprocess.run(['bash', '-e', '-o', 'pipefail', '-c', wrapper + guard_script],
                                 env={**os.environ, 'FAIL_TESTS': fail}, text=True, capture_output=True)
-        called = re.findall(r'^CALLED (.+)
-
-if __name__ == '__main__':
-    print(f'PASS: {validate(WORKFLOW.read_text(encoding="utf-8"))} Bash run blocks parse; '
-          'all 8 upstream adapter checks execute on success and simultaneous failures')
-, result.stdout, re.M)
+        called = re.findall(r'^CALLED (.+)$', result.stdout, re.M)
         assert called == list(expected_guards), f'Not all candidate source gates were run: {called}'
         assert (result.returncode == 0) == (not fail), result.stdout + result.stderr
         if fail:
@@ -121,4 +111,4 @@ if __name__ == '__main__':
 
 if __name__ == '__main__':
     print(f'PASS: {validate(WORKFLOW.read_text(encoding="utf-8"))} Bash run blocks parse; '
-          'all 8 upstream adapter checks execute on success and simultaneous failures')
+          'all 8 upstream API checks and 5 candidate source guards execute under simultaneous failures')
