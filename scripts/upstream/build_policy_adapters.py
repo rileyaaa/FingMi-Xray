@@ -43,6 +43,27 @@ def leanback_manifest(s):
             android:configChanges="screenSize|smallestScreenSize|screenLayout|orientation"
             android:screenOrientation="sensorLandscape" />'''
     s=one(s,row,row+new,"Leanback Xray settings Activity")
+    # The public 5.8.7 TV manifest enables boot autostart. This fork keeps
+    # foreground-only network recovery, so drop exactly the official boot
+    # permission and receiver without touching its other activity declarations.
+    boot_permission='    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />\n'
+    boot_receiver="""        <receiver
+            android:name=".receiver.BootReceiver"
+            android:exported="true"
+            android:priority="999">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.QUICKBOOT_POWERON" />
+            </intent-filter>
+        </receiver>
+
+"""
+    if s.count(boot_permission)==1 and s.count(boot_receiver)==1:
+        s=one(s,boot_permission,"","disable TV boot permission")
+        s=one(s,boot_receiver,"","disable TV boot receiver")
+    elif any(mark in s for mark in ("RECEIVE_BOOT_COMPLETED", "BootReceiver",
+                                    "BOOT_COMPLETED", "QUICKBOOT_POWERON")):
+        raise ValueError("Unexpected upstream boot handler; review TV recovery policy")
     root=ElementTree.fromstring(s)
     android="{http://schemas.android.com/apk/res/android}"
     activities=[x.get(android+"name") for x in root.findall("./application/activity")]
