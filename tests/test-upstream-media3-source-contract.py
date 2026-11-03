@@ -62,6 +62,9 @@ with tempfile.TemporaryDirectory(prefix='fingmi-media3-public-source-') as tmp:
         assert 'AudioChannelMix' in str(exc)
     else:
         raise AssertionError('Audio-channel extension must not bypass the guard')
+    write(root, app, 'package com.fongmi;\n'
+                     'import androidx.media3.common.DecoderMode;\n'
+                     'import androidx.media3.common.text.SubtitleOffsets;\n')
     # A changed public source commit is not claimed compatible; Gradle must decide.
     pin('a' * 40)
     assert len(contract.check(root)) == 2
