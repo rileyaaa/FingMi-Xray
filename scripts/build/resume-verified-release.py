@@ -18,7 +18,7 @@ import zipfile
 
 ROOT = Path(__file__).resolve().parents[2]
 WORKFLOW = ".github/workflows/publish-current-main-test-release.yml"
-REPORT_NAME = "fingmi-xray-5.6.3-build-failure-reports"
+REPORT_NAME = "fingmi-xray-build-failure-reports"
 PUBLISH_STEP = "Publish verified APKs"
 REQUIRED_STEPS = (
     "Run fork source guards",

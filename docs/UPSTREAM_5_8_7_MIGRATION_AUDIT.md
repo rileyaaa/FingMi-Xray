@@ -65,3 +65,11 @@
 - 一直保留现行 `v5.6.3-xray.1` 和 `v5.6.0-xray.5`，不能通过清理旧 Release、重打包旧 APK 或改标签来掩盖升级失败。
 
 **最终判断**：5.6.3 已发布 APK 是有完整播放器/native 装包与验证记录的成品；5.8.7 失败的根因是新版 TV 的**公开 Media3 播放器源码/接口未完整配套**，而非 5.6.3 已发布 APK 没有解码器。
+
+## 六、2026-11-03 通用打包入口恢复与手动 AC 复核
+
+回退后再次检查发现，旧的正常打包入口**并没有丢失**：`current-main-build.yml` 和 `publish-current-main-test-release.yml` 始终存在；`resume-verified-release.yml` 负责已通过装包验证却在发布阶段失败的续发。早前从历史删除的五个 `recovery-*.yml` 属于 5.6.0 研究重建/证据收集流程（其中 `recovery-build.yml` 依赖临时 native artifact），**不等于**用于现行正式 APK 的普通打包工作流，因此不盲目恢复这五个过时入口。
+
+本轮确实找回了回退时一并失去的**通用版本打包支持**：两个构建/发布入口不再把失败报告与成功 APK artifact 名称限定在 5.6.3，正式发布读取当前 `app/build.gradle` / `scripts/upstream/baseline.json` 推出正确 Release tag，发布说明不会对将来的上游版本误写“没有升级”。续发脚本匹配通用报告名，源码/版本匹配守卫相应调整，且仍保持原固定签名、两 ABI 交付及 release replacement 显式授权。四个 Actions YAML 都继续仅支持**手动 `workflow_dispatch`**，没有新增 push、schedule 或自动串联。
+
+这只是恢复了 CI 基础设施，不代表在本次恢复后的源码运行过新的 GitHub Actions 或真机测试；`v5.6.3-xray.1` 保持 2026-10-26 已验证的历史产物，5.8.7 依旧因公开播放器 Media3 源码缺失被阻断，不能据此推断可以完整编译或需要反编译官方 APK。

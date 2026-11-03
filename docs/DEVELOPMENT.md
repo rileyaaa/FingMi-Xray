@@ -867,3 +867,11 @@ Xray 当前源码重新验证 9000 次 Controller/Client 清理序列、102 次�
 试验期间的故障分析、成功与失败的 AC run、修复方式、Media3 的至少 44 类缺口、未来升级门槛，已按主题合并到 **[5.8.7 升级失败复盘与回退保留项](UPSTREAM_5_8_7_MIGRATION_AUDIT.md)**。本文件本节以上的既有开发记录与历史章节未作改写。
 
 作为用户明确要求的唯一第四个 Actions 入口，`.github/workflows/manual-upstream-sync.yml` 及 `scripts/upstream/`、升级专用测试保留，**仍仅手动触发**且默认预览；这只是为后续修复保留工具，**不代表已经验证 5.8.7 可以编译或可以自动发布**。目前不应使用 `apply_to_main=true`。旧版 build hygiene 只做“允许第四个手动 workflow”的最小调整。
+
+### 2026-11-03 — 复核并恢复通用正式打包入口（零 AC）
+
+核对回退后 Git Tree，`current-main-build.yml`（只构建、短期 APK artifact）和 `publish-current-main-test-release.yml`（编译、签名、验证并正式发布）其实**均未删除**；历史被删除的 `recovery-build.yml` 是仅针对 5.6.0 faithful 源码重建、还依赖已过期临时 native artifact 的研究入口，不是现行 5.6.3 正式打包入口，不应冒充正常构建器恢复。
+
+不过回退 2026-10-26 基线时，**通用版本自动推导与不带 5.6.3 版本前缀的 artifact 名称**也一起回到了旧状态，不利于未来保持只修改源码、不修改 Actions YAML 的升级。现依照 2026-11-03 试验前已审核的通用方案恢复这部分基础设施：正式发布标签由 `scripts/build/resolve-release-tag.py` 从 checkout 的 `app/build.gradle` 及 `scripts/upstream/baseline.json` 校验推出；保留 `replace_existing=false`、`prune_superseded=false` 默认保护、固定签名、双 ABI/native/DEX/Manifest 验收；续发 failure artifact 改为版本无关名称，Release notes 按实际 FongMi 基线生成，不再固定写「不升级公开 FongMi 基线」。build-only 会清除过期的同名短期 artifact。已有 `v5.6.3-xray.1`/黄金版文件与 digest **一律不动**。
+
+当前四个 workflow 的 `on` **都仅有 `workflow_dispatch`**，无 push、schedule、workflow_run、跨入口触发；仅做静态校验与仓库修改，没有启动 Actions，也没有对回退后版本执行一次新完整编译。5.8.7 的公开 Media3 源码契约仍不满足，保留的升级入口默认预检，不代表可安全进入正式发布。

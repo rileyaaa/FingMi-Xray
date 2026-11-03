@@ -53,6 +53,7 @@ jobs:
           python3 scripts/build/check-final-apk-native.py --self-test
           python3 scripts/build/check-final-apk-manifest.py --self-test
           python3 tests/test-build-hygiene.py
+          python3 tests/test-resolve-release-tag.py
           python3 tests/test-release-publication.py
           python3 tests/test-resume-verified-release.py
           python3 tests/test-media3-dex-linkage.py
@@ -256,7 +257,7 @@ jobs:
           set -euo pipefail
           bash gradlew --no-daemon :catvod:testDebugUnitTest --stacktrace --warning-mode all
 
-      - name: Compile current 5.6.3 Leanback source
+      - name: Compile checked-out Leanback source
         shell: bash
         run: |
           set -euo pipefail
@@ -339,7 +340,7 @@ jobs:
         if: success()
         uses: actions/upload-artifact@v7
         with:
-          name: fingmi-xray-5.6.3-current-main-release
+          name: fingmi-xray-current-main-release
           path: |
             app/build/outputs/apk/leanback/release/**/*.apk
             build/work/current-main/BUILD_RESULT.txt
@@ -357,7 +358,7 @@ jobs:
           set -euo pipefail
           mapfile -t stale_ids < <(
             gh api "repos/${GITHUB_REPOSITORY}/actions/artifacts?per_page=100"               --jq '.artifacts
-                    | map(select(.name == "fingmi-xray-5.6.3-current-main-release"))
+                    | map(select(.name == "fingmi-xray-current-main-release"))
                     | sort_by(.id)
                     | reverse
                     | .[1:][]
@@ -372,7 +373,7 @@ jobs:
         if: failure()
         uses: actions/upload-artifact@v7
         with:
-          name: fingmi-xray-5.6.3-build-failure-reports
+          name: fingmi-xray-build-failure-reports
           path: |
             app/build/reports/
             **/build/reports/
