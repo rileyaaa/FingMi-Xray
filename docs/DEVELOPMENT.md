@@ -40,6 +40,13 @@
 
 任何超出上述范围的代码修改，在提交前都应先判断：**这个变化是否是 Xray 或 TV 网络恢复的必要条件？如果不是，默认跟随上游。** 用户允许的例外仅限像已发生的主机名崩溃一样，有明确证据、明显影响实际使用的上游故障；只做最小修补，并在下方登记，不能据理论风险扩展普通业务维护。
 
+### 2026-11-03 第八次完整升级在 Git 暂存空白检查被拦截（未进入编译）
+
+- [GitHub Actions #41575588775](https://github.com/rileyaaa/FingMi-Xray/actions/runs/41575588775) 使用 `apply_to_main=true` 及 `main@695f67aaab34a7b9f408fd043167de4249f08f26`；第七次已通过的上游适配与候选源码检查再次通过，但在 `git add -A` 后的 `git diff --cached --check` 失败。官方 `FongMi/TV/fongmi@305dff233cde512e2c83f71529b7c3ecfd61fefc` 包含压缩 bundle `app/src/main/assets/js/spider-format/estree-L5DZKXBH.js`，其 Git Blob `bf814f02a03f4cf286efc72425316af852720551` 在第 5、38 行有模板字面量尾随空白。该文件来自官方上游原样同步，**不是 Xray 或 TV 网络恢复源码**；不应为通过 Git whitespace 检查改写第三方发布资源。
+- 新增根目录 `.gitattributes`，只有此精确上游资源路径采用 `-whitespace`，其余 Java、Xray、TV 恢复代码仍接受 Git 默认空白检查；新增 `scripts/upstream/check_vendor_whitespace.py`，在候选提交前根据指定上游 Git Tree 逐字节验证文件 Blob 身份，拒绝非官方字节、遗漏文件、异常路径或扩大例外范围。新增 `tests/test-upstream-vendor-whitespace.py` 隔离 Git 回归：未暂存及已暂存模式通过官方资源，故意引入 Java 空白错误、修改资源内容及扩大例外时均拒绝。
+- 旧安全预览模式在 `git add -A` 之前退出，只运行未暂存空白检查，因此第七次安全预检无法发现第八次的暂存问题；已调整为安全预览和正式模式**均先执行 `git add -A`、`git diff --cached --check` 及非空暂存验证**，然后安全预览退出且绝不提交、编译或发布。GitHub Actions 的运行策略、固定签名、正式版本和已发布 APK 均不受本修复改变。
+- 本轮仅在本地隔离 Git 仓库中实测这些 Git 行为（Git 2.47.3），并静态比对官方上游 Blob；尚未在最新 HEAD 上重新运行 Actions，不得宣称 Android/Gradle、native 或双 ABI APK 已验证成功。
+
 ### 2026-11-03 第七次手动升级安全预检已通过（尚未合入/编译/发布）
 
 - [GitHub Actions #41573448653](https://github.com/rileyaaa/FingMi-Xray/actions/runs/41573448653) 基于 `main@ad3ac9f382b4b2da96e7be27ed922e644d8d8c4c`，使用手动 `workflow_dispatch` 且 `apply_to_main=false`，上游固定 `FongMi/TV/fongmi@305dff233cde512e2c83f71529b7c3ecfd61fefc`。报告与日志一致：8/8 组真实上游适配预检、13/13 项候选源码守卫全部通过（包括真实 Gate/字幕/弹幕组合 JVM），离线引擎测试通过。实际构建的是**隔离 runner 的源码候选**，没有进行 Android Gradle 编译或发布。

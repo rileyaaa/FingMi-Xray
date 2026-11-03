@@ -1,0 +1,3 @@
+# Public FongMi/TV minified ESTree bundle contains upstream template whitespace.
+# Its byte-for-byte upstream blob identity is enforced before any candidate commit.
+app/src/main/assets/js/spider-format/estree-L5DZKXBH.js -whitespace

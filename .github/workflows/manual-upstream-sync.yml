@@ -69,6 +69,7 @@ jobs:
           python3 scripts/upstream/normalize_sha.py "$REQUESTED_SHA" >/dev/null
           python3 tests/test-upstream-sha-input.py
           python3 tests/test-upstream-clean-checkout.py
+          python3 tests/test-upstream-vendor-whitespace.py
           python3 tests/test-upstream-sync.py
           python3 tests/test-upstream-prepare.py
           python3 tests/test-upstream-recovery-adapters.py
@@ -224,6 +225,10 @@ jobs:
             exit 1
           fi
           git diff --check
+          # The original public ESTree bundle has trailing spaces inside
+          # generated JS templates. Exempt only this exact pathname and reject
+          # a candidate unless its bytes match the selected public Git blob.
+          python3 scripts/upstream/check_vendor_whitespace.py             --upstream "$UPSTREAM_DIRECTORY"             --target "$UPSTREAM_TARGET"
           # GITHUB_TOKEN cannot push modifications to protected workflow YAML.
           # Fail before expensive native builds if a future adapter drifts.
           if [[ -n "$(git status --porcelain -- .github/workflows)" ]]; then
@@ -231,15 +236,18 @@ jobs:
             exit 1
           fi
           git status --short
+          # Test the exact staged tree in both modes. The previous preview
+          # checked only unstaged files and missed a staged-only whitespace
+          # failure in the official generated ESTree bundle.
+          git add -A
+          git diff --cached --check
+          test -n "$(git diff --cached --name-only)"
           if [[ "$APPLY_TO_MAIN" != "true" ]]; then
-            echo "Preview mode: source only in this disposable runner; no build or publish"
+            echo "Preview mode: fully staged candidate checked in disposable runner; no commit, build or publish"
             exit 0
           fi
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add -A
-          git diff --cached --check
-          test -n "$(git diff --cached --name-only)"
           git commit -m "chore(upstream): integrate FongMi TV $UPSTREAM_TARGET"
           source_sha="$(git rev-parse HEAD)"
           release_tag="$(python3 -c 'import json,os; print(json.load(open(os.environ["RUNNER_TEMP"]+"/fingmi-upstream-release-plan.json"))["release_tag"])')"
