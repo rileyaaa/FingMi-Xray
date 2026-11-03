@@ -40,6 +40,13 @@
 
 任何超出上述范围的代码修改，在提交前都应先判断：**这个变化是否是 Xray 或 TV 网络恢复的必要条件？如果不是，默认跟随上游。** 用户允许的例外仅限像已发生的主机名崩溃一样，有明确证据、明显影响实际使用的上游故障；只做最小修补，并在下方登记，不能据理论风险扩展普通业务维护。
 
+### 2026-11-03 九次尝试后的流程防护：拆分完整构建验证与正式发布
+
+- 旧 `manual-upstream-sync.yml` 将 `apply_to_main=true` 同时用作完整构建、推送 main 和正式 Release 发布。此前连续九次运行只有一次安全预检通过，且从未走到 Android/native 编译。为避免第一次真实编译成功时直接自动发布未经设备确认的 APK，新增**互斥**手动开关 `build_without_publish`（默认 `false`）：`apply_to_main=false, build_without_publish=true` 会按现有相同路径跑完整候选生成、全部 fork guard、SDK/native/Android 双 ABI 编译及最终 APK 校验，输出两个签名 APK 和 `BUILD_RESULT.txt` 到私有 Actions artifact，但**不会推送 main、创建/清理正式 Release 或发布 APK**。两项都设为 true 时，在开始升级前即拒绝。
+- 旧 `apply_to_main=true, build_without_publish=false` 完整发布入口仍保留；全部验证成功后才推送 main/发布 Release。默认两个开关皆 false 时，仍是仅生成候选与验证暂存差异、不编译不发布的安全预览。所有三个模式都保留锁定上游 SHA 的约束。
+- 新增 `tests/test-upstream-build-only-workflow.py`，逐个检查全部 18 个正式编译/本机安全步骤均由共同构建条件控制、两个 APK 仅在成功后上传私有短期 artifact、推送与发布只受正式发布条件允许、失败时保留现有短期报告；此检查在每次 Workflow 的第一个升级器离线验证阶段执行。没有新增或删除其他 Workflow，也没有改变 GitHub 上现存 Release、固定签名或官方源码。
+- 本轮分离属于 GitHub Actions **流程级静态/本地测试**，不是已在 runner 上跑过完整构建；目前 Android/native 验证状态依然未知，不能再以预检成功推定正式构建成功。任何新运行必须用户手动触发。
+
 ### 2026-11-03 第九次完整升级再次在官方 JS 资源暂存检查被拦截（未进入编译）
 
 - [GitHub Actions #41596021792](https://github.com/rileyaaa/FingMi-Xray/actions/runs/41596021792) 使用 `main@35eb7c7c0d9fe83a55736b7daec66d40c3a0f139`、`apply_to_main=true`、官方 `FongMi/TV/fongmi@305dff233cde512e2c83f71529b7c3ecfd61fefc`。离线升级器、上游真源码适配及 13 项候选源码守卫通过。已暂存的 `git diff --cached --check` 再次拒绝官方 JavaScript 资源尾随空白，涉及 `app/src/main/assets/js/spider-editor.js:25`、`spider-format/chunk-RBBTUEK2.js:4`、`spider-format/dist-SPW7IUL4.js:6`。这与第八次 `estree-L5DZKXBH.js` 是同一类根因；Android/native 编译、合入 main、正式签名与发布仍未执行。

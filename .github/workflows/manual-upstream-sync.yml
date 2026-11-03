@@ -4,7 +4,11 @@ on:
   workflow_dispatch:
     inputs:
       apply_to_main:
-        description: "Experimental full upgrade; select true only after migration conflicts are resolved (default = safe preview)"
+        description: "Full upgrade: after all build checks pass, push candidate to main and publish formal APKs"
+        type: boolean
+        default: false
+      build_without_publish:
+        description: "Build and verify both signed APKs, upload private Actions artifacts, but NEVER push or publish"
         type: boolean
         default: false
       expected_upstream_sha:
@@ -60,10 +64,17 @@ jobs:
         shell: bash
         env:
           REQUESTED_SHA: ${{ inputs.expected_upstream_sha }}
+          APPLY_TO_MAIN: ${{ inputs.apply_to_main }}
+          BUILD_WITHOUT_PUBLISH: ${{ inputs.build_without_publish }}
         run: |
           set -euo pipefail
+          if [[ "$APPLY_TO_MAIN" == "true" && "$BUILD_WITHOUT_PUBLISH" == "true" ]]; then
+            echo "::error::Select only one: apply_to_main OR build_without_publish" >&2
+            exit 1
+          fi
           # Validate every Bash block and both preflight/source-guard collectors.
           python3 tests/test-upstream-workflow-shell.py
+          python3 tests/test-upstream-build-only-workflow.py
           python3 tests/test-upstream-real-hooks-mock.py
           # Fail malformed user input before the longer local adapter checks.
           python3 scripts/upstream/normalize_sha.py "$REQUESTED_SHA" >/dev/null
@@ -139,6 +150,7 @@ jobs:
         shell: bash
         env:
           APPLY_TO_MAIN: ${{ inputs.apply_to_main }}
+          BUILD_CANDIDATE: ${{ inputs.apply_to_main || inputs.build_without_publish }}
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
@@ -242,7 +254,7 @@ jobs:
           git add -A
           git diff --cached --check
           test -n "$(git diff --cached --name-only)"
-          if [[ "$APPLY_TO_MAIN" != "true" ]]; then
+          if [[ "$BUILD_CANDIDATE" != "true" ]]; then
             echo "Preview mode: fully staged candidate checked in disposable runner; no commit, build or publish"
             exit 0
           fi
@@ -257,7 +269,7 @@ jobs:
           echo "Candidate release: $release_tag"
 
       - name: Run fork source guards
-        if: ${{ inputs.apply_to_main }}
+        if: ${{ inputs.apply_to_main || inputs.build_without_publish }}
         shell: bash
         run: |
           set -euo pipefail
@@ -292,7 +304,7 @@ jobs:
           python3 tests/test-xray-recovery-state-audit.py
 
       - name: Prepare Android SDK 36 and 37
-        if: ${{ inputs.apply_to_main }}
+        if: ${{ inputs.apply_to_main || inputs.build_without_publish }}
         shell: bash
         run: |
           set -euo pipefail
@@ -303,7 +315,7 @@ jobs:
           "$sdkmanager" --channel=3 --install 'platforms;android-36' 'build-tools;36.0.0' 'platforms;android-37.0' 'build-tools;37.0.0'
 
       - name: Verify upstream Gradle daemon toolchain
-        if: ${{ inputs.apply_to_main }}
+        if: ${{ inputs.apply_to_main || inputs.build_without_publish }}
         shell: bash
         run: |
           set -euo pipefail
@@ -311,14 +323,14 @@ jobs:
             help --stacktrace --warning-mode all
 
       - name: Verify persistent private-project release signing
-        if: ${{ inputs.apply_to_main }}
+        if: ${{ inputs.apply_to_main || inputs.build_without_publish }}
         shell: bash
         run: |
           set -euo pipefail
           python3 scripts/build/check-release-signing.py
 
       - name: Rebuild and verify pinned player/native inputs
-        if: ${{ inputs.apply_to_main }}
+        if: ${{ inputs.apply_to_main || inputs.build_without_publish }}
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
@@ -353,7 +365,7 @@ jobs:
           chmod +x build/work/current-main/tools/jadx/bin/jadx
 
       - name: Prepare public player and Xray native dependencies
-        if: ${{ inputs.apply_to_main }}
+        if: ${{ inputs.apply_to_main || inputs.build_without_publish }}
         shell: bash
         run: |
           set -euo pipefail
@@ -366,7 +378,7 @@ jobs:
           cp build/work/current-main/restored/libXray.aar libxray/libs/libXray.aar
 
       - name: Verify current Xray chain against published v7 and arm64 native
-        if: ${{ inputs.apply_to_main }}
+        if: ${{ inputs.apply_to_main || inputs.build_without_publish }}
         shell: bash
         run: |
           set -euo pipefail
@@ -417,7 +429,7 @@ jobs:
           df -h .
 
       - name: Reclaim verified Xray scratch before Libass
-        if: ${{ inputs.apply_to_main }}
+        if: ${{ inputs.apply_to_main || inputs.build_without_publish }}
         shell: bash
         run: |
           set -euo pipefail
@@ -437,7 +449,7 @@ jobs:
           df -h .
 
       - name: Build and import reconstructed Libass candidate
-        if: ${{ inputs.apply_to_main }}
+        if: ${{ inputs.apply_to_main || inputs.build_without_publish }}
         shell: bash
         run: |
           set -euo pipefail
@@ -470,7 +482,7 @@ jobs:
           df -h .
 
       - name: Verify imported player startup
-        if: ${{ inputs.apply_to_main }}
+        if: ${{ inputs.apply_to_main || inputs.build_without_publish }}
         shell: bash
         run: |
           set -euo pipefail
@@ -481,7 +493,7 @@ jobs:
           rm -rf build/work/current-main/player-startup
 
       - name: Verify Xray artwork lifecycle
-        if: ${{ inputs.apply_to_main }}
+        if: ${{ inputs.apply_to_main || inputs.build_without_publish }}
         shell: bash
         run: |
           set -euo pipefail
@@ -492,14 +504,14 @@ jobs:
           rm -rf build/work/current-main/artwork-lifecycle
 
       - name: Verify proxy policy host regression
-        if: ${{ inputs.apply_to_main }}
+        if: ${{ inputs.apply_to_main || inputs.build_without_publish }}
         shell: bash
         run: |
           set -euo pipefail
           bash gradlew --no-daemon :catvod:testDebugUnitTest --stacktrace --warning-mode all
 
       - name: Compile upgraded Leanback source
-        if: ${{ inputs.apply_to_main }}
+        if: ${{ inputs.apply_to_main || inputs.build_without_publish }}
         shell: bash
         run: |
           set -euo pipefail
@@ -507,14 +519,14 @@ jobs:
           ./gradlew --no-daemon :xray:testDebugUnitTest :tv-recovery:testDebugUnitTest :app:compileLeanbackReleaseJavaWithJavac --stacktrace --warning-mode all
 
       - name: Assemble Android TV release APKs
-        if: ${{ inputs.apply_to_main }}
+        if: ${{ inputs.apply_to_main || inputs.build_without_publish }}
         shell: bash
         run: |
           set -euo pipefail
           ./gradlew --no-daemon :app:assembleLeanbackRelease --stacktrace --warning-mode all
 
       - name: Verify MPEG-H survives final TV APK packaging
-        if: ${{ inputs.apply_to_main }}
+        if: ${{ inputs.apply_to_main || inputs.build_without_publish }}
         shell: bash
         run: |
           set -euo pipefail
@@ -531,7 +543,7 @@ jobs:
           done
 
       - name: Verify pinned native runtime survives final TV APK packaging
-        if: ${{ inputs.apply_to_main }}
+        if: ${{ inputs.apply_to_main || inputs.build_without_publish }}
         shell: bash
         run: |
           set -euo pipefail
@@ -539,7 +551,7 @@ jobs:
             --apk-dir app/build/outputs/apk/leanback --build-type release
 
       - name: Verify final Media3 DEX linkage
-        if: ${{ inputs.apply_to_main }}
+        if: ${{ inputs.apply_to_main || inputs.build_without_publish }}
         shell: bash
         run: |
           set -euo pipefail
@@ -552,7 +564,7 @@ jobs:
             --report build/work/current-main/media3-linkage.json
 
       - name: Verify final Leanback manifest security contract
-        if: ${{ inputs.apply_to_main }}
+        if: ${{ inputs.apply_to_main || inputs.build_without_publish }}
         shell: bash
         run: |
           set -euo pipefail
@@ -571,7 +583,7 @@ jobs:
             python3 scripts/build/check-release-signing.py --sdk "$sdk_root" --apk "$apk"
           done
       - name: Record build inputs and outputs
-        if: ${{ inputs.apply_to_main && success() }}
+        if: ${{ (inputs.apply_to_main || inputs.build_without_publish) && success() }}
         shell: bash
         run: |
           set -euo pipefail
@@ -585,7 +597,7 @@ jobs:
           } | tee build/work/current-main/BUILD_RESULT.txt
 
       - name: Stage Android TV release APKs
-        if: ${{ inputs.apply_to_main && success() }}
+        if: ${{ (inputs.apply_to_main || inputs.build_without_publish) && success() }}
         shell: bash
         run: |
           set -euo pipefail
@@ -610,8 +622,19 @@ jobs:
 
           sha256sum release/*.apk
 
+      - name: Upload fully verified APKs for private build-only test
+        if: ${{ inputs.build_without_publish && !inputs.apply_to_main && success() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: fingmi-xray-verified-build-only-apks
+          path: |
+            release/*.apk
+            build/work/current-main/BUILD_RESULT.txt
+          if-no-files-found: error
+          retention-days: 2
+
       - name: Push fully verified candidate source to main
-        if: ${{ inputs.apply_to_main }}
+        if: ${{ inputs.apply_to_main && !inputs.build_without_publish }}
         shell: bash
         run: |
           set -euo pipefail
@@ -629,7 +652,7 @@ jobs:
           test "$(git ls-remote origin refs/heads/main | cut -f1)" = "$BUILD_SOURCE_SHA"
 
       - name: Publish verified APKs
-        if: ${{ inputs.apply_to_main && success() }}
+        if: ${{ inputs.apply_to_main && !inputs.build_without_publish && success() }}
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
@@ -638,7 +661,7 @@ jobs:
           python3 scripts/build/publish-current-release.py
 
       - name: Upload build reports on failure
-        if: ${{ inputs.apply_to_main && failure() }}
+        if: ${{ (inputs.apply_to_main || inputs.build_without_publish) && failure() }}
         uses: actions/upload-artifact@v7
         with:
           name: fingmi-xray-build-failure-reports
