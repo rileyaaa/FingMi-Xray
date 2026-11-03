@@ -40,6 +40,13 @@
 
 任何超出上述范围的代码修改，在提交前都应先判断：**这个变化是否是 Xray 或 TV 网络恢复的必要条件？如果不是，默认跟随上游。** 用户允许的例外仅限像已发生的主机名崩溃一样，有明确证据、明显影响实际使用的上游故障；只做最小修补，并在下方登记，不能据理论风险扩展普通业务维护。
 
+### 2026-11-03 第九次完整升级再次在官方 JS 资源暂存检查被拦截（未进入编译）
+
+- [GitHub Actions #41596021792](https://github.com/rileyaaa/FingMi-Xray/actions/runs/41596021792) 使用 `main@35eb7c7c0d9fe83a55736b7daec66d40c3a0f139`、`apply_to_main=true`、官方 `FongMi/TV/fongmi@305dff233cde512e2c83f71529b7c3ecfd61fefc`。离线升级器、上游真源码适配及 13 项候选源码守卫通过。已暂存的 `git diff --cached --check` 再次拒绝官方 JavaScript 资源尾随空白，涉及 `app/src/main/assets/js/spider-editor.js:25`、`spider-format/chunk-RBBTUEK2.js:4`、`spider-format/dist-SPW7IUL4.js:6`。这与第八次 `estree-L5DZKXBH.js` 是同一类根因；Android/native 编译、合入 main、正式签名与发布仍未执行。
+- 把原来的单文件例外改为**四个明确的官方 JS 资源路径**，不使用目录/扩展名通配符；`scripts/upstream/check_vendor_whitespace.py` 逐一核对 Git attributes 与所选上游 Git Blob，要求四个资源都是所选官方源码**原始字节**，且无其他空白检查豁免。实际核对的上游 Blob 依次是 `ef577c24def608187b4a7e67d00615af00fa6088`、`214cbcc1afd45e0ce01994d4c61459738b3b931f`、`8f0ab3dedb1b365dd329371f76221760dc098842`、`bf814f02a03f4cf286efc72425316af852720551`。
+- 扩充 `tests/test-upstream-vendor-whitespace.py` 为四资源隔离 Git 回归：重新制造四个已暂存的尾随空白、使用实际 Git attributes 验证所有来源一致后通过；反向测试单个资源字节篡改、官方移除文件、扩大例外到 Java 或目录，以及未列入例外的新 JS 文件；继续确认 Java 源码的未暂存/已暂存尾随空白必须失败。回归在本地 Git 2.47.3、Python 3 下实际执行通过，提交文件 SHA 与测试样本一致。
+- **此处仅修复确证的暂存检查问题**。真实完整 Android 构建、双 ABI APK、签名、DEX、native 验证及发布尚无本次新运行证据。升级工作流仍手动触发且默认 `apply_to_main=false`；`apply_to_main=true` 全部通过后会自动合入和发布，不能当作无副作用的编译模式。
+
 ### 2026-11-03 第八次完整升级在 Git 暂存空白检查被拦截（未进入编译）
 
 - [GitHub Actions #41575588775](https://github.com/rileyaaa/FingMi-Xray/actions/runs/41575588775) 使用 `apply_to_main=true` 及 `main@695f67aaab34a7b9f408fd043167de4249f08f26`；第七次已通过的上游适配与候选源码检查再次通过，但在 `git add -A` 后的 `git diff --cached --check` 失败。官方 `FongMi/TV/fongmi@305dff233cde512e2c83f71529b7c3ecfd61fefc` 包含压缩 bundle `app/src/main/assets/js/spider-format/estree-L5DZKXBH.js`，其 Git Blob `bf814f02a03f4cf286efc72425316af852720551` 在第 5、38 行有模板字面量尾随空白。该文件来自官方上游原样同步，**不是 Xray 或 TV 网络恢复源码**；不应为通过 Git whitespace 检查改写第三方发布资源。

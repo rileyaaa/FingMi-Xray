@@ -1,3 +1,7 @@
-# Public FongMi/TV minified ESTree bundle contains upstream template whitespace.
-# Its byte-for-byte upstream blob identity is enforced before any candidate commit.
+# Only these byte-identical FongMi/TV generated JS assets contain upstream
+# template whitespace. Each path is verified against the selected public Git
+# blob before either unstaged or staged source whitespace checks are accepted.
+app/src/main/assets/js/spider-editor.js -whitespace
+app/src/main/assets/js/spider-format/chunk-RBBTUEK2.js -whitespace
+app/src/main/assets/js/spider-format/dist-SPW7IUL4.js -whitespace
 app/src/main/assets/js/spider-format/estree-L5DZKXBH.js -whitespace
