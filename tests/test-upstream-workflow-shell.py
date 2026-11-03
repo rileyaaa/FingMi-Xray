@@ -81,6 +81,41 @@ def validate(yaml):
             assert result.stdout.count('::error file=') == 2, result.stdout
             assert 'BLOCKED: public upstream adapter preflight found errors' in result.stderr
 
+    # The second collector runs only after candidate generation. Simulate it
+    # separately to ensure all independent source gates are attempted.
+    guard_start = '          generated_guard_failed=0\n'
+    guard_end = '          git diff --check'
+    assert yaml.count(guard_start) == 1 and yaml.count(guard_end) == 1
+    guard_body = yaml.split(guard_start, 1)[1].split(guard_end, 1)[0]
+    guard_script = textwrap.dedent(guard_start + guard_body)
+    expected_guards = (
+        'scripts/upstream/verify_playback.py',
+        'tests/test-upstream-playback-contract.py',
+        'tests/test-upstream-update-disabled.py',
+        'tests/test-build-hygiene.py',
+        'tests/test-tv-network-recovery.py',
+    )
+    assert tuple(re.findall(r'^  ((?:scripts|tests)/[^\s]+\.py)
+
+if __name__ == '__main__':
+    print(f'PASS: {validate(WORKFLOW.read_text(encoding="utf-8"))} Bash run blocks parse; '
+          'all 8 upstream API checks and 5 candidate source guards execute under simultaneous failures')
+, guard_script, re.M)) == expected_guards
+    for fail in ('', 'tests/test-upstream-playback-contract.py:tests/test-build-hygiene.py'):
+        result = subprocess.run(['bash', '-e', '-o', 'pipefail', '-c', wrapper + guard_script],
+                                env={**os.environ, 'FAIL_TESTS': fail}, text=True, capture_output=True)
+        called = re.findall(r'^CALLED (.+)
+
+if __name__ == '__main__':
+    print(f'PASS: {validate(WORKFLOW.read_text(encoding="utf-8"))} Bash run blocks parse; '
+          'all 8 upstream adapter checks execute on success and simultaneous failures')
+, result.stdout, re.M)
+        assert called == list(expected_guards), f'Not all candidate source gates were run: {called}'
+        assert (result.returncode == 0) == (not fail), result.stdout + result.stderr
+        if fail:
+            assert result.stdout.count('::error file=') == 2, result.stdout
+            assert 'BLOCKED: upgraded source gates found errors' in result.stderr
+
     return len(blocks)
 
 
