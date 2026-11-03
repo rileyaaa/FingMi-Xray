@@ -40,6 +40,12 @@
 
 任何超出上述范围的代码修改，在提交前都应先判断：**这个变化是否是 Xray 或 TV 网络恢复的必要条件？如果不是，默认跟随上游。** 用户允许的例外仅限像已发生的主机名崩溃一样，有明确证据、明显影响实际使用的上游故障；只做最小修补，并在下方登记，不能据理论风险扩展普通业务维护。
 
+### 2026-11-03 第三次安全预检失败（已由运行日志直接确认）
+
+- [Run #41554240822](https://github.com/rileyaaa/FingMi-Xray/actions/runs/41554240822)：14 组本地升级引擎测试全部通过；随后上游基线 `c616c0aa...` 与最新 `fongmi` 分支均已成功 fetch，但 `expected_upstream_sha` 的输入值前有一个 **Tab**。日志准确显示 `expected=\\t305dff...`，而 `actual=305dff...`，两份 SHA 的 40 位十六进位内容相同。严格字符串比较导致 exit 1，真实适配器集成仍未开始。此根因有实际日志证据，不是推断。
+- 新增 `scripts/upstream/normalize_sha.py`：安全去除输入前后空白、统一大小写，拒绝任何非法长度、非十六进位或内部空白。工作流在上游 SHA 比较前运行该工具；新增 `tests/test-upstream-sha-input.py` 验证前导 Tab、换行、大小写、非法输入，以及实际 Bash 命令與工作流接线合同。
+- **费用保护：** 本次仅编辑源码、添加本地回归，不触发 AC。此前三次 AC 都未进入真实的 5.8.7 生成/编译。是否继续运行应在确认这些边界后由用户决定，不能再把静态校验说成全流程验收通过。
+
 ### 2026-11-03 安全预检两次失败的真实日志与防重试措施
 
 - [Run #41485689964](https://github.com/rileyaaa/FingMi-Xray/actions/runs/41485689964)：离线 `tests/test-upstream-activity-adapters.py` 的 VOD fixture 缺少 `mVod.onPlaybackServiceReady();`，未开始获取上游；已补完整 fixture、反向回归。手机二维码导入模板的注释包含旧 `PushActivity` 字样，也已移除以符合对应回归合同。
