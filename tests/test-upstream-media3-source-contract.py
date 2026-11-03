@@ -39,6 +39,29 @@ with tempfile.TemporaryDirectory(prefix='fingmi-media3-public-source-') as tmp:
         assert contract.ISSUE in str(exc)
     else:
         raise AssertionError('Known unbuildable public Media3 pin was accepted')
+    # New gap types were verified separately, beyond the first 100 javac errors.
+    assert len(contract.UNAVAILABLE_IMPORTS) == 44
+    write(root, app, 'package com.fongmi;\n'
+                     'import androidx.media3.exoplayer.libass.LibassPlaybackSession;\n'
+                     'import androidx.media3.mpvplayer.media.MpvDrmSupport;\n')
+    try:
+        contract.check(root)
+    except ValueError as exc:
+        assert 'BLOCKED:' in str(exc)
+        assert '2 Media3 API imports' in str(exc)
+        assert 'LibassPlaybackSession' in str(exc)
+        assert 'MpvDrmSupport' in str(exc)
+    else:
+        raise AssertionError('Additional confirmed missing APIs bypassed the source guard')
+    write(root, app, 'package com.fongmi;\n'
+                     'import androidx.media3.common.audio.AudioChannelMix;\n')
+    try:
+        contract.check(root)
+    except ValueError as exc:
+        assert '1 Media3 API imports' in str(exc)
+        assert 'AudioChannelMix' in str(exc)
+    else:
+        raise AssertionError('Audio-channel extension must not bypass the guard')
     # A changed public source commit is not claimed compatible; Gradle must decide.
     pin('a' * 40)
     assert len(contract.check(root)) == 2

@@ -16,9 +16,12 @@ ROOT = Path(__file__).resolve().parents[2]
 OLDER_PUBLIC_MEDIA = '3c2cbe8ac742c2fe15eff52f03eeb3b1b648848d'
 ISSUE = 'https://github.com/FongMi/TV/issues/764'
 
-# Directly observed in javac's first 100 errors for official TV 5.8.7. The
-# referenced source files/classes are absent at the pinned public media SHA.
-# This is not a complete ABI listing; javac reported additional errors.
+# Thirty imports came from the first 100 javac errors for official TV 5.8.7.
+# Fourteen more imports were independently checked against both public media
+# Git Trees (release-1.11.0-fongmi and release) at fixed SHAs. All 44 named
+# top-level types lack matching source files at the pinned public media SHA.
+# This is a known-incompatibility sentinel, NOT a complete API/ABI audit:
+# existing Media3 classes also lack methods required by newer TV source.
 UNAVAILABLE_IMPORTS = frozenset('''
 androidx.media3.common.DecoderMode
 androidx.media3.common.DiscMenuController
@@ -50,8 +53,22 @@ androidx.media3.exoplayer.text.SubtitleTranscript
 androidx.media3.exoplayer.text.SubtitleTranscriptParserFactory
 androidx.media3.exoplayer.text.SubtitleTranscriptSession
 androidx.media3.mpvplayer.MpvSubtitleContentLoader
+androidx.media3.common.audio.AudioChannelMix
+androidx.media3.datasource.IsoUri
+androidx.media3.exoplayer.hls.CmgConfiguration
+androidx.media3.exoplayer.iso.BdjRuntime
+androidx.media3.exoplayer.libass.LibassConfiguration
+androidx.media3.exoplayer.libass.LibassPlaybackSession
+androidx.media3.exoplayer.libass.LibassSubtitleController
+androidx.media3.exoplayer.text.SecondaryTextOutput
+androidx.media3.exoplayer.trackselection.SecondaryTextTrackSelector
+androidx.media3.mpvplayer.MpvConfigFileInspector
+androidx.media3.mpvplayer.MpvDecoderMode
+androidx.media3.mpvplayer.media.MpvDrmSupport
+androidx.media3.ui.danmaku.DanmakuPlayerViewController
+androidx.media3.ui.libass.LibassPlayerViewController
 '''.split())
-assert len(UNAVAILABLE_IMPORTS) == 30
+assert len(UNAVAILABLE_IMPORTS) == 44
 IMPORT = re.compile(r'^\s*import\s+(androidx\.media3\.[\w.]+)\s*;', re.MULTILINE)
 SHA = re.compile(r'[0-9a-f]{40}\Z')
 
