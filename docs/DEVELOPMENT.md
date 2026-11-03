@@ -40,6 +40,14 @@
 
 任何超出上述范围的代码修改，在提交前都应先判断：**这个变化是否是 Xray 或 TV 网络恢复的必要条件？如果不是，默认跟随上游。** 用户允许的例外仅限像已发生的主机名崩溃一样，有明确证据、明显影响实际使用的上游故障；只做最小修补，并在下方登记，不能据理论风险扩展普通业务维护。
 
+### 2026-11-03 第五次预检与 5.8.7 播放所有权交接修复（未发布）
+
+- 第五次手动预检 [#41559458565](https://github.com/rileyaaa/FingMi-Xray/actions/runs/41559458565) 在目标公开源码已同步、`v5.8.7-xray.1` 候选已生成后，因 Leanback 含上游新增 `RECEIVE_BOOT_COMPLETED` / `BootReceiver` 被 TV 网络恢复约束拒绝。此前 8 组真实上游接线预检与另外 4 项候选源码检查通过，但没有进行 Android 编译或发布。升级器现仅精确移除这项开机权限及对应官方接收器，保留其余 Leanback 声明；对当前 `FongMi/TV/fongmi@305dff233cde512e2c83f71529b7c3ecfd61fefc` 清单进行了文字与结构对照，不将静态核对冒充完整生成验证。
+- 原 TV 恢复 SHA 守卫新增了 5.8.7 的 7 条覆盖值，但 `prepare_release.rewrite_guards()` 仍按单表 9 个字面量替换；这会匹配旧表 9 条加新表 7 条并中断甚至损坏历史 5.6.3 基线。现明确保留旧表、解析新版 7 项覆盖并核对实际公开 Git Tree 的 9 个 SHA；未知目标版本和源码漂移拒绝继续。对应回归已补入 `tests/test-upstream-prepare.py`。已逐项比对当前公开树上的 9 个 Git Blob SHA；还未完成整个仓库的隔离升级实跑。
+- 5.8.7 `PlaybackService.claimBinding()` 在切换 owner **之前**调用旧 Activity 的 `onPlaybackReplaced()`。原候选生成器却先设置 `playbackReplaced = true`，再触发 `onXrayBindingReplaced()`；Live/VOD 的解绑回调因 `isPlaybackCurrent()` 已为 false 而跳过，可能把即将关闭的 Xray HTTP client 留给共享 PlayerManager。现改为旧 owner 仍有效时先撤销 Xray，随后才置 `playbackReplaced = true`，并在新版 `verify_playback.REQUIRED_587` 及 Activity fixture 加入顺序守卫。
+- 5.8.7 官方 `PlaybackActivity` 已不含旧版 `updatePlaybackDanmakuClient()` 等接口。原 `test-xray-playback-parity.py` 无条件运行的 5.6.3 方法提取测试因此不适合新版；现在旧版继续跑原两组 JVM 测试，新版改跑 `tests/test-upstream-playback-ownership.py`，从生成后的真实源码提取 owner、Service、Live/VOD 交接及新版弹幕清理方法，以隔离 JVM 替身验证旧代理释放先于新 owner 接管、晚到回调与移动端 PiP。该测试提前纳入预览阶段的生成源码 guard，现共 **6 项**；未知方法形状停止，不能简单以关键字存在当作设备行为合格。
+- 本轮在本地用与实际官方 5.8.7 / 候选适配方法形状对应的隔离样本执行了 JVM 正向与反向交接、弹幕清理测试，通过；这是**源码方法级 JVM 替身测试**，不是整个私有仓库真实 `sync.py` / `prepare_release.py` 的完整升级演练，更不是 Android/TV 编译、双 ABI APK 或真机验收。修改已提交到当前 5.6.3 的升级工具及测试；正式 `v5.6.3-xray.1`、黄金 `v5.6.0-xray.5`、固定签名均未更动；任何 AC 仍须用户另行明确授权。
+
 ### 2026-11-03 第四次失败后的无 AC 加固与剩余验证边界
 
 - 新增 `tests/test-upstream-real-hooks.py`：真实上游源码预检由 7 组扩大为 8 组；新增 12 个之前只在合成夹具上执行的 Gradle、Home、Updater、Xray 导入/设置、六个网络恢复适配器检查。逐一运行、收集并汇总独立错误，均在真正源码同步前执行。
