@@ -84,6 +84,29 @@ assert "REQUEST_DELETE_PACKAGES" in new
 assert "android.permission.INTERNET" in new
 rejects(main_manifest,main.replace("REQUEST_INSTALL_PACKAGES","ANOTHER_PERMISSION"))
 
+# Guard the version-aware TV recovery SHA baseline before generating the
+# candidate: official 5.8.7 legitimately changes seven 5.6.3 source blobs.
+# Parse only two literal tables from the guard; do not import the guard's
+# top-level Java/SKD test harness during this cheap upstream preflight.
+import ast
+scope_script=(Path(__file__).resolve().parents[0] / "test-tv-network-recovery.py").read_text(encoding="utf-8")
+scope_ast=ast.parse(scope_script)
+pins={}
+for node in scope_ast.body:
+    if isinstance(node,ast.Assign) and len(node.targets)==1 and isinstance(node.targets[0],ast.Name):
+        if node.targets[0].id in ("UPSTREAM_EXACT_BLOBS","UPSTREAM_EXACT_BLOBS_587"):
+            pins[node.targets[0].id]=node.value
+old_blobs=ast.literal_eval(pins["UPSTREAM_EXACT_BLOBS"])
+new_blobs=dict(old_blobs)
+new_table=pins["UPSTREAM_EXACT_BLOBS_587"]
+for key,value in zip(new_table.keys,new_table.values):
+    if key is not None:
+        new_blobs[ast.literal_eval(key)]=ast.literal_eval(value)
+assert len(old_blobs)==len(new_blobs)==9
+assert sum(old_blobs[path]!=new_blobs[path] for path in old_blobs)==7
+assert "elif upstream_version == \"5.8.7\":" in scope_script
+assert "pinned_source_blobs = UPSTREAM_EXACT_BLOBS_587" in scope_script
+
 parser=argparse.ArgumentParser()
 parser.add_argument("--upstream",type=Path)
 parser.add_argument("--target")
@@ -93,6 +116,10 @@ if bool(args.upstream)!=bool(args.target):
 if args.upstream:
     from sync import git_tree,blob
     tree=git_tree(args.upstream,args.target)
+    for path, expected in new_blobs.items():
+        assert path in tree, "Official TV recovery scope missing: "+path
+        assert tree[path][1]==expected, ("Official 5.8.7 business source diverged: "
+                                       +path+" expected="+expected+" actual="+tree[path][1])
     for name,fn in (
         (".gitignore",gitignore),
         ("app/proguard-rules.pro",proguard),
