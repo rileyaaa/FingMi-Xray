@@ -166,6 +166,7 @@ jobs:
             tests/test-upstream-activity-adapters.py
             tests/test-upstream-build-policy.py
             tests/test-upstream-phone-import.py
+            tests/test-upstream-real-hooks.py
           )
           for test_script in "${upstream_tests[@]}"; do
             echo "::group::Public upstream adapter preflight: $test_script"
