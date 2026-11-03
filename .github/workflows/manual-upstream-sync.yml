@@ -60,6 +60,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          python3 tests/test-upstream-sha-input.py
           python3 tests/test-upstream-clean-checkout.py
           python3 tests/test-upstream-sync.py
           python3 tests/test-upstream-prepare.py
@@ -87,6 +88,9 @@ jobs:
           EXPECTED_SHA: ${{ inputs.expected_upstream_sha }}
         run: |
           set -euo pipefail
+          # workflow_dispatch input can contain pasted leading tabs/spaces.
+          # Normalize ONLY its edges; an invalid/malformed SHA still blocks.
+          EXPECTED_SHA="$(python3 scripts/upstream/normalize_sha.py "$EXPECTED_SHA")"
           if [[ "$GITHUB_REF" != "refs/heads/main" ]]; then
             echo "BLOCKED: expected main branch, got GITHUB_REF=$GITHUB_REF" >&2
             exit 1
