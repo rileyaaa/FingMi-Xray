@@ -573,14 +573,22 @@ subprocess.run(
     check=True,
 )
 
-subprocess.run(
-    [sys.executable, str(ROOT / "tests/test-xray-danmaku-client-binding.py")],
-    check=True,
-)
-
-subprocess.run(
-    [sys.executable, str(ROOT / "tests/test-xray-playback-binding-handoff.py")],
-    check=True,
-)
+# The 5.6.3 JVM tests extract deleted upstream Activity methods. Keep
+# the historical tests for 5.6.3; 5.8.7 tests its actual new owner/danmaku
+# methods, including detachment BEFORE playbackReplaced becomes true.
+if selected_contract is REQUIRED_587:
+    subprocess.run(
+        [sys.executable, str(ROOT / "tests/test-upstream-playback-ownership.py")],
+        check=True,
+    )
+else:
+    subprocess.run(
+        [sys.executable, str(ROOT / "tests/test-xray-danmaku-client-binding.py")],
+        check=True,
+    )
+    subprocess.run(
+        [sys.executable, str(ROOT / "tests/test-xray-playback-binding-handoff.py")],
+        check=True,
+    )
 
 print("Xray playback parity guards passed")

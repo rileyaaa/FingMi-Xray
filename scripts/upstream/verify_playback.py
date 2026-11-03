@@ -232,7 +232,7 @@ REQUIRED_587 = {
     ),
     "app/src/main/java/com/fongmi/android/tv/ui/activity/PlaybackActivity.java": (
         "protected void onXrayBindingReplaced()",
-        "onXrayBindingReplaced();",
+        "        onXrayBindingReplaced();\n        playbackReplaced = true;",
         "protected final void clearXrayDanmakuSource()",
         "public void onXrayEngineChanged()",
         "mService.claimBinding(getNavigationCallback(), this::onPlaybackReplaced);",

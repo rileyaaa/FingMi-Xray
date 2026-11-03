@@ -197,6 +197,7 @@ jobs:
           generated_guards=(
             scripts/upstream/verify_playback.py
             tests/test-upstream-playback-contract.py
+            tests/test-upstream-playback-ownership.py
             tests/test-upstream-update-disabled.py
             tests/test-build-hygiene.py
             tests/test-tv-network-recovery.py

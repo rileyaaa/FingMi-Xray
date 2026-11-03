@@ -33,6 +33,7 @@ BASE='''class PlaybackActivity {
 }'''
 z=playback_activity(BASE)
 assert z.count("onXrayBindingReplaced();")==1
+assert "private void onPlaybackReplaced() {\n        onXrayBindingReplaced();\n        playbackReplaced = true;" in z
 assert "protected void onXrayBindingReplaced()" in z
 assert "protected final void clearXrayDanmakuSource()" in z
 assert "public void onXrayEngineChanged()" in z
@@ -189,6 +190,10 @@ if args.upstream:
         assert candidate!=public and len(candidate)>len(public),name
         if name.endswith("Activity.java"):
             assert "onXrayBindingReplaced()" in candidate
+        if name.endswith("/PlaybackActivity.java"):
+            assert ("private void onPlaybackReplaced() {\n"
+                    "        onXrayBindingReplaced();\n"
+                    "        playbackReplaced = true;") in candidate, "old Xray client must detach before owner is invalidated"
     print("PASS four official 5.8.7 UI/owner adapter sources at "+args.target)
 
 print("PASS Xray Live/VOD direct reset, pending Live, owner transfer, stale VOD request guards")

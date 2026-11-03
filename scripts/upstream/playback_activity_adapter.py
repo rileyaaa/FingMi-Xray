@@ -33,8 +33,8 @@ def playback_activity(s):
         "5.8.7 official media source owner")
     s=one(s,
         "    private void onPlaybackReplaced() {\n        playbackReplaced = true;",
-        "    private void onPlaybackReplaced() {\n        playbackReplaced = true;\n"
-        "        onXrayBindingReplaced();",
+        "    private void onPlaybackReplaced() {\n        onXrayBindingReplaced();\n"
+        "        playbackReplaced = true;",
         "ownership changed notification")
     for key in ("mService.claimBinding(getNavigationCallback(), this::onPlaybackReplaced);",
                 "playbackPlayerState.setValue(null);",
