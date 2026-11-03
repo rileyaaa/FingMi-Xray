@@ -40,6 +40,13 @@
 
 任何超出上述范围的代码修改，在提交前都应先判断：**这个变化是否是 Xray 或 TV 网络恢复的必要条件？如果不是，默认跟随上游。** 用户允许的例外仅限像已发生的主机名崩溃一样，有明确证据、明显影响实际使用的上游故障；只做最小修补，并在下方登记，不能据理论风险扩展普通业务维护。
 
+### 2026-11-03 第六次手动预检失败与新版旁路请求回归修复（未发布）
+
+- [GitHub Actions #41567220883](https://github.com/rileyaaa/FingMi-Xray/actions/runs/41567220883) 使用 main `7e501e9c3239aacedfef312855bf2dd8e8430ff7` 和公开 5.8.7 提交 `305dff233cde512e2c83f71529b7c3ecfd61fefc`：14 组升级器离线测试、8 组上游真源码预检、768 个源码同步变更、生成 `v5.8.7-xray.1` 均成功；生成后 12 项源码守卫中 11 项通过，只有 `tests/test-xray-playback-parity.py` 调用的 5.6.3 旁路请求 JVM 用例失败，Android 编译未启动、没有推送或发布。
+- 41 条 `javac` 诊断属于同一旧测试夹具不兼容：旧版 `DanmakuApi.search(OkHttpClient, …)` / `SubtitleApi.cancelForXrayTransition()` 已被 5.8.7 `ApiCallback` + `REQUEST_ID` / `XraySideRequestGate` 方案取代，旧 Java 替身不含新版 `Download` 路径、请求 Gate。此错误不能证明真实 APK 编译有同等 41 项源码缺陷，也不能靠删除测试放行。
+- 新增 `tests/test-upstream-side-request-lifecycle.py`：仅针对 5.8.7，使用生成候选的真实 `DanmakuApi.java`、`SubtitleApi.java`、`ApiCallback.java` 编译 Java 17 JVM，外部平台/HTTP/下载接口以确定性替身代替；覆盖 15 项弹幕/字幕成功失败响应取消、旧请求代际被新请求替换、完成后的取消、详情请求和字幕普通/zip 下载，以及 Xray 请求路径与代理绑定。5.6.3 仍执行原 `test-xray-side-request-lifecycle.py`，新版本只运行新版专用用例。此套回归在 `test-xray-playback-parity.py` 内被预览及正式构建的现有守卫共同调用。
+- 本地在根据官方 5.8.7 API 及候选精确接线构造的源码样本上编译/运行上述 15 项成功；移除代理 cancel、字幕 Xray 绑定、ApiCallback 代际限制的三组负例均被拒绝。尚不能将这种本地隔离样本验证视为在 GitHub runner 上对完整生成树的实跑，更不能等同 Android Gradle / 双 ABI APK 通过。继续要求 AC 只能由用户手动触发；正式 Release 与签名不动。
+
 ### 2026-11-03 第六次 AC 前继续审计新版专用 Xray 守卫（无新 AC）
 
 - 审查完整构建前 `Run fork source guards` 所有已有入口时，发现 `tests/test-xray-core-parity.py` 无条件要求早在 5.8.7 被上游删除的 `PushActivity.java`、旧 `index.html` Xray 表单和 `js/script.js` 的 `sendXray()`；而升级器按既定最小接线方案使用 `XrayPhoneImportDialog.java` + 独立 `xray.html`，原旧版测试会把正确的新版源码判为缺失。现按实际 `app/build.gradle` 版本选择合同：5.6.3 保留旧断言，5.8.7 必须具备独立二维码导入与安全 URL 编码表单，并不得恢复旧 PushActivity 或把 Xray 表单塞回普通上游网页。

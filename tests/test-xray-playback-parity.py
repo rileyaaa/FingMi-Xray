@@ -568,10 +568,20 @@ with tempfile.TemporaryDirectory(prefix="xray-playback-identity-") as directory:
         check=True,
     )
 
-subprocess.run(
-    [sys.executable, str(ROOT / "tests/test-xray-side-request-lifecycle.py")],
-    check=True,
-)
+# FongMi 5.8.7 rewrote the public Danmaku/Subtitle/ApiCallback APIs.
+# Compile the real version-selected classes against deterministic JVM fakes
+# instead of executing 5.6.3-only method signatures. Both variants retain
+# request-generation, cancellation and delayed UI callback coverage.
+if selected_contract is REQUIRED_587:
+    subprocess.run(
+        [sys.executable, str(ROOT / "tests/test-upstream-side-request-lifecycle.py")],
+        check=True,
+    )
+else:
+    subprocess.run(
+        [sys.executable, str(ROOT / "tests/test-xray-side-request-lifecycle.py")],
+        check=True,
+    )
 
 # The 5.6.3 JVM tests extract deleted upstream Activity methods. Keep
 # the historical tests for 5.6.3; 5.8.7 tests its actual new owner/danmaku
