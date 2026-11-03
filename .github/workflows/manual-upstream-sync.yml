@@ -62,7 +62,7 @@ jobs:
           REQUESTED_SHA: ${{ inputs.expected_upstream_sha }}
         run: |
           set -euo pipefail
-          # Validate every literal Bash run block and the 7-adapter error collector.
+          # Validate every Bash block and both preflight/source-guard collectors.
           python3 tests/test-upstream-workflow-shell.py
           python3 tests/test-upstream-real-hooks-mock.py
           # Fail malformed user input before the longer local adapter checks.
@@ -191,6 +191,30 @@ jobs:
             --upstream "$UPSTREAM_DIRECTORY" \
             --target "$UPSTREAM_TARGET" \
             --report "$RUNNER_TEMP/fingmi-upstream-release-plan.json"
+          # Cheap, SDK-free checks against the ACTUAL generated 5.8.7 source.
+          # Collect independent failures before the preview exits.
+          generated_guard_failed=0
+          generated_guards=(
+            scripts/upstream/verify_playback.py
+            tests/test-upstream-playback-contract.py
+            tests/test-upstream-update-disabled.py
+            tests/test-build-hygiene.py
+            tests/test-tv-network-recovery.py
+          )
+          for guard_script in "${generated_guards[@]}"; do
+            echo "::group::Upgraded candidate source gate: $guard_script"
+            if python3 "$guard_script"; then
+              echo "PASS: $guard_script"
+            else
+              echo "::error file=$guard_script::Generated source gate failed"
+              generated_guard_failed=1
+            fi
+            echo "::endgroup::"
+          done
+          if [[ "$generated_guard_failed" != "0" ]]; then
+            echo "BLOCKED: upgraded source gates found errors; see all failures above. No source push." >&2
+            exit 1
+          fi
           git diff --check
           # GITHUB_TOKEN cannot push modifications to protected workflow YAML.
           # Fail before expensive native builds if a future adapter drifts.
