@@ -62,6 +62,8 @@ jobs:
           REQUESTED_SHA: ${{ inputs.expected_upstream_sha }}
         run: |
           set -euo pipefail
+          # Validate every literal Bash run block and the 7-adapter error collector.
+          python3 tests/test-upstream-workflow-shell.py
           # Fail malformed user input before the longer local adapter checks.
           python3 scripts/upstream/normalize_sha.py "$REQUESTED_SHA" >/dev/null
           python3 tests/test-upstream-sha-input.py
