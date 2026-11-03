@@ -89,6 +89,7 @@ def validate(yaml):
     guard_body = yaml.split(guard_start, 1)[1].split(guard_end, 1)[0]
     guard_script = textwrap.dedent(guard_start + guard_body)
     expected_guards = (
+        'scripts/upstream/check_media3_source_contract.py',
         'scripts/upstream/verify_playback.py',
         'tests/test-upstream-playback-contract.py',
         'tests/test-upstream-playback-ownership.py',
@@ -119,4 +120,4 @@ def validate(yaml):
 
 if __name__ == '__main__':
     print(f'PASS: {validate(WORKFLOW.read_text(encoding="utf-8"))} Bash run blocks parse; '
-          'all 8 upstream API checks and 13 candidate source guards execute under simultaneous failures')
+          'all 8 upstream API checks and 14 candidate source guards execute under simultaneous failures')

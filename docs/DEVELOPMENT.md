@@ -40,6 +40,14 @@
 
 任何超出上述范围的代码修改，在提交前都应先判断：**这个变化是否是 Xray 或 TV 网络恢复的必要条件？如果不是，默认跟随上游。** 用户允许的例外仅限像已发生的主机名崩溃一样，有明确证据、明显影响实际使用的上游故障；只做最小修补，并在下方登记，不能据理论风险扩展普通业务维护。
 
+### 2026-11-03 第十次完整构建失败：公开 Media3 接口源码缺失，停止盲目重跑
+
+- [GitHub Actions #41606382989](https://github.com/rileyaaa/FingMi-Xray/actions/runs/41606382989) 以 `main@07a721723b356fd31e3d108d6ca866f55730b789`、仅构建 `build_without_publish=true`、官方 TV 5.8.7 commit `305dff233cde512e2c83f71529b7c3ecfd61fefc` 执行。源码集成及 13 项候选检查、完整构建前 28 项守卫、SDK 36/37、Gradle 工具链、固定签名核对、公开 `FongMi/media@3c2cbe8ac742c2fe15eff52f03eeb3b1b648848d` 18 个 AAR 源码重建、Xray/native parity、Libass 重建、播放器启动与 artwork 回归、catvod 代理回归均成功。第一次实际执行 `:app:compileLeanbackReleaseJavaWithJavac` 时失败，未生成双 ABI APK，未合入 main，未发布或清理 Release。
+- javac 首批 100 条错误涉及 16 个 TV Java 文件与至少 30 种缺失的 `androidx.media3.*` 定制 API 导入，包括 `DecoderMode`、`DiscMenuController`、`SubtitleOffsets`、`IsoDiscPreparation`、`VideoAdjustment`、`SubtitleTranscriptSession`、`EndTrimMediaSource` 等；编译器限制先显示 100 条，不能把这 30 个名字当成完整缺失集合。经官方 Git Tree 核实，固定媒体源码仓库的 `release-1.11.0-fongmi` 分支没有这 30 种导入路径对应的公开源码（其中 `TrackSelectionUtil` 只出现在**另一个包**，也不满足候选导入）。官方问题 [FongMi/TV #764](https://github.com/FongMi/TV/issues/764) 于 2026-10-23 独立报告约 45 个新版 Media3 类型未公开，维护者未提供配套源码/18 个 AAR，问题以 not_planned 关闭。此问题早于本项目的第十次运行，而此前未审查 Media3 公共接口边界，是严重的预检遗漏。
+- 项目 [AI_COLLABORATION.md](AI_COLLABORATION.md) 第 8-9 节限制只以公开源码为上游，**不得反编译更新的官方 APK 补齐未公开业务实现**，也不得自行新增第三套播放器业务代码或删除官方功能凑编译。因而此处不是通用导入小修补：**5.8.7 的完整、保真、可验证构建当前仍被上游未公开媒体源码阻断**。不能宣称仅升 Gradle、加入空壳 class 或采纳更新 Release APK 就已修复。
+- 新增 `scripts/upstream/check_media3_source_contract.py`：读取实际 `player_candidate.py`/`build-player-aar-candidate.sh` 的源码 pin，扫描实际升级候选 Java 的 Media3 import，只有当固定已证不兼容 Media3 commit 与已知缺失导入同时出现时才明确 fail-closed，并列出具体类型及 #764；早在 native/Gradle 阶段之前执行。脚本不擅改官方源码，**不把其他未知 Media3 commit 伪装成已通过编译**。新增 `tests/test-upstream-media3-source-contract.py` 独立本地测试（固定不兼容提交应阻断；旧源无此 API 不误判；未来变更 pin 仍需真编译；构建脚本与验证器 pin 不一致时拒绝）；在本地 Python 3/JDK 环境通过。
+- 将该检查加入升级生成源码后的独立守卫，候选检查从 13 提升至 **14**，安全预检和两种完整模式共同执行；同步 `tests/test-upstream-workflow-shell.py` 的精确列表和双重失败注入回归。**任何新 AC 在出现可验证、兼容的公开 Media3 源码之前都会被此守卫主动阻断，以免继续消耗完整构建额度。** 正式版 `v5.6.3-xray.1`、黄金版 `v5.6.0-xray.5`、签名和 Xray 核心均不修改。
+
 ### 2026-11-03 第十次运行前继续审计：汇总完整构建前 28 项独立源码检查（未执行 AC）
 
 - 完整模式原有 `Run fork source guards` 按顺序直接运行 28 个源代码/JVM/纯 Python/模拟产物检查，在 `set -euo pipefail` 下第一项失败即停止。第七次已将生成树 13 项候选检查改为汇总，但这另一组尚未具备同样的多故障采集，容易使后续单次 AC 只能呈现一个源码问题。

@@ -77,6 +77,7 @@ jobs:
           python3 tests/test-upstream-build-only-workflow.py
           python3 tests/test-upstream-mode-runtime.py
           python3 tests/test-upstream-full-source-guards.py
+          python3 tests/test-upstream-media3-source-contract.py
           python3 tests/test-upstream-real-hooks-mock.py
           # Fail malformed user input before the longer local adapter checks.
           python3 scripts/upstream/normalize_sha.py "$REQUESTED_SHA" >/dev/null
@@ -210,6 +211,7 @@ jobs:
           # Collect independent failures before the preview exits.
           generated_guard_failed=0
           generated_guards=(
+            scripts/upstream/check_media3_source_contract.py
             scripts/upstream/verify_playback.py
             tests/test-upstream-playback-contract.py
             tests/test-upstream-playback-ownership.py
