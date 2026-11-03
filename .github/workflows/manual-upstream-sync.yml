@@ -75,6 +75,7 @@ jobs:
           # Validate every Bash block and both preflight/source-guard collectors.
           python3 tests/test-upstream-workflow-shell.py
           python3 tests/test-upstream-build-only-workflow.py
+          python3 tests/test-upstream-mode-runtime.py
           python3 tests/test-upstream-real-hooks-mock.py
           # Fail malformed user input before the longer local adapter checks.
           python3 scripts/upstream/normalize_sha.py "$REQUESTED_SHA" >/dev/null

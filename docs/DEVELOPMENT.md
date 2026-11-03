@@ -40,6 +40,12 @@
 
 任何超出上述范围的代码修改，在提交前都应先判断：**这个变化是否是 Xray 或 TV 网络恢复的必要条件？如果不是，默认跟随上游。** 用户允许的例外仅限像已发生的主机名崩溃一样，有明确证据、明显影响实际使用的上游故障；只做最小修补，并在下方登记，不能据理论风险扩展普通业务维护。
 
+### 2026-11-03 第十次运行前审计：修复构建模式切换造成的既有测试错误（未执行 AC）
+
+- 检查最新 `main@7a5b77de31c9ef3ba36d98d85cfa6da23dae20b9` 时，找到**真实阻断**：新增 `build_without_publish` 模式把候选退出条件由 `APPLY_TO_MAIN` 改为 `BUILD_CANDIDATE`，却没有同步 `tests/test-upstream-vendor-whitespace.py` 最后检查的字面量。旧断言会抛出 `ValueError: substring not found`；本地直接复现后，改为匹配当前实际退出条件，并以本地 Git 回归验证修复后的四份官方 JS 原样校验、暂存检查和源码拒绝策略仍全部通过。用户无需消耗一次 AC 来发现这个遗漏。
+- 新增 `tests/test-upstream-mode-runtime.py` 并放入 GitHub Actions 首个离线测试步骤。新测试从**实际 Workflow YAML** 抽取提交候选的 Bash 尾段及互斥输入保护，在临时 Git 仓库实际执行三种模式（预检只暂存、只构建/正式模式都产生本地候选提交）和两开关同时为 true 时拒绝，检查 `BUILD_SOURCE_SHA` / `RELEASE_TAG` 环境导出。测试无需 GitHub Token、网络、Android SDK 或签名；本地对经过核对的工作流 Bash 段运行通过。
+- 对正式 Workflow 的当前提交路径及 27 个与上游升级/发布强相关的 Python 测试做了新版模式引用交叉审查；未发现其他这类过期候选条件。检查属于离线及源码验证，**不代表**第十次 AC、原生依赖、Android Gradle 和 APK 已通过。所有正式 Release/签名仍原样。
+
 ### 2026-11-03 九次尝试后的流程防护：拆分完整构建验证与正式发布
 
 - 旧 `manual-upstream-sync.yml` 将 `apply_to_main=true` 同时用作完整构建、推送 main 和正式 Release 发布。此前连续九次运行只有一次安全预检通过，且从未走到 Android/native 编译。为避免第一次真实编译成功时直接自动发布未经设备确认的 APK，新增**互斥**手动开关 `build_without_publish`（默认 `false`）：`apply_to_main=false, build_without_publish=true` 会按现有相同路径跑完整候选生成、全部 fork guard、SDK/native/Android 双 ABI 编译及最终 APK 校验，输出两个签名 APK 和 `BUILD_RESULT.txt` 到私有 Actions artifact，但**不会推送 main、创建/清理正式 Release 或发布 APK**。两项都设为 true 时，在开始升级前即拒绝。
