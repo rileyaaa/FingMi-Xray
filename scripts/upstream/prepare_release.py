@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Regenerate approved fork integration from public FongMi source; fail closed."""
 import argparse
+import ast
 import json
 from pathlib import Path
 import re
@@ -143,30 +144,69 @@ def tests_proxy(s):
     return "".join(parts)
 
 
-def rewrite_guards(root, upstream, tree):
-    path=root/"tests/test-tv-network-recovery.py"
-    s=path.read_text()
-    pat=re.compile(r'("(?P<path>app/[^"]+)"\s*:\s*")[a-f0-9]{40}(")')
-    count=0
-    def fix(m):
-        nonlocal count
-        name=m.group("path")
-        if name not in tree or not (root/name).is_file() or (root/name).read_bytes()!=blob(upstream,tree[name]):
-            raise ValueError("Ordinary upstream recovery file drift: "+name)
-        count+=1
-        return m.group(1)+tree[name][1]+m.group(3)
-    s=pat.sub(fix,s)
-    if count!=9: raise ValueError("Unexpected upstream recovery guard count")
-    path.write_text(s)
-    path=root/"tests/test-xray-playback-parity.py"
-    s=path.read_text()
-    name="app/src/main/java/com/fongmi/android/tv/player/engine/PlayerEngine.java"
-    if name not in tree or not (root/name).is_file() or (root/name).read_bytes()!=blob(upstream,tree[name]):
+def rewrite_guards(root, upstream, tree, version):
+    path = root / "tests/test-tv-network-recovery.py"
+    source = path.read_text(encoding="utf-8")
+    # Keep the 5.6.3 table as immutable historical evidence. The 5.8.7
+    # table inherits nine paths and overrides seven legitimate new blobs.
+    # Blindly rewriting all literal hashes would match 16 entries, corrupt
+    # the old baseline, then fail the former count==9 invariant.
+    nodes = {}
+    for node in ast.parse(source).body:
+        if (isinstance(node, ast.Assign) and len(node.targets) == 1
+                and isinstance(node.targets[0], ast.Name)):
+            name = node.targets[0].id
+            if name in ("UPSTREAM_EXACT_BLOBS", "UPSTREAM_EXACT_BLOBS_587"):
+                if name in nodes:
+                    raise ValueError("Duplicate TV recovery SHA table: " + name)
+                nodes[name] = node.value
+    if (version != "5.8.7" or
+            source.count('elif upstream_version == "5.8.7":') != 1):
+        raise ValueError("Unreviewed TV recovery SHA baseline for upstream " + version)
+    base_node = nodes.get("UPSTREAM_EXACT_BLOBS")
+    override_node = nodes.get("UPSTREAM_EXACT_BLOBS_587")
+    if not isinstance(base_node, ast.Dict) or not isinstance(override_node, ast.Dict):
+        raise ValueError("Missing TV recovery SHA tables")
+    old = ast.literal_eval(base_node)
+    if len(old) != 9 or len(override_node.keys) != 8:
+        raise ValueError("Unexpected TV recovery SHA table size")
+    if (override_node.keys[0] is not None or
+            not isinstance(override_node.values[0], ast.Name) or
+            override_node.values[0].id != "UPSTREAM_EXACT_BLOBS"):
+        raise ValueError("TV recovery 5.8.7 pins must inherit the 5.6.3 table")
+    overrides = {}
+    for key_node, value_node in zip(override_node.keys[1:], override_node.values[1:]):
+        name = ast.literal_eval(key_node)
+        sha = ast.literal_eval(value_node)
+        if name not in old or name in overrides:
+            raise ValueError("Unexpected 5.8.7 recovery pin: " + str(name))
+        overrides[name] = sha
+    if len(overrides) != 7:
+        raise ValueError("Unexpected 5.8.7 recovery SHA override count")
+    pins = {**old, **overrides}
+    for name, expected in pins.items():
+        if (not isinstance(expected, str) or
+                re.fullmatch(r"[a-f0-9]{40}", expected) is None or
+                name not in tree or tree[name][1] != expected):
+            raise ValueError("Official 5.8.7 TV recovery pin mismatch: " + name)
+        actual_file = root / name
+        if not actual_file.is_file() or actual_file.read_bytes() != blob(upstream, tree[name]):
+            raise ValueError("Ordinary upstream recovery file drift: " + name)
+
+    # The engine guard is current-version-only and can be updated after
+    # confirming the generated engine remains byte-identical to upstream.
+    path = root / "tests/test-xray-playback-parity.py"
+    engine_source = path.read_text(encoding="utf-8")
+    name = "app/src/main/java/com/fongmi/android/tv/player/engine/PlayerEngine.java"
+    if (name not in tree or not (root / name).is_file() or
+            (root / name).read_bytes() != blob(upstream, tree[name])):
         raise ValueError("PlayerEngine no longer matches public upstream")
-    p=re.compile(r'(git_blob_sha\("'+re.escape(name)+r'"\)\s*!=\s*")[a-f0-9]{40}(")')
-    s,count=p.subn(lambda m:m.group(1)+tree[name][1]+m.group(2),s)
-    if count!=1: raise ValueError("Unexpected player guard shape")
-    path.write_text(s)
+    pattern = re.compile(r'(git_blob_sha\("' + re.escape(name) + r'"\)\s*!=\s*")[a-f0-9]{40}(")')
+    updated, count = pattern.subn(
+        lambda m: m.group(1) + tree[name][1] + m.group(2), engine_source)
+    if count != 1:
+        raise ValueError("Unexpected player guard shape")
+    path.write_text(updated, encoding="utf-8")
 
 
 def metadata(root,old_tag,tag,new_upstream,code,upsha):
@@ -377,7 +417,7 @@ def prepare(root,upstream,target,report):
         dest=root/rel
         dest.parent.mkdir(parents=True,exist_ok=True)
         dest.write_text(text)
-    rewrite_guards(root,upstream,tree)
+    rewrite_guards(root,upstream,tree,upstream_name)
     metadata(root,old,tag,upstream_name,code,target)
     lock=root/"scripts/upstream/baseline.json"
     data=json.loads(lock.read_text())

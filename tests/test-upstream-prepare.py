@@ -6,7 +6,7 @@ import subprocess
 import tempfile
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts/upstream"))
-from prepare_release import gradle, home, tests_proxy, fork_version, metadata
+from prepare_release import gradle, home, tests_proxy, fork_version, metadata, rewrite_guards
 
 # The real repository documentation must also satisfy metadata()'s exact
 # anchors. Fixture-only tests previously missed a duplicated historical section.
@@ -175,4 +175,67 @@ with tempfile.TemporaryDirectory(prefix="upstream-doc-version-contract-") as tem
     assert 'default="' + new + '"' in helper
     assert 'default="' + old + '"' not in helper
 
-print("PASS fork versioning, signed Gradle overlay, Home one-shot recovery and HttpUrl regressions and regenerated metadata")
+
+# The real 5.8.7 guard has 9 historical pins and 7 revised pins.
+# Exercise the candidate preparation against that exact shape without AC.
+# Synthetic blob content isolates SHA-table selection from network/git access.
+from unittest.mock import patch
+import re
+with tempfile.TemporaryDirectory(prefix="upstream-recovery-pins-") as temp:
+    root = Path(temp)
+    repo_root = Path(__file__).resolve().parents[1]
+    guard_name = "tests/test-tv-network-recovery.py"
+    guard = (repo_root / guard_name).read_text(encoding="utf-8")
+    pins = re.findall(r'"(app/[^"]+)"\\s*:\\s*"([a-f0-9]{40})"', guard)
+    assert len(pins) == 16, "Current TV recovery baselines must retain 9+7 literals"
+    selected = dict(pins)
+    assert len(selected) == 9
+    engine = "app/src/main/java/com/fongmi/android/tv/player/engine/PlayerEngine.java"
+    engine_guard = "tests/test-xray-playback-parity.py"
+    for relative, contents in (
+        (guard_name, guard),
+        (engine_guard, (repo_root / engine_guard).read_text(encoding="utf-8")),
+    ):
+        path = root / relative
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(contents, encoding="utf-8")
+    tree = {name: ("100644", sha) for name, sha in selected.items()}
+    tree[engine] = ("100644", "a" * 40)
+    for relative in tree:
+        path = root / relative
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes(b"official-upstream-fixture")
+
+    with patch("prepare_release.blob", return_value=b"official-upstream-fixture"):
+        rewrite_guards(root, root, tree, "5.8.7")
+        assert (root / guard_name).read_text(encoding="utf-8") == guard, (
+            "Historical 5.6.3 SHA pins may not be rewritten during 5.8.7 upgrade"
+        )
+        assert '"'+("a" * 40)+'"' in (root / engine_guard).read_text(encoding="utf-8")
+
+        try:
+            rewrite_guards(root, root, tree, "5.8.8")
+        except ValueError:
+            pass
+        else:
+            raise AssertionError("Unknown upstream version bypassed recovery scope review")
+
+        changed = dict(tree)
+        first = next(iter(selected))
+        changed[first] = ("100644", "b" * 40)
+        try:
+            rewrite_guards(root, root, changed, "5.8.7")
+        except ValueError:
+            pass
+        else:
+            raise AssertionError("Changed official source SHA bypassed TV recovery guard")
+
+        (root / first).write_bytes(b"unapproved-local-change")
+        try:
+            rewrite_guards(root, root, tree, "5.8.7")
+        except ValueError:
+            pass
+        else:
+            raise AssertionError("Modified business source bypassed TV recovery guard")
+
+print("PASS fork versioning, signed Gradle overlay, Home one-shot recovery and HttpUrl regressions and regenerated metadata and 5.8.7 recovery pins")
