@@ -28,10 +28,10 @@ PROXY_REDIRECT = ROOT / "catvod/src/main/java/com/github/catvod/net/ProxyRedirec
 PROXY_TEST = ROOT / "catvod/src/test/java/com/github/catvod/net/OkProxySelectorTest.java"
 SETTING = ROOT / "app/src/leanback/java/com/fongmi/android/tv/ui/activity/SettingActivity.java"
 
-# These are ordinary FongMi business/config/UI files. The fixed upstream
-# baseline is FongMi/TV@c616c0aa3613e87529791587a9f71b78c278c991.
-# TV recovery must stay in its own lifecycle/network boundary and may not
-# quietly grow a second config/UI state machine inside these files.
+# Ordinary FongMi business/config/UI files must remain byte-for-byte equal
+# to their selected, publicly verified upstream release. 5.6.3 and 5.8.7
+# have different canonical blobs; neither may be silently rewritten by the
+# fork's TV network recovery overlay. Future upstream versions need a review.
 UPSTREAM_EXACT_BLOBS = {
     "app/src/leanback/java/com/fongmi/android/tv/ui/activity/KeepActivity.java":
         "bcf1a307d3aecc3118023fe0dcb4bfb617ca251f",
@@ -60,7 +60,42 @@ def git_blob_sha(path: Path) -> str:
     return hashlib.sha1(payload).hexdigest()
 
 
-for relative, expected in UPSTREAM_EXACT_BLOBS.items():
+# The real 5.8.7 upstream intentionally changes seven business files.
+# The original 5.6.3 hashes must never block a legitimate upstream upgrade.
+UPSTREAM_EXACT_BLOBS_587 = {
+    **UPSTREAM_EXACT_BLOBS,
+    "app/src/main/java/com/fongmi/android/tv/api/SiteApi.java":
+        "54f0d7b2c416d1fac5b9211ad7765e3e08a43809",
+    "app/src/main/java/com/fongmi/android/tv/api/config/BaseConfig.java":
+        "4b8096248630a0276c0527bd27c0d1511ec33be4",
+    "app/src/main/java/com/fongmi/android/tv/api/config/VodConfig.java":
+        "e69df3e32c719cf2ac97d4f533b19d19cf567c4a",
+    "app/src/main/java/com/fongmi/android/tv/api/config/LiveConfig.java":
+        "f087d0f29000b0a69c53dfae9bd8002b85622c59",
+    "app/src/main/java/com/fongmi/android/tv/api/config/WallConfig.java":
+        "7e255f9565df34bcb116dacf58ab71c8c83d7519",
+    "app/src/main/java/com/fongmi/android/tv/api/parser/LiveParser.java":
+        "6f4b7ff3ff95e21851a9a82f90be55fee7b695ed",
+    "app/src/main/java/com/fongmi/android/tv/utils/Notify.java":
+        "da3cda84726535bc7c4bce81b563db1cabb38b24",
+}
+import re
+
+version_match = re.search(
+    r'\bversionName\s+"v(\d+\.\d+\.\d+)-xray\.\d+"',
+    (ROOT / "app/build.gradle").read_text(encoding="utf-8"),
+)
+if not version_match:
+    raise SystemExit("Unknown fork version; cannot select canonical upstream source hashes")
+upstream_version = version_match.group(1)
+if upstream_version == "5.6.3":
+    pinned_source_blobs = UPSTREAM_EXACT_BLOBS
+elif upstream_version == "5.8.7":
+    pinned_source_blobs = UPSTREAM_EXACT_BLOBS_587
+else:
+    raise SystemExit("TV network recovery has no approved upstream baseline for " + upstream_version)
+
+for relative, expected in pinned_source_blobs.items():
     source = ROOT / relative
     if not source.is_file():
         raise SystemExit(f"missing fixed-upstream source: {relative}")
