@@ -6,7 +6,7 @@ import tempfile
 
 ROOT=Path(__file__).resolve().parents[1]
 BRIDGE=ROOT/"scripts/upstream/templates/XrayPlaybackDataSourceFactory.java.in"
-GUARD=ROOT/"app/src/main/java/com/fingmi/integration/xray/XrayGuardedPlaybackDataSource.java"
+GUARD=ROOT/"scripts/upstream/reference/XrayGuardedPlaybackDataSource.java"
 S={
 "android/net/Uri.java":'package android.net; public class Uri {String s; public Uri(String s){this.s=s;} public String getScheme(){return s;}}',
 "androidx/media3/datasource/TransferListener.java":'package androidx.media3.datasource; public interface TransferListener {}',

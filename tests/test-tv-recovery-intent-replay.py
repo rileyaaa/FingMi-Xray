@@ -29,61 +29,6 @@ def block(source: str, marker: str) -> str:
     raise ValueError(f"Unterminated source block: {marker}")
 
 
-def verify_new_one_shot_home(home: str) -> None:
-    """Execute the new upstream Home one-shot Intent method with the fork callback."""
-    init = block(home, "protected void initView(Bundle savedInstanceState)")
-    callbacks = re.findall(r"\(\)\s*->\s*\{([^{}]*)\}\);", init)
-    if len(callbacks) != 1 or "getVideo();" not in callbacks[0]:
-        raise SystemExit("Updated recovery callback shape is not recognized")
-    action = block(home, "private void consumeAction()")
-    if ("pendingAction = null;" not in action or "checkAction(intent);" not in action
-            or action.index("pendingAction = null;") > action.index("checkAction(intent);")):
-        raise SystemExit("Home must consume pending Intent before dispatching it")
-    if "checkAction(getIntent())" in home or "consumeAction()" in callbacks[0]:
-        raise SystemExit("Recovery must never replay the launch action")
-    java = r'''
-public final class OneShotHomeHarness {
-    private boolean actionReady = true;
-    private Intent pendingAction;
-    private int launches, refreshed, focused;
-    private final Binding mBinding = new Binding();
-    private void checkAction(Intent intent) { launches++; }
-    private void getVideo() { refreshed++; }
-    private void setFocus() { focused++; }
-    private static final class Intent {}
-    private static final class Binding { final Progress progressLayout = new Progress(); }
-    private static final class Progress { int shown; void showContent() { shown++; } }
-    ACTION
-    private Runnable recoveryCallback() { return () -> { CALLBACK }; }
-    public static void main(String[] args) {
-        int cases=0;
-        for (int repeats : new int[]{1,3,6}) {
-            OneShotHomeHarness h=new OneShotHomeHarness();
-            h.pendingAction=new Intent();
-            h.consumeAction();
-            h.consumeAction();
-            if (h.launches!=1) throw new AssertionError("Initial action not consumed exactly once");
-            for (int i=0;i<repeats;i++) {
-                h.recoveryCallback().run();
-                h.consumeAction();
-            }
-            if (h.launches!=1 || h.refreshed!=repeats || h.focused!=repeats
-                    || h.mBinding.progressLayout.shown!=repeats)
-                throw new AssertionError("Recovery replayed consumed external Intent");
-            cases++;
-        }
-        System.out.println("PASS updated Home one-shot Intent: "+cases+" recovery cases");
-    }
-}
-'''.replace("ACTION", action).replace("CALLBACK", callbacks[0])
-    with tempfile.TemporaryDirectory(prefix="tv-intent-one-shot-") as directory:
-        work=Path(directory)
-        source=work/"OneShotHomeHarness.java"
-        source.write_text(java,encoding="utf-8")
-        subprocess.run(["javac","-encoding","UTF-8","-d",str(work),str(source)],check=True)
-        subprocess.run(["java","-cp",str(work),"OneShotHomeHarness"],check=True)
-
-
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--repo", type=Path, default=Path(__file__).resolve().parents[1])
@@ -92,9 +37,6 @@ def main() -> None:
         raise SystemExit("A JDK (javac and java) is required")
     root = args.repo.resolve()
     home = (root / "app/src/leanback/java/com/fongmi/android/tv/ui/activity/HomeActivity.java").read_text()
-    if "private void consumeAction()" in home:
-        verify_new_one_shot_home(home)
-        return
     init = block(home, "protected void initView(Bundle savedInstanceState)")
     callbacks = re.findall(r"\(\)\s*->\s*\{([^{}]*)\}\);", init)
     if len(callbacks) != 1 or "getVideo();" not in callbacks[0]:

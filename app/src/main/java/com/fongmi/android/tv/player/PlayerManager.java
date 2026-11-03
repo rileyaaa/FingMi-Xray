@@ -37,7 +37,6 @@ import com.fongmi.android.tv.player.engine.PlayerEngineFactory;
 import com.fongmi.android.tv.player.media.PlaySpec;
 import com.fongmi.android.tv.player.parse.ParseJob;
 import com.fongmi.android.tv.player.track.TrackUtil;
-import com.fingmi.integration.xray.XrayPlaybackRouting;
 import com.fingmi.xray.network.XrayHttpClient;
 import okhttp3.OkHttpClient;
 import com.fongmi.android.tv.setting.DanmakuSetting;
@@ -581,14 +580,15 @@ public class PlayerManager implements ParseCallback {
     }
 
     public synchronized boolean hasXraySession() {
-        XrayHttpClient bound = engine instanceof ExoPlayerEngine exo ? exo.proxy() : null;
-        return XrayPlaybackRouting.hasSession(playbackProxy, bound);
+        if (playbackProxy != null) return true;
+        return engine instanceof ExoPlayerEngine exo && exo.proxy() != null;
     }
 
     public synchronized OkHttpClient getPlaybackHttpClient(OkHttpClient fallback) {
-        XrayHttpClient bound = engine instanceof ExoPlayerEngine exo ? exo.proxy() : null;
-        XrayHttpClient active = XrayPlaybackRouting.activeProxy(playbackProxy, bound);
-        return active == null ? fallback : active.client();
+        if (engine instanceof ExoPlayerEngine exo && exo.proxy() != null) {
+            return exo.proxy().client();
+        }
+        return playbackProxy == null ? fallback : playbackProxy.client();
     }
 
     public synchronized <T> T withHttpClient(

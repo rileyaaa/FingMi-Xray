@@ -110,29 +110,15 @@ for required in (
     if required not in final_manifest_guard:
         errors.append(f"final APK manifest guard lost security contract: {required}")
 
-# Public 5.8.7 changed its own audio boost limit and Chaquopy ABI loader.
-# Respect the source version selected by our fork instead of treating those
-# upstream changes as Release-only patches. Unknown shapes still fail closed.
-upstream_guard_build = (ROOT / "app/build.gradle").read_text(encoding="utf-8")
-upstream_guard_match = re.search(
-    r'versionName "v(\d+)\.(\d+)\.(\d+)-xray\.\d+"',
-    upstream_guard_build,
-)
-if not upstream_guard_match:
-    raise SystemExit("Cannot select official upstream business guards for unknown fork version")
-uses_587_upstream = tuple(map(int, upstream_guard_match.groups())) >= (5, 8, 7)
-
 audio_setting = (ROOT / "app/src/main/java/com/fongmi/android/tv/setting/AudioSetting.java").read_text(encoding="utf-8")
-audio_limit = 2000 if uses_587_upstream else 1200
 for required in (
-    f"public static final int MAX_BOOST = {audio_limit};",
+    "public static final int MAX_BOOST = 1200;",
     'Math.clamp(Prefers.getInt("audio_boost"), MIN_BOOST, MAX_BOOST)',
 ):
     if required not in audio_setting:
-        errors.append(f"AudioSetting must follow the selected public FongMi/TV source: {required}")
-other_limit = 1200 if uses_587_upstream else 2000
-if f"public static final int MAX_BOOST = {other_limit};" in audio_setting:
-    errors.append("AudioSetting mixes incompatible public upstream audio boost versions")
+        errors.append(f"AudioSetting must follow the pinned FongMi/TV upstream contract: {required}")
+if "public static final int MAX_BOOST = 2000;" in audio_setting:
+    errors.append("AudioSetting must not carry the Release-only 5.6.8 20 dB boost override")
 
 release_only_paths = (
     "compat/media3-dolby568",
@@ -154,46 +140,22 @@ for relative in release_only_paths:
         errors.append(f"current-main must not restore Release-only FongMi media behavior: {relative}")
 
 platform = (ROOT / "chaquo/src/main/java/com/fongmi/chaquo/Platform.java").read_text(encoding="utf-8")
-if uses_587_upstream:
-    # Public 5.8.7 delegates ABI selection to PackageAbi and initializes
-    # the versioned Python runtime before passing the selected ABI to Chaquopy.
-    required_platform = (
-        "import com.chaquo.python.android.AndroidPlatform;",
-        "import com.github.catvod.utils.PackageAbi;",
-        "RuntimeModule.PYTHON.load(path -> System.load(path));",
-        "abi = PackageAbi.get();",
-        "setImporterAbi(abi);",
-        "AndroidPlatform.ABI = abi;",
-    )
-    forbidden_platform = (
-        "Collections.addAll(supportedAbis, Build.SUPPORTED_ABIS);",
-        "Collections.addAll(supportedAbis, Build.CPU_ABI, Build.CPU_ABI2);",
-        "AndroidPlatform.ABI = ABI;",
-    )
-else:
-    required_platform = (
-        "import com.chaquo.python.android.AndroidPlatform;",
-        "Collections.addAll(supportedAbis, Build.SUPPORTED_ABIS);",
-        "Collections.addAll(supportedAbis, Build.CPU_ABI, Build.CPU_ABI2);",
-        "AndroidPlatform.ABI = ABI;",
-    )
-    forbidden_platform = (
-        "import com.github.catvod.utils.PackageAbi;",
-        "abi = PackageAbi.get();",
-        "AndroidPlatform.ABI = abi;",
-    )
-for required in required_platform:
+for required in (
+    "import com.chaquo.python.android.AndroidPlatform;",
+    "Collections.addAll(supportedAbis, Build.SUPPORTED_ABIS);",
+    "Collections.addAll(supportedAbis, Build.CPU_ABI, Build.CPU_ABI2);",
+    "AndroidPlatform.ABI = ABI;",
+):
     if required not in platform:
-        errors.append(f"Platform.java must follow the selected public FongMi/TV ABI implementation: {required}")
+        errors.append(f"Platform.java must follow the pinned FongMi/TV upstream ABI selection: {required}")
 for forbidden in (
-    *forbidden_platform,
     "android.os.Process.is64Bit()",
     "Build.SUPPORTED_64_BIT_ABIS",
     "Build.SUPPORTED_32_BIT_ABIS",
     "Collections.addAll(supportedAbis, processAbis);",
 ):
     if forbidden in platform:
-        errors.append(f"Platform.java retains a different-version or fork-only Chaquopy ABI implementation: {forbidden}")
+        errors.append(f"Platform.java must not carry fork-only Chaquopy ABI selection: {forbidden}")
 
 required_action_majors = {
     "actions/checkout": 7,
@@ -232,7 +194,7 @@ expected_workflows = {"current-main-build.yml", "publish-current-main-test-relea
 actual_workflows = {p.name for p in (ROOT / ".github/workflows").iterdir()
                     if p.suffix in (".yml", ".yaml")}
 if actual_workflows != expected_workflows:
-    errors.append("Only the three release/build workflows and manual upstream sync may remain")
+    errors.append("Only build, publish, verified-resume and manual upstream workflows may remain")
 for name in actual_workflows:
     text = (ROOT / ".github/workflows" / name).read_text()
     block = re.search(r"(?m)^on:\n((?:[ \t]+[^\n]*\n|\n)*)", text)
@@ -426,57 +388,23 @@ for name, text in (
         if any(not path.is_file() or path.read_bytes() != b"verified-input" for path in retained):
             errors.append(f"{name} cleanup damaged a later build input")
 
-app_build = (ROOT / "app/build.gradle").read_text(encoding="utf-8")
-version_name_match = re.search(r'versionName "([^"]+)"', app_build)
-version_code_match = re.search(r'versionCode (\d+)', app_build)
-if not version_name_match or not version_code_match:
-    raise SystemExit("Fork app release version not found")
-version_name = version_name_match.group(1)
-version_code = int(version_code_match.group(1))
-fork_match = re.fullmatch(r"v(\d+\.\d+\.\d+)-xray\.(\d+)", version_name)
-if not fork_match:
-    raise SystemExit("Fork app must have v<upstream>-xray.<revision> format")
-upstream_version = fork_match.group(1)
-fork_revision = int(fork_match.group(2))
-import json
-upstream_lock = json.loads((ROOT / "scripts/upstream/baseline.json").read_text(encoding="utf-8"))
-if upstream_lock["version"] != upstream_version:
-    errors.append("Fork version must match pinned public upstream source baseline")
-if "version_code" in upstream_lock and version_code != int(upstream_lock["version_code"]) * 1000 + fork_revision:
-    errors.append("Fork versionCode must equal upstream versionCode * 1000 + revision")
-artifact_prefix = "fingmi-xray"
-if artifact_prefix + "-current-main-release" not in current_workflow:
+if "fingmi-xray-5.6.3-current-main-release" not in current_workflow:
     errors.append("current-main-build.yml must retain the short-lived TV debug artifact")
 if "retention-days: 2" not in current_workflow:
     errors.append("current-main-build.yml debug artifact must remain short-lived (2 days)")
 for required in (
     "actions: write",
     "Remove superseded current-main release artifacts",
-    'select(.name == "' + artifact_prefix + '-current-main-release")',
+    'select(.name == "fingmi-xray-5.6.3-current-main-release")',
     'gh api --method DELETE "repos/${GITHUB_REPOSITORY}/actions/artifacts/$id"',
 ):
     if required not in current_workflow:
         errors.append(f"current-main-build.yml must auto-prune superseded debug artifacts: {required}")
-if artifact_prefix + "-current-main-release" in publish_workflow:
+if "fingmi-xray-5.6.3-current-main-release" in publish_workflow:
     errors.append("publish workflow must not duplicate successful APKs into Actions artifacts")
 
-# Formal publication resolves its tag from the checked-out, pinned source,
-# never from a version literal that an upgrade would need to push into a
-# GitHub Actions workflow definition with insufficient workflow permissions.
-if 'RELEASE_TAG: ""' not in publish_workflow:
-    errors.append("publish workflow must not hard-code a source release version")
-for required in (
-    'release_tag="$(python3 scripts/build/resolve-release-tag.py)"',
-    'echo "RELEASE_TAG=$release_tag" >> "$GITHUB_ENV"',
-    'python3 tests/test-resolve-release-tag.py',
-):
-    if required not in publish_workflow:
-        errors.append(f"publish workflow lost source-bound release tag contract: {required}")
-if "Bind release tag to checked-out source" not in publish_workflow or (
-    publish_workflow.index("Bind release tag to checked-out source") >
-    publish_workflow.index("Run fork source guards")
-):
-    errors.append("publish source-tag validation must precede expensive rebuild")
+if 'RELEASE_TAG: "v5.6.3-xray.1"' not in publish_workflow:
+    errors.append("publish workflow must target the v5.6.3-xray.1 formal release")
 for required in (
     "      replace_existing:",
     "        type: boolean",
@@ -494,29 +422,16 @@ for name, text in (
     ("current-main-build.yml", current_workflow),
     ("publish-current-main-test-release.yml", publish_workflow),
 ):
-    if artifact_prefix + "-build-failure-reports" not in text or "retention-days: 1" not in text:
+    if "fingmi-xray-5.6.3-build-failure-reports" not in text or "retention-days: 1" not in text:
         errors.append(f"{name} failure reports must remain short-lived (1 day)")
 
-if 'REPORT_NAME = "fingmi-xray-build-failure-reports"' not in (
-        ROOT / "scripts/build/resume-verified-release.py").read_text(encoding="utf-8"):
-    errors.append("resume helper must use the stable short-lived failure artifact name")
-manual_workflow = (ROOT / ".github/workflows/manual-upstream-sync.yml").read_text(encoding="utf-8")
-if 'RELEASE_TAG: ""' not in manual_workflow or (
-        'release_tag="$(python3 scripts/build/resolve-release-tag.py)"' not in manual_workflow):
-    errors.append("upstream sync must not pin the previous fork release in workflow YAML")
-if ("git status --porcelain -- .github/workflows" not in manual_workflow or
-        manual_workflow.index("git status --porcelain -- .github/workflows") >
-        manual_workflow.index("Rebuild and verify pinned player/native inputs")):
-    errors.append("upstream sync must block workflow modifications before expensive native rebuild")
-for name, workflow in (
-    ("current-main-build.yml", current_workflow),
-    ("publish-current-main-test-release.yml", publish_workflow),
-    ("manual-upstream-sync.yml", manual_workflow),
-):
-    if "python3 tests/test-resolve-release-tag.py" not in workflow:
-        errors.append(f"{name} lost the source-derived release tag test")
-    if re.search(r'fingmi-xray-\d+\.\d+\.\d+-', workflow):
-        errors.append(f"{name} contains a version-pinned Actions artifact name")
+app_build = (ROOT / "app/build.gradle").read_text(encoding="utf-8")
+version_name = re.search(r'versionName "([^"]+)"', app_build).group(1)
+version_code = int(re.search(r'versionCode (\d+)', app_build).group(1))
+if version_name != "v5.6.3-xray.1" or version_code != 563001:
+    errors.append("fork release version must match v5.6.3-xray.1 / 563001")
+if f'RELEASE_TAG: "{version_name}"' not in publish_workflow:
+    errors.append("publish tag must equal the versionName embedded in the APK")
 resume_helper = (ROOT / "scripts/build/resume-verified-release.py").read_text(encoding="utf-8")
 if f'parser.add_argument("--tag", default="{version_name}")' not in resume_helper:
     errors.append("resume publication tag must match the full publication workflow")

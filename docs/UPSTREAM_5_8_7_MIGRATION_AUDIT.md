@@ -1,69 +1,67 @@
-# FongMi/TV 5.8.7 升级阻断审计（2026-11-02）
+# FingMi-Xray 5.8.7 升级失败复盘、源码缺口与回退保留项
 
-> **结论：尚未达到正式升级发布门槛。未启动 GitHub Actions、未合并 5.8.7 到 main、未编译/发布 5.8.7 APK。**
+> 整理日期：2026-11-03。**这是 2026-11-02 至 2026-11-03 的升级试验复盘，不是 5.8.7 构建成功报告。**
 >
-> 本文记录自动升级实战预检与后续适配范围；不是构建成功报告。
+> 本项目现在维持可追溯的 **FongMi/TV 5.6.3 / FingMi-Xray `v5.6.3-xray.1`**。2026-11-02 起准备的 5.8.7 升级**从未合入远端 `main`、未生成正式双 ABI APK、未发布 5.8.7 Release**。Git 历史中仍保留原试验提交，不进行强制改写；只将当前工作树回到已验证的 5.6.3 基线，同时保留独立的手动 AC 升级工作流与辅助工具。
 
-## 版本与操作边界
+## 一、回退范围与原版本完整性：先区分 APK 和源码
 
-- 公开上游：`FongMi/TV` / `fongmi` / `8626650ebcbc0d028e16d859e826fcf439720f3a`；其 `app/build.gradle` 为 `versionName "5.8.7"` / `versionCode 587`。
-- 本项目仍使用 5.6.3 源码：原始上游基线 `c616c0aa3613e87529791587a9f71b78c278c991`；现有 Release `v5.6.3-xray.1`，黄金参考 `v5.6.0-xray.5`。
-- 基于三个 Git Tree 的纯 blob 比对：上游变更 810 个路径，其中 47 个 **最初需参与通用三方合并、且本 fork 同时存在与旧/新上游不同内容的路径**。这些是潜在文本冲突、接口冲突或语义迁移点，不可把数量误称为已执行 `git merge-file` 后的精确冲突个数。
-- 这里只持续维护 Xray 与 Android TV 待机网络恢复（含最小 app/catvod 接线）。已批准的 `OkProxySelector.Policy` NPE 修复在 5.8.7 上游已有等价 `HttpUrl` 修复，采用上游实现，并保留本 fork 主机名、端口与代理重定向回归。
+- **代码回退参照**：`a2f193b40e427ef97a49fc3638c24320ed6b52d2`（2026-10-26，正式 .1 发布完成后、简化手动构建/发布入口并停止源码 ZIP 备份后的状态）。这个提交的应用、Xray、TV recovery 运行源码与发布构建源码 `4bea3a54ece68fbb439374e7d7944ec94fe28683` 一致，差异仅在后续发布/维护基础设施。不能误把 5.8.7 生成器开发提交当成曾发布的 APK 源码。
+- **现存 5.6.3 的 APK 是完整的签名安装包，不是只包含空壳或缺播放器的残包**。2026-10-26 Actions [#40252299406](https://github.com/rileyaaa/FingMi-Xray/actions/runs/40252299406) 已通过 18 AAR 播放器/native 重建、Libass、播放器启动、Xray parity、Leanback Java 编译、双 ABI APK assemble、MPEG-H/native 最终装包、Media3 DEX 链接、Manifest、签名与 16KB 对齐检查。其最终红色失败发生在**编译结束以后**：工作流 token 创建 Git tag 遭 `HTTP 403 Resource not accessible by integration`。随后用已验证的草稿资产完成受权续发；不是因构建不出 APK。
+- **正式版双 ABI 对应记录**（`v5.6.3-xray.1` / `563001`）：`armeabi-v7a` 117,801,063 bytes，SHA-256 `64fdc38928f96185e924444e9c4ca33c582021e732df4b7e041daa4321615424`；`arm64-v8a` 133,283,631 bytes，SHA-256 `004cd5e003a644a7e421a859cd7a7187e98e729bea94af157127dd3d20609bd5`。GitHub Release 资产摘要与原 CI 日志一致。保留黄金参考 `v5.6.0-xray.5`，不修改两份现行正式 APK、标签、签名或版本。
+- **证据界限**：上述结论证明产物为通过工程检验的完整 APK，**不等于**已做当前电视安装、所有视频格式/解码器、节点连接和长期待机的真机逐项验证；更**不等于**所依赖的每个 native/AAR 都拥有无需历史二进制输入的完整公开源码。安装包完整性与整个软件栈的公开可重建性是两个不同问题。
+- **曾被误认的版本**：本轮升级目标是 **FongMi/TV 5.8.7**，不是 5.8.3；试验使用的目标源码曾固定为 `FongMi/TV@305dff233cde512e2c83f71529b7c3ecfd61fefc`。
 
-## 已发现并在升级工具中修复的确定性适配缺陷
+## 二、确认的决定性阻断：5.8.7 的 Media3/播放器源码不配套
 
-1. **Home 请求取消接口变更**：5.8.7 `SiteViewModel` 无 `cancelResultRequest()`，但本 fork 恢复回调仍会调用。现改为由 `scripts/upstream/recovery_adapters.py` 对新版上游源码添加仅取消 `TaskType.RESULT` 的最小接线，避免直接搬回旧 `SiteViewModel`。
-2. **Spider 清理接口变更**：5.8.7 `BaseLoader` 使用异步 `clear()/destroy()` 和集中式 `SpiderLoader`；原恢复模块需要 `clear(Runnable onComplete)` 完成时序。新增回调式薄适配，等待旧 Spider 清理完成后才进入网络稳定轮询，同时保留新版 Node/JS/Python 运行时模型。
-3. **API/DNS 重建接口变更**：5.8.7 原生 `OkHttp` 不含本 fork 的 `resetApiNetworkForResume()`，原生 `OkDns` 也没有待机时 DoH 传输重建。新增只替换普通 API client 的失效入口、串行清理旧 HTTP/DoH 资源和 DoH resolver 代际快照；不清空代理规则、不直接销毁媒体专用 client。
-4. **Glide 恢复入口缺失**：官方新 `ImgUtil` 没有 transient failure 清理与旧异步失败代际隔离，`OkGlideModule` 会固定旧 HTTP client。保留最小 `resetNetworkFailures()`、故障 epoch，以及逐请求获取当前 API client。
-5. **发布打包基线**：版本转换只对上游 `versionCode × 1000 + fork revision` 操作；继续使用私有固定签名、保留仅本 fork 需要的 Xray/TV recovery module dependencies。修正了早期模板曾把旧版 `:chaquo` / `:quickjs` app 依赖强加到 5.8.7 的问题。
-6. **版本与源码回归**：替换硬编码 5.6.3 的一部分 Actions 版本约束；测试新增新一代 SpiderLoader 恢复时序守卫，保留旧版本回归；`scripts/upstream/prepare_release.py` 会根据当前公开树更新被证明 upstream 原样的 blob guard。
+- 上游 5.8.7 应用公开源码引用大量定制 `androidx.media3.*` API，但本项目固定且可见的播放器源码 `FongMi/media@3c2cbe8ac742c2fe15eff52f03eeb3b1b648848d`（`release-1.11.0-fongmi`）**至少缺少 44 类对应的公开顶级 Java/Kotlin 源文件**。首批 javac 限制 100 条错误，最初只观察到约 30 个缺失名字；独立 Git Tree 比对后扩大到至少 44 个。类型例子包括 `DecoderMode`、`DiscMenuController`、`SubtitleOffsets`、`IsoDiscPreparation`、`LibassPlaybackSession`、`BdjRuntime`、`MpvDrmSupport`、`DanmakuPlayerViewController`。
+- **不只是缺 class**：已存在的 `DefaultRenderersFactory`、`PlayerView`、`Player`、`MpvPlayer` 也缺新 TV 调用的播放器方法；例如 `setDecoderManager()`、`setEnableSurfaceControlFrameRetention()`、`setBackendPlayer()`、`getSubtitleOffsets()` 等。即使临时补 44 个空类也不能得到功能、ABI 与语义上正确的播放器。
+- 已核查 `FongMi/media` 公开 `release` 分支、当时可见的 pull refs、部分第三方 fork，均未找到能够满足当前 5.8.7 契约的一整套源码；`FongMi/Release` 提供新版 APK，但不等于提供配套可编译 Media3 源码/AAR。公开 [FongMi/TV issue #764](https://github.com/FongMi/TV/issues/764) 也独立提到约 45 项媒体类型未公开；它针对当时上游状态，数量不应和本次固定提交的 44 个精确等同。
+- **实际打到编译阶段的证据**：[Actions #41606382989](https://github.com/rileyaaa/FingMi-Xray/actions/runs/41606382989)，`main@07a721723b356fd31e3d108d6ca866f55730b789`、`build_without_publish=true`。候选同步、源 guard、原生输入重建、Xray/native parity、Libass 与播放器启动等步骤成功；首次实际执行 `:app:compileLeanbackReleaseJavaWithJavac` 时因上述 Media3 类型/方法不匹配失败，**没有得到双 ABI APK**。这不是 Xray 启用后某个视频“解码失败”的运行时案例，而是构建依赖缺失的**编译期**阻断。
+- **已做的防重试修补**：`scripts/upstream/check_media3_source_contract.py` 将已确定的不兼容媒体 pin 与 44 个已知缺失 import 关联，提前在 SDK、native、Gradle 前 fail-closed。此脚本仅检测已证实的不兼容组合，不是自动发现完整兼容版本的万能验证器。
+- **不采用的“修复”**：从新官方 APK 反编译拼接业务播放器源码、创建不带实现的空壳 class、删官方特性以强行编译、用旧版 Media3 AAR 冒充 5.8.7 播放器，均不能满足本项目的“仅维护 Xray/TV 网络恢复，其他业务跟随公开上游”的边界。
 
-## 原始 47 个上游 / 本 fork 重叠路径（已部分改为标准生成器）
+## 三、升级过程中的已踩坑、原因与解决方法
 
-这些路径覆盖 Xray 播放器会话、代理切换、字幕/DRM/Live 管道、TV 网络恢复与 UI 入口；必须确认升级后**所有 Xray 接线和播放器网络身份不丢失**。自动文本三方合并冲突不能用“直接选 ours”或“直接选 theirs”绕过。
+### 2026-11-02 上游 5.8.7 与通用一键升级 Actions
 
-- **播放与 Xray 接线**：`LiveActivity.java`、`VideoActivity.java`、`PlaybackActivity.java`、`LivePlaybackController.java`、`LivePlaybackHost.java`、`VodPlaybackController.java`、`VodPlaybackHost.java`、`VodPlaybackMedia.java`、`PlayerManager.java`、`PlayerEngineFactory.java`、`ExoMediaSourceFactory.java`、`ExoPlayerEngine.java`、`ExoPlayerSession.java`、`MpvPlayerEngine.java`、`MpvUtil.java`、`PlaybackService.java`、`PlayerEngineDialog.java`、`ChannelAdapter.java`。
-- **网络/业务调用及脚本装载**：`LiveApi.java`、`SubtitleApi.java`、`JarLoader.java`、`JsLoader.java`、`PyLoader.java`、`EpgParser.java`、`LiveViewModel.java`、`VideoViewModel.java`、`ViewModelTaskRunner.java`、`Action.java`、`Download.java`。
-- **界面/资源与应用边界**：`SettingActivity.java`、`PushActivity.java`（上游已删）、`DanmakuSearchDialog.java`、`SubtitleSearchDialog.java`、`Updater.java`、Leanback 与主 `AndroidManifest.xml`、`activity_setting.xml`、`view_control_live_action.xml`、`view_control_vod_action.xml`、三套 `strings.xml`、主页 `assets/index.html` / `assets/js/script.js`、`app/proguard-rules.pro`、`.gitignore`、`website/README.md`。
+1. **升级代码不是原地 `ours/theirs` 覆盖**：5.6.3 到 5.8.7 公共树约有 810 个变更路径，曾整理本 fork 相对旧公共源码约 61 个偏差路径及其 `generate/upstream/rebase/project` 策略。实际候选同步报告约有 768 个计划修改、42 个保护/排除项；这只是工作树准备，不代表 768 个文件已通过 Android 编译。保留 `scripts/upstream/fork_scope.json`、`sync.py`、`prepare_release.py`，遇未登记偏差、未知 API、实质三方冲突一律拒绝。
+2. **官方功能变了，旧二开接线失效**：`SiteViewModel.cancelResultRequest()` 改为 `TaskType.RESULT` 的限定取消；Spider 由旧版清理接口改成异步 `BaseLoader/SpiderLoader`，必须等待完成后再进入 TV 恢复；HTTP/DoH 重建、Glide 失败缓存清理和请求代际需按新版 API 生成薄 adapter，不能把 5.6.3 的普通业务实现覆盖到 5.8.7。
+3. **Xray 不能只代理主视频 URL**：Live/VOD 页面更替、引擎切换、播放 Service owner、DRM/RTSP/字幕/弹幕/EPG/XMLTV/下载/远端 artwork 都涉及同一会话网络身份。使用上游源码上的最小接口生成器，以及 Xray-only data-source/side-request gate；代理切换时先取消旧代请求，普通直连行为不被改变。新版 `DanmakuApi/SubtitleApi` 已换成 `ApiCallback`、请求 ID 等机制，旧 5.6.3 JVM 假实现不可直接当成 5.8.7 真接口测试。
+4. **不能拿预检绿色当编译成功**：[Actions #41573448653](https://github.com/rileyaaa/FingMi-Xray/actions/runs/41573448653) 的真实上游预检通过（8/8 组、候选 13/13 项），但当时 `apply_to_main=false`，**没有编译 APK、推送 main 或发布**。此后完整构建才发现编译器层面的大缺口。
+5. **纯工程/工作流错误多次浪费 AC**：输入 SHA 复制有前后空格或 tab；Python 测试生成 `__pycache__` 污染“工作树必须纯净”检查；Bash/YAML 转义或续行写错在真正工作时才露出；从 `APPLY_TO_MAIN` 拆成 `BUILD_CANDIDATE` 后旧测试还检查旧标记。已增加 SHA 规范化、关闭 Python bytecode、全部 shell 块 `bash -n`、相应模式契约与隔离 Bash/JVM 回归；遵守**先做离线静态/单测，后触发一次昂贵 AC**。
+6. **Git staged diff 的空白规则与官方 vendored JS 冲突**：第八、九次运行停在官方 `estree-L5DZKXBH.js` / `spider-editor.js` / `spider-format/chunk-RBBTUEK2.js` / `spider-format/dist-SPW7IUL4.js` 等资源的尾随空白。第九次 [#41596021792](https://github.com/rileyaaa/FingMi-Xray/actions/runs/41596021792) 依旧未开始 Gradle。解决方法是**仅对四个固定官方路径**用 `.gitattributes` 例外，并以选定公共上游 Git Blob 对比原始字节；不能全局关闭 `git diff --check`，更不能豁免自有 Java/Python。
+7. **只显示第一个错误导致连续重跑**：将 8 组公开 API adapter、14 个候选 guard、正式模式 28 项完整 source guard 改为**尽量全部执行、收集所有独立失败后统一阻断**；失败就不重建 native、不签名、不更新 main。要区分 JVM fixture/mock 成功与真编译/真机运行。
+8. **5.6.3 发布阶段的 403 是另一类坑**：旧编译日志末尾的 tag 发布权限不足发生在成功装包之后；可以利用原始 digest 和受权续发，无需因“Actions 红色”误判安装包损坏、更不能拿这一结果证明 5.8.7 能编译。
 
+### 2026-11-02 5.8.7 官方 Exo 接线适配（候选生成器，未发布）
 
-## 通用升级架构迭代：原始差异白名单与上游优先接线
+- 旧版 Exo/MPV/ISO、字幕、DecoderManager、播放器 UI 内部架构不能直接搬到新版；`exo_adapters.py`、`player_manager_adapter.py`、`side_request_adapters.py` 等脚本的目标是对**选中的真实官方树**按精确 anchor 生成 Xray 接线，失败就停止。
+- 原有 5.6.3 播放器兼容源、历史 Libass native 回收、18 AAR 重建能在旧工程通过，但不能因此证明 5.8.7 的新 API/ABI 可复用。完整的媒体源码签名、类/方法、依赖与 native 一致性必须先解决。
+- 局部虚拟机/离线夹具测试提供防回归价值；**不能替代**真实 5.8.7 javac 和最终 APK 的 DEX/资源/native 检验。
 
-- 增加 `scripts/upstream/fork_scope.json`：以旧公开基线 `c616c0aa...` 为依据，记录原始上游文件在本 Fork 中的 **61 个已知差异路径**及处理策略。未在清单登记、但已偏离当前上游基线的原有文件，即使本次上游未改它，也会被 `sync.py` 拒绝带入新版。
-- 目前按当前清单分为 **31 个 `generate`（从新版上游生成最小接线）、6 个 `upstream`（完全采用公开上游以移除过时的 fork 补丁）、21 个 `rebase`（只能三方重放，遇冲突停止）、3 个 `project`（私人仓库的工作流/文档策略，不参与公开上游源码合并）**。这是**处理策略**计数，不是已合并成功的文件数。
-- 6 个上游优先路径是旧版三类 `JarLoader/JsLoader/PyLoader` Spider 清理、`ViewModelTaskRunner` 任务取消、MPV 的 `MpvUtil/MpvPlayerEngine` 旧字幕扩展。前四项已有新版对应的官方能力，MPV 字幕不是我们授权维护范围，所以后续默认跟随新版原样；**保留的媒体 ABI/Libass 兼容输入依旧要以真实编译与 native parity 审核**。
-- 专用生成器包括 `recovery_adapters.py`（Android TV 网络恢复）与 `xray_adapters.py`（网页导入 `Action.java`、设置页及 XML、上游 APK 更新入口保护）。特别注意 5.8.7 `Updater` 的公共 API 已由 `create()/force()` 转向 `get()/start(activity, force)`，不得直接保留旧版本空实现；生成器严格核对本次新版的全部公共方法，出现未知接口立即停止。
-- 在 5.8.7 三份 Git Tree 的原始路径审计中，上述 `rebase` 仍有 **21 条路径同时被本 Fork 与上游修改**；这是潜在三方冲突数量，不代表已经运行真实合并或修复成功。`PlayerManager`、`ExoPlayerEngine`、`ExoMediaSourceFactory` 已配置新版優先的候選接線生成器；`PlaybackService`、字幕、彈幕、EPG、XMLTV 及頻道 Logo 已配置候選生成器；接下來重點轉向 Live/VOD Activity 播放所有權、切台／換集回調與剩餘版本差異；不能采用“全部选旧版本”掩盖上游重构。
-- 本 Fork 另外保留 4 个未包含在两个业务模块内、为历史固定 FongMi Media3 输入重建的兼容类：`LibassFontFile`、`SecondaryTextOutput`、`SecondaryTextTrackSelector`、`DanmakuPlayerViewController`。它们是**既存兼容债**，并非可以持续扩展的第三个业务维护范围；升级 5.8.7 时要核实是否仍被调用、所对应的 native/AAR API 是否匹配，不得因固定旧源码通过测试就宣称新播放器已兼容。
-- 离线宿主 Python Git fixture 已验证：非冲突三方合并、按清单清除过时 fork 修改、未登记的旧改动在上游未变时也拦截、真实冲突时不写入工作树。这**不等于 GitHub Actions 对整个私有项目运行成功**；新加的 Xray 适配器 Java 编译测试配置为手动 AC 预检入口，尚无该入口实际 run 结果。
+### 2026-11-02 Xray 播放器接线解耦（5.8.7 迁移第一阶段）
 
-### 新版播放器適配進度（同日後續）
+- 试验期间将 Xray-only scheme 守卫、直连/代理引擎身份与网络绑定策略抽成 `XrayGuardedPlaybackDataSource`、`XrayPlaybackRouting` 等代码。为保证 **5.6.3 回退时运行代码零漂移**，这些尚未正式验收的 Java 实现不留在现在的 `app/` 编译树；参考源码放在 `scripts/upstream/reference/`，供未来**候选生成阶段**按需迁入，而不是现在加载。
+- 新版候选还需要替换 5.6.3 专属测试断言、重写官方恢复源 SHA 表，并完成 5.8.7 与媒体源码的所有接口检查。切勿因为保留了生成器、模板和历史测试，就把 AC 解释成“已修复所有问题，可以开正式发布”。
 
-- 新增上游優先 `exo_adapters.py` / `player_manager_adapter.py`：直接以官方 5.8.7 原始碼生成 `ExoMediaSourceFactory`、`ExoPlayerSession`、`ExoPlayerEngine`、`PlayerEngineFactory` 和 `PlayerManager` 的 Xray 接線，維持新版 ISO、CMG、DecoderManager、SubtitleTranscript、預載結構。這五份已由 `rebase` 調整為 `generate`，**尚未當作 APK 編譯成功**。
-- 新增只在升級時實體生成的 `XrayPlaybackDataSourceFactory.java` 模板。5.6.3 `Auth.Context` 尚不存在，模板不加入當前編譯樹；5.8.7 原始碼接入後，媒体／DRM／ISO 導航 HTTP 沿用 Xray client，RTSP/RTSPT 使用專屬 SOCKS socket。串接媒體逐段選擇 source factory；有代理時禁止普通磁碟預載，避免邊緣路徑無意走直連。
-- `test-upstream-exo-adapters.py` 的離線 fixtures 和新版 API fail-closed 檢查通過；`test-upstream-xray-auth.py` 的 JVM 替身測試驗證會話 client、授權資訊、UA 和非法協議攔截。正式 AC 預檢會對所選**真實**公開 commit 的五個檔案重新套用 exact-anchor 變換；未經編譯和 Android/TV 驗收不得宣稱新播放器相容。
-- **目前仍待正式驗收**：`PlaybackService`、`DanmakuApi`、`SubtitleApi`、下載與 EPG 的 5.8.7 API 已建立候選生成器，並在工作流加入帶真實目標 Git Tree 的 anchor 檢查；但尚未執行完整 Python/JVM 測試或 Android 編譯。Live/VOD Activity 的 Xray session 生命週期／所有權尚未移植，仍可能在真正合併／編譯時失敗。預設只做預檢。
+## 四、保留哪些 AC 资产，回退掉哪些东西
 
-### 2026-11-02 Live/VOD 旁路與 UI 資源第二階段（仍在適配）
+- **恢复旧版**：`app/` 的五处后期改动（两份新增 Xray 工具 Java 与三份 Player/Exo 改动）全部回到 `a2f193b` 的原始运行树；三份已有 5.6.3 专用构建/发布/失败续发 YAML 和原本生产、测试代码回到同一基准。已有 Releases/tag **一律不动**。
+- **专项保留**：`.github/workflows/manual-upstream-sync.yml`；完整 `scripts/upstream/`（`baseline.json`、`fork_scope.json`、适配器、预检、模板），`scripts/build/resolve-release-tag.py`，仅升级用途的新 `tests/test-upstream-*.py` 与相关新增测试，以及四个官方 JS 例外的 `.gitattributes`、避免污染 checkout 的 `.gitignore`。因此 AC 前期开发资产没有仅剩一个找不到被调用脚本的 YAML 空壳。
+- **按 5.6.3 原样恢复**：`docs/AI_COLLABORATION.md`、`docs/PROJECT.md`、`docs/RECOVERY.md`、`README.md`、`docs/ORIGINAL_README.md` 不重写历史；`docs/DEVELOPMENT.md` 只在已发布 5.6.3 记录**之后追加一段指向本复盘**。旧日志不是新版本发布证明。本复盘替代试验阶段不断叠加且过时的短报告。
+- **旧版测试仅改必要一处**：`tests/test-build-hygiene.py` 允许额外的**手动** `manual-upstream-sync.yml`，同时继续拒绝 push/schedule/marker 自动触发。不得通过广泛放宽既有 5.6.3 运行 guard 来迎合尚未编译的 5.8.7 候选。
+- **保留不等于可立即升级**：回退后现存 AC 仍是**冻结的试验引擎**；部分候选守卫和生成后版本专用测试需在发现完整公开媒体源码时重新核对和移植到候选树。保留原工作流与历史 Git 提交是为了减少重写，不是假装已经通过回退状态下的完整 AC/5.8.7 编译测试。
 
-- `side_request_adapters.py` 提供新版 `PlaybackService` 會話綁定、`DanmakuApi` 和 `SubtitleApi` 顯式透過 Xray Call.Factory、字幕多段下載同一 HTTP client、代理切換與服務關閉時取消舊代際遠端請求。只從官方 5.8.7 檔案生成 Xray 專用改動；普通播放／官方請求解析、重試、字幕格式維持原狀。
-- `live_metadata_adapters.py` 為原始 `LiveApi` EPG HTTP 與 `EpgParser` XMLTV 加上會話網路身份，保留官方 EPG 時區、XMLTV cache、gzip 解壓流程；`LiveViewModel` 增加只撤銷 `TaskType.XML/EPG` 的舊結果能力；`live_ui_adapters.py` 在 `ChannelAdapter` 保留官方 RecyclerView selected payload 邏輯、只阻止 Xray 中舊 logo 請求。
-- `xray_resources.py` 對 5.8.7 的 Live/VOD 控制列只加 `@+id/xray`，並按現有 Fork 各地區譯文複製 `xray_*` 字串，三套 Leanback `values`、`values-zh-rCN`、`values-zh-rTW` 各 25 條；資源碰撞與上游 XML 接線變更會停止，不覆蓋普通上游按鈕或官方多語翻譯。
-- `verify_playback.py` 已有 5.6.3 與 5.8.7+ **不同**的強制檢查表，新版額外要求整條 Exo／Service／Side requests／LiveUI／翻譯／Live+Vod Activity 接線都存在才允許繼續發布；因此目前缺失的頁面接線無法藉由放寬舊版測試跳過。
-- **目前僅提交了 adapter、fixture/JVM 測試腳本和 GitHub Actions 手動預檢設定。尚未真正運行這一批新測試、合併到 5.8.7、Gradle Android 編譯或發布。** Live/VOD Activity 仍是阻斷點；工作流 `apply_to_main=false` 安全預設維持不變。
+## 五、今后正确的操作门槛
 
-## 通用 Actions 的正确成功定义
+- 四个 Actions YAML **只能通过 `workflow_dispatch` 手动启动**，不得恢复定时器、push marker、跨 workflow 自动链。保留的 `manual-upstream-sync.yml` 提供互斥模式：
+  - `apply_to_main=false` 且 `build_without_publish=false`：默认**预览**，候选校验，不编译/不发布。
+  - `apply_to_main=false` 且 `build_without_publish=true`：构建并校验双 ABI APK，只保存短期私有 Artifact，**不会推送 main/发布 Release**。
+  - `apply_to_main=true` 且 `build_without_publish=false`：所有检查通过后**将候选推送 main 并正式发布**；目前**禁止**作为排障按钮使用。
+  - 同时为 `true`：预期拒绝。
+- 再谈 5.8.7 或后继升级之前，先确认**可追溯、许可允许、公开可获取、与选定 TV 源码真实匹配**的 Media3/player class、方法、AAR/native 构建输入；使用源码 API 预检把缺口尽量前置，避免重跑同一必败 workflow。
+- 找到来源后，先在不更新 `main` 的候选中恢复并验证版本专用测试、生成器与 helper class；离线全部通过后仅执行 **`build_without_publish=true`** 的手动完整构建。必须取得且独立核验两 ABI、固定签名、版本、DEX、native、Manifest、16KB alignment 和 Xray/TV recovery 预期行为，真机测试通过以后再考虑明确授权的正式发布。
+- 一直保留现行 `v5.6.3-xray.1` 和 `v5.6.0-xray.5`，不能通过清理旧 Release、重打包旧 APK 或改标签来掩盖升级失败。
 
-`manual-upstream-sync.yml` 仍然只有 `workflow_dispatch`。在当前冲突适配未完成前，`apply_to_main` **默认关闭（仅预检）**，防止将尚未验收的模板当作正式自动升级工具。
-
-后续只有以下全部满足，才允许把默认值恢复为完整升级模式：
-
-1. 对目标公开上游的差异完成目前 32 个尚有上游/二開重疊的 rebase 路徑的三方語義審查和必要 Xray / TV 接线迁移；未解决路径不覆盖。
-2. 独立的 Xray、TV 息屏恢复、启动 Intent 不重放及空 Host/代理重定向回归通过；所有普通业务路径尽可能保持目标公开上游原样。
-3. 完整重建当前 FongMi/media/native/Libass 所需输入，确认 5.8.7 实际 API / ABI 兼容，不以旧 5.6.3 兼容代码误装新媒体实现。
-4. TV 的两份正式签名 APK 编译成功并核验 app version、混淆/DEX、native、Manifest、证书和 16KB alignment；再执行 Release 安全切换。
-5. 正式发布后核对 `main`、tag、Release、两份 APK 的来源 SHA / digests，黄金版不可删除；真机的 Xray、播放交接、待机恢复仍须单独验收。
-
-**目前实际完成的是：代码阅读、Git Tree 三向路径比对、升级工具及恢复接线修补和离线示例测试；没有通过新上游的完整合并、真实 GitHub Actions run 或新 APK 验证。**
+**最终判断**：5.6.3 已发布 APK 是有完整播放器/native 装包与验证记录的成品；5.8.7 失败的根因是新版 TV 的**公开 Media3 播放器源码/接口未完整配套**，而非 5.6.3 已发布 APK 没有解码器。

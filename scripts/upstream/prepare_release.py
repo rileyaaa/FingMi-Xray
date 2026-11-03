@@ -261,7 +261,13 @@ def metadata(root,old_tag,tag,new_upstream,code,upsha):
         )
         for heading in dated:
             if s.count(heading) != 1:
-                raise ValueError("Cannot identify historical migration notes: " + heading)
+                # This repo rolled back the dated trial log into one review
+                # document; retain the same exact heading contract there.
+                retrospective = root / "docs/UPSTREAM_5_8_7_MIGRATION_AUDIT.md"
+                if (not retrospective.is_file() or
+                        retrospective.read_text(encoding="utf-8").count(heading) != 1):
+                    raise ValueError("Cannot identify historical migration notes: " + heading)
+                continue
             s = s.replace(
                 heading,
                 heading + "\n\n> 历史记录：本节保留原 5.6.3 迁移期间的候选状态和判断；"
@@ -319,6 +325,14 @@ def prepare(root,upstream,target,report):
     if "Auth.Context auth" not in bridge or "proxy.client()" not in bridge:
         raise ValueError("Missing guarded Xray 5.8.7 HTTP Auth adapter template")
     additions["app/src/main/java/com/fingmi/integration/xray/XrayPlaybackDataSourceFactory.java"] = bridge
+    # Retained only as AC inputs. The 5.6.3 app source remains byte-identical
+    # to the proven release; generated candidate gets the Xray-only adapters.
+    for helper in ("XrayGuardedPlaybackDataSource", "XrayPlaybackRouting"):
+        source = root / "scripts/upstream/reference" / (helper + ".java")
+        code = source.read_text(encoding="utf-8")
+        if not code.startswith("package com.fingmi.integration.xray;"):
+            raise ValueError("Unrecognized retained Xray adapter: " + helper)
+        additions["app/src/main/java/com/fingmi/integration/xray/" + helper + ".java"] = code
 
     # PlaybackService owns side-call network identity and remote-artwork
     # cancellation. Public 5.8.7 subtitle/danmaku APIs keep request IDs

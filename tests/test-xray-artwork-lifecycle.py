@@ -10,8 +10,6 @@ import argparse
 import hashlib
 import json
 import os
-import re
-import sys
 from pathlib import Path
 import runpy
 import shutil
@@ -307,29 +305,6 @@ def main():
     parser.add_argument('--runtime-classpath', type=Path)
     parser.add_argument('--host-source', type=Path, default=HOSTS, help='Host directory for before/after source comparison')
     args = parser.parse_args()
-    version = re.search(
-        r'versionName "v(\d+)\.(\d+)\.(\d+)-xray\.\d+"',
-        (ROOT / 'app/build.gradle').read_text(encoding='utf-8'),
-    )
-    if not version:
-        raise SystemExit('Unknown app version: cannot select Xray artwork test')
-    if tuple(map(int, version.groups())) >= (5, 8, 7):
-        # Public 5.8.7 dropped the old Activity.clearArtworkTarget() shape;
-        # running the legacy 12-case Glide host extractor would fail after
-        # expensive native rebuilds, without testing the new architecture.
-        # Exercise the actual app-owned bitmap isolation class instead.
-        service = (ROOT / 'app/src/main/java/com/fongmi/android/tv/service/PlaybackService.java').read_text()
-        for expected in (
-            'xrayBitmapLoader = new XrayArtworkBitmapLoader(player, new ArtworkBitmapLoader(this));',
-            'setBitmapLoader(xrayBitmapLoader)',
-            'xrayBitmapLoader.cancelRemoteLoads();',
-            'XraySideRequestGate.cancelRemoteDownloads();',
-        ):
-            if expected not in service:
-                raise SystemExit('5.8.7 Xray artwork service binding missing: ' + expected)
-        subprocess.run([sys.executable, str(ROOT / 'tests/test-xray-artwork-loader.py')], check=True)
-        print('PASS 5.8.7 Xray artwork service binding and actual loader JVM lifecycle')
-        return
     work = args.workdir.resolve()
     if work.exists() and any(work.iterdir()):
         parser.error('--workdir must be empty')

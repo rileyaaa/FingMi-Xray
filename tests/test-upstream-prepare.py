@@ -10,13 +10,13 @@ from prepare_release import gradle, home, tests_proxy, fork_version, metadata, r
 
 # The real repository documentation must also satisfy metadata()'s exact
 # anchors. Fixture-only tests previously missed a duplicated historical section.
-development = (Path(__file__).resolve().parents[1] / "docs/DEVELOPMENT.md").read_text(encoding="utf-8")
+audit = (Path(__file__).resolve().parents[1] / "docs/UPSTREAM_5_8_7_MIGRATION_AUDIT.md").read_text(encoding="utf-8")
 for heading in (
     "### 2026-11-02 上游 5.8.7 与通用一键升级 Actions",
     "### 2026-11-02 5.8.7 官方 Exo 接线适配（候选生成器，未发布）",
     "### 2026-11-02 Xray 播放器接线解耦（5.8.7 迁移第一阶段）",
 ):
-    assert development.count(heading) == 1, "Real migration docs are ambiguous: " + heading
+    assert audit.count(heading) == 1, "Migration retrospective anchors are ambiguous: " + heading
 
 APP = """def localProps = new Properties()
 rootProject.file('local.properties').withInputStream {
