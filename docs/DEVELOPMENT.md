@@ -40,6 +40,12 @@
 
 任何超出上述范围的代码修改，在提交前都应先判断：**这个变化是否是 Xray 或 TV 网络恢复的必要条件？如果不是，默认跟随上游。** 用户允许的例外仅限像已发生的主机名崩溃一样，有明确证据、明显影响实际使用的上游故障；只做最小修补，并在下方登记，不能据理论风险扩展普通业务维护。
 
+### 2026-11-03 第六次 AC 前继续审计新版专用 Xray 守卫（无新 AC）
+
+- 审查完整构建前 `Run fork source guards` 所有已有入口时，发现 `tests/test-xray-core-parity.py` 无条件要求早在 5.8.7 被上游删除的 `PushActivity.java`、旧 `index.html` Xray 表单和 `js/script.js` 的 `sendXray()`；而升级器按既定最小接线方案使用 `XrayPhoneImportDialog.java` + 独立 `xray.html`，原旧版测试会把正确的新版源码判为缺失。现按实际 `app/build.gradle` 版本选择合同：5.6.3 保留旧断言，5.8.7 必须具备独立二维码导入与安全 URL 编码表单，并不得恢复旧 PushActivity 或把 Xray 表单塞回普通上游网页。
+- `tests/test-xray-guarded-data-source.py` 原来只检查 5.6.3 Exo 工厂内的 `new XrayGuardedPlaybackDataSource(upstream.createDataSource())`；在 5.8.7 它正确地迁至候选 `XrayPlaybackDataSourceFactory.java` 模板，Exo 工厂只在 Xray 启用时调用桥。现在分别验证旧/新路径，仍保留真实 `XrayGuardedPlaybackDataSource.java` 的 JVM 网络协议 allow/deny、双 close 和失败清理测试，不因新版隔离而放宽直连约束。
+- 两份守卫现提前放入升级候选生成后的 `generated_guards`，由 6 项提升至 8 项；相同文件列表由 `tests/test-upstream-workflow-shell.py` 断言，先于 native/Android 构建收集全部错误。已直接读取官方 `FongMi/TV/fongmi@305dff233cde512e2c83f71529b7c3ecfd61fefc` 新网页资源及仓库现版 Xray 资源，用 GitHub Connector 对照旧/新必备字符串；尚未完成新的仓库整树生成或 Android 编译测试。本阶段未触发 AC，未修改 Release/签名。
+
 ### 2026-11-03 第五次预检与 5.8.7 播放所有权交接修复（未发布）
 
 - 第五次手动预检 [#41559458565](https://github.com/rileyaaa/FingMi-Xray/actions/runs/41559458565) 在目标公开源码已同步、`v5.8.7-xray.1` 候选已生成后，因 Leanback 含上游新增 `RECEIVE_BOOT_COMPLETED` / `BootReceiver` 被 TV 网络恢复约束拒绝。此前 8 组真实上游接线预检与另外 4 项候选源码检查通过，但没有进行 Android 编译或发布。升级器现仅精确移除这项开机权限及对应官方接收器，保留其余 Leanback 声明；对当前 `FongMi/TV/fongmi@305dff233cde512e2c83f71529b7c3ecfd61fefc` 清单进行了文字与结构对照，不将静态核对冒充完整生成验证。

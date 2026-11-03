@@ -2,16 +2,37 @@
 """Compile and exercise production Xray-only media DataSource via JVM stubs."""
 from pathlib import Path
 import subprocess
+import sys
 import tempfile
 
 ROOT = Path(__file__).resolve().parents[1]
 SOURCE = ROOT / "app/src/main/java/com/fingmi/integration/xray/XrayGuardedPlaybackDataSource.java"
 MEDIA_SOURCE = ROOT / "app/src/main/java/com/fongmi/android/tv/player/exo/ExoMediaSourceFactory.java"
 
-# Only the active Xray branch may instantiate the restricted wrapper.
+# 5.6.3 constructs the Xray guard in ExoMediaSourceFactory. Public 5.8.7
+# rebuilt its factory; our thin bridge owns the guard and Exo calls it only
+# for proxied HTTP. Reject a missing bridge rather than disabling the test.
+sys.path.insert(0, str(ROOT / "scripts/upstream"))
+from verify_playback import required_for_version, REQUIRED_587
+new_fongmi = required_for_version((ROOT / "app/build.gradle").read_text(encoding="utf-8")) is REQUIRED_587
 media = MEDIA_SOURCE.read_text(encoding="utf-8")
-if "new XrayGuardedPlaybackDataSource(upstream.createDataSource())" not in media:
-    raise SystemExit("Xray media source lost guarded transport")
+if new_fongmi:
+    bridge_path = ROOT / "app/src/main/java/com/fingmi/integration/xray/XrayPlaybackDataSourceFactory.java"
+    bridge = bridge_path.read_text(encoding="utf-8") if bridge_path.is_file() else ""
+    for required in (
+        "new XrayGuardedPlaybackDataSource(delegate.createDataSource())",
+        "new OkHttpDataSource.Factory(calls)",
+        "Objects.requireNonNull(proxy",
+        "Auth.Context auth",
+        "proxy.client()",
+    ):
+        if required not in bridge:
+            raise SystemExit("5.8.7 Xray bridge lost guarded transport: " + required)
+    if "XrayPlaybackDataSourceFactory.create(" not in media:
+        raise SystemExit("5.8.7 media source bypasses Xray-only bridge")
+else:
+    if "new XrayGuardedPlaybackDataSource(upstream.createDataSource())" not in media:
+        raise SystemExit("5.6.3 Xray media source lost guarded transport")
 if "dataSourceFactory = proxy == null" not in media:
     raise SystemExit("Direct and Xray transports are no longer isolated")
 

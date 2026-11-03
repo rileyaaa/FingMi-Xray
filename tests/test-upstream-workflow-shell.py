@@ -92,6 +92,8 @@ def validate(yaml):
         'scripts/upstream/verify_playback.py',
         'tests/test-upstream-playback-contract.py',
         'tests/test-upstream-playback-ownership.py',
+        'tests/test-xray-core-parity.py',
+        'tests/test-xray-guarded-data-source.py',
         'tests/test-upstream-update-disabled.py',
         'tests/test-build-hygiene.py',
         'tests/test-tv-network-recovery.py',
@@ -112,4 +114,4 @@ def validate(yaml):
 
 if __name__ == '__main__':
     print(f'PASS: {validate(WORKFLOW.read_text(encoding="utf-8"))} Bash run blocks parse; '
-          'all 8 upstream API checks and 6 candidate source guards execute under simultaneous failures')
+          'all 8 upstream API checks and 8 candidate source guards execute under simultaneous failures')

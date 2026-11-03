@@ -13,6 +13,13 @@ def read(path: str) -> str:
     return (ROOT / path).read_text(encoding="utf-8")
 
 
+# FongMi 5.8.7 removed PushActivity and moved the Xray-only phone UI
+# out of the ordinary upstream web app. Select from the actual candidate.
+sys.path.insert(0, str(ROOT / "scripts/upstream"))
+from verify_playback import required_for_version, REQUIRED_587
+NEW_FONGMI_UI = required_for_version(read("app/build.gradle")) is REQUIRED_587
+
+
 def require(path: str, *needles: str) -> None:
     text = read(path)
     missing = [needle for needle in needles if needle not in text]
@@ -504,7 +511,6 @@ require(
 
 require(
     "app/src/leanback/java/com/fongmi/android/tv/ui/activity/SettingXrayActivity.java",
-    "PushActivity.start(this, 6);",
     "@Subscribe(threadMode = ThreadMode.MAIN)",
     "if (event == null || isBlank(event.link())) return;",
     "if (mOperationId != Long.MIN_VALUE && mOperation != XrayOperation.RESET_SECURITY)",
@@ -525,28 +531,67 @@ forbid(
     "mXray.save(link",
 )
 
-require(
-    "app/src/leanback/java/com/fongmi/android/tv/ui/activity/PushActivity.java",
-    "intent.putExtra(\"tab\", tab);",
-    "if (getTab() == 6)",
-    "R.string.xray_phone_scan_info",
-    "mBinding.clip.setVisibility(View.GONE);",
-)
-
-require(
-    "app/src/main/assets/index.html",
-    '<textarea id="xray_link"',
-    'onclick="sendXray()"',
-    '<span class="md-nav-label">Xray</span>',
-)
-
-require(
-    "app/src/main/assets/js/script.js",
-    "function sendXray()",
-    "const link = $('#xray_link').val().trim();",
-    "doAction('xray', { link });",
-    "$('#xray_link').val('');",
-)
+if NEW_FONGMI_UI:
+    # The 5.8.7 candidate deliberately does NOT restore deleted PushActivity
+    # or insert an Xray form into the new upstream general-purpose web UI.
+    require(
+        "app/src/leanback/java/com/fongmi/android/tv/ui/activity/SettingXrayActivity.java",
+        "XrayPhoneImportDialog.show(this);",
+    )
+    forbid(
+        "app/src/leanback/java/com/fongmi/android/tv/ui/activity/SettingXrayActivity.java",
+        "PushActivity.start(this, 6);",
+    )
+    require(
+        "app/src/main/java/com/fingmi/integration/xray/XrayPhoneImportDialog.java",
+        'String url = Server.get().getAddress() + "/xray.html";',
+        "QRCode.getBitmap(url, 240, 1);",
+        "R.string.xray_phone_scan_info",
+        "code.setContentDescription(url);",
+        "address.setTextIsSelectable(true);",
+    )
+    require(
+        "app/src/main/assets/xray.html",
+        '<textarea id="xray_link"',
+        'form.addEventListener("submit"',
+        'method:"POST"',
+        'body:new URLSearchParams({do:"xray",link:value}).toString()',
+        'link.value="";',
+    )
+    forbid(
+        "app/src/main/assets/index.html",
+        '<textarea id="xray_link"',
+        'onclick="sendXray()"',
+    )
+    forbid(
+        "app/src/main/assets/js/script.js",
+        "function sendXray()",
+    )
+else:
+    require(
+        "app/src/leanback/java/com/fongmi/android/tv/ui/activity/SettingXrayActivity.java",
+        "PushActivity.start(this, 6);",
+    )
+    require(
+        "app/src/leanback/java/com/fongmi/android/tv/ui/activity/PushActivity.java",
+        "intent.putExtra(\"tab\", tab);",
+        "if (getTab() == 6)",
+        "R.string.xray_phone_scan_info",
+        "mBinding.clip.setVisibility(View.GONE);",
+    )
+    require(
+        "app/src/main/assets/index.html",
+        '<textarea id="xray_link"',
+        'onclick="sendXray()"',
+        '<span class="md-nav-label">Xray</span>',
+    )
+    require(
+        "app/src/main/assets/js/script.js",
+        "function sendXray()",
+        "const link = $('#xray_link').val().trim();",
+        "doAction('xray', { link });",
+        "$('#xray_link').val('');",
+    )
 
 require(
     "app/src/main/java/com/fongmi/android/tv/server/process/Action.java",
