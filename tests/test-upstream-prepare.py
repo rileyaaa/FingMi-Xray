@@ -186,7 +186,7 @@ with tempfile.TemporaryDirectory(prefix="upstream-recovery-pins-") as temp:
     repo_root = Path(__file__).resolve().parents[1]
     guard_name = "tests/test-tv-network-recovery.py"
     guard = (repo_root / guard_name).read_text(encoding="utf-8")
-    pins = re.findall(r'"(app/[^"]+)"\\s*:\\s*"([a-f0-9]{40})"', guard)
+    pins = re.findall(r'"(app/[^"]+)"\s*:\s*"([a-f0-9]{40})"', guard)
     assert len(pins) == 16, "Current TV recovery baselines must retain 9+7 literals"
     selected = dict(pins)
     assert len(selected) == 9
