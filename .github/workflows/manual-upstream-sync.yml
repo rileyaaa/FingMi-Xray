@@ -202,6 +202,7 @@ jobs:
             tests/test-xray-guarded-data-source.py
             tests/test-xray-android-runtime-compat.py
             tests/test-xray-playback-parity.py
+            tests/test-upstream-side-request-integration.py
             tests/test-xray-playback-routing.py
             tests/test-tv-recovery-intent-replay.py
             tests/test-upstream-update-disabled.py

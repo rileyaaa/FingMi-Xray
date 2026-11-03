@@ -40,6 +40,12 @@
 
 任何超出上述范围的代码修改，在提交前都应先判断：**这个变化是否是 Xray 或 TV 网络恢复的必要条件？如果不是，默认跟随上游。** 用户允许的例外仅限像已发生的主机名崩溃一样，有明确证据、明显影响实际使用的上游故障；只做最小修补，并在下方登记，不能据理论风险扩展普通业务维护。
 
+### 2026-11-03 第六次 AC 后新增真实 Gate 与新版 API 组合回归（无新 AC）
+
+- 将 `tests/test-upstream-side-request-integration.py` 纳入生成源码后的安全预检（13 项）。与前一个仅用网络 Gate 替身的 15 项请求生命周期回归不同，新测试从**实际生成的** `XraySideRequestGate.java` 读取源码，要求与仓库审查过的模板逐字节一致，并一起编译实际 5.8.7 `DanmakuApi.java`、`SubtitleApi.java`、`ApiCallback.java`。Android、OkHttp、下载和 PlayerManager 外部边界由 deterministic JVM 替身构建；复用上一份测试的静态模型夹具但不重复执行其整套用例。
+- 隔离候选样本真实执行 Java 17 编译 + 13 项跨组件场景：代理与直连路径、POST/body/tag、弹幕与字幕过期响应、请求代际替换、字幕详情、代理下载中止、大小写不敏感的 HTTPS 元数据、非法协议、活跃 Xray 缺失 client 必须拒绝直连、Service 解绑恢复上游。三组反向注入——错误直连回退、取消字幕代理下载绑定、删除 ApiCallback 代际限制——均在测试中失败；Java Gate 样本 Git Blob SHA 与已登记模板一致。
+- 验证范围：这些是**本地隔离源码+真实生成模板**的 JVM 测试，并非实际在 private repository 完整 768 文件升级树上连续运行，也不是 Android Gradle / 真机 / 双 ABI APK 验收。升级工作流保持 `workflow_dispatch` 且 `apply_to_main=false` 为默认；没有触发新 AC、没有修改签名或 Release。
+
 ### 2026-11-03 第六次手动预检失败与新版旁路请求回归修复（未发布）
 
 - [GitHub Actions #41567220883](https://github.com/rileyaaa/FingMi-Xray/actions/runs/41567220883) 使用 main `7e501e9c3239aacedfef312855bf2dd8e8430ff7` 和公开 5.8.7 提交 `305dff233cde512e2c83f71529b7c3ecfd61fefc`：14 组升级器离线测试、8 组上游真源码预检、768 个源码同步变更、生成 `v5.8.7-xray.1` 均成功；生成后 12 项源码守卫中 11 项通过，只有 `tests/test-xray-playback-parity.py` 调用的 5.6.3 旁路请求 JVM 用例失败，Android 编译未启动、没有推送或发布。
