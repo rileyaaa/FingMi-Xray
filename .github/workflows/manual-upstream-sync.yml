@@ -228,7 +228,7 @@ jobs:
           # The original public ESTree bundle has trailing spaces inside
           # generated JS templates. Exempt only this exact pathname and reject
           # a candidate unless its bytes match the selected public Git blob.
-          python3 scripts/upstream/check_vendor_whitespace.py             --upstream "$UPSTREAM_DIRECTORY"             --target "$UPSTREAM_TARGET"
+          python3 scripts/upstream/check_vendor_whitespace.py --upstream "$UPSTREAM_DIRECTORY" --target "$UPSTREAM_TARGET"
           # GITHUB_TOKEN cannot push modifications to protected workflow YAML.
           # Fail before expensive native builds if a future adapter drifts.
           if [[ -n "$(git status --porcelain -- .github/workflows)" ]]; then
