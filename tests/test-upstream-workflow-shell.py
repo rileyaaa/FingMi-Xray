@@ -20,6 +20,7 @@ EXPECTED = (
     'tests/test-upstream-activity-adapters.py',
     'tests/test-upstream-build-policy.py',
     'tests/test-upstream-phone-import.py',
+    'tests/test-upstream-real-hooks.py',
 )
 
 
@@ -85,4 +86,4 @@ def validate(yaml):
 
 if __name__ == '__main__':
     print(f'PASS: {validate(WORKFLOW.read_text(encoding="utf-8"))} Bash run blocks parse; '
-          'all 7 upstream adapter checks execute on success and simultaneous failures')
+          'all 8 upstream adapter checks execute on success and simultaneous failures')
