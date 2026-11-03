@@ -875,3 +875,5 @@ Xray 当前源码重新验证 9000 次 Controller/Client 清理序列、102 次�
 不过回退 2026-10-26 基线时，**通用版本自动推导与不带 5.6.3 版本前缀的 artifact 名称**也一起回到了旧状态，不利于未来保持只修改源码、不修改 Actions YAML 的升级。现依照 2026-11-03 试验前已审核的通用方案恢复这部分基础设施：正式发布标签由 `scripts/build/resolve-release-tag.py` 从 checkout 的 `app/build.gradle` 及 `scripts/upstream/baseline.json` 校验推出；保留 `replace_existing=false`、`prune_superseded=false` 默认保护、固定签名、双 ABI/native/DEX/Manifest 验收；续发 failure artifact 改为版本无关名称，Release notes 按实际 FongMi 基线生成，不再固定写「不升级公开 FongMi 基线」。build-only 会清除过期的同名短期 artifact。已有 `v5.6.3-xray.1`/黄金版文件与 digest **一律不动**。
 
 当前四个 workflow 的 `on` **都仅有 `workflow_dispatch`**，无 push、schedule、workflow_run、跨入口触发；仅做静态校验与仓库修改，没有启动 Actions，也没有对回退后版本执行一次新完整编译。5.8.7 的公开 Media3 源码契约仍不满足，保留的升级入口默认预检，不代表可安全进入正式发布。
+
+> **现行版本核对说明（2026-11-03）**：本开发文档开头沿用 2026-10-13 `.4` 阶段记录，仍写 `563004 / v5.6.3-xray.4`；按用户要求不改动此前旧记录。**以当前真实 `app/build.gradle` 为准，运行代码配置及现行正式 Release 均为 `563001 / v5.6.3-xray.1`**，正式 APK 源于 2026-10-26 的 `4bea3a54ece68fbb439374e7d7944ec94fe28683`。不得将历史 `.4` 行误认为回退后当前版本。
