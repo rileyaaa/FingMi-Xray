@@ -2,6 +2,15 @@ name: "01｜当前源码编译与 APK 验证"
 
 on:
   workflow_dispatch:
+    inputs:
+      cleanup_history:
+        description: "一次性删除确认过的剩余40条历史运行记录；不构建APK"
+        type: boolean
+        default: false
+      allow_normal_build:
+        description: "临时保护：仅明确勾选才运行正常APK构建；清理时不要勾选"
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -9,6 +18,7 @@ permissions:
 
 jobs:
   build:
+    if: ${{ inputs.allow_normal_build && !inputs.cleanup_history }}
     name: "只构建与验证，不发布"
     runs-on: ubuntu-latest
     timeout-minutes: 100
@@ -387,3 +397,114 @@ jobs:
             catvod/build/test-results/
           if-no-files-found: ignore
           retention-days: 1
+
+  cleanup_history:
+    if: ${{ github.ref == 'refs/heads/main' && inputs.cleanup_history && !inputs.allow_normal_build }}
+    name: "一次性清理最后40条旧运行记录（不编译APK）"
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: "核对40个指定Run ID后删除历史执行记录"
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json
+          import os
+          import time
+          from urllib.error import HTTPError
+          from urllib.request import Request, urlopen
+          
+          REPOSITORY = 'rileyaaa/FingMi-Xray'
+          TARGETS = [
+              (41755698074, 406397576, '.github/workflows/01-当前源码编译与APK验证.yml'),
+              (37112749866, 373804186, '.github/workflows/refresh-source-backup.yml'),
+              (36953479820, 372452582, '.github/workflows/source-backup-release.yml'),
+              (36910320478, 366316288, '.github/workflows/recovery-apk-analysis.yml'),
+              (36908592508, 372452582, '.github/workflows/source-backup-release.yml'),
+              (36817195206, 371814512, '.github/workflows/temp-iso-nav-v4-libass-pins.yml'),
+              (36816642469, 371814512, '.github/workflows/temp-iso-nav-v4-libass-pins.yml'),
+              (36807015823, 371754104, '.github/workflows/temp-iso-568-audit.yml'),
+              (36753529596, 371420770, '.github/workflows/temp-mpv-568-audit.yml'),
+              (36739164619, 371324702, '.github/workflows/temp-delete-legacy-branch.yml'),
+              (36726847573, 371229845, '.github/workflows/temp-dolby-568-audit.yml'),
+              (36712194145, 371113338, '.github/workflows/temp-native-568-audit.yml'),
+              (36652176864, 366316288, '.github/workflows/recovery-apk-analysis.yml'),
+              (36651867879, 366316288, '.github/workflows/recovery-apk-analysis.yml'),
+              (36651185175, 366316288, '.github/workflows/recovery-apk-analysis.yml'),
+              (36614197836, 370445155, '.github/workflows/one-shot-manifest-provenance.yml'),
+              (36614146925, 370445155, '.github/workflows/one-shot-manifest-provenance.yml'),
+              (36614083206, 370445155, '.github/workflows/one-shot-manifest-provenance.yml'),
+              (36614052764, 370445155, '.github/workflows/one-shot-manifest-provenance.yml'),
+              (36613283346, 370445155, '.github/workflows/one-shot-manifest-provenance.yml'),
+              (36610541006, 370424691, '.github/workflows/one-shot-signature-audit.yml'),
+              (36610521120, 370424691, '.github/workflows/one-shot-signature-audit.yml'),
+              (36610515298, 370424691, '.github/workflows/one-shot-signature-audit.yml'),
+              (36610495950, 370424691, '.github/workflows/one-shot-signature-audit.yml'),
+              (36610462322, 370424691, '.github/workflows/one-shot-signature-audit.yml'),
+              (36610182585, 370424691, '.github/workflows/one-shot-signature-audit.yml'),
+              (36609448178, 370420239, '.github/workflows/one-shot-manifest-origin.yml'),
+              (36609160222, 370418234, '.github/workflows/one-shot-aar-permission-audit.yml'),
+              (36605193136, 370391171, '.github/workflows/one-shot-mpegh-verify.yml'),
+              (36602001146, 370370336, '.github/workflows/one-shot-libxray-native-source.yml'),
+              (36597004887, 370337215, '.github/workflows/one-shot-current-apk-audit.yml'),
+              (36582438274, 370231264, '.github/workflows/one-shot-libxray-runtime-audit.yml'),
+              (36582360859, 370231264, '.github/workflows/one-shot-libxray-runtime-audit.yml'),
+              (36582352644, 370231264, '.github/workflows/one-shot-libxray-runtime-audit.yml'),
+              (36582184322, 370231264, '.github/workflows/one-shot-libxray-runtime-audit.yml'),
+              (36573245943, 370150504, '.github/workflows/one-shot-source-audit.yml'),
+              (36573210513, 370150504, '.github/workflows/one-shot-source-audit.yml'),
+              (36570987082, 370150504, '.github/workflows/one-shot-source-audit.yml'),
+              (36565555788, 366316288, '.github/workflows/recovery-apk-analysis.yml'),
+              (36509049129, 369359717, '.github/workflows/cleanup-actions-history.yml'),
+          ]
+          assert len(TARGETS) == 40
+          assert len({row[0] for row in TARGETS}) == 40
+          assert os.environ.get('GITHUB_REPOSITORY') == REPOSITORY
+          assert int(os.environ.get('GITHUB_RUN_ID', '0')) not in {row[0] for row in TARGETS}
+          TOKEN = os.environ.get('GH_TOKEN', '')
+          assert TOKEN, 'GITHUB_TOKEN unavailable'
+          
+          def api(method, run_id):
+              req = Request(
+                  f'https://api.github.com/repos/{REPOSITORY}/actions/runs/{run_id}',
+                  method=method, headers={
+                      'Authorization': 'Bearer ' + TOKEN,
+                      'Accept': 'application/vnd.github+json',
+                      'X-GitHub-Api-Version': '2022-11-28',
+                  })
+              try:
+                  with urlopen(req, timeout=30) as response:
+                      return json.load(response) if method == 'GET' else response.status
+              except HTTPError as err:
+                  if method == 'GET' and err.code == 404:
+                      return None
+                  raise
+          
+          # Verify every surviving target before deleting anything.
+          pending = []
+          for run_id, workflow_id, path in TARGETS:
+              item = api('GET', run_id)
+              if item is None:
+                  print(f'Already deleted: {run_id}', flush=True)
+                  continue
+              if not (item.get('id') == run_id
+                      and item.get('workflow_id') == workflow_id
+                      and item.get('path') == path
+                      and item.get('status') == 'completed'
+                      and item.get('repository', {}).get('full_name') == REPOSITORY):
+                  raise SystemExit(f'STOP: mismatched run identity {run_id}; no deletion attempted')
+              pending.append(run_id)
+          
+          print(f'PRECHECK OK: {len(pending)} remaining of 40 fixed target runs', flush=True)
+          for index, run_id in enumerate(pending, 1):
+              result = api('DELETE', run_id)
+              if result != 204:
+                  raise SystemExit(f'Delete {run_id}: unexpected HTTP {result}')
+              print(f'CLEAR {index}/{len(pending)}: {run_id}', flush=True)
+              time.sleep(0.12)
+          print('DONE: all 40 target runs have been deleted; no unrelated runs touched.', flush=True)
+          print('This workflow execution is intentionally excluded. Delete it manually once completed.')
+          PY
