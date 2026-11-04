@@ -14,86 +14,21 @@ GitHub Releases 保留 `v5.6.0-xray.5` 黄金参考、一个[当前正式版](ht
 
 当前正式版为 `v5.6.3-xray.1` / `563001`（用户明确要求的一次性同名替换）：包含已合入的 Xray 去敏与 TV 网络恢复修复；保留默认关闭的 TLS 分片开关、退出清理、主机名崩溃及 decoder 依赖修复。此前 `.2`～`.4` 安装版的 versionCode 较高，通常不能直接覆盖降级；请先备份应用配置。分片参数与适用范围见 [开发说明](docs/DEVELOPMENT.md#settings--binder)，实际发布状态以 Releases 为准。
 
-主要组件版本如下：
+主要版本与构建环境如下（**以仓库配置为准**）：
 
-| 组件 | 当前版本 / 基线 |
+| 项目 | 当前版本 / 基线 |
 | --- | --- |
-| FongMi/TV | **5.6.3**（commit `c616c0aa3613e87529791587a9f71b78c278c991`） |
+| FongMi/TV 公开源码 | **5.6.3**（commit `c616c0aa3613e87529791587a9f71b78c278c991`） |
 | FongMi/media / Media3 fork | **1.11.0**（commit `3c2cbe8ac742c2fe15eff52f03eeb3b1b648848d`） |
-| Media3 container | **1.11.0** |
-| libXray AAR | **v26.7.28** |
-| Xray-core | **v26.7.28** |
-| QuickJS wrapper | **3.2.3** |
-| Chaquopy Gradle Plugin | **17.0.0** |
-| Python runtime | **3.10** |
-| OkHttp | **5.5.0** |
-| AndroidX Media | **1.8.0** |
-| AndroidX Leanback | **1.2.0** |
-| AndroidX AppCompat | **1.8.0** |
-| AndroidX Lifecycle Service | **2.11.0** |
-| AndroidX RecyclerView | **1.4.0** |
-| Room | **2.8.4** |
-| Glide | **5.0.9** |
-| Material Components | **1.14.0** |
+| libXray AAR / Xray-core | **v26.7.28** |
+| Java / Gradle / Android Gradle Plugin | **21 / 9.7.1 / 9.3.1** |
+| compileSdk / targetSdk / minSdk | **37 / 37 / 24** |
 
-当前 18-AAR player candidate 从固定公开 FongMi/media 1.11.0 源码重建；Libass compatibility 仍有一项单独登记的 native 构建债，不能据此把更高版本 Release 当作上游。MPV、FFmpeg 等 native 组件没有在当前工程中维护独立、可直接声明的 semver，因此不另外虚构版本号；当前构建规则与该构建债见 [DEVELOPMENT.md](docs/DEVELOPMENT.md)，历史二进制来源和 v7 Xray 黄金行为证据见 [RECOVERY.md](docs/RECOVERY.md)。
+其他 AndroidX、OkHttp、Glide、QuickJS、Chaquopy 等依赖版本由 [Gradle version catalog](gradle/libs.versions.toml) 管理；Gradle wrapper 以 [仓库配置](gradle/wrapper/gradle-wrapper.properties) 为准。CI 的 SDK/Build Tools 安装和完整构建步骤见 [DEVELOPMENT.md](docs/DEVELOPMENT.md#7-构建)，不在这里重复维护几十项依赖清单。
+
+当前从固定公开 FongMi/media 源码重建 **18 个播放器 AAR**；Libass compatibility 仍有单独登记的 native 构建债，不能据此把更高版本 Release/APK 当作公开上游源码。详细构建边界见 [DEVELOPMENT.md](docs/DEVELOPMENT.md#5-当前媒体兼容层)，历史二进制来源见 [RECOVERY.md](docs/RECOVERY.md)。
 
 当前正式 APK 的双 ABI SHA-256、构建源码与设备验收范围见 [GitHub Release](https://github.com/rileyaaa/FingMi-Xray/releases/latest)。
-
-### 构建环境
-
-| 项目 | 版本 |
-| --- | --- |
-| Java | **21** |
-| Gradle | **9.7.1** |
-| Android Gradle Plugin | **9.3.1** |
-| compileSdk | **37** |
-| targetSdk | **37** |
-| minSdk | **24** |
-| Android SDK Platform（CI） | **36 + 37.0** |
-| Android Build Tools（CI） | **36.0.0 + 37.0.0** |
-| desugar_jdk_libs_nio | **2.1.5** |
-
-<details>
-<summary>其他 Gradle 依赖版本</summary>
-
-| 依赖 | 版本 |
-| --- | --- |
-| AndroidX Annotation | 1.10.0 |
-| AndroidX Biometric | 1.1.0 |
-| AndroidX Palette | 1.0.0 |
-| AndroidX Preference | 1.2.1 |
-| AndroidX SplashScreen | 1.2.0 |
-| AndroidX Startup | 1.2.0 |
-| AndroidX SwipeRefreshLayout | 1.2.0 |
-| AndroidX ViewPager2 | 1.1.0 |
-| android-gif-drawable | 1.2.32 |
-| AndroidAutoSize | 1.2.1 |
-| Brotli | 0.1.2 |
-| Apache Commons Compress | 1.28.0 |
-| CustomActivityOnCrash | 2.4.0 |
-| Flexbox | 3.0.0 |
-| EventBus | 3.3.1 |
-| Gson | 2.14.0 |
-| Guava | 33.7.1-android |
-| JNA | 5.19.1 |
-| juniversalchardet | 1.0.3 |
-| Logger | 2.2.0 |
-| Lottie | 6.7.1 |
-| MaterialDesignColors | 1.0.0 |
-| NanoHTTPD | 2.3.1 |
-| NewPipeExtractor | v0.26.5 |
-| PermissionX | 1.8.1 |
-| RTMP Client | v3.2.0.m2 |
-| Sardine Android | 0.9 |
-| Simple XML | 2.7.1 |
-| SMBJ | 0.15.0 |
-| TextDrawable | 1.0.3 |
-| ZXing Android Embedded | 4.3.0 |
-| ZXing Core | 3.5.4 |
-| JUnit（test） | 4.13.2 |
-
-</details>
 
 ## 核心设计
 
@@ -145,7 +80,8 @@ GitHub Releases 保留 `v5.6.0-xray.5` 黄金参考、一个[当前正式版](ht
 ## 文档
 
 - [PROJECT.md](docs/PROJECT.md)：项目设计、职责边界与长期架构约束。
-- [DEVELOPMENT.md](docs/DEVELOPMENT.md)：当前源码结构、构建方式、上游同步和开发维护说明。
+- [DEVELOPMENT.md](docs/DEVELOPMENT.md)：当前源码、构建、测试与精选维护记录。
+- [上游一键升级工具与 5.8.7 迁移复盘](docs/DEVELOPMENT.md#12-上游一键升级工具与-587-迁移复盘)：工具入口、离线验证及已确认的升级阻断。
 - [AI_COLLABORATION.md](docs/AI_COLLABORATION.md)：AI 协作执行限制；用户调整开发规则时同步维护。
 - [RECOVERY.md](docs/RECOVERY.md)：`v5.6.0-xray.5` 的 faithful 恢复、APK/JADX/DEX/native 证据、二进制 provenance 与 Xray 黄金行为索引。
 - [ORIGINAL_README.md](docs/ORIGINAL_README.md)：**冻结**保存的原 `v5.6.0-xray.5` 发布说明；除非用户明确解除冻结，不再修改。

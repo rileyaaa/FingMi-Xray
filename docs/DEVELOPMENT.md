@@ -6,6 +6,8 @@
 
 文档状态：`ORIGINAL_README.md` 是用户明确指定的冻结旧发布说明，只读不改；`AI_COLLABORATION.md` 是当前协作规则的 canonical 文档，用户调整开发限制时应同步维护。当前工程事实、长期架构和历史证据分别继续维护在本文、`PROJECT.md` 与 `RECOVERY.md`。
 
+> **阅读顺序**：第 1–9 节为当前工程事实和操作入口；第 10 节是按日期留存的历史维护记录（不是当前状态）；第 11 节说明现行 5.6.3 与未来升级的特别约束；第 12 节统一保存上游一键升级工具说明及 5.8.7 失败复盘。当前版本以 `app/build.gradle` 为准，发布资产以 GitHub Release 和对应原始构建证据为准。
+
 ## 1. 当前工程基线
 
 当前应用采用下列 FongMi/TV 固定公开源码基线；该提交的 `app/build.gradle` 版本名为 5.6.3：
@@ -13,8 +15,8 @@
 - 上游目标 commit：`c616c0aa3613e87529791587a9f71b78c278c991`
 - 上一固定基线：`4afc4473e22a7ed3d98ee12233e0c2a490061000`（5.6.3）
 - 两者是直接父子 commit；新增 runtime 变化集中在 `catvod` 的 redirect-aware proxy selection/authentication。Release / APK 的更高版本号不改变本项目的公开源码上游基线。
-- app `versionCode`：`563004`
-- app `versionName`：`v5.6.3-xray.4`
+- app `versionCode`：`563001`
+- app `versionName`：`v5.6.3-xray.1`
 - Java：21
 - Gradle wrapper：9.7.1
 - Android Gradle Plugin：9.3.1
@@ -289,7 +291,7 @@ on:
   workflow_dispatch:
 ```
 
-不保留 `push`、`pull_request`、`schedule`、`workflow_call` 等自动触发。
+不保留 `push`、`pull_request`、`schedule`、`workflow_call` 等自动触发。当前四个手动入口分别为：`current-main-build.yml`（构建验证）、`publish-current-main-test-release.yml`（正式发布）、`resume-verified-release.yml`（失败续发）和 `manual-upstream-sync.yml`（上游升级候选）。最后一个入口的预检/只构建/发布模式与 5.8.7 阻断条件见第 12 节。
 
 #### AI 协作执行准则
 
@@ -320,7 +322,7 @@ Release 只保留 `v5.6.0-xray.5` 黄金参考和一个当前正式版，均只�
 
 `test.7` 构建源码为 `439cea8d7a9d3cdb1a17b4ed962c6d68ed164508`，缺少后续 Hysteria2 备注查询边界修复；正式版替换旧测试发布。构建源码、资产 hash 与当前验收结果记录在对应 GitHub Release，历史 test.7 证据保留在本文维护记录，不能当作正式版的验证。
 
-发布 workflow 以 `BUILD_SOURCE_SHA` 作为唯一构建与发布源码，重新准备固定依赖、执行源码 guard 与双 ABI 黄金 Xray chain parity，只编译/assemble Android TV / Leanback Release 两个 ABI，并核对最终 native provenance、Manifest、签名、应用版本、non-debuggable 与 16 KB alignment。当前按用户一次性同名替换要求配置 `RELEASE_TAG=v5.6.3-xray.1`，不会自动递增修订号。正常手动触发时 `BUILD_SOURCE_SHA = github.sha`，权限保持 `contents: write + actions: read`，同一发布流程使用 concurrency 排队而不取消正在进行的发布。
+发布 workflow 以 `BUILD_SOURCE_SHA` 作为唯一构建与发布源码，重新准备固定依赖、执行源码 guard 与双 ABI 黄金 Xray chain parity，只编译/assemble Android TV / Leanback Release 两个 ABI，并核对最终 native provenance、Manifest、签名、应用版本、non-debuggable 与 16 KB alignment。正式发布标签不再写死为 5.6.3：工作流通过 `scripts/build/resolve-release-tag.py` 依据 checkout 后的 `app/build.gradle` 与 `scripts/upstream/baseline.json` 校验并生成 `RELEASE_TAG`。脚本**不自动递增版本**；同名替换仍必须由用户明确授权并显式选择 `replace_existing`。正常手动触发时 `BUILD_SOURCE_SHA = github.sha`，权限保持 `contents: write + actions: read`，同一发布流程使用 concurrency 排队而不取消正在进行的发布。
 
 `scripts/build/publish-current-release.py` 只处理两份 APK 的草稿上传和正式切换，`tests/test-release-publication.py` 验证失败和清理顺序。先逐文件核对 name / digest / size 与来源 tag，验证通过后才进入切换。已有同名版本必须由用户明确要求并选中 `replace_existing`；旧 APK 暂存为 rollback 草稿，直到新正式 APK、Git ref 和 latest 全部核验后才清理。失败时保留可诊断/恢复的草稿，不把失败说成替换成功。显式选择 `prune_superseded` 时，验证成功后再删除黄金版与当前正式版之外的 Release/tag。
 
@@ -391,7 +393,7 @@ FingMi-Xray 当前**不使用 FongMi/Release 的应用内自更新**。原因是
 - Manifest 不申请 `REQUEST_INSTALL_PACKAGES`；
 - 测试包 / 正式包只通过本仓库明确发布并由用户主动安装。
 
-现存入口仅有 `current-main-build.yml`（构建验证）、`publish-current-main-test-release.yml`（编译发布）、`resume-verified-release.yml`（原产物复验续发），全部只手动触发。五个 `recovery-*` 历史工作流已移除，取证源码/脚本/fixture 保留，历史恢复说明见 [RECOVERY.md](RECOVERY.md)。
+现存四个入口为 `current-main-build.yml`（构建验证）、`publish-current-main-test-release.yml`（正式发布）、`resume-verified-release.yml`（原产物复验续发）、`manual-upstream-sync.yml`（上游升级），全部仅通过 `workflow_dispatch` 手动触发。五个历史 `recovery-*` 工作流已删除，其取证源码、脚本和 fixture 仍保留；详见 [RECOVERY.md](RECOVERY.md#9-归档-faithful-构建工具非-main-构建链)。
 
 ### 本地
 
@@ -410,29 +412,21 @@ bash gradlew --no-daemon :app:assembleLeanbackDebug
 
 ## 8. 跟随 FongMi/TV 上游
 
-升级上游时只以当前 `main` 和目标 FongMi/TV 上游为架构开发输入，不从历史 recovery faithful tree 继续开发；但 `:xray` 的外部行为仍必须保持与 `v5.6.0-xray.5` v7 黄金参考一致。
+以**选定的公开 FongMi/TV 源码提交**为上游同步依据，`main` 为当前架构基线；历史 faithful tree 只用于 Xray 黄金行为与二进制证据复核。上游自带的 `website/` 可以保留，但不启用 Pages 自动部署或新增目录 README。长期架构与业务维护边界见 [PROJECT.md](PROJECT.md#9-上游升级原则)。
 
-固定上游树中的 `website/` 静态站源码可以随上游保留，但它不属于本 fork 的产品功能维护面；本仓库不迁入上游自动 Pages workflow，并按项目文档规则不维护 `website/README.md`。
+上游升级采用分阶段、可中止的流程：
 
-建议流程：
+1. 固定目标公开 TV commit、相关公开 Media3/播放器分支与 commit，**先检查源码、类和接口是否成套可编译**；已知依赖不兼容立即阻断，避免无效 AC。
+2. 对照当前 fork 与目标公共树；采用目标上游的普通业务实现，只重新应用经审核的 Xray、TV 网络恢复与必要构建接线，不携带上一基线的无关改动。
+3. 依据目标 API 复核 VOD/Live identity、PlayerManager/Exo、DRM、RTSP、媒体旁路，以及 TV generation、DLNA、DNS/DoH、Spider 等必要边界；接口变化使用最小适配，不复制上游业务逻辑。
+4. 先做源码契约、差异和离线回归；仅在已排除已知阻断、确需真实 Android 构建证据时，手动执行不发布的候选双 ABI APK 验证，然后再安排设备验收。
+5. 只有满足完整编译、最终 DEX/native/Manifest/签名/版本校验与真机验收等发布条件，并取得必要授权，才考虑合入及正式发布。不得将预检绿色冒充 APK 成功。
 
-1. 固定目标 FongMi/TV commit；
-2. 比较当前 main 与目标上游；
-3. 以上游新代码为主体覆盖/合并普通业务、UI、播放器、设置和工具代码；
-4. 只重新应用 Xray 与 TV 网络恢复必需的最小 hook / adapter；
-5. `:xray` 除非模块 API 本身需要变化，否则尽量不动；
-6. 不把上一版本中与两大模块无关的 fork 差异继续携带到新上游；
-7. 重新核对 VOD / Live identity 边界；
-8. 重新核对 PlayerManager、Exo / MPV、DRM、RTSP 与媒体旁路；
-9. 重新核对 TV 网络 generation / DLNA；
-10. 执行当前构建 workflow；
-11. 再进行 Android TV 运行回归。
-
-如果上游改变了播放器 API，优先新增小型适配层，不把上游大块代码复制进 `:xray`。
+一键升级工具入口、可运行的离线命令、5.8.7 Media3 源码缺口与以后升级的门槛统一在 [第 12 节](#12-上游一键升级工具与-587-迁移复盘)，这里不复制故障流水。
 
 ## 9. 验证清单
 
-当前验收对象是**当前 `main` 架构 + `v5.6.0-xray.5` v7 的 Xray 外部行为语义**。正常发布不要求重建完整 5.6.0 faithful APK，但凡修改 Xray / 播放代理 / Service 生命周期，必须继续用冻结发布证据、source guards 或动态 native parity 证明没有偏离黄金参考。历史 recovery workflow 只在修改历史证据、来源提取脚本或需要重新核对二进制 provenance 时运行。
+当前验收对象是**当前 `main` 架构 + `v5.6.0-xray.5` v7 的 Xray 外部行为语义**。正常发布不要求重建完整 5.6.0 faithful APK，但凡修改 Xray / 播放代理 / Service 生命周期，必须继续用冻结发布证据、source guards 或动态 native parity 证明没有偏离黄金参考。历史 recovery workflow 已从当前仓库删除；如需恢复历史二进制取证入口，先按 [RECOVERY.md 第 9 节](RECOVERY.md#9-归档-faithful-构建工具非-main-构建链) 核对脚本、输入和 Git 历史，不把旧工作流当作当前验证入口。
 
 影响 Xray / 播放器 / 网络生命周期的修改，至少考虑以下场景：
 
@@ -440,7 +434,6 @@ bash gradlew --no-daemon :app:assembleLeanbackDebug
 
 - Android 12 / SDK 32 等旧 ART 上的节点保存、删除、测试；
 - v7 / arm64 测试包的 Service bind、Java → libXray invoke 与错误返回；
-- 节点保存、删除、测试；
 - 手机导入；
 - VOD 开启 / 关闭；
 - Live 开启 / 关闭；
@@ -485,35 +478,52 @@ bash gradlew --no-daemon :app:assembleLeanbackDebug
 
 静态比较、单元/JVM 测试、发布 native 动态 parity、Gradle 编译、APK assemble、模拟器与 Android TV 真机运行是不同层级的证据，提交说明和文档必须准确写明实际验证到了哪一层。AI 协作时的文档更新与记录边界见 [AI_COLLABORATION.md](AI_COLLABORATION.md)。
 
-## 10. 维护记录
+## 10. 精选维护记录（历史快照）
+
+以下是按当时阶段记录的**已完成验证、真实根因与有意决策**，不是当前版本状态清单。旧 Release、构建候选、AC 成败与当时未完成事项均以原日期解释，不能替代第 1–9 节的现行事实；原始过程仍可从 Git 历史和对应 Actions 记录追溯。
+
+### 10.1 长期有用的维护线索
+
+| 关注点 | 关键历史节点 | 当前应查阅的位置 |
+| --- | --- | --- |
+| Xray Java/JNI 必须成套、黄金行为与安全边界 | 9/27、10/2–10/3 | 第 3、6、9 节；[RECOVERY.md](RECOVERY.md) |
+| TV 恢复模块化、DoH 与 Spider/Glide generation | 10/2–10/11 | 第 4 节与对应 JVM 回归 |
+| HY2 备注、IPv6 媒体 URL、媒体旁路排队回调 | 10/4–10/8 | 第 3、9 节与对应 source/JVM/native guard |
+| Media3 decoder 缺失、Glide 生命周期、主机名崩溃 | 10/11 | 第 5、9 节与本节对应故障记录 |
+| 固定签名、发布续发、一次性同名替换 | 10/5–10/26 | 第 7 节与 [PROJECT 版本规则](PROJECT.md#版本命名与覆盖升级) |
+| 5.8.7 升级阻断与一键升级工具 | 11/2–11/3 | 第 11、12 节 |
+
+### 10.2 按日期保存的维护记录
+
+
 
 本节只保留会长期影响后续开发判断的迁移决策和故障结论；普通 commit、run、临时 trigger 与一次性排障过程由 Git / Actions 保存，不在文档重复记录。
 
-### 2026-09-27 — libXray Java/native ABI 必须成套
+#### 2026-09-27 — libXray Java/native ABI 必须成套
 
 曾验证“官方 v26.7.28 Java bindings + 历史 API v2 `libgojni.so`”会在 JNI 初始化阶段因模型类不匹配导致 `:xray` 进程失败。因此当前构建从黄金发布 APK恢复与发布 JNI 配套的 `libXray/**` generated bindings 和双 ABI JNI，同时保留官方 AAR 的通用 `go/**` runtime。后续升级必须把 generated Java bindings 与 JNI 当成同一 ABI 单元处理。
 
-### 2026-09-28 — TV-only 与 v7 Xray 黄金参考
+#### 2026-09-28 — TV-only 与 v7 Xray 黄金参考
 
 项目只交付 Android TV / Leanback，输出 armeabi-v7a 与 arm64-v8a；Mobile 不是本 fork 的 Xray 验收目标。当前模块化架构不要求恢复旧版混合源码结构，但 Xray 的 normalize / display、VALIDATE / TEST / START / STOP、Binder generation / timeout、播放代理、旁路请求、失败恢复和资源释放等外部行为以 `v5.6.0-xray.5` v7 为黄金参考。
 
-### 2026-09-29 — full-JADX 扩大外围审计边界
+#### 2026-09-29 — full-JADX 扩大外围审计边界
 
 筛选后的 readable JADX 不是完整调用图。后续 Xray 审计必须从旧 PlayerManager / Service / security helper 反向枚举 caller，覆盖字幕、弹幕、EPG/XML、DRM、RTSP、artwork/logo、MediaSession、preload、外部播放器与手机导入等“类名本身不含 Xray”的路径。该原则已由 core/playback parity guards 固化。
 
 同阶段 TV 网络恢复补齐普通 API client 与 playback client 隔离、Glide 动态取得新 API client、图片失败缓存复位、generation 串行恢复以及 stale task/callback 拒绝；Manifest 不再用 BootReceiver 形成第二条恢复入口。
 
-### 2026-09-30 — 媒体边界回到公开上游
+#### 2026-09-30 — 媒体边界回到公开上游
 
 播放器与普通业务重新明确只以公开 FongMi/TV + 固定公开 FongMi/media 为主体。任何只存在于高于公开源码的 Release / APK 中、但未公开的 Dolby、MPV bridge、remote ISO、native UDF / disc navigation 等都不属于本 fork 的恢复目标。保留的媒体差异只允许是当前公开源码可构建所需的最小 compatibility adapter；Libass native 的非源码来源另见下方“构建债”说明。
 
 最终 APK 验收同时提升为硬门槛：Xray、FFmpeg、MPEG-H、Libass 的 runtime PT_LOAD provenance 与 merged Manifest security contract 必须在 assemble 后直接验证，不能只检查构建输入。
 
-### 2026-10-01 — 以上游完整树重新建立基线
+#### 2026-10-01 — 以上游完整树重新建立基线
 
 为清除旧 `main` 中多轮维护留下的不可追溯差异，重新以 `FongMi/TV@c616c0aa3613e87529791587a9f71b78c278c991` 完整树为基线，再只应用 Xray、Android TV 网络恢复、禁用上游 APK 自更新、构建/测试基础设施及不可避免的 compatibility 差异。无法归类的普通业务差异一律恢复上游。
 
-### 2026-10-02 — DoH race 收口并统一回 `main`
+#### 2026-10-02 — DoH race 收口并统一回 `main`
 
 TV 待机网络审计发现 `OkDns.lookup()` 在 reset/rebuild 并发时存在离锁后重复读取 volatile `doh` 的 TOCTOU 窗口。当前实现改为在同步边界内快照本次 lookup 使用的 `Dns resolver`，再在锁外执行实际 DNS 请求，并由 `tests/test-tv-network-recovery.py` 锁定该约束。
 
@@ -521,13 +531,13 @@ TV 待机网络审计发现 `OkDns.lookup()` 在 reset/rebuild 并发时存在�
 
 随后以当前 `main` 代码反向核对长期文档，确认全部上游同路径差异仍只落在 Xray、TV 网络恢复、禁用上游自更新、构建/测试基础设施与最小 compatibility 范围；同时修正文档中对 Xray 本地 DataSource scheme 的错误描述，并补齐 Core DNS/私网保护、Exo-only proxy 注入、Home-owned 网络恢复与实际 CI guard 清单。
 
-### 2026-10-02 — 黄金 TV 网络恢复 fresh 对比与 Spider cleanup 修正
+#### 2026-10-02 — 黄金 TV 网络恢复 fresh 对比与 Spider cleanup 修正
 
 同一份 fresh v7 full-JADX 重新核对 `gn3`、Home 恢复逻辑、`l61`、`ha2`、`la2`、Glide 与 Spider clear。generation 来源、Home resume/focus 触发、普通 API client 与 player client 隔离、DNS/DoH 重建、异步 Spider clear、两次稳定 Internet 检查、约 500 ms 轮询与 DLNA 生命周期均与当前架构保持同一外部语义。
 
 当前保留几项有证据支持的增强：Glide 不再永久固定旧 API client；网络恢复会清除瞬时图片失败集合；DoH lookup 在同步边界内快照 resolver；`recoveredGeneration` 使 Home 重建后只跳过真正完成过的 generation。fresh 对比同时发现 Jar/JS/Python loader 的 `forEach(Spider::destroy)` 不具备黄金版“单个 destroy 失败仍继续清理”的容错，已改为逐 Spider try/catch，并让 QuickJS module-cache clear 失败也不阻断状态清空。该修正不改变 recovery 顺序，只恢复黄金版清理失败隔离语义。
 
-### 2026-10-02 — fresh v7 full-JADX / DEX 独立 Xray 完整性复核
+#### 2026-10-02 — fresh v7 full-JADX / DEX 独立 Xray 完整性复核
 
 为避免把旧 recovery 结论当成前提再次自证，单独用固定 `v5.6.0-xray.5` APK 再跑一次完整 recovery analysis（run `36910320478`），取得 fresh v7 full-JADX 与双 ABI DEX/dexdump。审计从完整 APK 重新枚举 Xray direct classes、AIDL/Binder glue、Service/session/settings 状态机，并以旧 `PlayerManager(th2)` 的 current-client、Xray-active 与 proxy transition 方法反向穷举所有 caller，覆盖 DRM、RTSP、字幕、弹幕、EPG/XML、artwork/logo/MediaSession、preload、外部播放器和手机导入。
 
@@ -536,7 +546,7 @@ TV 待机网络审计发现 `OkDns.lookup()` 在 reset/rebuild 并发时存在�
 该结论仍限定为**已取证行为/调用链完整映射**：旧 APK 的原始未混淆 Java 源码和 libXray 原始 Go 源码并未找回。native 继续使用正式 APK 固定 SHA 的 `libgojni.so` 与匹配 generated bindings，并由此前成功的双 ABI current-chain parity 验证；最终 Android TV 真机仍是更高层级验收。
 
 
-### 2026-10-03 — 第三轮只审 Xray / TV recovery 未发现新的确定 Bug
+#### 2026-10-03 — 第三轮只审 Xray / TV recovery 未发现新的确定 Bug
 
 继续严格按长期维护边界只检查 Xray 与 Android TV 待机/长后台网络恢复，不扩查普通 FongMi 业务。第三轮刻意避开前两轮已反复覆盖的 START/STOP 主路径，重点复核 XrayPreferences / XrayCertificatePins 迁移、share-link normalizer、错误去敏、Binder client/Service cancel、SOCKS/RTSP socket、播放 identity、Live metadata client，以及 TvNetworkLifecycle、NetworkRecoveryCoordinator、API/DNS/DoH reset、proxy selector/auth、BaseLoader/Spider completion、Glide failure epoch 与 Home destroy/recreate。
 
@@ -546,7 +556,7 @@ TV 待机网络审计发现 `OkDns.lookup()` 在 reset/rebuild 并发时存在�
 
 仍保留两项只作为观察风险而不修改：黄金 TV recovery 的约 6 秒稳定性轮询上限，以及不主动退休 dedicated player client 的后台播放保留策略。二者都有黄金/现行边界依据，目前缺少真机或更强证据证明是 current Bug；不得仅凭理论推演再次扩张 recovery 状态机。
 
-### 2026-10-03 — 第二轮审计纠正 Xray close 误报
+#### 2026-10-03 — 第二轮审计纠正 Xray close 误报
 
 第二轮只读反查重新沿真实同步调用顺序核对 `XrayPlaybackSession.close()`，确认上一轮把 owner 销毁误判成资源泄漏。实际顺序是 `close() -> end() -> stop(false) -> XraySessionController.stopSession()`；`stopSession()` 在提交 Binder STOP 后会**立即同步** `notifyState(IDLE)`，而此时 `XrayPlaybackSession.closed` 尚未置位，所以既有 `onXrayStateChanged(IDLE)` 已经同步执行 `clearResources(false)` 并关闭 `XrayHttpClient`。如果 controller 原本已是 IDLE，`XrayPlaybackSession.stop(false)` 本身也会直接清理 resources。因此 published/test.6 的原实现没有这条泄漏。
 
@@ -554,7 +564,7 @@ TV 待机网络审计发现 `OkDns.lookup()` 在 reset/rebuild 并发时存在�
 
 同轮继续复查 TV recovery generation / DNS-DoH reset / Spider clear / Glide epoch / Home stability poll。黄金 `l61` 本身在约 6 秒稳定性轮询上限后会结束该 generation，即使 INTERNET capability 尚未连续稳定两次；这仍保留为黄金行为/真机风险观察项，没有凭静态推演扩张 recovery 状态机。
 
-### 2026-10-03 — 纯净基线发布验证通过并替换测试 Release
+#### 2026-10-03 — 纯净基线发布验证通过并替换测试 Release
 
 修正 native 未接受的 mapped-IPv6 runtime 增强后，重新触发 publish run `37100464365`，build source 为 `1b7976f7ddd742e65392819c4cd5013407e23545`。该 run 全部步骤通过：fork source guards、Android SDK 36/37、固定 player/native 输入重建、双 ABI 黄金 Xray native/runtime parity、reconstructed Libass candidate、Leanback compile、双 ABI assemble、MPEG-H/native provenance、最终 Manifest security contract 与 Release 发布均为 success。
 
@@ -564,25 +574,25 @@ TV 待机网络审计发现 `OkDns.lookup()` 在 reset/rebuild 并发时存在�
 
 发布成功后已先恢复 publish workflow 为 `workflow_dispatch` only，再删除临时 marker，避免清理提交再次触发 Actions。随后只同步 README/DEVELOPMENT 文档，没有修改运行代码。当前 Release 集合只保留黄金 `v5.6.0-xray.5`、当前测试 `v5.6.3-xray.test.6` 与一份用户明确要求的最新 `source-backup-*` 源码备份；旧测试/临时发布不长期保留。自动构建已验证，但 Android TV 真机 Xray 与待机/长后台恢复仍需实际设备验收。
 
-### 2026-10-03 — 发布 native parity 淘汰未验证 mapped-IPv6 runtime 增强
+#### 2026-10-03 — 发布 native parity 淘汰未验证 mapped-IPv6 runtime 增强
 
 发布 run `37097786995` 在 source guards、Android SDK 准备、player/native 输入重建和 libXray AAR 准备均通过后，首次在真实黄金 `libgojni.so -> testXray` runtime validation 阶段失败；第一条 `vless-kcp-srtp-seed` 即返回与冻结 v7 oracle 不同的 response。该 case 只是 26 条 runtime validation 的第一条，current 与黄金 runtime request 唯一被测试归一化允许的结构差异是此前静态审计加入的 `::ffff:0:0/96` reserved prefix，因此这次 native 证据证明该“IPv4-mapped IPv6 私网防护”并未满足实际 Core 配置合同。
 
 按纯净基线原则，current 已删除这条未经过 native 验证的 runtime 增强，同时移除 parity 中为它设置的特例，恢复对黄金 runtime JSON 的**完全一致比较**。黄金已有的 `::ffff:0:0:0/96` 保持不变；如未来仍要补 mapped-IPv6 安全缺口，必须先证明候选配置能被固定双 ABI `testXray` 接受，不能再仅凭静态 CIDR 推理提交。
 
-### 2026-10-03 — 全量文档与冻结发布说明反查
+#### 2026-10-03 — 全量文档与冻结发布说明反查
 
 重新检查仓库 7 份 Markdown（6 份项目文档 + `LICENSE.md`），并完整读取冻结的 `ORIGINAL_README.md` 后，以其用户级产品合同反查 current 源码与长期文档。确认 no-VPN、当前播放会话手动启用、VOD/Live identity 边界、节点测试/手机导入、独立 `:xray` 进程、资源释放与 TV 长后台网络恢复仍有 current 实现；v2rayN 标准单节点重新明确为主要分享链接兼容/测试目标。
 
 同时修正文档自身漂移：只有 `ORIGINAL_README.md` 冻结，`AI_COLLABORATION.md` 必须随用户开发限制更新；**该次审计当时** Releases 尚无 `v5.6.3-xray.test.6`，只有黄金版与用户要求的 source-backup；README 的 CI SDK 列表同步为 workflow 实际安装的 Android 36 + 37.0 / Build Tools 36.0.0 + 37.0.0。RECOVERY 另修正黄金 STOP/callback 竞态的前后矛盾，并明确冻结 README 的“换地址/后台状态”是用户级概括，DEX/JADX 证据对 logical identity / resolved URL / 后台保留播放给出更精确语义。
 
-### 2026-10-03 — 纠正 5.6.8 文档与构建边界
+#### 2026-10-03 — 纠正 5.6.8 文档与构建边界
 
 再次检查全部长期 docs 后确认，公开上游仍严格是 FongMi/TV 5.6.3（`c616c0aa...`）；Release/APK 的更高版本号不得被写成 current 上游或功能目标。README、PROJECT、RECOVERY 当前没有 5.6.8 基线表述；AI 协作规则与 DEVELOPMENT 已把一般性的高版本 Release 叙述改成“高于公开源码的 Release-only”。
 
 同时确认这不是纯文档问题：current/publish workflow 仍下载 FongMi Release 5.6.8 Leanback APK，只为 Libass compatibility 提取 `libmedia3ass.so`。该路径现明确登记为**待移除构建技术债**，不是允许继续维护的第三项能力，也不能用来恢复 5.6.8 的 Dolby/MPV/ISO 等行为。当前业务源码仍只维护 Xray 与 TV recovery，但在这项 Libass 二进制输入清理完成前，不再把仓库描述成“所有构建输入也严格只来自公开 5.6.3”。
 
-### 2026-10-03 — 回到 source-backup 后只重放 Xray / TV recovery 已确认修复
+#### 2026-10-03 — 回到 source-backup 后只重放 Xray / TV recovery 已确认修复
 
 按用户要求，`main` 先强制恢复到源码备份 tag `source-backup-2026-10-02-main-6a4117c8` 对应的 exact commit `6a4117c8d52a37af117daf6c716969293400bb87`，再重新审计该点之后 274 个提交及其最终净差异。此前由静态竞态推演扩散出的 Config replay/task owner、BaseLoader barrier/Spider lease、deferred Cast/BOOT/navigation、Setting/Live recovery UI 等实验链没有重新带回；普通 FongMi Config/UI/业务源码继续以 source-backup/固定公开上游为准。
 
@@ -595,7 +605,7 @@ TV 待机网络审计发现 `OkDns.lookup()` 在 reset/rebuild 并发时存在�
 
 这次重放完成时尚未触发 GitHub Actions/AC，也没有把旧 run 冒充为新 HEAD 验证。source-backup 之前已有的构建/native/Manifest 证据仍只证明当时对应代码；该状态随后由 2026-10-03 的 publish run `37100464365` 完成自动验证，见后续记录。
 
-### 2026-10-04 — 用户分享链接核验与 Xray 旁路排队回调修正
+#### 2026-10-04 — 用户分享链接核验与 Xray 旁路排队回调修正
 
 重新对照公开 `FongMi/TV@c616c0aa3613e87529791587a9f71b78c278c991`（5.6.3）完整树核查差异，恢复两处不需要改变普通上游行为的细节：`ViewModelTaskRunner.cancelAll()` 回到上游仅取消并清空 futures 的实现，保留 Xray/TV recovery 所需的定向 `cancel(type)`；`ChannelAdapter.onViewRecycled()` 回到上游实现，Xray logo 抑制继续只由专用状态及绑定路径负责。没有用高于公开源码的 APK 恢复上游功能；既有 5.6.8 Libass native 输入债仍按前述边界保留，尚未移除。
 
@@ -609,21 +619,13 @@ TV 待机网络审计发现 `OkDns.lookup()` 在 reset/rebuild 并发时存在�
 
 再次复核公开上游 HEAD 与当前声明版本，仍为上述 5.6.3 基线；普通 Config、Keep、SiteApi、LiveParser、Event/Notify 等源码保持上游 blob。沿弹幕/字幕调用方、Xray playback identity / START-STOP / proxy cleanup，以及 TV SCREEN/background generation → Home 串行恢复 → API/DNS/DoH reset → Spider cleanup → Glide epoch 重新检查，没有复现新的确定问题。约 6 秒网络稳定性轮询上限与后台保留 dedicated player client 继续作为已登记的真机观察项，不据静态推测扩张上游业务状态机。
 
-### 2026-10-04 — 公开上游完整差异与两项维护模块独立复核
+#### 2026-10-04 — 公开上游完整差异与两项维护模块独立复核
 
-环境发布后的验证重跑只证明工具链和既有测试仍可执行，不能代替独立代码审查。本次另从固定公开 `FongMi/TV@c616c0aa3613e87529791587a9f71b78c278c991` 完整树重新生成并逐项读取差异：上游 1,120 个受 Git 跟踪路径中，1,061 个文件逐字节一致；57 个同路径修改（其中 42 个 Java 文件）及 2 个网站文件删除均重新检查。这里的计数不包含本项目新增的 Xray、恢复、兼容层、测试与冻结取证文件，不能据此声称所有新增代码也来自上游。
+独立对照固定 FongMi/TV 5.6.3 源码树：上游 1,120 个跟踪路径中有 1,061 个逐字节一致、57 个修改、2 个网站文件删除（不包括本 fork 新增文件）。逐项核对修改仅服务 Xray、TV 恢复、禁用上游自更新、构建基础设施及公开 Media3 兼容；固定公开 `MpvPlayer` 的缺失选轨/字幕接口说明最小兼容适配仍有必要。Libass 固定 native 构建债未消失。
 
-保留差异逐项核对其 Xray、TV recovery、禁用 APK 自更新、构建基础设施或公开 media API 兼容理由。额外直接读取固定公开 `FongMi/media@3c2cbe8ac742c2fe15eff52f03eeb3b1b648848d` 的 `MpvPlayer`、`MpvPlayerConfig`、`MpvSubtitleOptions`：该版本没有 current app 调用所需的 secondary-track selection/reset/suppression 等接口，因此现有选轨与字幕位置适配不能作为无关业务修复直接删除。前一轮恢复的 `ViewModelTaskRunner.cancelAll()` 和 `ChannelAdapter.onViewRecycled()` 继续保持公开上游实现；没有新增普通 Config、导航或播放器功能状态机。
+复查 Xray 的 Service/绑定/设置/代理/媒体旁路及 TV 的 Home/DoH/Spider/Glide generation，纠正局部代码易产生的误报：显式 SOCKS 代理不会被 `ProxyRedirectInterceptor` 重选路覆盖；`close()` 先经同步 IDLE 卸载代理。四个针对性源码/JVM 回归入口通过，**没有确认新的确定性运行缺陷或修改运行代码**；没有新 AC、APK assemble 或真机验收。
 
-Xray 复核覆盖 normalizer/security/config、Service 单线程运行与 operation/session gate、Binder 绑定/死亡/超时、settings/save/delete/reset、播放 identity、Exo/DRM/RTSP 注入、弹幕/字幕/EPG/XML、artwork/logo/preload 以及停止、失败和 owner 销毁的实际调用顺序。再次排除几种仅看局部代码产生的误报：上游 `ProxyRedirectInterceptor` 只有未显式设置 proxy 时才重新选路，故不会覆盖 Xray 明确设置的 SOCKS；`close()` 通过同步 IDLE 回调先卸载代理，再置 closed；清空预加载请求后，已排队的 preload 结果仍需通过 controller 的 pending-request 匹配。没有把上游通用 `LiveData.postValue()` 改造成另一套交付机制，也不以取消 Future 代替对观察者/request identity 的检查。
-
-TV recovery 复核覆盖 SCREEN/background generation、配置重建排除、Home resume/focus、清理期间 generation 再变化、销毁后的 completion/poll、普通 API 与 player client 隔离、DNS/DoH reset、Jar/JS/Python destroy 异常隔离、Glide 动态 client 与失败 epoch。锁顺序沿实际 Startup DoH supplier 反查，该 supplier 读取设置并构造 DoH 数据，没有反向获取 OkHttp 锁；没有仅凭类之间的理论调用关系添加锁或 loader barrier。
-
-本次独立审查未复现新的确定运行缺陷，没有追加运行代码修复。重新执行 session-races、service-client-lifecycle、playback-parity（包含真实弹幕/字幕 API 的 16 个确定性场景）和 TV-network-recovery 四个针对性入口，均通过；这些证据包含真实 Java 类配合 Android/Binder/网络边界替身的 JVM 测试与源码合同检查，不等于 Android ART、APK assemble 或 TV 真机运行。本次没有重跑 native 节点连通性或触发 Actions。
-
-第 2 点仍有明确构建例外：现有 Libass compatibility 输入从 5.6.8 APK 提取固定 hash 的原生库，且存在为兼容重建的 media 接口；它不是公开 5.6.3 源码本身。该技术债并未因此消失，也不能作为继续跟进更高版本 APK 功能的依据。约 6 秒恢复轮询上限与后台保留 player client 仍沿用已取证行为，留待真机验证，不宣称当前代码无 Bug。
-
-### 2026-10-04 — 独立恢复模块与集中 FongMi 接线
+#### 2026-10-04 — 独立恢复模块与集中 FongMi 接线
 
 按用户要求进一步独立维护两项自有能力，新增 `:tv-recovery` Android library，将 `NetworkRecoveryCoordinator` 与 `TvNetworkLifecycle` 移入 `com.fingmi.tvrecovery`。恢复协调算法保持原样；lifecycle 中的 DLNA 服务调用替换为宿主提供的 `Renderer` 接口。模块只依赖 Android/annotation，不引用 FongMi、catvod、Xray 或应用适配类。既有 coordinator 单元测试随核心移入模块。
 
@@ -633,7 +635,7 @@ TV recovery 复核覆盖 SCREEN/background generation、配置重建排除、Hom
 
 后续上游同步应保留两个核心模块，先采用公开 FongMi 树，再核对应用自有适配层及页面/播放器所需接入点。核心独立不意味着零上游接线：网络资源、播放器与 UI 属于宿主，接口变化仍需适配与回归验证；不得因此接管普通上游业务或把网络恢复并入 Xray。
 
-### 2026-10-04 — 云端完整 TV APK 构建与模块拆分接线修正
+#### 2026-10-04 — 云端完整 TV APK 构建与模块拆分接线修正
 
 用户明确要求本地编译并上传 Release。本次完整 Leanback javac 发现拆分恢复模块时误删了 HomeActivity 的 `ImgUtil` import，而上游 `ImgUtil.logo()` 调用仍保留；仅恢复该 import，不改变上游 logo 或恢复流程。此前核心/适配器 JVM 验证没有编译完整 HomeActivity，不能代替应用编译。固定 Media3 container AAR 加入构建产物忽略规则，二进制不提交 Git。发布 workflow 仍为纯手动，当前测试目标推进为 `v5.6.3-xray.test.7`。
 
@@ -650,7 +652,7 @@ TV recovery 复核覆盖 SCREEN/background generation、配置重建排除、Hom
 
 云端向 GitHub uploads endpoint 的直接发布失败：GitHub CLI、urllib 与 curl（HTTP/1.1、HTTP/2）均返回 HTTP 400 `Bad Content-Length`；1 KB 和更小的临时未发布探测也同样失败，未留下任何远端资产，不能归因于 APK 内容或文件大小。保持原测试 Release，清理本轮空草稿后，仅尝试一次已有纯手动 publisher 作为必要发布替代；该路径会重新构建，必须以它实际产出的 source / digest 为准，不能把上述本地 APK hash 当作 Actions 发布资产 hash。
 
-### 2026-10-04 — 再次逐项上游审查与 Hysteria2 备注边界修复
+#### 2026-10-04 — 再次逐项上游审查与 Hysteria2 备注边界修复
 
 重新读取公开 FongMi/TV 默认分支 HEAD，仍为 `c616c0aa3613e87529791587a9f71b78c278c991`；其 `versionCode=563`、`versionName=5.6.3` 与当前应用一致。本次按 Git tracked tree/blob 对照审查起点 `439cea8d7a9d3cdb1a17b4ed962c6d68ed164508`，得到 1061 个同路径完全相同文件、57 个修改文件（其中 42 个 Java）、2 个删除文件和 376 个新增文件。删除项仍只有 Pages 自动部署 workflow 与网站目录 README。逐项读取现有差异，而非仅凭类名或上次记录认定它们属于接线。
 
@@ -669,45 +671,23 @@ Xray 审查覆盖分享链接、security/pin/config、Service 串行执行与代
 | armeabi-v7a | `fbf6d6beab7c18f0cf4366a8586814667f6d825bf06fca1a7f566357e3077c1e` |
 | arm64-v8a | `19ee000e08e62f8019f0d7e4afd7c1005fd775027840bf07f4abcdd6d37caad3` |
 
-### 2026-10-05 — 模块取消、资源关闭与网络边界复查
+#### 2026-10-05 — 模块取消、资源关闭与网络边界复查
 
-再次刷新公开 FongMi/TV HEAD，仍为 5.6.3 的 `c616c0aa3613e87529791587a9f71b78c278c991`。重新计算当前 tracked tree 差异，仍为 1061 个同路径相同文件、57 个修改文件、2 个删除文件、376 个新增文件；宿主、网络恢复、媒体兼容及 libXray 输入的 blob 自上一轮逐项审查以来均未变化。复查 Service/Binder 的取消与代际门控、START/STOP 替换、播放代理卸载、媒体旁路回调、Loader 清理、API/DNS/DoH 重建及 Home 销毁后的迟到回调，没有复现新的确定运行缺陷，也没有追加普通上游修复。既有 Libass 构建债仍未移除。
+固定上游差异与核心运行文件未见新的漂移。补跑 Gradle JUnit 发现 `livePendingResolverRetainsCurrentIdentity()` 断言过期：`resolved()` 现报告 URL 是否变化，但同一播放 identity/generation 保持不变；**仅修测试预期，不修改运行代码**。14 个源码/JVM入口、实际 Gradle Xray 3 项和 recovery 2 项通过。
 
-补跑真实 Gradle 单元测试发现一条过期 Xray 断言：`livePendingResolverRetainsCurrentIdentity()` 仍期待临时 URL 解析成不同最终 URL 时 `resolved()` 返回 false。历史提交 `59e231f` 已将该接口语义改成报告 URL 变化，同时保留播放 identity/generation；生产调用方不再用此返回值关闭代理，当时漏同步了该测试。仅修正测试预期，并补充最终 URL 与重复解析不变化的断言，保留 generation 不变及换线清空 URL 的原有检查；不改运行代码。`bash gradlew :xray:testDebugUnitTest --rerun :tv-recovery:testDebugUnitTest --rerun --offline --no-daemon` 随后成功，XML 确认 Xray 3 项、recovery 2 项实际执行，失败、错误、跳过均为 0。既有 14 个标准本地验证入口全部通过；这些入口此前并不包含 Gradle JUnit，不能把它们的通过等同全部模块测试通过。
+额外验证 1,188 组 HY2 备注/参数隔离变体、8 次真实 JVM/环回 SOCKS5 握手与 6 组冻结 JNI 边界，确认域名交由 SOCKS 代理解析；这些均不代表 Android ART、真实节点或电视待机已验收。
 
-另在仓库外编译真实当前 Java，验证 1188 组 Hysteria2 域名/IPv4/IPv6、默认/跳跃端口、真实 query、literal/encoded 备注组合，参数隔离与重复规范化均通过。用真实 `XrayProxySocketFactory` 对本地 SOCKS5 测试服务执行 8 次握手，验证不可本地解析的域名仍以域名交给代理、字符串 IPv4/IPv6 和 InetAddress overload 的目标地址及端口正确、local bind 与无参 socket 路径正常。再执行固定 v7 Go JNI 的 6 个 VMess QR insecure 字段边界，生成的 TLS `allowInsecure` 均为 false，排除该组输入绕过 security query 处理的疑点。这些是宿主 JVM/环回 socket 和 QEMU native 的验证，不包含 Android ART、真实远端 DNS/节点握手、APK assemble 或电视息屏/长后台验收。本轮 Xray 核心版本、运行源码和发布资产不变，未触发 Actions。
+#### 2026-10-05 — 集中复查与验证入口补齐
 
+在重复完整上游差异审查没有发现新运行故障的基础上，补齐**不同层级的实际验证**：14 项源码/JVM入口、Gradle JUnit（Xray 3 项、TV recovery 2 项）、Leanback Release Java 编译、双 ABI 各 26 组黄金 JNI/native runtime 及各 5 组备注场景均通过。新增 `test-xray-service-execution.py` 编译真实 Service/gate/sanitizer 执行 9 组故障与取消场景，平台和 native 为边界替身。
 
-### 2026-10-05 — 集中复查与验证入口补齐
+此前只运行源码 guard、漏掉实际 Gradle JUnit 是验收流程缺口，因此 build/publish workflow 现明确要求执行两个模块的单测。没有新 AC 或实际设备验证，不能把这些通过结果扩大成 APK 或电视运行结论。
 
-重新读取公开 FongMi/TV HEAD，仍为 `c616c0aa3613e87529791587a9f71b78c278c991` / 5.6.3。再次生成完整 tracked-tree 差异并逐项读取 57 个修改文件；审查起点的 1061 个同路径相同文件、2 个删除文件和 376 个新增文件与上一轮一致。新增应用类另按 Xray、恢复 flavor/资源适配及固定公开 media 缺失 API 的兼容用途核对。普通上游业务不追加修复，既有 MPV/字幕兼容接线和 5.6.8 Libass 固定 native 输入债没有被当作公开上游源码，也未进一步扩大。本轮没有反编译 APK 或更新 Xray，AAR 中双 ABI Go JNI 与既有黄金 hash 逐字节一致。
+#### 2026-10-05 — 复查测试有效性与上游边界
 
-集中核对 normalizer/security/config、Service/generation、Binder 与设置取消、播放身份/代理卸载、媒体旁路回调，以及恢复 lifecycle → Home adapter → API/DNS/DoH → Spider → Glide 的实际调用链，未复现新的确定运行缺陷。两个独立核心没有反向引用 FongMi 业务；宿主仍保留必要接线。本轮不修改运行源码，修改只涉及测试、手动构建验收与文档。
+本次不修改运行代码。为证明回归不是“无论如何都绿色”，在仓库外的独立副本中分别移除五处保护：运行中禁止 TEST、START 回调派发失败清理、cancel owner、恢复 owner 关闭后迟到回调、失效 Home 刷新与完成标记；真实编译可以通过，但测试均在预期断言处失败。正向 14 个验证入口、Gradle JUnit（3+2 项）、Leanback Release Java 编译和双 ABI 黄金 native 链再次通过。**人为注入的失败不是产品 Bug，JVM/native 证据不等于真机验证**；未触发 Actions。
 
-这次把已有验证层一起执行并明确区分：
-
-- 14 个标准 source/JVM/验证器自测入口通过；其中包括真实弹幕/字幕 API 的 16 个排队回调场景及 Leanback/Mobile 恢复适配 JVM 检查。
-- 实际 Gradle JUnit 强制重跑：Xray 3 项、recovery 2 项，XML 的失败、错误、跳过均为 0；完整 Leanback Release Java 编译单独 `--rerun` 成功。
-- 双 ABI 各 26 个 current Java → 固定黄金 JNI → current runtime → native `testXray` 用例通过；另各 5 个备注边界用例通过。
-- 仓库外补查 1188 组 Hysteria2 备注参数隔离/幂等组合及 8 次实际 JVM/环回 SOCKS5 握手，域名交给代理及 IPv4/IPv6 地址、端口、local bind 正常。
-- 新增 `test-xray-service-execution.py` 编译执行真实 Service/gate/sanitizer，9 个确定性场景通过：正常启停、live 时拒绝测试、准备期间替换/停止、无法交付启动回调后的清理、停止失败时仍运行 Core 的防护、取消重置私有进程请求及取消后禁止信任写入。Android/native/config/pin 为替身，不冒充真实 Binder/ART；已接入现有 core parity 入口。
-
-前轮遗漏 Gradle JUnit 属于验证流程缺口。现有两个手动 build/publish workflow 的编译步骤加入两个模块的 JUnit tasks，并由 build-hygiene guard 要求保留；这补齐未来手动验收，不改变触发方式，本轮未触发 Actions。README 删除误留的 test.6 校验值，改为引用本文件中经 GitHub 实际资产 digest 核对的 test.7 表，避免重复维护。历史 test.6 记录仍保留其原资产摘要。
-
-这些证据不包含当前 APK assemble、Android ART、真实远端节点握手/播放或 TV 息屏、Fast Start、长后台验收。约 6 秒恢复轮询上限、后台保留 player client 及 Libass 输入债仍是已登记的限制；已发布 test.7 也仍不包含后续 main 的备注修复。不得把本轮未发现新的确定缺陷表述为所有场景无 Bug。
-
-### 2026-10-05 — 复查测试有效性与上游边界
-
-再次读取公开 FongMi/TV HEAD，仍为 `c616c0aa3613e87529791587a9f71b78c278c991` / 5.6.3；复查起点 main 为 `b3e5cf2`。重新生成 tracked-tree 清单：1061 个同路径相同文件、57 个修改文件、2 个删除文件、377 个新增文件。前三类路径与前轮逐项审查清单一致，新增清单只多了前轮的 Service 执行测试。另逐字节核对 `app`、`catvod`、`xray`、`tv-recovery`、`libxray`、`compat` 的 Git diff，自 `b7a30ba` 起没有运行源码或输入变化；双 ABI Go JNI 仍与固定黄金文件完全相同，未更新核心或反编译 APK。
-
-本轮重新阅读 Service/gate 的失败清理、取消与信任提交，Binder client 的断连/回调代际、设置取消与重入，以及 recovery lifecycle/coordinator → Home adapter → API/DNS/DoH 的关闭与恢复接线，没有复现新的确定运行缺陷。独立核心仍不反向依赖 FongMi 业务，宿主保留必要适配；没有发现需要新增恢复的无关上游修复。既有 MPV/字幕公开 media API 兼容和 Libass 的 5.6.8 APK 固定 native 输入债仍存在，不能宣称所有输入都只有公开 5.6.3。
-
-为确认测试能捕获错误，在仓库外临时副本中分别移除五处保护，真实 Java 编译均成功，原测试随后分别在预期行为断言失败：运行中禁止测试、无法交付 START 回调后的核心清理、取消操作的归属判断、恢复 owner 关闭后的迟到清理回调、失效 Home 禁止刷新及标记恢复。每组独立运行，未改仓库运行代码，也不把人为注入的错误计作产品 Bug。正向 14 个标准验证入口、其中真实 Service 的 9 个场景，以及强制重跑的 Gradle JUnit（Xray 3 项、recovery 2 项，失败/错误/跳过均为 0）全部通过；Leanback Release Java 编译 `--rerun` 成功。双 ABI 各 26 个固定 JNI 转换/runtime/native `testXray` 黄金用例，以及各 5 个备注边界链用例重新执行通过。
-
-本轮只有审查记录修改，没有新增运行修复、改测试预期、触发 Actions 或发布 APK。证据仍限于本地编译、宿主 JVM 与 QEMU native；Android ART/Binder、真实节点握手/播放及电视息屏/长后台恢复仍需要真机验收。不能用反向验证通过代替这些设备层验证。
-
-
-### 2026-10-05 — 正式发布命名与持久签名
+#### 2026-10-05 — 正式发布命名与持久签名
 
 按用户要求，将显示版本和 Release tag 统一为 `v5.6.3-xray.1`，Android versionCode 设为 `563001`，新增固定 RSA-4096 发布签名并按授权连同恢复配置保存到私有项目。软件设置直接显示既有 `BuildConfig.VERSION_NAME`，无需修改上游 UI。Xray-core、公开 FongMi 源码基线及两个模块业务行为不变；此次差异限于版本/签名、构建与发布验证、对应文档。
 
@@ -717,7 +697,7 @@ Xray 审查覆盖分享链接、security/pin/config、Service 串行执行与代
 
 旧发布及旧备份仅在新 APK / 新 tracked-tree ZIP 的远端 digest 与 tag 核对后清理。新源码备份包含签名文件和恢复配置，不包含临时产物；签名不可重建，后续维护必须复用并由用户保留离线副本。
 
-### 2026-10-08 — 独立复核上游边界与七条用户分享链接
+#### 2026-10-08 — 独立复核上游边界与七条用户分享链接
 
 本轮重新读取项目文档并读取远端源码基线；公开 FongMi/TV HEAD 仍为 `c616c0aa3613e87529791587a9f71b78c278c991` / 5.6.3，审查起点为 `3fab84a`。重新生成完整 tracked-tree 差异：1061 个同路径文件完全一致、57 个修改、2 个删除、381 个新增。审查分别沿上游差异、Xray 生命周期与安全配置、TV 恢复及分享链接转换链展开，不将旧测试记录当作本轮通过证据。
 
@@ -731,13 +711,13 @@ Xray 审查覆盖分享链接、security/pin/config、Service 串行执行与代
 
 本次只更新源码修复、对应测试及证据文档；RECOVERY 中遗留的拆分前归属说明也已纠正。Xray 核心、应用版本与固定签名保持不变，未触发 Actions 或重发 APK；已发布 `v5.6.3-xray.1` **尚不包含本轮公网 IPv6 媒体地址修复**。测试不包含 Android ART/Binder、真实节点握手/播放、设备 RSS 或电视待机/长后台验收；约 6 秒恢复兜底与后台 player 保留仍是既有设备观察项。
 
-### 2026-10-08 — 发布前全新复查与同名替换流程
+#### 2026-10-08 — 发布前全新复查与同名替换流程
 
 按用户明确要求，以 `6e7ac98` 再次独立读取当前源码与公开上游，重新验证模块边界、135 个真实地址检查场景、7 条链接及 30 个变体的双 ABI 配置链；未确认新的生产缺陷。额外使用真实 OkHttp 5.5.0 与环回 SOCKS 验证运行/排队请求取消、keep-alive 连接回收、基础 client 隔离和公网 IPv6 请求路径，两场景通过。恢复部分新增多 Home owner 的 6 种回调交错及网络/DLNA 异常测试，真实 OkDns / Doh / OkHttp 完成 100 轮重建；确认派生 DoH client 与被清理的 transport 共享池和 Dispatcher。固定公开 core 的 3 个 WS Build 场景确认 `ed` 提取为 early-data 大小并从握手 path 移除。Android 平台/调度仍为明确替身，不等同真机验收。
 
 本次用户明确授权 GitHub Actions 编译，并作为单次例外同名替换 `v5.6.3-xray.1`、更新旧 `source-backup-2026-10-05-main-357402dc`。版本名称、`563001` 与正式签名保持不变；发布器补齐同源码备份、草稿逐资产校验、旧包 rollback 保留及验证后清理，避免构建/上传失败先丢失现有版本。源码备份名称按实际构建 SHA 和 UTC 日期生成；最终是否发布成功及产物摘要以完成后的 Actions / Release 核验为准，准备流程不代表发布已完成。
 
-### 2026-10-08 — Actions 工具链故障与 Xray 内存复核
+#### 2026-10-08 — Actions 工具链故障与 Xray 内存复核
 
 实际 Actions 失败发生在 Gradle daemon 启动阶段，尚未进入应用编译：workflow 安装 Temurin 21，而公开上游 `gradle-daemon-jvm.properties` 要求 JetBrains 21，备用 Foojay 下载地址返回 HTTP 400。两个 current-main build/publish 入口改为通过 `setup-java` 预装 JetBrains 21，并在 player/native 重建前用禁止自动下载的 `gradlew help` 实际启动 daemon；保留上游工具链条件，不更换 Xray core、版本或签名。官方 JBR 21.0.11 下载已按官方 SHA-512 校验；全新独立缓存下正向 daemon 启动通过，普通 OpenJDK 21 的负向控制按预期拒绝 vendor 不匹配；没有生成 player/Libass/libXray AAR 的干净 tracked tree 同样通过 `help`。失败 run 尚未执行发布步骤，旧正式包及旧备份保留。
 
@@ -749,7 +729,7 @@ Xray 审查覆盖分享链接、security/pin/config、Service 串行执行与代
 
 两处宿主修复完成后，重新执行 14 个标准验证入口（包含新增初始化/交接回归）全部通过；官方 JBR 下 Leanback Release Java 再次强制编译通过，发布事务 9 项通过。Xray 模块源码、核心 AAR、TV recovery、版本和签名均未变化；完整 APK assemble 和远端替换仍由授权的手动 Actions 流程执行，以实际 run 及资产核验为准。
 
-### 2026-10-11 — Actions 磁盘峰值修复
+#### 2026-10-11 — Actions 磁盘峰值修复
 
 继续处理前次发布失败。真实 runner 的 JetBrains 安装、daemon 预检、源码 guard 和双 ABI Xray native chain 已通过，随后 Robolectric 下载 Android 测试运行库时返回 `java.io.IOException: No space left on device`；这是磁盘耗尽，不是十条 Libass 用例分别出现行为错误。既有清理位于 Libass 测试之后，两个完整 native harness 同时占用空间；本地相同目录的实占约为 v7 2.7 GiB、arm64 3.5 GiB（用于说明规模，不冒充 runner 的实测剩余容量）。
 
@@ -759,7 +739,7 @@ Xray 审查覆盖分享链接、security/pin/config、Service 串行执行与代
 
 另完成包含前轮两处宿主修复的本地双 ABI Release assemble，实际执行 R8/L8、打包及签名，原生库运行段、Manifest、固定证书、`v5.6.3-xray.1` / `563001`、non-debuggable、16 KB 对齐和内嵌源码核对均通过。此本地 APK 来源为 `950d8a6`，只作为完整构建证据；远端最终包由提交构建流程修复后的 Actions 重新产出，不能复用本地摘要冒充其结果。清理回归、9 项发布事务测试、YAML 与 Bash 语法检查通过；设备安装及电视运行仍未实测。
 
-### 2026-10-11 — 下载输入失效与冷入口恢复修复
+#### 2026-10-11 — 下载输入失效与冷入口恢复修复
 
 后续 Actions 已通过工具链预检和公开 media 的 17-AAR 构建，失败点是既有 5.6.8 APK 下载 HTTP 404；这次不是 artifact 配额或 runner 磁盘错误。已保存必要失败证据并按用户授权清空 Actions artifacts，核对 artifacts/caches 均为 0。一次性提取后清理的长期授权写入 AI_COLLABORATION；10 日新增的非 canonical 临时审查文档早已删除，没有新增验证结果或运行源码变化，不重新创建。
 
@@ -771,7 +751,7 @@ Xray 当前源码重新验证 9000 次 Controller/Client 清理序列、102 次�
 
 修改后的 Xray JUnit 3 项与完整 Leanback Release Java 强制重编译通过，14 个标准验证入口、发布事务 9 项及 native 输入边界 13 项通过。新的资产 ID 下载入口已实际下载双 ABI 并验证；官方 JBR 下分别用保留正式包和原上游容器完整重建 Libass AAR，两份产物逐字节相同，SHA-256 仍为 `f047f8ad84be08aeddb0672500e9b263cafd6f2a009812392554dc55b2019861`，49 个类及双 ABI JNI 合约通过。JVM/环回与边界替身证据不代替电视 ART、真实进程 PSS/RSS、握手播放、息屏或 Fast Start 验收；新 APK 与源码备份的最终替换以实际 Actions 成功和远端资产核验为准。
 
-### 2026-10-11 — 编译通过后的草稿发布 API 修复
+#### 2026-10-11 — 编译通过后的草稿发布 API 修复
 
 包含前述修复的 `943357e2` 已在 Actions 完成公开 media、Libass、双 ABI Xray native、模块测试、TV 编译与 Release assemble；最终 native、Manifest、固定签名、版本、源码标识和对齐检查全部通过。双 ABI 各 26 个黄金 native/runtime oracle 也通过，补足本地 v7 高 PID 环境无法启动 harness 的验证限制。失败发生在最后发布阶段，两个正确的新 APK 已上传至草稿，旧正式版未切换。
 
@@ -782,14 +762,14 @@ Xray 当前源码重新验证 9000 次 Controller/Client 清理序列、102 次�
 续发 Actions 已成功完成：`v5.6.3-xray.1` 为非预览且 latest，两个资产 ID/摘要与原 Actions 构建报告一致；配套 `source-backup-2026-10-11-main-943357e2` 已发布，下载后的 ZIP 摘要及全部 1507 个 tracked blob（包括固定签名恢复文件）逐项核对通过。旧正式包、指定旧备份、stage/rollback 临时 Release 和 tag 均在最终验证之后清理。保存失败排错证据后删除已消费的 Actions 报告，artifacts/caches 再次核对为 0。发布工具修复和后续记录留在 main，APK/备份的构建源码身份保持原样；真机验收边界仍不变。
 
 
-### 2026-10-11 — 直播初始化缺少基础解码模块
+#### 2026-10-11 — 直播初始化缺少基础解码模块
 
 用户真机报告 `NoClassDefFoundError: androidx.media3.decoder.DecoderInputBuffer`。复核正式版双 ABI APK，确认最终 DEX 引用了但未定义 12 个基础 decoder 类型；播放器重建脚本只导出 17 个 AAR，漏掉公开固定 Media3 源码已有的 `lib-decoder`。AAR 的 `classes.jar` 不内嵌 Gradle 的项目传递依赖，复制依赖方 AAR 并不能自动包含 decoder。Android 默认 ProGuard 配置中的 `-dontwarn androidx.**` 使该缺失没有阻止 R8 出包，已有 `-keep DecoderInputBuffer` 也不能创建未输入的类。这是本 fork 构建集成遗漏，不是应在上游播放器业务中修补的问题。
 
 本轮修复补齐同一固定公开源码的基础 decoder 产物，并补充依赖集合与最终 DEX 定义/引用的校验。验收必须先证明旧正式 APK 会被新检查拒绝，再验证修复包；原来的 assemble、签名、原生库和 Manifest 通过结果不能替代 Java 运行时链接完整性。设备直播/点播与实际解码验收仍需与云端证据区分。修复前后运行对照中，原 24 个 AAR 摘要完全不变，仅增加固定公开源码编译的 decoder：修复前 Java 编译通过但 4 项运行用例均失败；修复后 API 28/35 的真实普通音视频/文本、FFmpeg 音视频、MPEG-H renderer 构造及 ExoPlayer 重复创建/释放共 4 项通过，失败、错误、跳过均为 0。最终 DEX 检查器在两个实际故障 APK 上均明确拒绝 12 个缺失类型；检查器 12 项回归及候选依赖 9 项回归通过。完整固定公开源码的 18 个 AAR 已重建并通过符号依赖校验。此次修补按正常版本规则推进为 `v5.6.3-xray.2` / `563002`，不沿用此前 `.1` 同名替换的一次性例外。随后本地完整 Leanback Release assemble（R8 混淆与资源压缩开启）通过，双 ABI 最终 DEX 中被引用的 46 个 Media3 类型均有定义，三个显式保留 buffer 均存在。双 ABI native PT_LOAD、14 项 Manifest 权限/服务接线、固定正式证书、`563002`、non-debuggable、16 KB 对齐校验全部通过。该本地包用于提交前验证；正式发布必须由 Actions 从修复提交重新构建，不把本地工作树包冒称提交后的 CI 产物。随后 Actions 已从该修复提交完成双 ABI 全量构建并发布正式 `.2` 与配套源码备份；本轮下载的 arm64 正式资产摘要与发布记录一致，DEX 的 R8 map ID 与用户后续播放崩溃日志一致。编译、链接与发布成功不等同所有页面生命周期已通过设备验收。
 
 
-### 2026-10-11 — 退出播放页与请求主机名崩溃
+#### 2026-10-11 — 退出播放页与请求主机名崩溃
 
 用户在 `.2` 报告退出直播时 `You cannot start a load for a destroyed activity`。根因是本 fork 的 artwork 清理在 `onDestroy()` 里调用 `Glide.with(activity)`；Android 此时已标记 Activity destroyed，异常中断后续会话/时钟释放。Live 与 Video 的同类接线一起修复，通过 Application manager 清理原 owner 的 target；退出/销毁时仍先卸载代理，再跳过 UI、logo、artwork 和 EPG 恢复。真实 Glide 5.0.9、当前 Gradle runtime、Robolectric API 28/35 共 12 项通过；相同回归运行修前宿主产生 4 个失败和 4 个错误，包含用户报告的原异常。调用方初始化、旁路取消、跨页面交接及 TV recovery 回归也通过。
 
@@ -802,13 +782,13 @@ Xray 当前源码重新验证 9000 次 Controller/Client 清理序列、102 次�
 以上 JVM / Robolectric 与构建证据不代表电视 ART、真实源搜索播放、硬件解码、PSS/RSS 或连续遥控操作已经验收。正式 APK 和配套源码备份仍以 Actions 发布及远端资产核验为准。
 
 
-### 2026-10-11 — 发布标记与固定构建输入分离
+#### 2026-10-11 — 发布标记与固定构建输入分离
 
 新的 Actions 在输入预检阶段停止：已有 `.1` / `.2` 资产未变化，但远端 Release 已被改为预览版，`releases/latest` 因此返回被脚本明确排除的 5.6.0 黄金参考。问题发生在公开 player/native 重建之前，不是新的应用编译错误。保留远端预览状态，将容器选择改为分页读取已发布版本、按数字版本选取最新符合命名的非草稿；只将指定 APK 作为两份固定 Libass SO 的容器。最高版本资产不完整或摘要不符仍必须失败，native pin、历史上游整包验证模式和最终 APK 校验不变。这使重新标记已发布版本不会切断固定构建输入，也避免错误地把有问题的旧包重新设为正式版。
 
 容器选择与完整性回归 18 项通过；实际分页查询后选中仍为预览状态的 `.2`，按原资产 ID 下载双 ABI，APK size / digest 和两份固定 `libmedia3ass.so` SHA-256 全部通过。报告区分 `tag_source_commit`（tag 快照观察值）与 APK 摘要，不将其冒称重新验证的 APK 编译源码；下载和提取不读取 Java/DEX。此次仅修构建取源，应用修复、`.3` 版本、固定签名和核心不再变化。
 
-### 2026-10-13 — 可选 TLS 分片与验证边界
+#### 2026-10-13 — 可选 TLS 分片与验证边界
 
 用户反馈在自己的网络使用 `tlshello / 80-120 / 5-10` 后连接改善，明确要求在 UDP 下增加轻量开关。当前仅在 Xray 设置及模块内部接入默认关闭的选项，具体配置、适用范围与 DNS 边界见前述 Settings / Binder；不据此将此前连接失败认定为 DNS 污染，也不把 Xray 测试结束后的进程清理当作根因。没有修改 FongMi 普通业务、TV recovery、固定核心、版本或签名，未触发 Actions 或发布新 APK。
 
@@ -818,7 +798,7 @@ Xray 当前源码重新验证 9000 次 Controller/Client 清理序列、102 次�
 
 官方 JBR 21 下 Xray JUnit 3 项（失败、错误、跳过均为 0）及 Leanback Release 的 Java、AIDL、资源编译通过。本地 ARMv7 native harness 再次遇到既有 QEMU 超时，因此不声称本轮 v7 原生验证通过，也不据此认定设备核心故障；没有重复等待。以上没有覆盖电视 ART/遥控实测、真实节点及设备内存曲线，也没有完成新 APK assemble/发布。
 
-### 2026-10-13 — 分片参数评估与 `.4` 发布准备
+#### 2026-10-13 — 分片参数评估与 `.4` 发布准备
 
 用户补充该预设来自手机 IG 图片/视频的低延迟使用经验，并要求评估后发布电视版本。保留已实测有效的 `80-120 / 5-10`，不开启全局默认，不增加调参或 DNS 面板。本地两组捕获的首末 ClientHello 分片跨度约 125 / 139 毫秒；这是每条新 TLS 连接的握手开销，不是后续媒体数据持续分片。在受干扰线路上避免重试可能抵消该开销，但缺少用户线路的受控 A/B 证据，不能据本地环回宣称其它参数更快。自动跳过按 transport/security 判断，VLESS/VMess 等协议名本身不决定适用性；XHTTP 独立 `downloadSettings` 子连接不继承顶层 mask，不将其计入分片覆盖范围。
 
@@ -826,7 +806,7 @@ Xray 当前源码重新验证 9000 次 Controller/Client 清理序列、102 次�
 
 提交前本地 Leanback Release Java 编译、资源链接和 Manifest 合并通过；用 AAPT2 读取本次双 ABI linked resource table，默认/简中/繁中 `app_name` 均为 `FongMi-Xray`，版本与包名一致。Gradle 两模块单测入口通过并复用未变更结果（Xray 3 项、recovery 2 项，失败/错误/跳过为 0）；build hygiene、16 项发布事务、12 项续发来源回归、固定签名与两个 workflow 纯手动 YAML 检查通过。完整 APK assemble、最终 DEX/native/签名验收与远端发布交给本次用户授权的 Actions 从提交源码执行，不将本地编译检查冒称正式 APK 已发布。
 
-### 2026-10-13 — `.4` 发布后复核与上游补丁登记
+#### 2026-10-13 — `.4` 发布后复核与上游补丁登记
 
 重新读取 Actions 和 Releases，确认 `.4` 已从 `93a69dc7` 完成正式构建、发布及最终校验；两份 APK 的远端 digest 与该构建日志一致，配套备份为 `source-backup-2026-10-13-main-93a69dc7`。本轮未重新下载 APK 或将这些 CI 结果写成新的本地构建。按用户要求把唯一的 `OkProxySelector.Policy` 上游业务补丁、回归入口与未来跟随上游的处置规则放到本文前部；AI 协作限制同步明确，只有有证据且明显影响实际使用的上游故障才允许最小例外。
 
@@ -834,7 +814,7 @@ Xray 当前源码重新验证 9000 次 Controller/Client 清理序列、102 次�
 
 未确认新的可达运行缺陷，本轮只更新文档，不改变生产代码、核心、签名或版本，也不重复触发 Actions。上述 JVM/环回证据不替代电视 ART/Binder、OEM 待机/广播时序、真实节点网络或设备 PSS/RSS；既有证书预探测分片限制、独立 XHTTP 下载子连接和恢复约 6 秒兜底仍按已登记边界处理，不据推测追加功能或重构。
 
-### 2026-10-20 — 独立复审与公开上游核对
+#### 2026-10-20 — 独立复审与公开上游核对
 
 重新读取公开 FongMi/TV 默认分支 `fongmi`，HEAD 为 `0af3b31a1783b8fa4f0ce12e52ac9fad78ddfb1e`。相对固定基线 `c616c0aa…` 的 10 个新提交仅修改 `website/` 中 17 个文件，Android 源码、构建配置和 5.6.3 版本均未变化；本轮不因网站更新迁移应用基线。当前应用、两模块及兼容层源码与已发布 `.4` 的构建提交一致。
 
@@ -845,7 +825,7 @@ Xray 当前源码重新验证 9000 次 Controller/Client 清理序列、102 次�
 本轮证据为静态审查与实际 Java 源码的宿主 JVM 回归；Android、Binder 和 native 边界使用确定性替身，没有重新运行历史 native/FD/弱引用压力测试，也没有电视 PSS/RSS、节点握手或分片性能实测。恢复后的云环境不含历史外置压力 harness，历史结果继续作为历史证据，不能冒充本轮验证。后续优先把有长期价值的最小、无敏感信息的压力 fixture 纳入现有 `tests/`，并固定真机启停、播放切换、待机唤醒及网络切换的验收步骤；在出现失败证据前维持当前实现和可选分片参数，不增加强制 GC 或新的恢复状态机。
 
 
-### 2026-10-26 — 完成 `.1` 发布续传与双版本清理
+#### 2026-10-26 — 完成 `.1` 发布续传与双版本清理
 
 原 Actions `40252299406` 已从 `4bea3a54ece68fbb439374e7d7944ec94fe28683` 完成双 ABI 的完整编译、native/DEX/Manifest/签名验收及草稿上传；失败原因是后续 tag 操作权限，不是编译失败。当前 main 的应用、两模块与兼容层同该构建逐文件一致，后续提交仅调整发布工具与文档。本轮使用环境已有的仓库授权成功创建 `.1` ref，执行同一续发工具，重新下载草稿资产并核对摘要、内嵌来源、固定证书、版本、DEX、Manifest 和 16 KB 对齐，未重复完整编译或触发新的 Actions，也不将当前 main 冒称 APK 构建来源。发布事务 21 项、续发来源 14 项、DEX 检查器 12 项回归通过。
 
@@ -854,44 +834,29 @@ Xray 当前源码重新验证 9000 次 Controller/Client 清理序列、102 次�
 本次版本重置是用户指定的一次性例外，`.2`～`.4` 的安装 versionCode 高于 `563001`，通常不能直接降级覆盖；Release 和 README 已说明先备份配置。固定包名、签名、公开上游和 Xray 核心未变，后续正常发布继续按版本规则递增。本轮证据不包含电视安装、实际节点和设备内存测试。
 
 
-### 2026-10-26 — 简化手动入口与取消 Release 项目备份
+#### 2026-10-26 — 简化手动入口与取消 Release 项目备份
 
 按用户要求从发布器、续发工具和工作流中移除源码归档生成/上传及旧备份参数；APK 的草稿验收、显式替换授权、rollback、来源与 latest 校验继续保留。五个历史 recovery 工作流和现行构建中的临时 push-marker 逻辑已移除，三个保留入口分别承担构建检查、编译发布、失败续发，全部限定 `workflow_dispatch`。历史脚本与 fixture 保留在仓库；GitHub 已登记的过时入口同时禁用，不删除 run 历史。AI 规则与构建 guard 禁止自动触发和源码备份回流。此次只调整维护基础设施，不涉及应用、上游业务、两模块运行源码、核心或固定签名；不编译或重发 APK。
 
 本轮发布事务 22 项、续发来源 13 项、DEX 检查器 12 项及 build hygiene 通过；独立 YAML 解析确认三个入口仅允许手动触发，45 个 shell 步骤通过 `bash -n`。没有消耗 Actions 编译额度。
 
-## 11. 2026-11-03 — 5.8.7 升级试验回退与 AC 资产保留
+## 11. 现行 5.6.3 状态与下次升级约束
 
-2026-11-02 至 2026-11-03 的 **5.8.7（并非 5.8.3）** 自动升级试验没有产生新正式 APK；第十次完整构建因公开 Media3 源码缺少新版播放器类及方法，在 Leanback javac 阶段被阻断。现将项目**运行代码与原有构建/发布能力**恢复到 2026-10-26 的已验证 5.6.3 基准（`a2f193b40e427ef97a49fc3638c24320ed6b52d2`），保留 `v5.6.3-xray.1` 与 `v5.6.0-xray.5` 既有 Release 和签名，不重新编译、不发布。5.6.3 的双 ABI APK 在原 CI 已完成装包、签名和 Media3/native 检验；当时工作流的红色失败是后续 Git tag 创建权限 403，已续发解决，不能与本次 5.8.7 的播放器源码缺失混为一谈。
+截至 2026-11-04，`main` 的运行版本与 [`app/build.gradle`](../app/build.gradle) 一致，为 **`v5.6.3-xray.1` / `563001`**；2026-10-26 发布 APK 对应源码 `4bea3a54ece68fbb439374e7d7944ec94fe28683`。历史 `.2`–`.4` 记录不能用于判断当前 `main`。当前四个 Actions 入口均为手动触发，常规发布标签按已选源码动态校验生成，不再固定写死 5.6.3。
 
-试验期间的故障分析、成功与失败的 AC run、修复方式、Media3 的至少 44 类缺口、未来升级门槛，已按主题合并到 **本文第 12 节「上游一键升级工具与 5.8.7 迁移复盘」**。本文件本节以上的既有开发记录与历史章节未作改写。
+2026-11-02 至 11-03 的 5.8.7 试验**未发布新版 APK**：公开 Media3/播放器源码缺少至少 44 个顶级类型及相关接口，Leanback Java 编译失败。保留的 `manual-upstream-sync.yml` 默认只做候选预检，**在依赖缺口解决前不能把 `apply_to_main=true` 用作排障按钮**。原始失败 run、根因、工具入口、未来验证门槛见第 12 节；这里不重复历史流水。此前 5.6.3 编译后因 Git tag 权限 403 的红色 run 已通过原资产续发解决，不能与 5.8.7 javac 阻断混淆。
 
-作为用户明确要求的唯一第四个 Actions 入口，`.github/workflows/manual-upstream-sync.yml` 及 `scripts/upstream/`、升级专用测试保留，**仍仅手动触发**且默认预览；这只是为后续修复保留工具，**不代表已经验证 5.8.7 可以编译或可以自动发布**。目前不应使用 `apply_to_main=true`。旧版 build hygiene 只做“允许第四个手动 workflow”的最小调整。
+### 5.6.3 主机名补丁：下次升级时重新判定
 
-### 2026-11-03 — 复核并恢复通用正式打包入口（零 AC）
+现行 5.6.3 的 `OkProxySelector.Policy(URI)` 对无法识别的 `URI.getHost()` 直接 `toLowerCase()` 会导致播放请求 NPE。本 fork 已按用户授权使用 OkHttp `HttpUrl` 的规范化 scheme/host/port 做最小修补；触发、回归与上游处置条件见第 1 节的登记表。
 
-核对回退后 Git Tree，`current-main-build.yml`（只构建、短期 APK artifact）和 `publish-current-main-test-release.yml`（编译、签名、验证并正式发布）其实**均未删除**；历史被删除的 `recovery-build.yml` 是仅针对 5.6.0 faithful 源码重建、还依赖已过期临时 native artifact 的研究入口，不是现行 5.6.3 正式打包入口，不应冒充正常构建器恢复。
+目标公开 5.8.7 曾改为 `Policy(HttpUrl)`，并联动 `ProxyRedirectInterceptor` 的 `request.url()`、认证及重定向接口。升级时必须：
 
-不过回退 2026-10-26 基线时，**通用版本自动推导与不带 5.6.3 版本前缀的 artifact 名称**也一起回到了旧状态，不利于未来保持只修改源码、不修改 Actions YAML 的升级。现依照 2026-11-03 试验前已审核的通用方案恢复这部分基础设施：正式发布标签由 `scripts/build/resolve-release-tag.py` 从 checkout 的 `app/build.gradle` 及 `scripts/upstream/baseline.json` 校验推出；保留 `replace_existing=false`、`prune_superseded=false` 默认保护、固定签名、双 ABI/native/DEX/Manifest 验收；续发 failure artifact 改为版本无关名称，Release notes 按实际 FongMi 基线生成，不再固定写「不升级公开 FongMi 基线」。build-only 会清除过期的同名短期 artifact。已有 `v5.6.3-xray.1`/黄金版文件与 digest **一律不动**。
+1. 采用选定公开提交的 `OkProxySelector`、`ProxyRedirectInterceptor`、`OkAuthenticator` 等**成套源码 API**；若上游已有等价防护，移除 5.6.3 专用补丁，不能机械叠加。
+2. 重跑空 host、特殊字符、端口、代理匹配与凭据隔离、30x 重定向、跨源 Authorization、普通直连及 Xray 会话的回归，并区分 JVM、真实 APK 编译与 TV 真机证据。
+3. 若新上游仍无等价修复，只保留有明确复现证据的最小补丁，记录下一次上游升级的去留条件。
 
-当前四个 workflow 的 `on` **都仅有 `workflow_dispatch`**，无 push、schedule、workflow_run、跨入口触发；仅做静态校验与仓库修改，没有启动 Actions，也没有对回退后版本执行一次新完整编译。5.8.7 的公开 Media3 源码契约仍不满足，保留的升级入口默认预检，不代表可安全进入正式发布。
-
-> **现行版本核对说明（2026-11-03）**：本开发文档开头沿用 2026-10-13 `.4` 阶段记录，仍写 `563004 / v5.6.3-xray.4`；按用户要求不改动此前旧记录。**以当前真实 `app/build.gradle` 为准，运行代码配置及现行正式 Release 均为 `563001 / v5.6.3-xray.1`**，正式 APK 源于 2026-10-26 的 `4bea3a54ece68fbb439374e7d7944ec94fe28683`。不得将历史 `.4` 行误认为回退后当前版本。
-
-
-### 2026-11-03 — 5.6.3 主机名崩溃临时修补与下次上游升级策略
-
-**现行 5.6.3 保留已经验证过的最小修补；下次真正升级上游时，优先改用目标上游的同一套完整接口实现。** 当前上游 5.6.3 的 `OkProxySelector.Policy(URI)` 直接调用 `uri.getHost().toLowerCase()`，在 OkHttp 合法但 Java URI 无法识别主机名的部分地址上会发生 NPE。本 fork 已在该构造函数里使用 `HttpUrl.get(uri.toString())`，从 `url.scheme()/host()/port()` 获取规范化值。这是**针对 5.6.3 的兼容补丁**，不是要求以后永久保留与上游不同的实现；当前已经通过相关回归与原始正式版编译，未获新发布版验证前不改动。
-
-已核对目标为 5.8.7 的公开上游 `OkProxySelector.Policy(HttpUrl)`：它直接接收 OkHttp `HttpUrl`，配套的 `ProxyRedirectInterceptor` 改为传递 `request.url()`，还同步调整了重定向、认证和网络请求的接线。**后续选择比 5.6.3 更新的公开上游时**：
-
-1. 先核对所选公开提交是否仍提供同等或更好的空主机名防护，优先直接采用该提交对应的 `OkProxySelector`、`ProxyRedirectInterceptor`、`OkAuthenticator` 等**成套上游 API**，不要机械地只替换 `Policy` 构造函数，也不要把 5.6.3 临时 `HttpUrl.get(uri.toString())` 再叠加进去。
-2. 用目标上游实际 API 调整本 fork 的 Xray 网络接入及测试，执行 `catvod` 主机名空值/特殊字符、端口、代理规则继承、代理凭据隔离、HTTP 30x 重定向、跨源 Authorization 剥离、普通直连与 Xray 会话的回归；同时做真正的 Java 编译、双 ABI APK 和后续真机验证。不要因为上游方法形式更漂亮就对仍在生产使用的 5.6.3 进行无必要改动。
-3. 如果未来目标上游不存在等价修复，**仅保留能被复现用例证明必须存在的最小补丁**，避免不必要的上游业务分叉；记录其触发证据、测试与重新审查条件。
-
-**更新时机**：上游不更新或没有提供可构建的播放器依赖时，没有为了追版本号而重写播放器的义务。维持已验证的 5.6.3；只有明确的安全问题、Xray/TV 恢复需求或上游提供可验证的完整构建输入时，才决定是否独立维护、升级或重新编译。参考 APK 的 DEX/JADX 取证仅能辅助了解接口和行为，**不能视作公开完整源码**，也不能据此声称逆向就能恢复整套 Media3/Native 工程。
-
-**一键升级文件布局**：四份手动工作流 YAML 继续位于 `.github/workflows/`；一键升级专用适配器、模板、参考 Java 与离线测试集中到 `scripts/upstream/`，测试位置为 `scripts/upstream/tests/`，不再散放根 `tests/`。`tests/test-upstream-update-disabled.py` 和 `tests/test-resolve-release-tag.py` 属于日常构建与一键升级共同使用的回归入口，`scripts/build/resolve-release-tag.py` 属于普通正式打包共享工具，因此仍留原位。所有移动同步修改工作流引用、Python 根路径及离线脚本契约；不改变应用运行源码、正式版 APK 或签名。所有 Actions 只允许 `workflow_dispatch` 手动触发，显示名称中文化；常规构建和正式发布分别标为 01 与 02，恢复与一键升级是独立条件入口，并非自动串联。
+没有兼容的公开播放器/Media3 源码时，不应为了追版本号改写播放器或花费 AC 重试同一已知失败；详见第 12 节。
 
 ## 12. 上游一键升级工具与 5.8.7 迁移复盘
 
@@ -899,7 +864,7 @@ Xray 当前源码重新验证 9000 次 Controller/Client 清理序列、102 次�
 
 ### 12.1 FongMi 上游一键升级专用工具说明
 
-此目录只保存 **FongMi/TV 上游同步、候选生成、适配验证**相关代码，不包含可直接发布的 APK 或固定二进制。专用工具集中于此，避免散布在项目运行模块和通用 `tests/` 中。
+`scripts/upstream/` 目录只保存 **FongMi/TV 上游同步、候选生成、适配验证**相关代码，不包含可直接发布的 APK 或固定二进制。专用工具集中于此，避免散布在项目运行模块和通用 `tests/` 中。
 
 #### 目录
 
@@ -929,13 +894,13 @@ python3 scripts/upstream/tests/test-upstream-prepare.py
 python3 tests/test-build-hygiene.py
 ```
 
-注意：上述测试并不等价于 5.8.7 完整 Java 编译或 TV 真机验证。**当前稳定发布仍是 5.6.3**。下一次真正升级时，参照本文第 11 节「2026-11-03 — 5.6.3 主机名崩溃临时修补与下次上游升级策略」：目标上游如已改用 `Policy(HttpUrl)`，优先采用对应成套上游 `OkProxySelector` / `ProxyRedirectInterceptor` / 认证接口，移除旧版临时补丁，不把 5.6.3 逻辑强行带进新源码。
+注意：上述测试并不等价于 5.8.7 完整 Java 编译或 TV 真机验证。**当前稳定发布仍是 5.6.3**。下一次真正升级时，参照本文第 11 节「5.6.3 主机名补丁：下次升级时重新判定」：目标上游如已改用 `Policy(HttpUrl)`，优先采用对应成套上游 `OkProxySelector` / `ProxyRedirectInterceptor` / 认证接口，移除旧版临时补丁，不把 5.6.3 逻辑强行带进新源码。
 
 ### 12.2 2026-11-02 至 2026-11-03：5.8.7 升级失败复盘、源码缺口与回退保留项
 
 > 整理日期：2026-11-03。**这是 2026-11-02 至 2026-11-03 的升级试验复盘，不是 5.8.7 构建成功报告。**
 >
-> 本项目现在维持可追溯的 **FongMi/TV 5.6.3 / FingMi-Xray `v5.6.3-xray.1`**。2026-11-02 起准备的 5.8.7 升级**从未合入远端 `main`、未生成正式双 ABI APK、未发布 5.8.7 Release**。Git 历史中仍保留原试验提交，不进行强制改写；只将当前工作树回到已验证的 5.6.3 基线，同时保留独立的手动 AC 升级工作流与辅助工具。
+> 截至本次复盘（2026-11-03），本项目维持可追溯的 **FongMi/TV 5.6.3 / FingMi-Xray `v5.6.3-xray.1`**。2026-11-02 起准备的 5.8.7 升级**从未合入远端 `main`、未生成正式双 ABI APK、未发布 5.8.7 Release**。Git 历史中仍保留原试验提交，不进行强制改写；只将当前工作树回到已验证的 5.6.3 基线，同时保留独立的手动 AC 升级工作流与辅助工具。
 
 #### 一、回退范围与原版本完整性：先区分 APK 和源码
 
@@ -956,7 +921,7 @@ python3 tests/test-build-hygiene.py
 
 #### 三、升级过程中的已踩坑、原因与解决方法
 
-### 2026-11-02 上游 5.8.7 与通用一键升级 Actions
+##### 2026-11-02 上游 5.8.7 与通用一键升级 Actions
 
 1. **升级代码不是原地 `ours/theirs` 覆盖**：5.6.3 到 5.8.7 公共树约有 810 个变更路径，曾整理本 fork 相对旧公共源码约 61 个偏差路径及其 `generate/upstream/rebase/project` 策略。实际候选同步报告约有 768 个计划修改、42 个保护/排除项；这只是工作树准备，不代表 768 个文件已通过 Android 编译。保留 `scripts/upstream/fork_scope.json`、`sync.py`、`prepare_release.py`，遇未登记偏差、未知 API、实质三方冲突一律拒绝。
 2. **官方功能变了，旧二开接线失效**：`SiteViewModel.cancelResultRequest()` 改为 `TaskType.RESULT` 的限定取消；Spider 由旧版清理接口改成异步 `BaseLoader/SpiderLoader`，必须等待完成后再进入 TV 恢复；HTTP/DoH 重建、Glide 失败缓存清理和请求代际需按新版 API 生成薄 adapter，不能把 5.6.3 的普通业务实现覆盖到 5.8.7。
@@ -967,13 +932,13 @@ python3 tests/test-build-hygiene.py
 7. **只显示第一个错误导致连续重跑**：将 8 组公开 API adapter、14 个候选 guard、正式模式 28 项完整 source guard 改为**尽量全部执行、收集所有独立失败后统一阻断**；失败就不重建 native、不签名、不更新 main。要区分 JVM fixture/mock 成功与真编译/真机运行。
 8. **5.6.3 发布阶段的 403 是另一类坑**：旧编译日志末尾的 tag 发布权限不足发生在成功装包之后；可以利用原始 digest 和受权续发，无需因“Actions 红色”误判安装包损坏、更不能拿这一结果证明 5.8.7 能编译。
 
-### 2026-11-02 5.8.7 官方 Exo 接线适配（候选生成器，未发布）
+##### 2026-11-02 5.8.7 官方 Exo 接线适配（候选生成器，未发布）
 
 - 旧版 Exo/MPV/ISO、字幕、DecoderManager、播放器 UI 内部架构不能直接搬到新版；`exo_adapters.py`、`player_manager_adapter.py`、`side_request_adapters.py` 等脚本的目标是对**选中的真实官方树**按精确 anchor 生成 Xray 接线，失败就停止。
 - 原有 5.6.3 播放器兼容源、历史 Libass native 回收、18 AAR 重建能在旧工程通过，但不能因此证明 5.8.7 的新 API/ABI 可复用。完整的媒体源码签名、类/方法、依赖与 native 一致性必须先解决。
 - 局部虚拟机/离线夹具测试提供防回归价值；**不能替代**真实 5.8.7 javac 和最终 APK 的 DEX/资源/native 检验。
 
-### 2026-11-02 Xray 播放器接线解耦（5.8.7 迁移第一阶段）
+##### 2026-11-02 Xray 播放器接线解耦（5.8.7 迁移第一阶段）
 
 - 试验期间将 Xray-only scheme 守卫、直连/代理引擎身份与网络绑定策略抽成 `XrayGuardedPlaybackDataSource`、`XrayPlaybackRouting` 等代码。为保证 **5.6.3 回退时运行代码零漂移**，这些尚未正式验收的 Java 实现不留在现在的 `app/` 编译树；参考源码放在 `scripts/upstream/reference/`，供未来**候选生成阶段**按需迁入，而不是现在加载。
 - 新版候选还需要替换 5.6.3 专属测试断言、重写官方恢复源 SHA 表，并完成 5.8.7 与媒体源码的所有接口检查。切勿因为保留了生成器、模板和历史测试，就把 AC 解释成“已修复所有问题，可以开正式发布”。

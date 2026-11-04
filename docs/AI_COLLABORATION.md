@@ -19,7 +19,7 @@
 - 向用户报告 Actions 状态前，先刷新仓库最新 runs 列表，再定位目标 run。
 - 之前读取的单个 run、jobs 或日志结果只能代表当时状态，不能直接当成当前状态。
 - 最新 runs 列表确认 run 已完成后，才读取该 run 的 jobs / logs 核对实际成功步骤或失败原因。
-- 所有现存和新增 Actions workflow 只能使用 `workflow_dispatch` 手动触发；不再允许临时 push trigger、marker 文件、定时器或自动串联。构建、正式发布和失败续发分别使用三个保留入口，历史恢复/临时研究入口已移除。
+- 所有现存和新增 Actions workflow 只能使用 `workflow_dispatch` 手动触发；不再允许临时 push trigger、marker 文件、定时器或自动串联。**当前共有四个手动入口**：常规 APK 构建验证、正式构建与发布、已验证 APK 失败续发、FongMi 上游一键升级；历史 recovery 工作流入口已移除。具体文件与模式见 [DEVELOPMENT.md](DEVELOPMENT.md#7-构建) 和 [升级说明](DEVELOPMENT.md#12-上游一键升级工具与-587-迁移复盘)。
 - 如果当前自动化环境既没有 `workflow_dispatch` 调用能力，又明确阻止修改 workflow trigger，则不得通过强制移动 `main`、回退默认分支、复用旧自动 trigger commit 或其他方式绕过平台安全限制。保持仓库 pure manual-only，由用户在 GitHub Actions 页面使用 `Run workflow` 触发；AI 继续完成不依赖该触发动作的审计、文档、存储清理和后续结果核验。
 - GitHub Releases 只发布 APK，长期保留 `v5.6.0-xray.5` 黄金参考和一个当前正式版。**今后不生成、上传或暂存项目源码 ZIP / `source-backup-*` Release**；源码和固定签名继续由私有 Git 仓库管理。
 
@@ -126,7 +126,7 @@
 ## 11. AI 开发与发布的版本约束
 
 - 每次准备发布 APK 或跟随上游升级前，必须读取并遵守 [PROJECT.md 的版本命名与覆盖升级规则](PROJECT.md#版本命名与覆盖升级)。版本规则是长期项目约定，不能只写在开发日志、发布记录或聊天里；规则变更必须同步本节执行约束。
-- 正式发布使用 `v<公开 FongMi 版本>-xray.<fork 修订号>`；前半段只来自采用的公开上游源码，后半段表示本 fork 的修补发布，不是 Xray-core 版本。同一上游基线的新 APK 发布递增修订号；跟随公开新基线时从 `.1` 开始。未经用户明确要求，不得复用已发布修订号承载修改后的 APK。
+- 正式版的 `versionName`、`versionCode`、修订号递增及覆盖升级统一遵守 [PROJECT.md 的版本规则](PROJECT.md#版本命名与覆盖升级)，不能把 Release/APK 显示版本冒充公开上游源码版本；未经用户明确授权，不得复用已发布修订号装载不同 APK。
 - 用户明确要求同名替换时，按 PROJECT 的单次例外执行，并显式启用发布器的 `replace_existing` 输入；不能因手动重跑 Actions 就自行取得替换授权。替换前必须完成新产物上传和摘要验证，保留旧产物至新 APK、来源 tag 与 latest 均核验完成；更新 Release 的源码/构建/摘要记录，并说明同 versionCode 手动重装限制。
 - 发布前必须同步检查 `app/build.gradle` 的 `versionName` / `versionCode`、publish workflow 的新 tag / 上一版清理目标，以及 `tests/test-build-hygiene.py` 的版本约束。Release tag 必须与软件内显示版本一致，versionCode 按项目公式计算并严格大于上一安装版本；同步上游时不得直接用其原始版本配置覆盖本 fork 的发布版本。
 - 正常 APK 发布为非预览的正式版，使用固定正式签名及 Release variant。不得重新生成签名、回退临时开发证书或更新 Xray 核心来迎合发布名称；签名及产物校验按 [DEVELOPMENT.md](DEVELOPMENT.md#固定签名与-release-构建校验) 执行。

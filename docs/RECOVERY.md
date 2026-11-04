@@ -71,7 +71,7 @@ JADX 中出现不可能分支、R8 合并控制流或自相矛盾时，必须继
 
 ## 4. APK 文本证据索引
 
-`docs/apk-reference/` 只保存适合进入 Git、且对长期复核有价值的最小文本证据；原始 APK、完整 DEX、AAR、SO 和完整 JADX 输出不进入普通 Git 历史，需要时由手动 recovery workflow 重新生成。
+`docs/apk-reference/` 只保存适合进入 Git、且对长期复核有价值的最小文本证据；原始 APK、完整 DEX、AAR、SO 和完整 JADX 输出不进入普通 Git 历史，历史 recovery workflow 已删除；需要重新取证时，先核对保留的 `scripts/recovery/`、固定输入与第 9 节的 Git 历史入口，再在具备条件的授权环境执行和校验。
 
 主要材料：
 
@@ -297,7 +297,7 @@ FongMi/TV 当前公开仓库 `c616c0aa...` 新增的 redirect-aware proxy select
 
 - FongMi/media commit：`3c2cbe8ac742c2fe15eff52f03eeb3b1b648848d`
 - 历史 recovery artifact 曾得到 candidate ZIP SHA-256 `0ed42581af11ac7163ebde148b318807c244e2a318f40c41d33f50b70bf967ee`；它只作为当时取证记录，不再是当前构建或 recovery workflow 的长期存储依赖。
-- 现行流程统一由 `scripts/build/build-player-aar-candidate.sh` 从上述固定 commit 重建 17 个 AAR（包含 `lib-decoder-mpegh`），并由 `scripts/build/player_candidate.py` 校验文件集合、每个 AAR 的 manifest SHA 与关键播放器 class。外层 ZIP 本身不再作为长期 pin。
+- **现行流程重建 18 个 AAR**，包括基础 `lib-decoder`、`lib-decoder-mpegh` 及其它固定公开播放器模块；`scripts/build/build-player-aar-candidate.sh` 负责重建，`scripts/build/player_candidate.py` 明确要求 `EXPECTED_AAR_COUNT = 18`，并校验清单、各 AAR 摘要和关键 class。历史 17-AAR 阶段仍是过去的构建事实，不能当成当前依赖完整性证明。外层 ZIP 不再作为长期 pin。
 
 历史 faithful recovery 曾确认发布 APK 中的 `libffmpegJNI.so` 与固定公开 media candidate 不同，并建立了对应恢复工具。这项能力**只保留为旧 APK / faithful recovery 证据**；`main` 与当前 publish workflow 已不再注入发布版 FFmpeg JNI，而是直接使用固定公开 FongMi/media 现场重建出的 decoder AAR。
 
@@ -388,7 +388,7 @@ faithful recovery 生成的 decoder AAR SHA-256 为 `31a1db2570416147cc6889643d2
 4. 从固定 FongMi 5.6.0 上游组装 faithful overlay；
 5. 调用 Gradle 构建 Leanback faithful APK。
 
-GitHub Actions 对应两段手动流程：
+Git 历史中曾存在以下两段手动取证流程（**当前已从仓库删除，无法直接在 Actions 页面执行**）：
 
 ### 归档：Archive - prepare v5.6.0 native evidence
 
@@ -422,7 +422,7 @@ GitHub Actions 对应两段手动流程：
 - 组装固定 5.6.0 faithful tree；
 - 执行 faithful Gradle 构建。
 
-这些 workflow 只允许手动 `workflow_dispatch`，并视为历史归档工具。它们的成功或失败不再决定当前 5.6.3+ 架构能否发布；`main` 的构建、源码 guard、当前回归与 Android 运行测试才决定当前版本验收。
+这两段历史 workflow 当时仅允许手动 `workflow_dispatch`，现已从 `.github/workflows/` 删除；如确需恢复取证入口，应先核对其旧依赖与固定证据、取得用户授权后再恢复，不直接复用已过期 artifact。它们不决定当前 5.6.3+ 能否发布；当前版本以 `main` 的构建、源码 guard、当前回归及 Android 运行证据验收。
 
 ## 10. 历史证据与当前 parity 原则
 
