@@ -71,6 +71,8 @@
 
 `tests/`、`compat/` 的说明属于 DEVELOPMENT；`recovery/`、`docs/apk-reference/` 的说明属于 RECOVERY。
 
+`scripts/upstream/` 的工具说明和 5.8.7 失败复盘统一保存在 `DEVELOPMENT.md` 第 12 节；不另建目录 README 或独立的升级复盘文档。`LICENSE.md` 是必须保持完整的 GNU GPLv3 许可证原文，不应承载工具使用说明或开发日志。
+
 后续维护遵循“**按时更新，只更新对应文档**”：
 
 - 工程结构、构建、测试、compat、验证矩阵和精选维护记录，只更新 `DEVELOPMENT.md`；
