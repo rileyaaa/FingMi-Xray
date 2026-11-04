@@ -2,6 +2,11 @@ name: "01｜当前源码编译与 APK 验证"
 
 on:
   workflow_dispatch:
+    inputs:
+      cleanup_history:
+        description: "临时操作：勾选后只清理已核对的 64 条执行记录，不运行 APK 构建"
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -9,6 +14,7 @@ permissions:
 
 jobs:
   build:
+    if: ${{ !inputs.cleanup_history }}
     name: "只构建与验证，不发布"
     runs-on: ubuntu-latest
     timeout-minutes: 100
@@ -387,3 +393,136 @@ jobs:
             catvod/build/test-results/
           if-no-files-found: ignore
           retention-days: 1
+
+  cleanup_history:
+    if: ${{ github.ref == 'refs/heads/main' && inputs.cleanup_history }}
+    name: "一次性删除指定的 64 条历史执行记录（不编译 APK）"
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: "严格核对 Run ID 与工作流归属，确认后删除"
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json
+          import os
+          import time
+          from urllib.error import HTTPError
+          from urllib.request import Request, urlopen
+          
+          REPO = 'rileyaaa/FingMi-Xray'
+          TARGETS = [
+              (36892238506, 368115117),
+              (36876483711, 368115117),
+              (36867969971, 368115117),
+              (36855759802, 368115117),
+              (36844344680, 368115117),
+              (36830085051, 368115117),
+              (36826613772, 368115117),
+              (36821248968, 368115117),
+              (36814791434, 368115117),
+              (36812405868, 368115117),
+              (36808601960, 368115117),
+              (36807408567, 368115117),
+              (36804593477, 368115117),
+              (36804455814, 368115117),
+              (36796521437, 368115117),
+              (36796205564, 368115117),
+              (36758945496, 368115117),
+              (36757806471, 368115117),
+              (36755666674, 368115117),
+              (36750264942, 368115117),
+              (36746402663, 368115117),
+              (36741679699, 368115117),
+              (36739368390, 368115117),
+              (36729692930, 368115117),
+              (36656916736, 368115117),
+              (36652784984, 368115117),
+              (36651355448, 368115117),
+              (40252299406, 368164209),
+              (40252254598, 368164209),
+              (40252228018, 368164209),
+              (40252192989, 368164209),
+              (38373068620, 368164209),
+              (38127600789, 368164209),
+              (38127059605, 368164209),
+              (38123794503, 368164209),
+              (38119224790, 368164209),
+              (38118037318, 368164209),
+              (37757363824, 368164209),
+              (37752840689, 368164209),
+              (37291086990, 368164209),
+              (37290724454, 368164209),
+              (37195530886, 368164209),
+              (37100464365, 368164209),
+              (37097786995, 368164209),
+              (37024753133, 368164209),
+              (36907469366, 368164209),
+              (36832602225, 368164209),
+              (36832201084, 368164209),
+              (40257381398, 381087676),
+              (38121117449, 381087676),
+              (41606382989, 404004952),
+              (41596021792, 404004952),
+              (41575588775, 404004952),
+              (41573448653, 404004952),
+              (41567220883, 404004952),
+              (41559458565, 404004952),
+              (41555256058, 404004952),
+              (41554240822, 404004952),
+              (41491400912, 404004952),
+              (41485689964, 404004952),
+              (36694693755, 370980245),
+              (36689687159, 370935362),
+              (36688726472, 370935362),
+              (36674479496, 370834167),
+          ]
+          assert len(TARGETS) == 64
+          assert len({item[0] for item in TARGETS}) == 64
+          assert os.environ.get('GITHUB_REPOSITORY') == REPO, 'Unexpected repository'
+          TOKEN = os.environ.get('GH_TOKEN', '')
+          assert TOKEN, 'Missing GitHub Actions token'
+          
+          def api(method, run_id):
+              url = f'https://api.github.com/repos/{REPO}/actions/runs/{run_id}'
+              request = Request(url, method=method, headers={
+                  'Authorization': 'Bearer ' + TOKEN,
+                  'Accept': 'application/vnd.github+json',
+                  'X-GitHub-Api-Version': '2022-11-28',
+              })
+              try:
+                  with urlopen(request, timeout=30) as response:
+                      return json.load(response) if method == 'GET' else response.status
+              except HTTPError as error:
+                  if method == 'GET' and error.code == 404:
+                      return None  # Already deleted during a previous partial attempt
+                  raise
+          
+          # Fail closed: validate every still-existing run BEFORE deleting any.
+          pending = []
+          for run_id, workflow_id in TARGETS:
+              run = api('GET', run_id)
+              if run is None:
+                  print(f'Already absent: {run_id}')
+                  continue
+              if (run.get('id') != run_id
+                      or run.get('workflow_id') != workflow_id
+                      or run.get('status') != 'completed'
+                      or run.get('repository', {}).get('full_name') != REPO):
+                  raise SystemExit(f'ABORT: wrong run identity/status for {run_id}; deleted nothing in this attempt')
+              pending.append(run_id)
+          
+          print(f'PRECHECK OK: fixed scope 64, present {len(pending)}, already absent {64-len(pending)}', flush=True)
+          deleted = 0
+          for run_id in pending:
+              status = api('DELETE', run_id)
+              if status != 204:
+                  raise SystemExit(f'Unexpected delete status for {run_id}: {status}')
+              deleted += 1
+              print(f'Deleted {deleted}/{len(pending)}: {run_id}', flush=True)
+              time.sleep(0.15)
+          print(f'COMPLETE: removed {deleted} targeted runs. Other workflows and releases untouched.')
+          PY
