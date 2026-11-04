@@ -339,7 +339,7 @@ GitHub 的按 tag 获取已发布 Release 接口不会返回草稿；草稿创�
 版本命名、修订号递增、versionCode 公式和覆盖升级约定以 [PROJECT.md](PROJECT.md#版本命名与覆盖升级) 为准；后续 AI 的强制发布要求见 [AI_COLLABORATION.md](AI_COLLABORATION.md#11-ai-开发与发布的版本约束)。本节维护签名恢复、构建配置与产物验证方法。
 
 - 新固定签名为 RSA-4096 / SHA256withRSA，有效期 100 年，自此用于本地与手动 workflow 的正常发布。PKCS12 文件 `signing/fingmi-xray-release.p12`、恢复配置 `signing/release-signing.properties` 和证书 fingerprint 文件按用户授权存入**私有仓库**；配置包含密钥密码，不能输出到日志或复制到公开项目。源码备份也包含它们，应同时保存到用户离线备份。
-- `app/build.gradle` 直接读取此固定配置，Debug 也复用同一签名；缺少文件时构建失败，不回退到临时开发证书。两个 current-main workflow 不再生成签名，正式包使用 Release variant。历史 recovery workflow 仅用于冻结旧行为取证，不作为当前正式发布入口。
+- `app/build.gradle` 直接读取此固定配置，Debug 也复用同一签名；缺少文件时构建失败，不回退到临时开发证书。两个 current-main workflow 不再生成签名，正式包使用 Release variant。历史 `recovery-*.yml` 工作流已删除，相关取证脚本与证据仍保留在仓库中，不属于当前正式发布入口。
 - 当前 GitHub 连接无 Actions Secrets 管理权限，因此本轮采用用户授权的私有仓库恢复配置。签名证书 SHA-256：`3cd86f4fdf6044e7e60307624bf0d8c892dfd83b81ce21748504fcbba28763c2`，见 `signing/release-certificate.sha256`；每次发布用 `scripts/build/check-release-signing.py` 核对，不得重新生成或覆盖此 key。
 - 旧签名遗失，无法用新 key 覆盖黄金版或过去临时签名测试包；首次需备份配置并卸载旧安装。同一包名 `com.fongmi.android.tv`、同签名、递增 versionCode 是后续覆盖升级的必要条件；本轮没有电视安装实测。armeabi-v7a 和 arm64-v8a 使用同一证书和 versionCode，选择设备匹配的 ABI。
 
