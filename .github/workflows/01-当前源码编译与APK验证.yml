@@ -7,6 +7,10 @@ on:
         description: "临时操作：勾选后只清理已核对的 64 条执行记录，不运行 APK 构建"
         type: boolean
         default: false
+      allow_normal_build:
+        description: "临时保护：仅明确勾选才允许正常 APK 编译（清理时不要勾选）"
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -14,7 +18,7 @@ permissions:
 
 jobs:
   build:
-    if: ${{ !inputs.cleanup_history }}
+    if: ${{ inputs.allow_normal_build && !inputs.cleanup_history }}
     name: "只构建与验证，不发布"
     runs-on: ubuntu-latest
     timeout-minutes: 100
@@ -395,7 +399,7 @@ jobs:
           retention-days: 1
 
   cleanup_history:
-    if: ${{ github.ref == 'refs/heads/main' && inputs.cleanup_history }}
+    if: ${{ github.ref == 'refs/heads/main' && inputs.cleanup_history && !inputs.allow_normal_build }}
     name: "一次性删除指定的 64 条历史执行记录（不编译 APK）"
     runs-on: ubuntu-latest
     timeout-minutes: 15
