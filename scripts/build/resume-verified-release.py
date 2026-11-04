@@ -17,7 +17,8 @@ import sys
 import zipfile
 
 ROOT = Path(__file__).resolve().parents[2]
-WORKFLOW = ".github/workflows/publish-current-main-test-release.yml"
+WORKFLOW = ".github/workflows/02-正式APK构建与发布.yml"
+LEGACY_WORKFLOW = ".github/workflows/publish-current-main-test-release.yml"
 REPORT_NAME = "fingmi-xray-build-failure-reports"
 PUBLISH_STEP = "Publish verified APKs"
 REQUIRED_STEPS = (
@@ -40,6 +41,31 @@ REQUIRED_STEPS = (
     "Verify final Leanback manifest security contract",
     "Record build inputs and outputs",
     "Stage Android TV release APKs",
+)
+
+CURRENT_PUBLISH_STEP = "发布已验证的 APK"
+CURRENT_REQUIRED_STEPS = (
+    "按当前源码确定发布版本",
+    "运行项目源码检查",
+    "准备 Android SDK 36 与 37",
+    "检查上游 Gradle 工具链",
+    "检查项目固定签名配置",
+    "重建并校验固定播放器及原生依赖",
+    "准备公开播放器与 Xray 原生依赖",
+    "对照已发布 v7 与 arm64 原生库验证 Xray",
+    "Libass 前清理已验证的 Xray 临时文件",
+    "重建并导入 Libass 兼容组件",
+    "验证播放器组件启动",
+    "验证 Xray 图片加载生命周期",
+    "验证代理主机名崩溃回归",
+    "编译当前 Leanback 源码",
+    "打包 Android TV Release APK",
+    "校验最终 APK 中的 MPEG-H",
+    "校验最终 APK 中的原生运行库",
+    "验证最终 Media3 DEX 依赖",
+    "验证最终 Leanback Manifest 安全约束",
+    "记录构建输入与输出",
+    "暂存已验证的双 ABI APK",
 )
 
 
@@ -94,7 +120,7 @@ def verify_run(repository, run_id, run, workflow, jobs):
     repo, head = run.get("repository", {}), run.get("head_repository", {})
     require(repo.get("full_name") == repository and head.get("full_name") == repository
             and positive_id(repo.get("id")) and head.get("id") == repo["id"], "Run repository identity mismatch")
-    require(workflow.get("path") == WORKFLOW and positive_id(workflow.get("id"))
+    require(workflow.get("path") in (WORKFLOW, LEGACY_WORKFLOW) and positive_id(workflow.get("id"))
             and run.get("workflow_id") == workflow["id"], "Run did not use the full publication workflow")
     require(re.fullmatch(r"[0-9a-f]{40}", run.get("head_sha", ""))
             and positive_id(run.get("run_attempt")), "Invalid original build identity")
@@ -108,15 +134,24 @@ def verify_run(repository, run_id, run, workflow, jobs):
     by_name = {}
     for step in steps:
         by_name.setdefault(step.get("name"), []).append(step)
-    required = [(name, "success") for name in REQUIRED_STEPS] + [(PUBLISH_STEP, "failure")]
+    # Old GitHub workflow runs keep their original step labels after workflow
+    # file renames; newer runs use the current localized labels.
+    current = CURRENT_PUBLISH_STEP in by_name
+    legacy = PUBLISH_STEP in by_name
+    require(current != legacy, "Unknown or ambiguous original publication step")
+    required_steps, publish_step = (
+        (CURRENT_REQUIRED_STEPS, CURRENT_PUBLISH_STEP) if current
+        else (REQUIRED_STEPS, PUBLISH_STEP)
+    )
+    required = [(name, "success") for name in required_steps] + [(publish_step, "failure")]
     for name, conclusion in required:
         matches = by_name.get(name, [])
         require(len(matches) == 1 and matches[0].get("status") == "completed"
                 and matches[0].get("conclusion") == conclusion, "Original verification gate missing or failed: " + name)
-    publish_number = by_name[PUBLISH_STEP][0]["number"]
-    require(all(by_name[name][0]["number"] < publish_number for name in REQUIRED_STEPS),
+    publish_number = by_name[publish_step][0]["number"]
+    require(all(by_name[name][0]["number"] < publish_number for name in required_steps),
             "Verification occurred after the failed publication")
-    require([step.get("name") for step in steps if step.get("conclusion") == "failure"] == [PUBLISH_STEP],
+    require([step.get("name") for step in steps if step.get("conclusion") == "failure"] == [publish_step],
             "Original run failed outside publication")
 
 
@@ -225,7 +260,9 @@ def main():
     require(not args.directory.exists() or not any(args.directory.iterdir()), "Recovery directory must be empty; local APK reuse is forbidden")
     gh = GitHub(args.repository)
     run = gh.api(f"actions/runs/{args.verified_run_id}")
-    workflow = gh.api("actions/workflows/" + WORKFLOW.rsplit("/", 1)[-1])
+    workflow_id = run.get("workflow_id")
+    require(positive_id(workflow_id), "Invalid original workflow ID")
+    workflow = gh.api(f"actions/workflows/{workflow_id}")
     attempt = run.get("run_attempt")
     require(positive_id(attempt), "Invalid original run attempt")
     jobs = gh.pages(f"actions/runs/{args.verified_run_id}/attempts/{attempt}/jobs", "jobs")

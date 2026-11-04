@@ -14,7 +14,7 @@ import tempfile
 ROOT = Path(__file__).resolve().parents[3]
 ignore = (ROOT / ".gitignore").read_text(encoding="utf-8")
 adapter = (ROOT / "scripts/upstream/build_policy_adapters.py").read_text(encoding="utf-8")
-workflow = (ROOT / ".github/workflows/manual-upstream-sync.yml").read_text(encoding="utf-8")
+workflow = (ROOT / ".github/workflows/04-上游一键升级.yml").read_text(encoding="utf-8")
 
 for pattern in ("__pycache__/", "*.py[cod]"):
     assert pattern in ignore.splitlines(), "Current checkout does not ignore " + pattern

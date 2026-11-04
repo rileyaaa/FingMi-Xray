@@ -11,7 +11,7 @@ import subprocess
 import textwrap
 
 ROOT = Path(__file__).resolve().parents[3]
-WORKFLOW = ROOT / '.github/workflows/manual-upstream-sync.yml'
+WORKFLOW = ROOT / '.github/workflows/04-上游一键升级.yml'
 EXPECTED = (
     'scripts/upstream/tests/test-upstream-exo-adapters.py',
     'scripts/upstream/tests/test-upstream-side-requests.py',

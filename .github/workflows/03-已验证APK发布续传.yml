@@ -1,4 +1,4 @@
-name: "异常恢复｜已验证 APK 发布续传"
+name: "03｜发布恢复：已验证 APK 续传"
 
 on:
   workflow_dispatch:

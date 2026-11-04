@@ -48,20 +48,21 @@ assert (ROOT / "tests/test-resolve-release-tag.py").is_file()
 assert (ROOT / "scripts/build/resolve-release-tag.py").is_file()
 assert (UP / "baseline.json").is_file()
 assert (UP / "fork_scope.json").is_file()
-assert (UP / "README.md").is_file()
+development = (ROOT / "docs/DEVELOPMENT.md").read_text(encoding="utf-8")
+assert "### 12.1 FongMi 上游一键升级专用工具说明" in development
 
 workflows = (
-    "current-main-build.yml",
-    "publish-current-main-test-release.yml",
-    "resume-verified-release.yml",
-    "manual-upstream-sync.yml",
+    "01-当前源码编译与APK验证.yml",
+    "02-正式APK构建与发布.yml",
+    "03-已验证APK发布续传.yml",
+    "04-上游一键升级.yml",
 )
 for name in workflows:
     s = (ROOT / ".github/workflows" / name).read_text(encoding="utf-8")
     match = re.search(r"(?m)^on:\n((?:[ \t]+[^\n]*\n|\n)*)", s)
     assert match is not None
     assert re.findall(r"(?m)^  (\w+):", match.group(1)) == ["workflow_dispatch"], name
-manual = (ROOT / ".github/workflows/manual-upstream-sync.yml").read_text(encoding="utf-8")
+manual = (ROOT / ".github/workflows/04-上游一键升级.yml").read_text(encoding="utf-8")
 assert "python3 scripts/upstream/tests/test-upstream-layout.py" in manual
 assert "python3 tests/test-upstream-" not in manual.replace(
     "python3 tests/test-upstream-update-disabled.py", "")

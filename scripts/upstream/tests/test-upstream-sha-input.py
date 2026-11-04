@@ -34,7 +34,7 @@ for bad in ("0" * 39, "0" * 41, "not a SHA", "123 " + SHA,
 
 # The working Actions step must actually consume the normalizer. Merely
 # shipping a tested helper must not count as protecting workflow_dispatch.
-workflow = (ROOT / ".github/workflows/manual-upstream-sync.yml").read_text(encoding="utf-8")
+workflow = (ROOT / ".github/workflows/04-上游一键升级.yml").read_text(encoding="utf-8")
 normalized_command = 'EXPECTED_SHA="$(python3 scripts/upstream/normalize_sha.py "$EXPECTED_SHA")"'
 assert workflow.count(normalized_command) == 1
 start = workflow.index("- name: 获取公开 FongMi/TV 基线及最新源码")

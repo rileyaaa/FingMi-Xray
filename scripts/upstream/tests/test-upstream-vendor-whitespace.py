@@ -115,7 +115,7 @@ with tempfile.TemporaryDirectory(prefix="fingmi-vendor-whitespace-") as director
     git(local, "add", "-A")
     assert "extra-bundle.js" in git(local, "diff", "--cached", "--check", allowed=True).stdout
 
-workflow = (ROOT / ".github/workflows/manual-upstream-sync.yml").read_text(encoding="utf-8")
+workflow = (ROOT / ".github/workflows/04-上游一键升级.yml").read_text(encoding="utf-8")
 preview = workflow.index('if [[ "$BUILD_CANDIDATE" != "true" ]]')
 for marker in ('git diff --check', 'git add -A', 'git diff --cached --check',
                'scripts/upstream/check_vendor_whitespace.py'):

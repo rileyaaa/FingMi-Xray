@@ -224,15 +224,15 @@ for path in sorted((ROOT / ".github/workflows").glob("*.yml")):
                     f"{path.relative_to(ROOT)} uses {action}@v{major}; require v{minimum}+ for Node 24 runners"
                 )
 
-current_workflow = (ROOT / ".github/workflows/current-main-build.yml").read_text(encoding="utf-8")
-publish_workflow = (ROOT / ".github/workflows/publish-current-main-test-release.yml").read_text(encoding="utf-8")
+current_workflow = (ROOT / ".github/workflows/01-当前源码编译与APK验证.yml").read_text(encoding="utf-8")
+publish_workflow = (ROOT / ".github/workflows/02-正式APK构建与发布.yml").read_text(encoding="utf-8")
 # Require canonical block syntax; reject shorthand/inline/alias event forms.
-expected_workflows = {"current-main-build.yml", "publish-current-main-test-release.yml",
-                      "resume-verified-release.yml", "manual-upstream-sync.yml"}
+expected_workflows = {"01-当前源码编译与APK验证.yml", "02-正式APK构建与发布.yml",
+                      "03-已验证APK发布续传.yml", "04-上游一键升级.yml"}
 actual_workflows = {p.name for p in (ROOT / ".github/workflows").iterdir()
                     if p.suffix in (".yml", ".yaml")}
 if actual_workflows != expected_workflows:
-    errors.append("Only the three release/build workflows and manual upstream sync may remain")
+    errors.append("Only the four approved manual workflows may remain")
 for name in actual_workflows:
     text = (ROOT / ".github/workflows" / name).read_text()
     block = re.search(r"(?m)^on:\n((?:[ \t]+[^\n]*\n|\n)*)", text)
@@ -269,8 +269,8 @@ for required in (
 
 
 for name, text in (
-    ("current-main-build.yml", current_workflow),
-    ("publish-current-main-test-release.yml", publish_workflow),
+    ("01-当前源码编译与APK验证.yml", current_workflow),
+    ("02-正式APK构建与发布.yml", publish_workflow),
 ):
     # The upstream daemon criteria select JetBrains, not any Java 21 vendor.
     # Preflight must start a real daemon before expensive native reconstruction.
@@ -446,9 +446,9 @@ if "version_code" in upstream_lock and version_code != int(upstream_lock["versio
     errors.append("Fork versionCode must equal upstream versionCode * 1000 + revision")
 artifact_prefix = "fingmi-xray"
 if artifact_prefix + "-current-main-release" not in current_workflow:
-    errors.append("current-main-build.yml must retain the short-lived TV debug artifact")
+    errors.append("01-当前源码编译与APK验证.yml must retain the short-lived TV debug artifact")
 if "retention-days: 2" not in current_workflow:
-    errors.append("current-main-build.yml debug artifact must remain short-lived (2 days)")
+    errors.append("01-当前源码编译与APK验证.yml debug artifact must remain short-lived (2 days)")
 for required in (
     "actions: write",
     "清理过期的同名构建产物",
@@ -456,7 +456,7 @@ for required in (
     'gh api --method DELETE "repos/${GITHUB_REPOSITORY}/actions/artifacts/$id"',
 ):
     if required not in current_workflow:
-        errors.append(f"current-main-build.yml must auto-prune superseded debug artifacts: {required}")
+        errors.append(f"01-当前源码编译与APK验证.yml must auto-prune superseded debug artifacts: {required}")
 if artifact_prefix + "-current-main-release" in publish_workflow:
     errors.append("publish workflow must not duplicate successful APKs into Actions artifacts")
 
@@ -491,8 +491,8 @@ for required in (
         errors.append(f"publish workflow lost staged replacement contract: {required}")
 
 for name, text in (
-    ("current-main-build.yml", current_workflow),
-    ("publish-current-main-test-release.yml", publish_workflow),
+    ("01-当前源码编译与APK验证.yml", current_workflow),
+    ("02-正式APK构建与发布.yml", publish_workflow),
 ):
     if artifact_prefix + "-build-failure-reports" not in text or "retention-days: 1" not in text:
         errors.append(f"{name} failure reports must remain short-lived (1 day)")
@@ -500,7 +500,7 @@ for name, text in (
 if 'REPORT_NAME = "fingmi-xray-build-failure-reports"' not in (
         ROOT / "scripts/build/resume-verified-release.py").read_text(encoding="utf-8"):
     errors.append("resume helper must use the stable short-lived failure artifact name")
-manual_workflow = (ROOT / ".github/workflows/manual-upstream-sync.yml").read_text(encoding="utf-8")
+manual_workflow = (ROOT / ".github/workflows/04-上游一键升级.yml").read_text(encoding="utf-8")
 if 'RELEASE_TAG: ""' not in manual_workflow or (
         'release_tag="$(python3 scripts/build/resolve-release-tag.py)"' not in manual_workflow):
     errors.append("upstream sync must not pin the previous fork release in workflow YAML")
@@ -509,9 +509,9 @@ if ("git status --porcelain -- .github/workflows" not in manual_workflow or
         manual_workflow.index("重建并校验固定播放器及原生依赖")):
     errors.append("upstream sync must block workflow modifications before expensive native rebuild")
 for name, workflow in (
-    ("current-main-build.yml", current_workflow),
-    ("publish-current-main-test-release.yml", publish_workflow),
-    ("manual-upstream-sync.yml", manual_workflow),
+    ("01-当前源码编译与APK验证.yml", current_workflow),
+    ("02-正式APK构建与发布.yml", publish_workflow),
+    ("04-上游一键升级.yml", manual_workflow),
 ):
     if "python3 tests/test-resolve-release-tag.py" not in workflow:
         errors.append(f"{name} lost the source-derived release tag test")

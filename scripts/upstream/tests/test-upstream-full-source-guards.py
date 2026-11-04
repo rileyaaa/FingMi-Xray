@@ -12,7 +12,7 @@ import subprocess
 import textwrap
 
 ROOT = Path(__file__).resolve().parents[3]
-WORKFLOW = ROOT / '.github/workflows/manual-upstream-sync.yml'
+WORKFLOW = ROOT / '.github/workflows/04-上游一键升级.yml'
 EXPECTED = (
     'tests/test-xray-android-runtime-compat.py',
     'tests/test-xray-core-parity.py',

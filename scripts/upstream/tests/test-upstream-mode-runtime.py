@@ -13,7 +13,7 @@ import tempfile
 import textwrap
 
 ROOT = Path(__file__).resolve().parents[3]
-WORKFLOW = ROOT / '.github/workflows/manual-upstream-sync.yml'
+WORKFLOW = ROOT / '.github/workflows/04-上游一键升级.yml'
 
 
 def shell(script, cwd, env, ok=True):

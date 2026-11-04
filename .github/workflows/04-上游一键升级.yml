@@ -1,4 +1,4 @@
-name: "上游升级｜FongMi 一键同步、验证与发布"
+name: "04｜上游升级：FongMi 一键同步、验证与发布"
 
 on:
   workflow_dispatch:

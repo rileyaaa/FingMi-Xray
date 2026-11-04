@@ -4,7 +4,7 @@ from pathlib import Path
 import re
 
 ROOT = Path(__file__).resolve().parents[3]
-text = (ROOT / ".github/workflows/manual-upstream-sync.yml").read_text(encoding="utf-8")
+text = (ROOT / ".github/workflows/04-上游一键升级.yml").read_text(encoding="utf-8")
 parts = text.split("      - name: ")
 
 

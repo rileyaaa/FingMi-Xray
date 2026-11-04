@@ -291,7 +291,7 @@ on:
   workflow_dispatch:
 ```
 
-不保留 `push`、`pull_request`、`schedule`、`workflow_call` 等自动触发。当前四个手动入口分别为：`current-main-build.yml`（构建验证）、`publish-current-main-test-release.yml`（正式发布）、`resume-verified-release.yml`（失败续发）和 `manual-upstream-sync.yml`（上游升级候选）。最后一个入口的预检/只构建/发布模式与 5.8.7 阻断条件见第 12 节。
+不保留 `push`、`pull_request`、`schedule`、`workflow_call` 等自动触发。当前四个手动入口分别为：`01-当前源码编译与APK验证.yml`（构建验证）、`02-正式APK构建与发布.yml`（正式发布）、`03-已验证APK发布续传.yml`（失败续发）和 `04-上游一键升级.yml`（上游升级候选）。最后一个入口的预检/只构建/发布模式与 5.8.7 阻断条件见第 12 节。
 
 #### AI 协作执行准则
 
@@ -300,7 +300,7 @@ on:
 
 当前工程主构建：
 
-`.github/workflows/current-main-build.yml`
+`.github/workflows/01-当前源码编译与APK验证.yml`
 
 它负责：
 
@@ -316,7 +316,7 @@ on:
 
 正式发布器（文件名保留以兼容既有手动入口）：
 
-`.github/workflows/publish-current-main-test-release.yml`
+`.github/workflows/02-正式APK构建与发布.yml`
 
 Release 只保留 `v5.6.0-xray.5` 黄金参考和一个当前正式版，均只上传双 ABI APK。按用户最新要求，发布和续发都不再生成、上传或临时创建项目源码 ZIP、`source-backup-*` Release/tag；源码、签名及历史取证材料由私有 Git 仓库管理。
 
@@ -328,7 +328,7 @@ Release 只保留 `v5.6.0-xray.5` 黄金参考和一个当前正式版，均只�
 
 GitHub 的按 tag 获取已发布 Release 接口不会返回草稿；草稿创建和旧版转 rollback 后，必须使用已知 Release ID 校验状态、tag 和全部资产。存在性检查同时包含分页草稿列表；最终正式发布仍检查公开 tag、Git ref、资产摘要及 latest，不能因草稿查询 404 就放松校验。测试替身必须保留“draft 按 tag 查询为 404、按 ID 可读”的真实区别。
 
-仅发布阶段失败时，可用纯手动 `resume-verified-release.yml` 或在具备对应仓库权限的环境执行同一续发工具，续发原 Actions 已验证 APK，避免重复编译。续发先验证原 run 的仓库、workflow、触发方式、源码及全部构建/验收步骤，再读取该 run 的失败报告，通过明确草稿 ID 下载原资产并重验摘要、签名、Media3 DEX 类链接、Manifest 和内嵌源码；发布来源继续记录原 APK 的构建 SHA。当前运行代码必须与原构建一致，不能将较新发布工具的提交冒称 APK 来源。原 run、报告或资产不满足条件就停止。
+仅发布阶段失败时，可用纯手动 `03-已验证APK发布续传.yml` 或在具备对应仓库权限的环境执行同一续发工具，续发原 Actions 已验证 APK，避免重复编译。续发先验证原 run 的仓库、workflow、触发方式、源码及全部构建/验收步骤，再读取该 run 的失败报告，通过明确草稿 ID 下载原资产并重验摘要、签名、Media3 DEX 类链接、Manifest 和内嵌源码；发布来源继续记录原 APK 的构建 SHA。当前运行代码必须与原构建一致，不能将较新发布工具的提交冒称 APK 来源。原 run、报告或资产不满足条件就停止。
 
 2026-10-26 的完整构建通过，但发布与首次续发因 Actions `GITHUB_TOKEN` 创建 rollback tag、移动正式 tag 返回 HTTP 403 而失败，已经上传的新 APK 无需因此重编译。遇到该权限错误，使用已授权且实际能操作目标仓库 Git ref 的凭据处理精确标签；发布器仅在目标 ref 已准确指向原验证源码时跳过冗余 PATCH。所有验证门槛继续保留。删除标签返回 403 时，结果记录 `pending_tag_cleanup` / `complete_pending_tag_cleanup`，必须完成对应清理并复核远端标签集合后才能声称全部完成；不得把 Release 已删除等同于 tag 已删除。
 
@@ -393,11 +393,11 @@ FingMi-Xray 当前**不使用 FongMi/Release 的应用内自更新**。原因是
 - Manifest 不申请 `REQUEST_INSTALL_PACKAGES`；
 - 测试包 / 正式包只通过本仓库明确发布并由用户主动安装。
 
-现存四个入口为 `current-main-build.yml`（构建验证）、`publish-current-main-test-release.yml`（正式发布）、`resume-verified-release.yml`（原产物复验续发）、`manual-upstream-sync.yml`（上游升级），全部仅通过 `workflow_dispatch` 手动触发。五个历史 `recovery-*` 工作流已删除，其取证源码、脚本和 fixture 仍保留；详见 [RECOVERY.md](RECOVERY.md#9-归档-faithful-构建工具非-main-构建链)。
+现存四个入口为 `01-当前源码编译与APK验证.yml`（构建验证）、`02-正式APK构建与发布.yml`（正式发布）、`03-已验证APK发布续传.yml`（原产物复验续发）、`04-上游一键升级.yml`（上游升级），全部仅通过 `workflow_dispatch` 手动触发。五个历史 `recovery-*` 工作流已删除，其取证源码、脚本和 fixture 仍保留；详见 [RECOVERY.md](RECOVERY.md#9-归档-faithful-构建工具非-main-构建链)。
 
 ### 本地
 
-编译、测试或 assemble 前，需要先准备 `app/libs` 与 `libxray/libs/libXray.aar` 所需的固定依赖。最完整的依赖准备顺序以 `current-main-build.yml` 为准。仅执行 `help` 的 daemon 预检不依赖这些生成 AAR。
+编译、测试或 assemble 前，需要先准备 `app/libs` 与 `libxray/libs/libXray.aar` 所需的固定依赖。最完整的依赖准备顺序以 `01-当前源码编译与APK验证.yml` 为准。仅执行 `help` 的 daemon 预检不依赖这些生成 AAR。
 
 完成依赖准备后，主要验证命令为：
 
@@ -844,7 +844,7 @@ Xray 当前源码重新验证 9000 次 Controller/Client 清理序列、102 次�
 
 截至 2026-11-04，`main` 的运行版本与 [`app/build.gradle`](../app/build.gradle) 一致，为 **`v5.6.3-xray.1` / `563001`**；2026-10-26 发布 APK 对应源码 `4bea3a54ece68fbb439374e7d7944ec94fe28683`。历史 `.2`–`.4` 记录不能用于判断当前 `main`。当前四个 Actions 入口均为手动触发，常规发布标签按已选源码动态校验生成，不再固定写死 5.6.3。
 
-2026-11-02 至 11-03 的 5.8.7 试验**未发布新版 APK**：公开 Media3/播放器源码缺少至少 44 个顶级类型及相关接口，Leanback Java 编译失败。保留的 `manual-upstream-sync.yml` 默认只做候选预检，**在依赖缺口解决前不能把 `apply_to_main=true` 用作排障按钮**。原始失败 run、根因、工具入口、未来验证门槛见第 12 节；这里不重复历史流水。此前 5.6.3 编译后因 Git tag 权限 403 的红色 run 已通过原资产续发解决，不能与 5.8.7 javac 阻断混淆。
+2026-11-02 至 11-03 的 5.8.7 试验**未发布新版 APK**：公开 Media3/播放器源码缺少至少 44 个顶级类型及相关接口，Leanback Java 编译失败。保留的 `04-上游一键升级.yml` 默认只做候选预检，**在依赖缺口解决前不能把 `apply_to_main=true` 用作排障按钮**。原始失败 run、根因、工具入口、未来验证门槛见第 12 节；这里不重复历史流水。此前 5.6.3 编译后因 Git tag 权限 403 的红色 run 已通过原资产续发解决，不能与 5.8.7 javac 阻断混淆。
 
 ### 5.6.3 主机名补丁：下次升级时重新判定
 
@@ -876,7 +876,7 @@ Xray 当前源码重新验证 9000 次 Controller/Client 清理序列、102 次�
 
 #### 入口与边界
 
-入口：`.github/workflows/manual-upstream-sync.yml`。另外三个日常构建、正式发布、失败续传工作流也保留在 `.github/workflows/`，**全部仅手动 workflow_dispatch**。本目录脚本不能自行触发发布、修改 GitHub Actions 或绕过源码审核。
+入口：`.github/workflows/04-上游一键升级.yml`。另外三个日常构建、正式发布、失败续传工作流也保留在 `.github/workflows/`，**全部仅手动 workflow_dispatch**。本目录脚本不能自行触发发布、修改 GitHub Actions 或绕过源码审核。
 
 默认一键升级模式仅预检；`build_without_publish=true` 构建验证后只保留短期私有 Artifact；`apply_to_main=true` 会在全部检查成功后更新 main 并发布，**在公开 Media3 播放器缺失问题未解决前禁止用于排障**。
 
@@ -953,7 +953,7 @@ python3 tests/test-build-hygiene.py
 
 #### 五、今后正确的操作门槛
 
-- 四个 Actions YAML **只能通过 `workflow_dispatch` 手动启动**，不得恢复定时器、push marker、跨 workflow 自动链。保留的 `manual-upstream-sync.yml` 提供互斥模式：
+- 四个 Actions YAML **只能通过 `workflow_dispatch` 手动启动**，不得恢复定时器、push marker、跨 workflow 自动链。保留的 `04-上游一键升级.yml` 提供互斥模式：
   - `apply_to_main=false` 且 `build_without_publish=false`：默认**预览**，候选校验，不编译/不发布。
   - `apply_to_main=false` 且 `build_without_publish=true`：构建并校验双 ABI APK，只保存短期私有 Artifact，**不会推送 main/发布 Release**。
   - `apply_to_main=true` 且 `build_without_publish=false`：所有检查通过后**将候选推送 main 并正式发布**；目前**禁止**作为排障按钮使用。

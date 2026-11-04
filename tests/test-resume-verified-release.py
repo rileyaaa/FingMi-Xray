@@ -53,6 +53,21 @@ class ResumeTests(unittest.TestCase):
         self.assertEqual(RESUME.verify_report(self.run, self.report, TAG), (STAGE_TAG, 30))
         self.assertEqual(len(RESUME.verify_stage(self.stage, self.report, STAGE_TAG, 30)), 2)
 
+    def test_legacy_publication_workflow_identity_remains_valid(self):
+        self.workflow["path"] = RESUME.LEGACY_WORKFLOW
+        self.check_run()
+
+    def test_localized_publication_steps_are_verified_before_resume(self):
+        steps = [{"name": name, "status": "completed", "conclusion": "success", "number": number}
+                 for number, name in enumerate(RESUME.CURRENT_REQUIRED_STEPS, 1)]
+        steps.append({"name": RESUME.CURRENT_PUBLISH_STEP,
+                      "status": "completed", "conclusion": "failure", "number": 99})
+        self.jobs[0]["steps"] = steps
+        self.check_run()
+        self.jobs[0]["steps"][0]["conclusion"] = "skipped"
+        with self.assertRaises(ValueError):
+            self.check_run()
+
     def test_automatic_runs_and_retired_backup_reports_are_rejected(self):
         self.run["event"] = "push"
         self.run["head_commit"] = {"id": SOURCE,
@@ -95,7 +110,7 @@ class ResumeTests(unittest.TestCase):
                     self.run[repo][field] = value
                     self.check_run()
                 self.run[repo] = copy.deepcopy(original)
-        self.workflow["path"] = ".github/workflows/resume-verified-release.yml"
+        self.workflow["path"] = ".github/workflows/03-已验证APK发布续传.yml"
         with self.assertRaises(ValueError):
             self.check_run()
 
@@ -228,7 +243,7 @@ class ResumeTests(unittest.TestCase):
             self.artifact.update(size_in_bytes=archive.stat().st_size, digest=RESUME.digest(archive))
             binaries["actions/artifacts/40/zip"] = archive.read_bytes()
             responses = {"actions/runs/123": self.run,
-                         "actions/workflows/publish-current-main-test-release.yml": self.workflow,
+                         "actions/workflows/20": self.workflow,
                          "releases/30": self.stage,
                          "git/ref/tags/" + STAGE_TAG: {"ref": "refs/tags/" + STAGE_TAG,
                                                      "object": {"type": "commit", "sha": SOURCE}}}

@@ -228,8 +228,8 @@ def metadata(root,old_tag,tag,new_upstream,code,upsha):
     s=re.sub(r"当前正式版为 "+tick+r"v\d+\.\d+\.\d+-xray\.\d+"+tick+r" / "+tick+r"\d+"+tick,
              "当前源码版本配置： "+tick+tag+tick+" / "+tick+str(code)+tick+"；正式 APK 以 GitHub Releases/latest 为准",s,count=1)
     # Keep the current upstream version table synchronized with the APK.
-    old_cell = "| FongMi/TV | **" + old_upstream + "**"
-    new_cell = "| FongMi/TV | **" + new_upstream + "**"
+    old_cell = "| FongMi/TV 公开源码 | **" + old_upstream + "**"
+    new_cell = "| FongMi/TV 公开源码 | **" + new_upstream + "**"
     if s.count(old_cell) != 1:
         raise ValueError("README current upstream version table changed")
     s = s.replace(old_cell, new_cell, 1)
@@ -255,19 +255,13 @@ def metadata(root,old_tag,tag,new_upstream,code,upsha):
     # main or Release state after a verified upstream integration.
     if old_upstream == "5.6.3" and new_upstream == "5.8.7":
         dated = (
-            "### 2026-11-02 上游 5.8.7 与通用一键升级 Actions",
-            "### 2026-11-02 5.8.7 官方 Exo 接线适配（候选生成器，未发布）",
-            "### 2026-11-02 Xray 播放器接线解耦（5.8.7 迁移第一阶段）",
+            "##### 2026-11-02 上游 5.8.7 与通用一键升级 Actions",
+            "##### 2026-11-02 5.8.7 官方 Exo 接线适配（候选生成器，未发布）",
+            "##### 2026-11-02 Xray 播放器接线解耦（5.8.7 迁移第一阶段）",
         )
         for heading in dated:
             if s.count(heading) != 1:
-                # This repo rolled back the dated trial log into one review
-                # document; retain the same exact heading contract there.
-                retrospective = root / "docs/UPSTREAM_5_8_7_MIGRATION_AUDIT.md"
-                if (not retrospective.is_file() or
-                        retrospective.read_text(encoding="utf-8").count(heading) != 1):
-                    raise ValueError("Cannot identify historical migration notes: " + heading)
-                continue
+                raise ValueError("Cannot identify consolidated historical migration notes: " + heading)
             s = s.replace(
                 heading,
                 heading + "\n\n> 历史记录：本节保留原 5.6.3 迁移期间的候选状态和判断；"

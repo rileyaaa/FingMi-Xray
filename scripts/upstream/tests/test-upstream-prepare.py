@@ -10,11 +10,11 @@ from prepare_release import gradle, home, tests_proxy, fork_version, metadata, r
 
 # The real repository documentation must also satisfy metadata()'s exact
 # anchors. Fixture-only tests previously missed a duplicated historical section.
-audit = (Path(__file__).resolve().parents[3] / "docs/UPSTREAM_5_8_7_MIGRATION_AUDIT.md").read_text(encoding="utf-8")
+audit = (Path(__file__).resolve().parents[3] / "docs/DEVELOPMENT.md").read_text(encoding="utf-8")
 for heading in (
-    "### 2026-11-02 上游 5.8.7 与通用一键升级 Actions",
-    "### 2026-11-02 5.8.7 官方 Exo 接线适配（候选生成器，未发布）",
-    "### 2026-11-02 Xray 播放器接线解耦（5.8.7 迁移第一阶段）",
+    "##### 2026-11-02 上游 5.8.7 与通用一键升级 Actions",
+    "##### 2026-11-02 5.8.7 官方 Exo 接线适配（候选生成器，未发布）",
+    "##### 2026-11-02 Xray 播放器接线解耦（5.8.7 迁移第一阶段）",
 ):
     assert audit.count(heading) == 1, "Migration retrospective anchors are ambiguous: " + heading
 
@@ -129,8 +129,8 @@ with tempfile.TemporaryDirectory(prefix="upstream-doc-version-contract-") as tem
     old = "v5.6.3-xray.1"
     new = "v5.8.7-xray.1"
     sha = "8626650ebcbc0d028e16d859e826fcf439720f3a"
-    for name in (".github/workflows/current-main-build.yml",
-                 ".github/workflows/publish-current-main-test-release.yml",
+    for name in (".github/workflows/01-当前源码编译与APK验证.yml",
+                 ".github/workflows/02-正式APK构建与发布.yml",
                  "scripts/build/resume-verified-release.py"):
         file = root / name
         file.parent.mkdir(parents=True, exist_ok=True)
@@ -140,25 +140,25 @@ with tempfile.TemporaryDirectory(prefix="upstream-doc-version-contract-") as tem
                         'default="' + old + '"\n', encoding="utf-8")
     # Record the original workflow bytes. Candidate upgrade commits must
     # never attempt to rewrite protected .github/workflows definitions.
-    workflows = (".github/workflows/current-main-build.yml",
-                 ".github/workflows/publish-current-main-test-release.yml")
+    workflows = (".github/workflows/01-当前源码编译与APK验证.yml",
+                 ".github/workflows/02-正式APK构建与发布.yml")
     frozen_workflows = {name: (root / name).read_bytes() for name in workflows}
     readme = root / "README.md"
     readme.write_text(
         '当前 `main` 以 FongMi/TV 5.6.3（`' + "c616c0aa3613e87529791587a9f71b78c278c991" + '`）\n'
         '当前正式版为 `' + old + '` / `563001`\n'
-        '| FongMi/TV | **5.6.3**（commit `c616c0aa3613e87529791587a9f71b78c278c991`） |\n',
+        '| FongMi/TV 公开源码 | **5.6.3**（commit `c616c0aa3613e87529791587a9f71b78c278c991`） |\n',
         encoding="utf-8")
     development = root / "docs/DEVELOPMENT.md"
     development.parent.mkdir(parents=True, exist_ok=True)
     development.write_text(
         "# Development\n## 1. 当前工程基线\n原 5.6.3 基线\n"
         "### 维护范围\n仅 Xray 和 TV 网络恢复\n"
-        "### 2026-11-02 上游 5.8.7 与通用一键升级 Actions\n"
+        "##### 2026-11-02 上游 5.8.7 与通用一键升级 Actions\n"
         "5.8.7 当时尚未发布。\n"
-        "### 2026-11-02 5.8.7 官方 Exo 接线适配（候选生成器，未发布）\n"
+        "##### 2026-11-02 5.8.7 官方 Exo 接线适配（候选生成器，未发布）\n"
         "适配进行中。\n"
-        "### 2026-11-02 Xray 播放器接线解耦（5.8.7 迁移第一阶段）\n"
+        "##### 2026-11-02 Xray 播放器接线解耦（5.8.7 迁移第一阶段）\n"
         "当时尚未编译。\n", encoding="utf-8")
     metadata(root, old, new, "5.8.7", 587001, sha)
     updated = development.read_text(encoding="utf-8")
@@ -168,7 +168,7 @@ with tempfile.TemporaryDirectory(prefix="upstream-doc-version-contract-") as tem
     assert "5.8.7 当时尚未发布。" in updated
     readme_output = readme.read_text(encoding="utf-8")
     assert "FongMi/TV 5.8.7（`" + sha + "`）" in readme_output
-    assert "| FongMi/TV | **5.8.7**（commit `" + sha + "`） |" in readme_output
+    assert "| FongMi/TV 公开源码 | **5.8.7**（commit `" + sha + "`） |" in readme_output
     for name in workflows:
         assert (root / name).read_bytes() == frozen_workflows[name], name
     helper = (root / "scripts/build/resume-verified-release.py").read_text(encoding="utf-8")
