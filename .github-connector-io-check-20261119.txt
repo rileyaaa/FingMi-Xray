@@ -1,0 +1,4 @@
+Temporary GitHub connector I/O test for FingMi-Xray.
+Created on 2026-11-19 solely to verify repository write access.
+Delete this file immediately after verifying its contents.
+No application files or workflow configuration should be modified.
