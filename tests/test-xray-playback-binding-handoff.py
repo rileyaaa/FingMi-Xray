@@ -42,6 +42,8 @@ HARNESS = r'''
 import com.fingmi.xray.session.*;
 import com.fingmi.xray.network.XrayHttpClient;
 import okhttp3.OkHttpClient;
+import java.util.ArrayList;
+import java.util.List;
 
 class PlayerManager {
     String key;
@@ -84,18 +86,71 @@ abstract class XrayActivity extends Activity {
     XrayPlaybackSession mXray;
     int mPlaybackEpoch;
     boolean xrayPlaybackReady, mXrayPendingChannelResume, mXrayStartedFromExistingPlayback, mXrayRefreshMetadataOnDetach;
+    boolean stopOnProxyAttach, restartOnProxyAttach;
+    boolean restartOnProxyDetach, throwAfterRestartOnProxyAttach;
+    boolean throwOnFirstAttach, retryInProxyError, retryAtErrorState;
+    XrayHttpClient retiredProxy;
+    final List<Integer> states = new ArrayList<>();
+    final List<Integer> attachedPorts = new ArrayList<>();
     int attaches, detaches;
     XrayActivity(PlaybackService service, String key) {
         super(service, key);
         mXray = new XrayPlaybackSession(new android.content.Context(), new OkHttpClient(), new XrayPlaybackSession.Listener() {
             public void onProxyChanged(XrayHttpClient resources, boolean preserve) {
                 // Same owner guard and player proxy installation as both Leanback Activities.
+                if (resources != null && stopOnProxyAttach) {
+                    stopOnProxyAttach = false;
+                    mXray.stop(false);
+                    return;
+                }
+                if (resources != null && restartOnProxyAttach) {
+                    restartOnProxyAttach = false;
+                    retiredProxy = resources;
+                    mXray.stop(false);
+                    if (!mXray.enable()) throw new AssertionError("reentrant retry refused");
+                    return;
+                }
+                if (resources == null && restartOnProxyDetach) {
+                    restartOnProxyDetach = false;
+                    mXray.stop(false);
+                    if (!mXray.enable()) throw new AssertionError("detach retry refused");
+                    return;
+                }
+                if (resources != null && throwAfterRestartOnProxyAttach) {
+                    throwAfterRestartOnProxyAttach = false;
+                    retiredProxy = resources;
+                    mXray.stop(false);
+                    if (!mXray.enable()) throw new AssertionError("failure retry refused");
+                    throw new IllegalStateException("stale attach failed after replacement");
+                }
+                if (resources != null && throwOnFirstAttach) {
+                    throwOnFirstAttach = false;
+                    retiredProxy = resources;
+                    throw new IllegalStateException("synthetic initial attach failure");
+                }
                 if (mService != null && isOwner()) {
                     player().setPlaybackProxy(resources, preserve);
-                    if (resources == null) detaches++; else attaches++;
+                    if (resources == null) detaches++;
+                    else { attaches++; attachedPorts.add(resources.port); }
                 }
             }
-            public void onStateChanged(int state, String message) {}
+            @Override public void onProxyError() {
+                if (retryInProxyError) {
+                    retryInProxyError = false;
+                    mXray.stop(false);
+                    if (!mXray.enable()) throw new AssertionError("rollback retry refused");
+                    return;
+                }
+                onProxyChanged(null, false);
+            }
+            public void onStateChanged(int state, String message) {
+                states.add(state);
+                if (state == XraySessionListener.ERROR && retryAtErrorState) {
+                    retryAtErrorState = false;
+                    mXray.stop(false);
+                    if (!mXray.enable()) throw new AssertionError("ERROR listener retry refused");
+                }
+            }
         });
         mXray.begin(key + ":initial");
     }
@@ -157,6 +212,136 @@ public class HandoffTest {
         check(b.mXray.resources() == current && !current.closed, "repeat new-owner claim preserves pending/active session");
         b.mXray.close();
     }
+    static void reentrantStopDuringProxyAttachDoesNotPublishStaleRunning() {
+        PlaybackService service = new PlaybackService();
+        XrayActivity a = activity(false, service, "A");
+        service.manager.start("A");
+        a.activate();
+        a.stopOnProxyAttach = true;
+        a.enable();
+        check(a.mXray.state() == XraySessionListener.IDLE,
+                "reentrant owner stop did not leave controller IDLE");
+        check(a.mXray.resources() == null && service.manager.proxy == null,
+                "reentrant owner stop did not retire the just-created proxy");
+        check(!a.states.isEmpty()
+                        && a.states.get(a.states.size() - 1) == XraySessionListener.IDLE,
+                "stale outer RUNNING callback overwrote reentrant IDLE");
+    }
+    static void sameStateReentrantRetryDoesNotRepublishOldRunning() {
+        PlaybackService service = new PlaybackService();
+        XrayActivity a = activity(false, service, "A");
+        service.manager.start("A");
+        a.activate();
+        a.states.clear();
+        a.restartOnProxyAttach = true;
+        a.enable();
+        check(a.mXray.state() == XraySessionListener.RUNNING,
+                "reentrant retry did not leave controller RUNNING");
+        check(a.retiredProxy != null && a.retiredProxy.closed,
+                "reentrant retry leaked old proxy");
+        check(a.mXray.resources() != null && a.mXray.resources() != a.retiredProxy
+                        && !a.mXray.resources().closed,
+                "reentrant retry lost the replacement proxy");
+        check(a.states.equals(List.of(XraySessionListener.IDLE,
+                        XraySessionListener.RUNNING)),
+                "stale outer RUNNING was published after IDLE -> replacement RUNNING: " + a.states);
+        a.mXray.close();
+    }
+    static void restartInsideOldProxyDetachDoesNotInstallStaleEndpoint() {
+        PlaybackService service = new PlaybackService();
+        XrayActivity a = activity(false, service, "A");
+        service.manager.start("A");
+        a.activate();
+        a.enable();
+        XrayHttpClient first = a.mXray.resources();
+        a.states.clear();
+        a.restartOnProxyDetach = true;
+        // A duplicate RUNNING result may arrive while the old proxy is bound.
+        a.mXray.onXrayStateChanged(XraySessionListener.RUNNING, 9999, "stale");
+        check(first.closed, "duplicate RUNNING did not close the previous proxy");
+        check(a.mXray.state() == XraySessionListener.RUNNING,
+                "detach retry did not reach RUNNING");
+        check(a.mXray.resources() != null && !a.mXray.resources().closed
+                        && a.mXray.resources().port == 12345,
+                "old RUNNING overwrote newer proxy resource");
+        check(a.attachedPorts.equals(List.of(12345, 12345)),
+                "obsolete proxy port was installed after a reentrant retry: " + a.attachedPorts);
+        check(a.states.equals(List.of(XraySessionListener.IDLE, XraySessionListener.RUNNING)),
+                "duplicate RUNNING re-published obsolete state: " + a.states);
+        a.mXray.close();
+    }
+    static void throwingOldAttachDoesNotStopNewRetry() {
+        PlaybackService service = new PlaybackService();
+        XrayActivity a = activity(false, service, "A");
+        service.manager.start("A");
+        a.activate();
+        a.states.clear();
+        a.throwAfterRestartOnProxyAttach = true;
+        a.enable();
+        check(a.retiredProxy != null && a.retiredProxy.closed,
+                "throwing old attach did not close the superseded proxy");
+        check(a.mXray.state() == XraySessionListener.RUNNING
+                        && a.mXray.resources() != null && !a.mXray.resources().closed
+                        && a.mXray.resources() != a.retiredProxy,
+                "obsolete attach error rolled back the new RUNNING session");
+        check(a.states.equals(List.of(XraySessionListener.IDLE, XraySessionListener.RUNNING)),
+                "obsolete attach published ERROR or extra state after new retry: " + a.states);
+        a.mXray.close();
+    }
+    static void proxyRollbackRetryCannotBeStoppedByOldFailure() {
+        PlaybackService service = new PlaybackService();
+        XrayActivity a = activity(false, service, "A");
+        service.manager.start("A");
+        a.activate();
+        a.states.clear();
+        a.throwOnFirstAttach = true;
+        a.retryInProxyError = true;
+        a.enable();
+        check(a.retiredProxy != null && a.retiredProxy.closed,
+                "failed first proxy was not closed");
+        check(a.mXray.state() == XraySessionListener.RUNNING
+                        && a.mXray.resources() != null && !a.mXray.resources().closed
+                        && a.mXray.resources() != a.retiredProxy,
+                "old rollback stopped newer proxy");
+        check(a.states.equals(List.of(XraySessionListener.IDLE, XraySessionListener.RUNNING)),
+                "old rollback emitted stale ERROR/IDLE after retry: " + a.states);
+        a.mXray.close();
+    }
+    static void errorListenerRetryCannotBeStoppedByOldFailure() {
+        PlaybackService service = new PlaybackService();
+        XrayActivity a = activity(false, service, "A");
+        service.manager.start("A");
+        a.activate();
+        a.states.clear();
+        a.throwOnFirstAttach = true;
+        a.retryAtErrorState = true;
+        a.enable();
+        check(a.retiredProxy != null && a.retiredProxy.closed,
+                "ERROR listener failure did not release its old proxy");
+        check(a.mXray.state() == XraySessionListener.RUNNING
+                        && a.mXray.resources() != null && !a.mXray.resources().closed,
+                "old post-ERROR STOP killed the retry");
+        check(a.states.equals(List.of(XraySessionListener.ERROR, XraySessionListener.IDLE,
+                        XraySessionListener.RUNNING)),
+                "old failure published a trailing IDLE over reentrant retry: " + a.states);
+        a.mXray.close();
+    }
+    static void ordinaryAttachFailureStillStops() {
+        PlaybackService service = new PlaybackService();
+        XrayActivity a = activity(false, service, "A");
+        service.manager.start("A");
+        a.activate();
+        a.states.clear();
+        a.throwOnFirstAttach = true;
+        a.enable();
+        check(a.retiredProxy != null && a.retiredProxy.closed,
+                "ordinary failed attach leaked proxy");
+        check(a.mXray.state() == XraySessionListener.IDLE && a.mXray.resources() == null,
+                "ordinary attach failure did not stop");
+        check(a.states.equals(List.of(XraySessionListener.ERROR, XraySessionListener.IDLE)),
+                "ordinary failure lost ERROR -> IDLE contract: " + a.states);
+        a.mXray.close();
+    }
     static void mobile(boolean pip) {
         PlaybackService service = new PlaybackService();
         Activity a = new Activity(service, "A"); a.pip = pip; a.activate();
@@ -167,8 +352,15 @@ public class HandoffTest {
         for (boolean oldLive : new boolean[]{false, true})
             for (boolean sameKey : new boolean[]{false, true}) transfer(oldLive, false, sameKey);
         transfer(false, true, true);
+        reentrantStopDuringProxyAttachDoesNotPublishStaleRunning();
+        sameStateReentrantRetryDoesNotRepublishOldRunning();
+        restartInsideOldProxyDetachDoesNotInstallStaleEndpoint();
+        throwingOldAttachDoesNotStopNewRetry();
+        proxyRollbackRetryCannotBeStoppedByOldFailure();
+        errorListenerRetryCannotBeStoppedByOldFailure();
+        ordinaryAttachFailureStillStops();
         mobile(false); mobile(true);
-        System.out.println("PASS real Activity/Service binding methods + XrayPlaybackSession: 4 cross-owner/key transfers, pending Live start, late stop/close, repeated claims and Mobile PiP behavior");
+        System.out.println("PASS real Activity/Service binding methods + XrayPlaybackSession: 4 cross-owner/key transfers, reentrant STOP/retry, detach and failure rollback generations, pending Live start, late stop/close, repeated claims and Mobile PiP behavior");
     }
 }
 '''
@@ -177,7 +369,7 @@ STUBS = {
     'android/content/Context.java': 'package android.content; public class Context {}',
     'android/os/Looper.java': 'package android.os; public class Looper { static final Looper MAIN=new Looper(); public static Looper myLooper(){return MAIN;} public static Looper getMainLooper(){return MAIN;} }',
     'okhttp3/OkHttpClient.java': 'package okhttp3; public class OkHttpClient {}',
-    'com/fingmi/xray/network/XrayHttpClient.java': 'package com.fingmi.xray.network; import okhttp3.OkHttpClient; public class XrayHttpClient implements AutoCloseable { public boolean closed; public XrayHttpClient(int port,OkHttpClient base){} public OkHttpClient client(){return new OkHttpClient();} public void close(){closed=true;} }',
+    'com/fingmi/xray/network/XrayHttpClient.java': 'package com.fingmi.xray.network; import okhttp3.OkHttpClient; public class XrayHttpClient implements AutoCloseable { public boolean closed; public final int port; public XrayHttpClient(int port,OkHttpClient base){this.port=port;} public OkHttpClient client(){return new OkHttpClient();} public void close(){closed=true;} }',
     'com/fingmi/xray/network/PublicPlaybackDestinationInterceptor.java': 'package com.fingmi.xray.network; public class PublicPlaybackDestinationInterceptor {}',
     'com/fingmi/xray/util/XrayErrorSanitizer.java': 'package com.fingmi.xray.util; public class XrayErrorSanitizer {public static String sanitize(Throwable error){return "failure";} }',
     'com/fingmi/xray/session/XrayPlaybackAddress.java': 'package com.fingmi.xray.session; public class XrayPlaybackAddress {public static boolean supports(String url){return url!=null && url.startsWith("https://");} public static boolean supportsDirectLiveSource(String url){return supports(url);} }',

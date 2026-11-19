@@ -38,6 +38,13 @@ public final class PublicPlaybackDestinationInterceptor
         if (isBlank(host)) return true;
 
         String value = host.toLowerCase(Locale.ROOT);
+        // The absolute DNS root dot does not change a hostname's destination:
+        // localhost. and camera.local. must obey the same deny policy as
+        // localhost and camera.local. Inspect only; never rewrite the URL.
+        while (value.endsWith(".")) {
+            value = value.substring(0, value.length() - 1);
+        }
+        if (value.isEmpty()) return true;
         if ("localhost".equals(value)
                 || value.endsWith(".localhost")
                 || value.endsWith(".local")) {

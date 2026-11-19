@@ -193,7 +193,7 @@ public class PlaybackService extends MediaLibraryService implements MediaLibrary
     @Override
     public void onDestroy() {
         running = false;
-        if (xrayBitmapLoader != null) xrayBitmapLoader.cancelRemoteLoads();
+        if (xrayBitmapLoader != null) xrayBitmapLoader.close();
         releaseSession();
         player.release();
         removeForeground();

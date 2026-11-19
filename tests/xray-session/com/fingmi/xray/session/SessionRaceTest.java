@@ -74,6 +74,134 @@ public final class SessionRaceTest {
         check(controller.isRunning(),"newer reentrant retry could not reach RUNNING");
     }
 
+
+    static void startNotificationThrowAfterReplacement(boolean linkage) {
+        List<Integer> states=new ArrayList<>(); boolean[] once={true};
+        fresh((s,p,m)->{
+            states.add(s);
+            if (s==XraySessionListener.STARTING && once[0]) {
+                once[0]=false;
+                controller.stop(); controller.start();
+                if (linkage) throw new NoClassDefFoundError("stale STARTING callback");
+                throw new IllegalStateException("stale STARTING callback");
+            }
+        });
+        controller.start();
+        var requests=transport().requests;
+        check(requests.size()==3 && requests.get(1).operation==XrayOperation.STOP,
+                "STOP/retry request sequence changed");
+        check(controller.getState()==XraySessionListener.STARTING,
+                "stale thrown STARTING callback failed newer START");
+        check(states.equals(List.of(2,1,2)),"stale STARTING callback published ERROR/IDLE: "+states);
+        reply(requests.get(0),true);
+        check(controller.getState()==XraySessionListener.STARTING,"late first START displaced replacement");
+        reply(requests.get(2),true);
+        check(controller.isRunning(),"replacement START failed to reach RUNNING");
+        Handler.advance(30000);
+        check(controller.isRunning() && transport().cancellations==0,
+                "stale callback or timeout cancelled running replacement");
+    }
+
+    static void startNotificationThrowAfterStop() {
+        List<Integer> states=new ArrayList<>();
+        fresh((s,p,m)->{
+            states.add(s);
+            if (s==XraySessionListener.STARTING) {
+                controller.stop();
+                throw new IllegalStateException("old STARTING callback after STOP");
+            }
+        });
+        controller.start();
+        check(controller.getState()==XraySessionListener.IDLE,
+                "old STARTING catch displaced STOP state");
+        check(states.equals(List.of(2,1)),"old STARTING catch emitted stale ERROR: "+states);
+    }
+
+    static void startNotificationThrowKeepsReplacementTimeout() {
+        List<Integer> states=new ArrayList<>(); boolean[] once={true};
+        fresh((s,p,m)->{
+            states.add(s);
+            if (s==XraySessionListener.STARTING && once[0]) {
+                once[0]=false;controller.stop();controller.start();
+                throw new IllegalStateException("old STARTING callback after retry");
+            }
+        });
+        controller.start();
+        var oldStop=transport().requests.get(1);
+        var newest=transport().latest();
+        reply(oldStop,true);
+        Handler.advance(30000);
+        check(controller.getState()==XraySessionListener.IDLE,
+                "replacement START timeout was removed by old catch");
+        check(transport().cancellations==1
+                        && transport().lastCancelledOperation==XrayOperation.START
+                        && transport().lastCancelledOperationId==newest.operationId,
+                "replacement startup timeout cancelled wrong generation");
+        check(states.equals(List.of(2,1,2,4,1)),"replacement timeout event order: "+states);
+    }
+
+    static void startNotificationCurrentThrowCancelsLateStart() {
+        List<Integer> states=new ArrayList<>();
+        fresh((s,p,m)->{
+            states.add(s);
+            if (s==XraySessionListener.STARTING) throw new IllegalStateException("current listener failed");
+        });
+        controller.start();
+        var failed=transport().latest();
+        check(controller.getState()==XraySessionListener.IDLE
+                        && states.equals(List.of(2,4,1)),
+                "current STARTING callback exception was not reported");
+        check(transport().cancellations==1
+                        && transport().lastCancelledOperationId==failed.operationId,
+                "failed START was not cancelled");
+        reply(failed,true);
+        check(!controller.isRunning(),"late Binder success revived failed START");
+    }
+
+    static void startNotificationErrorCallbackReentry(boolean linkage) {
+        List<Integer> states=new ArrayList<>(); boolean[] once={true},retry={true};
+        fresh((s,p,m)->{
+            states.add(s);
+            if (s==XraySessionListener.STARTING && once[0]) {
+                once[0]=false;
+                if (linkage) throw new NoClassDefFoundError("current STARTING linkage");
+                throw new IllegalStateException("current STARTING failure");
+            }
+            if (s==XraySessionListener.ERROR && retry[0]) {
+                retry[0]=false;controller.start();
+            }
+        });
+        controller.start();
+        var requests=transport().requests;
+        check(requests.size()==2,"ERROR did not dispatch replacement START");
+        check(controller.getState()==XraySessionListener.STARTING,
+                "outer failed START displaced ERROR callback retry");
+        check(transport().cancellations==0,"old START cancellation disconnected newer owner");
+        check(states.equals(List.of(2,4,2)),"retry followed by stale IDLE: "+states);
+        reply(requests.get(0),true);
+        check(controller.getState()==XraySessionListener.STARTING,"late failed START revived");
+        reply(requests.get(1),true);
+        check(controller.isRunning(),"ERROR retry failed to run");
+    }
+
+    static void startNotificationThrowAfterClose() {
+        List<Integer> states=new ArrayList<>();
+        fresh((s,p,m)->{
+            states.add(s);
+            if (s==XraySessionListener.STARTING) {
+                controller.close();
+                throw new IllegalStateException("old STARTING callback after close");
+            }
+        });
+        controller.start();
+        check(controller.getState()==XraySessionListener.IDLE,
+                "closed owner was revived");
+        check(states.equals(List.of(2,1)),"closed STARTING callback emitted ERROR: "+states);
+        check(transport().requests.size()==2
+                        && transport().requests.get(1).operation==XrayOperation.STOP,
+                "close must dispatch final STOP");
+    }
+
     static void stopInsideStartingNotificationKeepsLatestIntent() {
         fresh((s,p,m)->{if(s==XraySessionListener.STARTING)controller.stop();});
         controller.start();
@@ -270,6 +398,14 @@ public final class SessionRaceTest {
         tests.put("running replacement cleanup",SessionRaceTest::runningReplacementClearsOldCleanupTimeout);
         tests.put("cleanup failure reentrant retry",SessionRaceTest::cleanupFailureAllowsNewerReentrantRetry);
         tests.put("STARTING callback order",SessionRaceTest::stopInsideStartingNotificationKeepsLatestIntent);
+        tests.put("STARTING callback reentry RuntimeException",()->startNotificationThrowAfterReplacement(false));
+        tests.put("STARTING callback reentry LinkageError",()->startNotificationThrowAfterReplacement(true));
+        tests.put("STARTING callback throw after STOP",SessionRaceTest::startNotificationThrowAfterStop);
+        tests.put("STARTING callback replacement timeout",SessionRaceTest::startNotificationThrowKeepsReplacementTimeout);
+        tests.put("STARTING current callback failure",SessionRaceTest::startNotificationCurrentThrowCancelsLateStart);
+        tests.put("STARTING callback ERROR retry RuntimeException",()->startNotificationErrorCallbackReentry(false));
+        tests.put("STARTING callback ERROR retry LinkageError",()->startNotificationErrorCallbackReentry(true));
+        tests.put("STARTING callback throw after close",SessionRaceTest::startNotificationThrowAfterClose);
         tests.put("IDLE callback order",SessionRaceTest::restartInsideStoppedNotificationKeepsLatestIntent);
         tests.put("late START",SessionRaceTest::oldStartAfterStopIsIgnored);
         tests.put("current timeouts",SessionRaceTest::currentTimeoutsStillCancel);

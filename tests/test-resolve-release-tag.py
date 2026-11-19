@@ -29,10 +29,10 @@ def rejected(root):
 with tempfile.TemporaryDirectory(prefix="fingmi-release-tag-test-") as td:
     root = Path(td)
     write(root, "app/build.gradle", 'versionCode 563001\nversionName "v5.6.3-xray.1"\n')
-    write(root, "scripts/upstream/baseline.json", json.dumps({"version": "5.6.3"}))
+    write(root, "scripts/build/source-baseline.json", json.dumps({"version": "5.6.3"}))
     assert tag.resolve(root) == "v5.6.3-xray.1"
     write(root, "app/build.gradle", 'versionCode 587001\nversionName "v5.8.7-xray.1"\n')
-    write(root, "scripts/upstream/baseline.json", json.dumps({"version": "5.8.7", "version_code": 587}))
+    write(root, "scripts/build/source-baseline.json", json.dumps({"version": "5.8.7", "version_code": 587}))
     assert tag.resolve(root) == "v5.8.7-xray.1"
     write(root, "app/build.gradle", 'versionCode 587002\nversionName "v5.8.7-xray.1"\n')
     rejected(root)
@@ -43,5 +43,5 @@ with tempfile.TemporaryDirectory(prefix="fingmi-release-tag-test-") as td:
     write(root, "app/build.gradle", 'versionCode 587001\nversionName "v5.8.7-xray.1"\nversionName "v5.8.7-xray.2"\n')
     rejected(root)
 
-assert tag.resolve(ROOT).startswith("v" + json.loads((ROOT / "scripts/upstream/baseline.json").read_text())["version"] + "-xray."), "Current source tag and pinned public baseline disagree"
+assert tag.resolve(ROOT).startswith("v" + json.loads((ROOT / "scripts/build/source-baseline.json").read_text())["version"] + "-xray."), "Current source tag and pinned public baseline disagree"
 print("PASS: signed release tags come from app/build.gradle and pinned upstream, not workflow YAML")

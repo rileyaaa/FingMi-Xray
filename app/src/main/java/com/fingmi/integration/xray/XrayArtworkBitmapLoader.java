@@ -15,12 +15,14 @@ import java.io.IOException;
 import java.util.Locale;
 import java.util.concurrent.CopyOnWriteArrayList;
 
-public final class XrayArtworkBitmapLoader implements BitmapLoader {
+public final class XrayArtworkBitmapLoader implements BitmapLoader, AutoCloseable {
 
     private final CopyOnWriteArrayList<ListenableFuture<Bitmap>> remoteLoads =
             new CopyOnWriteArrayList<>();
     private final PlayerManager player;
     private final BitmapLoader delegate;
+    // Guarded by player (or this when no player exists).
+    private boolean closed;
 
     public XrayArtworkBitmapLoader(PlayerManager player, BitmapLoader delegate) {
         this.player = player;
@@ -41,23 +43,74 @@ public final class XrayArtworkBitmapLoader implements BitmapLoader {
     @NonNull
     @Override
     public ListenableFuture<Bitmap> loadBitmap(@NonNull Uri uri) {
-        boolean local = isLocal(uri);
-        if (player != null && player.hasXraySession() && !local) {
-            return Futures.immediateFailedFuture(
-                    new IOException("Remote artwork blocked while Xray is enabled"));
+        // Local resources never require a network-generation guard.
+        if (isLocal(uri)) return delegate.loadBitmap(uri);
+        if (player == null) {
+            synchronized (this) {
+                if (closed) return closedRemoteLoad();
+                return trackRemote(delegate.loadBitmap(uri));
+            }
         }
 
-        ListenableFuture<Bitmap> future = delegate.loadBitmap(uri);
-        if (!local) {
-            remoteLoads.add(future);
-            future.addListener(
-                    () -> remoteLoads.remove(future),
-                    MoreExecutors.directExecutor());
+        // The public artwork loader creates/enqueues remote OkHttp calls
+        // synchronously, then returns a Future. Keep its creation AND Future
+        // registration in the same monitor as PlayerManager's Xray handoff.
+        // Otherwise the old direct request can begin after cancellation.
+        synchronized (player) {
+            if (closed) return closedRemoteLoad();
+            if (player.hasXraySession()) {
+                return Futures.immediateFailedFuture(
+                        new IOException("Remote artwork blocked while Xray is enabled"));
+            }
+            return trackRemote(delegate.loadBitmap(uri));
         }
+    }
+
+    private static ListenableFuture<Bitmap> closedRemoteLoad() {
+        return Futures.immediateFailedFuture(new IOException("Artwork loader is closed"));
+    }
+
+    private ListenableFuture<Bitmap> trackRemote(ListenableFuture<Bitmap> future) {
+        remoteLoads.add(future);
+        future.addListener(
+                () -> remoteLoads.remove(future),
+                MoreExecutors.directExecutor());
         return future;
     }
 
     public void cancelRemoteLoads() {
+        // onXrayTransitionStarted already owns this monitor; onDestroy may not.
+        if (player == null) {
+            synchronized (this) {
+                cancelTracked();
+            }
+        } else {
+            synchronized (player) {
+                cancelTracked();
+            }
+        }
+    }
+
+    /** Permanently retire remote artwork when PlaybackService is destroyed. */
+    @Override
+    public void close() {
+        if (player == null) {
+            synchronized (this) {
+                closeTracked();
+            }
+        } else {
+            synchronized (player) {
+                closeTracked();
+            }
+        }
+    }
+
+    private void closeTracked() {
+        closed = true;
+        cancelTracked();
+    }
+
+    private void cancelTracked() {
         for (ListenableFuture<Bitmap> future : remoteLoads) {
             future.cancel(true);
         }

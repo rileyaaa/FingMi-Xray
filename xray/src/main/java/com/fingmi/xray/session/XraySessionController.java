@@ -55,6 +55,9 @@ public final class XraySessionController implements XrayServiceClient.Listener, 
             return;
         }
 
+        // Catch handlers for an older START must not tear down a replacement
+        // operation installed by a synchronous listener callback.
+        long startOperationId = NO_OPERATION;
         try {
             String shareLink = preferences.getShareLink();
             if (shareLink.isEmpty()) {
@@ -63,6 +66,7 @@ public final class XraySessionController implements XrayServiceClient.Listener, 
             }
 
             long operationId = XrayOperationIds.next();
+            startOperationId = operationId;
             currentOperationId = operationId;
             startupOperationId = operationId;
             state = XraySessionListener.STARTING;
@@ -81,13 +85,31 @@ public final class XraySessionController implements XrayServiceClient.Listener, 
                     () -> scheduleStartupTimeout(operationId)));
             notifyState(XraySessionListener.STARTING, 0, "");
         } catch (Exception error) {
-            startupOperationId = NO_OPERATION;
-            main.removeCallbacks(startupTimeout);
-            fail(XrayErrorSanitizer.fromException(error));
+            finishStartFailure(startOperationId, XrayErrorSanitizer.fromException(error));
         } catch (LinkageError error) {
-            startupOperationId = NO_OPERATION;
-            main.removeCallbacks(startupTimeout);
-            fail(XrayErrorSanitizer.sanitize(error));
+            finishStartFailure(startOperationId, XrayErrorSanitizer.sanitize(error));
+        }
+    }
+
+    private void finishStartFailure(long operationId, String message) {
+        // STOP, close, or an ERROR/IDLE listener may already have installed a
+        // newer START while an older STARTING notification was unwinding.
+        if (disposed || (operationId != NO_OPERATION
+                && currentOperationId != operationId)) return;
+
+        startupOperationId = NO_OPERATION;
+        main.removeCallbacks(startupTimeout);
+        // Retire the failed current START before notifying listeners. Without
+        // this gate its late Binder success could revive a session after ERROR.
+        if (operationId != NO_OPERATION) currentOperationId = NO_OPERATION;
+        try {
+            fail(message);
+        } finally {
+            // ERROR/IDLE listeners can synchronously retry. A new owner must
+            // retain its Binder client and startup timeout.
+            if (operationId != NO_OPERATION && currentOperationId == NO_OPERATION) {
+                serviceClient.cancel(XrayOperation.START, operationId);
+            }
         }
     }
 

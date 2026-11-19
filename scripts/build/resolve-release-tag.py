@@ -25,7 +25,7 @@ def resolve(root: Path) -> str:
     code = int(codes[0])
     if not 1 <= revision <= 999 or code <= 0:
         raise ValueError("Invalid fork revision/versionCode")
-    baseline = json.loads((root / "scripts/upstream/baseline.json").read_text(encoding="utf-8"))
+    baseline = json.loads((root / "scripts/build/source-baseline.json").read_text(encoding="utf-8"))
     if baseline.get("version") != public_version:
         raise ValueError("Fork versionName does not match pinned public source")
     if "version_code" in baseline and code != int(baseline["version_code"]) * 1000 + revision:

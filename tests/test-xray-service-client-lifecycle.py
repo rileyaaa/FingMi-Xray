@@ -88,6 +88,7 @@ public final class Handler {
         now = 0L;
         sequence = 0L;
     }
+    public static int pendingCount() { return TASKS.size(); }
     public static void advance(long amount) {
         long target = now + amount;
         while (!TASKS.isEmpty() && TASKS.peek().time <= target) {
@@ -504,6 +505,58 @@ public final class ServiceClientLifecycleTest {
                 "stale connection failure disturbed current generation");
     }
 
+    private static void nullBindingDisconnectsAndReportsFailure() {
+        Handler.reset();
+        FakeContext context = new FakeContext();
+        Listener listener = new Listener();
+        XrayServiceClient client = new XrayServiceClient(context, listener);
+
+        client.execute(request(86L, XrayOperation.TEST, () -> {}));
+        ServiceConnection nullBinding = context.lastConnection;
+        nullBinding.onNullBinding(NAME);
+        Handler.advance(0L);
+
+        check(context.unbound.contains(nullBinding),
+                "null Binder binding was not unbound");
+        check(listener.failures.equals(List.of(86L)),
+                "null Binder binding lost the pending operation");
+        check(listener.failureMessages.get(0).contains("no binder"),
+                "null Binder binding failure message changed");
+        check(Handler.pendingCount() == 0,
+                "null Binder binding did not remove its scheduled bind timeout");
+        Handler.advance(5_000L);
+        check(listener.failures.equals(List.of(86L)),
+                "null Binder binding left a live bind timeout");
+    }
+
+    private static void activeServiceDisconnectReportsFailureAndInvalidatesCallback(
+            boolean bindingDied) {
+        Handler.reset();
+        FakeContext context = new FakeContext();
+        Listener listener = new Listener();
+        XrayServiceClient client = new XrayServiceClient(context, listener);
+
+        client.execute(request(bindingDied ? 88L : 87L, XrayOperation.START, () -> {}));
+        FakeService service = new FakeService(context.trace);
+        ServiceConnection connection = context.lastConnection;
+        connect(context, service);
+        IXrayCallback stale = service.callback;
+
+        if (bindingDied) connection.onBindingDied(NAME);
+        else connection.onServiceDisconnected(NAME);
+        Handler.advance(0L);
+
+        long expected = bindingDied ? 88L : 87L;
+        check(context.unbound.contains(connection),
+                "terminal service callback did not unbind the active connection");
+        check(listener.failures.equals(List.of(expected)),
+                "terminal service callback lost the active operation");
+        stale.onResult(expected, XrayOperation.START, true, 12345, -1L, "");
+        Handler.advance(0L);
+        check(listener.results.isEmpty(),
+                "terminal service callback allowed a stale START result");
+    }
+
     private static void bindLinkageReportsFailureAndUnbinds() {
         Handler.reset();
         FakeContext context = new FakeContext();
@@ -671,6 +724,9 @@ public final class ServiceClientLifecycleTest {
         cancelLinkageStillUnbindsAndInvalidatesCallback();
         bindTimeoutDisconnectsThenReportsFailure();
         staleServiceConnectionCannotReplaceCurrent();
+        nullBindingDisconnectsAndReportsFailure();
+        activeServiceDisconnectReportsFailureAndInvalidatesCallback(false);
+        activeServiceDisconnectReportsFailureAndInvalidatesCallback(true);
         bindLinkageReportsFailureAndUnbinds();
         asInterfaceLinkageReportsFailureAndUnbinds();
         asInterfaceRuntimeReportsFailureAndUnbinds();

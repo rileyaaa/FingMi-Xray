@@ -10,6 +10,35 @@ import subprocess
 import tempfile
 
 ROOT = Path(__file__).resolve().parents[1]
+PLAYER_MANAGER = ROOT / 'app/src/main/java/com/fongmi/android/tv/player/PlayerManager.java'
+PLAYBACK_SERVICE = ROOT / 'app/src/main/java/com/fongmi/android/tv/service/PlaybackService.java'
+
+# Both enabling and disabling Xray must retire the previous side-request
+# generation while the old engine/client is still available for cancellation.
+player_source = PLAYER_MANAGER.read_text(encoding='utf-8')
+proxy_transition = player_source.split('public synchronized void setPlaybackProxy(', 1)[1].split(
+    'public synchronized void clearPlaybackProxyPreservingState()', 1)[0]
+required_transition = 'if (next != null || hasXraySession()) callback.onXrayTransitionStarted();'
+if required_transition not in proxy_transition:
+    raise SystemExit('Xray disable must cancel old side requests before closing the old proxy')
+if proxy_transition.index(required_transition) > proxy_transition.index('playbackProxy = next;'):
+    raise SystemExit('Xray transition cancellation moved after old proxy identity was replaced')
+if proxy_transition.index(required_transition) > proxy_transition.index('clearPreload();'):
+    raise SystemExit('Xray transition cancellation moved after engine/preload teardown')
+clear_proxy = player_source.split('public synchronized void clearPlaybackProxyPreservingState()', 1)[1].split(
+    'public synchronized boolean hasXraySession()', 1)[0]
+if 'callback.onXrayTransitionStarted();' not in clear_proxy:
+    raise SystemExit('Xray error/owner rollback must cancel old side requests before detaching proxy')
+if clear_proxy.index('callback.onXrayTransitionStarted();') > clear_proxy.index('playbackProxy = null;'):
+    raise SystemExit('Xray rollback cancellation moved after proxy detachment')
+service_source = PLAYBACK_SERVICE.read_text(encoding='utf-8')
+transition_callback = service_source.split('public void onXrayTransitionStarted()', 1)[1].split('}', 1)[0]
+for required in ('DanmakuApi.cancelForXrayTransition();',
+                 'SubtitleApi.cancelForXrayTransition();',
+                 'xrayBitmapLoader.cancelRemoteLoads();'):
+    if required not in transition_callback:
+        raise SystemExit('Xray handoff callback lost side-request cancellation: ' + required)
+
 STUBS = {
     'android/net/Uri.java': 'package android.net; public class Uri { public static String encode(String s) { return s; } }',
     'android/text/TextUtils.java': 'package android.text; public class TextUtils { public static boolean isEmpty(CharSequence s) { return s == null || s.length() == 0; } }',

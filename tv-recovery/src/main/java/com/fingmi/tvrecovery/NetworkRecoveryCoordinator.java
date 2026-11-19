@@ -31,6 +31,7 @@ public final class NetworkRecoveryCoordinator implements AutoCloseable {
     public void check() {
         if (closed) return;
         long next = hooks.generation();
+        if (closed) return;
         // Released HomeActivity serializes recovery. A newer generation is
         // picked up only after the in-flight spider clear / stability poll
         // observes it; never run two loader clears concurrently.
@@ -41,34 +42,45 @@ public final class NetworkRecoveryCoordinator implements AutoCloseable {
         checks = 0;
         stableChecks = 0;
         hooks.unschedule(poll);
+        if (closed) return;
         hooks.showProgress();
+        if (closed) return;
         hooks.cancelRequests();
+        if (closed) return;
         hooks.resetApiAndDns();
+        if (closed) return;
         hooks.clearSpiders(() -> {
             if (closed || !recovering || pendingGeneration != next) return;
             // Released HomeActivity always posts the stability check after
             // spider cleanup. A changed generation is handled by that poll,
             // not inline inside the clear completion callback.
             hooks.schedule(poll, 0);
+            // schedule() may synchronously retire Home before posting.
+            if (closed) hooks.unschedule(poll);
         });
     }
 
     private void checkStability() {
         if (closed || !recovering) return;
-        if (hooks.generation() != pendingGeneration) {
+        long latest = hooks.generation();
+        if (closed || !recovering) return;
+        if (latest != pendingGeneration) {
             recovering = false;
             check();
             return;
         }
-        stableChecks = hooks.networkReady() ? stableChecks + 1 : 0;
+        boolean ready = hooks.networkReady();
+        if (closed || !recovering) return;
+        stableChecks = ready ? stableChecks + 1 : 0;
         if (stableChecks < 2 && checks < 12) {
             checks++;
             hooks.schedule(poll, 500L);
+            if (closed) hooks.unschedule(poll);
             return;
         }
         appliedGeneration = pendingGeneration;
         recovering = false;
-        if (hooks.generation() == appliedGeneration) hooks.refreshHome();
+        if (!closed && hooks.generation() == appliedGeneration && !closed) hooks.refreshHome();
         check();
     }
 
@@ -76,6 +88,7 @@ public final class NetworkRecoveryCoordinator implements AutoCloseable {
     public boolean recovering() { return recovering; }
 
     @Override public void close() {
+        if (closed) return;
         closed = true;
         recovering = false;
         hooks.unschedule(poll);

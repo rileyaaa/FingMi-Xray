@@ -532,13 +532,13 @@ public class PlayerManager implements ParseCallback {
                     : PlaybackSnapshot.capture(player);
         }
 
+        // Retire side requests while the previous playback proxy is still
+        // visible. This also covers pending Live sessions with no PlaySpec,
+        // where the old identity exists only in playbackProxy.
+        if (next != null || hasXraySession()) callback.onXrayTransitionStarted();
+
         xrayRestore = null;
         playbackProxy = next;
-
-        // The released APK cancels player-adjacent network work after the new
-        // Xray endpoint becomes active but before the Exo engine is rebuilt.
-        if (next != null) callback.onXrayTransitionStarted();
-
         clearPreload();
 
         // Released th2.m9308A()/m9316c() releases the old Xray engine at
@@ -570,6 +570,9 @@ public class PlayerManager implements ParseCallback {
                 engine instanceof ExoPlayerEngine exo && exo.proxy() != null;
         if (playbackProxy == null && !engineHasProxy) return;
 
+        // Error rollback and owner handoff must retire previous side requests
+        // before the old Exo engine/client is detached.
+        callback.onXrayTransitionStarted();
         xrayRestore = spec == null || player == null
                 ? null
                 : new XrayRestore(spec, PlaybackSnapshot.capture(player));

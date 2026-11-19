@@ -91,6 +91,12 @@ jobs:
           python3 tests/test-player-candidate-linkage.py
           python3 tests/test-libass-native-input.py
           python3 tests/test-tv-network-recovery.py
+          python3 tests/test-xray-rtsp-socket-guard.py
+          python3 tests/test-xray-playback-session-reentry.py
+          python3 tests/test-xray-playback-binding-handoff.py
+          python3 tests/test-xray-side-request-lifecycle.py
+          python3 tests/test-xray-artwork-loader.py
+          python3 tests/test-tv-network-recovery-reentry.py
           python3 tests/test-xray-error-sanitizer.py
           python3 tests/test-tv-recovery-intent-replay.py
           python3 tests/test-xray-recovery-state-audit.py

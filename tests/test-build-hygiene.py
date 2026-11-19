@@ -228,11 +228,11 @@ current_workflow = (ROOT / ".github/workflows/01-当前源码编译与APK验证.
 publish_workflow = (ROOT / ".github/workflows/02-正式APK构建与发布.yml").read_text(encoding="utf-8")
 # Require canonical block syntax; reject shorthand/inline/alias event forms.
 expected_workflows = {"01-当前源码编译与APK验证.yml", "02-正式APK构建与发布.yml",
-                      "03-已验证APK发布续传.yml", "04-上游一键升级.yml"}
+                      "03-已验证APK发布续传.yml"}
 actual_workflows = {p.name for p in (ROOT / ".github/workflows").iterdir()
                     if p.suffix in (".yml", ".yaml")}
 if actual_workflows != expected_workflows:
-    errors.append("Only the four approved manual workflows may remain")
+    errors.append("Only the three approved manual workflows may remain")
 for name in actual_workflows:
     text = (ROOT / ".github/workflows" / name).read_text()
     block = re.search(r"(?m)^on:\n((?:[ \t]+[^\n]*\n|\n)*)", text)
@@ -439,7 +439,7 @@ if not fork_match:
 upstream_version = fork_match.group(1)
 fork_revision = int(fork_match.group(2))
 import json
-upstream_lock = json.loads((ROOT / "scripts/upstream/baseline.json").read_text(encoding="utf-8"))
+upstream_lock = json.loads((ROOT / "scripts/build/source-baseline.json").read_text(encoding="utf-8"))
 if upstream_lock["version"] != upstream_version:
     errors.append("Fork version must match pinned public upstream source baseline")
 if "version_code" in upstream_lock and version_code != int(upstream_lock["version_code"]) * 1000 + fork_revision:
@@ -500,18 +500,10 @@ for name, text in (
 if 'REPORT_NAME = "fingmi-xray-build-failure-reports"' not in (
         ROOT / "scripts/build/resume-verified-release.py").read_text(encoding="utf-8"):
     errors.append("resume helper must use the stable short-lived failure artifact name")
-manual_workflow = (ROOT / ".github/workflows/04-上游一键升级.yml").read_text(encoding="utf-8")
-if 'RELEASE_TAG: ""' not in manual_workflow or (
-        'release_tag="$(python3 scripts/build/resolve-release-tag.py)"' not in manual_workflow):
-    errors.append("upstream sync must not pin the previous fork release in workflow YAML")
-if ("git status --porcelain -- .github/workflows" not in manual_workflow or
-        manual_workflow.index("git status --porcelain -- .github/workflows") >
-        manual_workflow.index("重建并校验固定播放器及原生依赖")):
-    errors.append("upstream sync must block workflow modifications before expensive native rebuild")
+# Release tagging is verified by the two retained build/publish workflows.
 for name, workflow in (
     ("01-当前源码编译与APK验证.yml", current_workflow),
     ("02-正式APK构建与发布.yml", publish_workflow),
-    ("04-上游一键升级.yml", manual_workflow),
 ):
     if "python3 tests/test-resolve-release-tag.py" not in workflow:
         errors.append(f"{name} lost the source-derived release tag test")

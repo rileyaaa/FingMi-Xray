@@ -22,6 +22,23 @@ public final class XrayProxySocketFactory extends SocketFactory {
         this.proxy = proxy;
     }
 
+    /**
+     * RTSP redirects are supplied by a remote server after Xray was enabled
+     * for the original public playback URL. Re-check EVERY new SOCKS target:
+     * the initial playback address guard cannot authorize a redirected host.
+     * Keep public hostnames unresolved for remote SOCKS DNS resolution.
+     */
+    private static String requirePublicDestination(String host) throws IOException {
+        String target = host;
+        if (target != null && target.startsWith("[") && target.endsWith("]")) {
+            target = target.substring(1, target.length() - 1);
+        }
+        if (PublicPlaybackDestinationInterceptor.isPrivateOrReserved(target)) {
+            throw new IOException("Private or reserved RTSP playback destination blocked");
+        }
+        return target;
+    }
+
     @Override
     public Socket createSocket() {
         return new Socket(proxy);
@@ -29,9 +46,10 @@ public final class XrayProxySocketFactory extends SocketFactory {
 
     @Override
     public Socket createSocket(String host, int port) throws IOException {
+        String target = requirePublicDestination(host);
         Socket socket = createSocket();
         try {
-            socket.connect(InetSocketAddress.createUnresolved(host, port));
+            socket.connect(InetSocketAddress.createUnresolved(target, port));
             return socket;
         } catch (IOException | RuntimeException error) {
             closeQuietly(socket);
@@ -45,10 +63,11 @@ public final class XrayProxySocketFactory extends SocketFactory {
             int port,
             InetAddress localAddress,
             int localPort) throws IOException {
+        String target = requirePublicDestination(host);
         Socket socket = createSocket();
         try {
             socket.bind(new InetSocketAddress(localAddress, localPort));
-            socket.connect(InetSocketAddress.createUnresolved(host, port));
+            socket.connect(InetSocketAddress.createUnresolved(target, port));
             return socket;
         } catch (IOException | RuntimeException error) {
             closeQuietly(socket);
@@ -60,6 +79,7 @@ public final class XrayProxySocketFactory extends SocketFactory {
     public Socket createSocket(
             InetAddress address,
             int port) throws IOException {
+        requirePublicDestination(address == null ? null : address.getHostAddress());
         Socket socket = createSocket();
         try {
             socket.connect(new InetSocketAddress(address, port));
@@ -76,6 +96,7 @@ public final class XrayProxySocketFactory extends SocketFactory {
             int port,
             InetAddress localAddress,
             int localPort) throws IOException {
+        requirePublicDestination(address == null ? null : address.getHostAddress());
         Socket socket = createSocket();
         try {
             socket.bind(new InetSocketAddress(localAddress, localPort));

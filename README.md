@@ -8,7 +8,7 @@ FingMi-Xray 将 Xray 集成到播放器内部。遇到这类内容时，可以�
 
 ## 项目版本
 
-当前 `main` 以 FongMi/TV 5.6.3（`c616c0aa3613e87529791587a9f71b78c278c991`）为公开上游基线，只长期维护 **Xray 播放代理**与 **Android TV 网络恢复**两项自有能力。历史 `v5.6.0-xray.5` armeabi-v7a 正式 APK 是源码丢失后的 Xray 恢复基线：它经过实际使用、相对稳定，适合在缺少源码时先还原行为，但并不代表完全没有未知 Bug。当前模块化重构已经完成；后续若在这两项自有能力中确认真实问题，可以基于证据修复并登记与黄金版的有意差异，其余 FongMi 功能继续直接跟随公开上游。
+当前 `main` 以 FongMi/TV 5.6.3（`c616c0aa3613e87529791587a9f71b78c278c991`）为公开上游基线，只长期维护 **Xray 播放代理**与 **Android TV 网络恢复**两项自有能力。历史 `v5.6.0-xray.5` armeabi-v7a 正式 APK 是源码丢失后的 Xray 恢复基线：它经过实际使用、相对稳定，适合在缺少源码时先还原行为，但并不代表完全没有未知 Bug。当前模块化重构已经完成；后续若在这两项自有能力中确认真实问题，可以基于证据修复并登记与黄金版的有意差异，其余 FongMi 功能保留 5.6.3 稳定基线，不再自动跟随公开上游。
 
 GitHub Releases 保留 `v5.6.0-xray.5` 黄金参考、一个[当前正式版](https://github.com/rileyaaa/FingMi-Xray/releases/latest)；今后只上传 APK，不再生成或上传项目源码备份包。正式版包含独立 `:xray`、`:tv-recovery` 模块，以及 Hysteria2 备注查询、公网 IPv6 播放地址、播放页初始化/交接和冷入口待机恢复修复，使用固定正式签名。版本命名与递增规则见 [PROJECT.md](docs/PROJECT.md#版本命名与覆盖升级)，AI 发布要求见 [AI_COLLABORATION.md](docs/AI_COLLABORATION.md#11-ai-开发与发布的版本约束)，签名恢复与构建验收见 [DEVELOPMENT.md](docs/DEVELOPMENT.md#固定签名与-release-构建校验)。旧签名安装包首次切换需要卸载；后续保持同签名与包名、递增 versionCode，可覆盖安装。
 
@@ -32,7 +32,7 @@ GitHub Releases 保留 `v5.6.0-xray.5` 黄金参考、一个[当前正式版](ht
 
 ## 核心设计
 
-- **上游优先**：业务功能层只长期维护 Xray 与 Android TV 网络恢复；其他 FongMi/TV 业务、UI、播放器和设置默认跟随上游，仅保留两大模块接入所需的最小差异。
+- **稳定基线优先**：固定 FongMi/TV 5.6.3，重点维护 Xray 与 Android TV 网络恢复；普通业务、UI 与播放器默认不主动改动。
 - **默认直连**：首页、搜索、详情、普通接口等仍使用 FongMi 原有网络。
 - **按需开启**：只有用户在当前播放中手动开启 Xray，当前媒体连接才进入 Xray。
 - **会话隔离**：切集、切频道、换线路、换源、换播放器等逻辑播放身份变化后，新播放默认重新直连；同一身份内的 parser / redirect / CDN 实际 URL 变化不重置 Xray。
@@ -75,13 +75,12 @@ GitHub Releases 保留 `v5.6.0-xray.5` 黄金参考、一个[当前正式版](ht
 - `tests/`：当前 `main` 的源码 guard、JVM lifecycle、native chain parity 与测试 fixture。
 - `website/`：随固定 FongMi/TV 上游保留的静态文档站源码；本 fork 不启用 Pages 自动部署，也不维护目录 README。
 
-这样做的目的，是让项目自己的能力尽量集中在稳定边界内，减少后续跟随 FongMi/TV 上游升级时的侵入式修改。
+这样做的目的，是让项目自己的能力尽量集中在稳定边界内，减少对现有 5.6.3 稳定播放器的侵入式修改。
 
 ## 文档
 
 - [PROJECT.md](docs/PROJECT.md)：项目设计、职责边界与长期架构约束。
 - [DEVELOPMENT.md](docs/DEVELOPMENT.md)：当前源码、构建、测试与精选维护记录。
-- [上游一键升级工具与 5.8.7 迁移复盘](docs/DEVELOPMENT.md#12-上游一键升级工具与-587-迁移复盘)：工具入口、离线验证及已确认的升级阻断。
 - [AI_COLLABORATION.md](docs/AI_COLLABORATION.md)：AI 协作执行限制；用户调整开发规则时同步维护。
 - [RECOVERY.md](docs/RECOVERY.md)：`v5.6.0-xray.5` 的 faithful 恢复、APK/JADX/DEX/native 证据、二进制 provenance 与 Xray 黄金行为索引。
 - [ORIGINAL_README.md](docs/ORIGINAL_README.md)：**冻结**保存的原 `v5.6.0-xray.5` 发布说明；除非用户明确解除冻结，不再修改。

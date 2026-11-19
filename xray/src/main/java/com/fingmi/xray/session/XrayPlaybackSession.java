@@ -35,6 +35,7 @@ public final class XrayPlaybackSession implements XraySessionListener, AutoClose
     private boolean preserveOnStart = true;
     private boolean preserveOnStop;
     private boolean closed;
+    private long stateCallbackGeneration;
 
     public XrayPlaybackSession(Context context, OkHttpClient baseClient, Listener listener) {
         this.baseClient = Objects.requireNonNull(baseClient);
@@ -82,7 +83,14 @@ public final class XrayPlaybackSession implements XraySessionListener, AutoClose
         assertMain();
         preserveOnStop = preservePlayback;
         if (service.isRunning() || service.getState() == STARTING) service.stop();
-        else retryProxyRollback(clearResources(preservePlayback));
+        else {
+            long generation = stateCallbackGeneration;
+            Throwable failure = clearResources(preservePlayback);
+            // A failed detach may synchronously START a replacement session.
+            // Never retry the old rollback against that replacement.
+            if (!closed && generation == stateCallbackGeneration
+                    && service.getState() == IDLE) retryProxyRollback(failure);
+        }
     }
 
     public void end() {
@@ -110,6 +118,10 @@ public final class XrayPlaybackSession implements XraySessionListener, AutoClose
     public void onXrayStateChanged(int state, int socksPort, String message) {
         assertMain();
         if (closed) return;
+        // Listener callbacks may synchronously stop or replace this session.
+        // Do not publish the outer, now-stale state after that reentrant change.
+        long eventGeneration = ++stateCallbackGeneration;
+        int controllerState = service.getState();
         if (state == RUNNING) {
             if (!playback.hasIdentity()) {
                 service.stop();
@@ -117,6 +129,10 @@ public final class XrayPlaybackSession implements XraySessionListener, AutoClose
             }
 
             Throwable clearFailure = clearResources(false);
+            // The detach callback may synchronously STOP and START a different
+            // session. Do not install an old endpoint over the replacement.
+            if (closed || eventGeneration != stateCallbackGeneration
+                    || service.getState() != RUNNING) return;
             if (clearFailure != null) {
                 failRunningTransition(clearFailure);
                 return;
@@ -126,14 +142,24 @@ public final class XrayPlaybackSession implements XraySessionListener, AutoClose
                 resources = new XrayHttpClient(socksPort, baseClient);
                 listener.onProxyChanged(resources, preserveOnStart);
             } catch (Exception | LinkageError error) {
+                // A callback may also retry and then throw. Its stale error
+                // must not roll back the newly installed proxy or stop its Core.
+                if (closed || eventGeneration != stateCallbackGeneration
+                        || service.getState() != RUNNING) return;
                 failRunningTransition(error);
                 return;
             }
-        } else if (state == ERROR) {
-            retryProxyRollback(clearResourcesAfterError());
-        } else if (state == IDLE) {
-            retryProxyRollback(clearResources(preserveOnStop));
+        } else if (state == ERROR || state == IDLE) {
+            Throwable failure = state == ERROR
+                    ? clearResourcesAfterError() : clearResources(preserveOnStop);
+            // Detach/error listeners may reenter START (and then throw). The
+            // old callback must not roll back the newer proxy installation.
+            if (closed || eventGeneration != stateCallbackGeneration
+                    || service.getState() != controllerState) return;
+            retryProxyRollback(failure);
         }
+        if (closed || eventGeneration != stateCallbackGeneration
+                || service.getState() != controllerState) return;
         notifyState(state, message);
     }
 
@@ -179,6 +205,7 @@ public final class XrayPlaybackSession implements XraySessionListener, AutoClose
     }
 
     private void failRunningTransition(Throwable error) {
+        long failedEventGeneration = stateCallbackGeneration;
         XrayHttpClient failed = resources;
         resources = null;
         try {
@@ -192,7 +219,14 @@ public final class XrayPlaybackSession implements XraySessionListener, AutoClose
             closeQuietly(failed);
         }
 
+        // ERROR and STOP belong only to the original failed attempt. A
+        // rollback listener may synchronously stop and start a new session.
+        if (closed || failedEventGeneration != stateCallbackGeneration
+                || !service.isRunning()) return;
         notifyState(ERROR, XrayErrorSanitizer.sanitize(error));
+        // ERROR observers are also reentrant; do not stop their newer retry.
+        if (closed || failedEventGeneration != stateCallbackGeneration
+                || !service.isRunning()) return;
         service.stop();
     }
 
