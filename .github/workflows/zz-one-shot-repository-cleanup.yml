@@ -18,7 +18,7 @@ concurrency:
 jobs:
   cleanup:
     name: "Delete old branches and completed workflow runs"
-    if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && contains(github.event.head_commit.message, 'chore(maintenance): run one-time GitHub cleanup') }}
+    if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && contains(github.event.head_commit.message, 'chore(maintenance)') }}
     runs-on: ubuntu-latest
     timeout-minutes: 20
     env:
