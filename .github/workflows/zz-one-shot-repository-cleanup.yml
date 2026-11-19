@@ -1,0 +1,84 @@
+name: "TEMP | One-shot branch and Actions history cleanup"
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - ".github/workflows/zz-one-shot-repository-cleanup.yml"
+
+permissions:
+  contents: write
+  actions: write
+
+concurrency:
+  group: fingmi-one-shot-repository-cleanup
+  cancel-in-progress: false
+
+jobs:
+  cleanup:
+    name: "Delete old branches and completed workflow runs"
+    if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && contains(github.event.head_commit.message, 'chore(maintenance): run one-time GitHub cleanup') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      GH_TOKEN: ${{ github.token }}
+      REPO: ${{ github.repository }}
+      RUN_ID: ${{ github.run_id }}
+    steps:
+      - name: Verify repository and remove only named obsolete branches
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$REPO" = "rileyaaa/FingMi-Xray"
+          test "${GITHUB_REF}" = "refs/heads/main"
+          for branch in "experiment/upstream-5.8.7-media3" "fix/subtitle-snapshot-androidjunit4-20261118"; do
+            echo "Deleting retired branch: $branch"
+            gh api -X DELETE "repos/$REPO/git/refs/heads/$branch" --silent
+          done
+          printf '%s\n' "Branch cleanup complete."
+      - name: Delete all prior completed Actions runs (not this running job)
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$REPO" = "rileyaaa/FingMi-Xray"
+          ids_file="$(mktemp)"
+          gh api --paginate "repos/$REPO/actions/runs?per_page=100" --jq '.workflow_runs[] | select(.status == "completed") | .id' > "$ids_file"
+          total="$(wc -l < "$ids_file" | tr -d ' ')"
+          echo "Completed historical runs selected for removal: $total"
+          deleted=0
+          failures=0
+          while IFS= read -r run_id; do
+            test -n "$run_id" || continue
+            if [ "$run_id" = "$RUN_ID" ]; then
+              echo "Skipping currently running cleanup job $RUN_ID"
+              continue
+            fi
+            if gh api -X DELETE "repos/$REPO/actions/runs/$run_id" --silent; then
+              deleted=$((deleted + 1))
+            else
+              echo "::error::Unable to delete workflow run $run_id"
+              failures=$((failures + 1))
+            fi
+          done < "$ids_file"
+          rm -f "$ids_file"
+          echo "Deleted historical runs: $deleted; failures: $failures"
+          echo "### One-time cleanup" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Historical runs deleted: $deleted" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Failed deletions: $failures" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Running cleanup run ID (must be removed later): $RUN_ID" >> "$GITHUB_STEP_SUMMARY"
+          test "$failures" -eq 0
+      - name: Confirm only main branch remains and old history was deleted
+        shell: bash
+        run: |
+          set -euo pipefail
+          branches="$(gh api "repos/$REPO/branches?per_page=100" --jq '.[].name')"
+          echo "Remaining branches: $branches"
+          test "$branches" = "main"
+          count="$(gh api "repos/$REPO/actions/runs?per_page=1" --jq '.total_count')"
+          echo "Workflow run count at cleanup time: $count"
+          if [ "$count" -gt 1 ]; then
+            echo "::error::Some workflow runs remain besides this cleanup job."
+            exit 1
+          fi
+          echo "Cleanup verified. Temporary workflow file will be removed separately."
