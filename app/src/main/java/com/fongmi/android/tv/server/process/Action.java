@@ -26,8 +26,6 @@ import com.fongmi.android.tv.utils.Notify;
 import com.github.catvod.net.OkHttp;
 import com.github.catvod.utils.Path;
 
-import org.greenrobot.eventbus.EventBus;
-
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -103,10 +101,9 @@ public class Action implements Process {
                 || channels.length() > XrayLiveAutoRules.MAX_LENGTH) {
             return Nano.error(Response.Status.BAD_REQUEST, "Invalid live rule lists");
         }
-        if (!EventBus.getDefault().hasSubscriberForEvent(XrayLiveRulesEvent.class)) {
-            return Nano.error(Response.Status.BAD_REQUEST, "Open Xray settings on TV first");
+        if (!XrayLiveRulesEvent.post(groups, channels)) {
+            return Nano.error(Response.Status.BAD_REQUEST, "TV settings did not confirm rule input");
         }
-        XrayLiveRulesEvent.post(groups, channels);
         return Nano.ok();
     }
 

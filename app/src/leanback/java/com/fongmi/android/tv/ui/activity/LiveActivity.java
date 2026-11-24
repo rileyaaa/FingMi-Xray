@@ -735,6 +735,10 @@ public class LiveActivity extends PlaybackActivity implements GroupAdapter.OnCli
 
     @Override
     protected void onReclaim() {
+        // The old playback key is intentionally stale while auto resolution or
+        // Core START is pending. Foreground return must not replace that request.
+        // A real binding handoff resets the policy, so it still reclaims normally.
+        if (isBindingOwner() && mLiveAuto.isAwaitingPlayback()) return;
         mLive.refresh();
     }
 

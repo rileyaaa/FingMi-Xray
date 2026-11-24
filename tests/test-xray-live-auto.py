@@ -179,15 +179,20 @@ public final class LiveAutoTest {
     }
     static void lifecycle() {
         Host h = new Host();
-        h.select("G","A",true); h.resolved("A",URL);
+        h.select("G","A",true);
+        check(h.policy.isAwaitingPlayback(),"unresolved automatic request owns pending start");
+        h.resolved("A",URL);
+        check(h.policy.isAwaitingPlayback(),"resolved automatic request held for START");
         h.policy.suspend(true); h.session.stop(false); h.core.ready();
         check(h.played.isEmpty() && h.attached == null,"background no media or proxy activation");
         h.policy.resume(h.session); h.core.ready();
         check(h.core.starts == 2 && h.played.equals(List.of("A:proxy")),"foreground resumes unfinished request");
+        check(!h.policy.isAwaitingPlayback(),"started playback is not a pending request");
         h.select("G","B",true); h.resolved("B",URL);
         XrayHttpClient old = h.attached;
         h.policy.reset(); h.session.begin("new-owner");
         check(old.closed && h.attached == null,"owner or engine change stops transport");
+        check(!h.policy.isAwaitingPlayback(),"handoff permits normal reclaim");
         h.select("G","C",true); h.resolved("C",URL); h.close(); h.core.ready();
         check(h.played.equals(List.of("A:proxy","B:proxy")),"close drops waiting media");
     }
@@ -217,14 +222,14 @@ assert manual.index("if (mLiveAuto.isAutomatic() && !mLiveAuto.hasResolvedRoute(
 # Execute the real PlayerManager detach methods with synthetic engine/player
 # boundaries. A retained Xray engine must be retired even with no PlaySpec.
 player_source = (ROOT / "app/src/main/java/com/fongmi/android/tv/player/PlayerManager.java").read_text(encoding="utf-8")
-def method(signature):
-    start = player_source.index(signature)
-    opening = player_source.index("{", start)
+def method(signature, source=player_source):
+    start = source.index(signature)
+    opening = source.index("{", start)
     end, depth = opening + 1, 1
     while depth:
-        depth += (player_source[end] == "{") - (player_source[end] == "}")
+        depth += (source[end] == "{") - (source[end] == "}")
         end += 1
-    return player_source[start:end]
+    return source[start:end]
 
 stubs["IdleProxyEngineTest.java"] = r"""
 import com.fingmi.xray.network.XrayHttpClient;
@@ -324,8 +329,184 @@ assert ".done(" in phone_rules and ".fail(" in phone_rules
 action = (ROOT / "app/src/main/java/com/fongmi/android/tv/server/process/Action.java").read_text(encoding="utf-8")
 phone_handler = action.split("private Response onXrayLiveRules(", 1)[1].split("private void onSetting(", 1)[0]
 assert 'Response.Status.BAD_REQUEST' in phone_handler
-assert "hasSubscriberForEvent(XrayLiveRulesEvent.class)" in phone_handler
-assert "XrayLiveRulesEvent.post(groups, channels);" in phone_handler
+assert "if (!XrayLiveRulesEvent.post(groups, channels))" in phone_handler
+settings = (ROOT / "app/src/leanback/java/com/fongmi/android/tv/ui/activity/SettingXrayActivity.java").read_text(encoding="utf-8")
+apply_rules = method("public void onXrayLiveRulesEvent(", settings)
+assert "mOperation == XrayOperation.RESET_SECURITY" in apply_rules
+assert apply_rules.index("event.markApplied();") > apply_rules.index("mBinding.liveAutoChannels.setText(event.channels());")
+
+# Compile the actual request/event types and execute extracted controller and
+# ViewModel delivery methods against deterministic main-thread queues.
+APP_JAVA = ROOT / "app/src/main/java"
+controller_source = (APP_JAVA / "com/fongmi/android/tv/playback/live/LivePlaybackController.java").read_text(encoding="utf-8")
+model_source = (APP_JAVA / "com/fongmi/android/tv/model/LiveViewModel.java").read_text(encoding="utf-8")
+assert "latestUrlRequest = request;" in method("public void getUrl(", model_source)
+assert "latestUrlRequest = null;" in method("protected void onCleared(", model_source)
+resume = method("public void resumeChannelAfterXrayStart(", controller_source)
+assert "LivePlayRequest.catchup(channel, request.getCatchupData(), request.getPosition())" in resume
+assert "LivePlayRequest.live(channel, request.getPosition())" in resume
+assert "if (isBindingOwner() && mLiveAuto.isAwaitingPlayback()) return;" in method("protected void onReclaim(", live)
+
+stubs["android/os/Looper.java"] = """
+package android.os;
+public class Looper {
+    private static final Thread MAIN_THREAD = Thread.currentThread();
+    private static final Looper MAIN = new Looper();
+    public static Looper myLooper() { return Thread.currentThread() == MAIN_THREAD ? MAIN : null; }
+    public static Looper getMainLooper() { return MAIN; }
+}
+"""
+stubs["com/fongmi/android/tv/App.java"] = """
+package com.fongmi.android.tv;
+public class App {
+    public static final java.util.concurrent.LinkedBlockingQueue<Runnable> queue =
+            new java.util.concurrent.LinkedBlockingQueue<>();
+    public static void post(Runnable task) { queue.add(task); }
+    public static void drain() { Runnable task; while ((task = queue.poll()) != null) task.run(); }
+}
+"""
+stubs["org/greenrobot/eventbus/EventBus.java"] = """
+package org.greenrobot.eventbus;
+public class EventBus {
+    private static final EventBus INSTANCE = new EventBus();
+    public java.util.function.Consumer<Object> subscriber = value -> {};
+    public static EventBus getDefault() { return INSTANCE; }
+    public void post(Object value) { subscriber.accept(value); }
+}
+"""
+for annotation in ("NonNull", "Nullable"):
+    stubs["androidx/annotation/" + annotation + ".java"] = "package androidx.annotation; public @interface " + annotation + " {}"
+stubs["androidx/media3/common/MediaMetadata.java"] = "package androidx.media3.common; public class MediaMetadata {}"
+stubs["androidx/media3/common/C.java"] = "package androidx.media3.common; public class C { public static final long TIME_UNSET = -1; }"
+stubs["com/fongmi/android/tv/bean/Group.java"] = """
+package com.fongmi.android.tv.bean;
+public record Group(String name) { public String getName() { return name; } }
+"""
+stubs["com/fongmi/android/tv/bean/Channel.java"] = """
+package com.fongmi.android.tv.bean;
+public class Channel {
+    public final Group group;
+    public final String name;
+    public int line;
+    public Channel(Group group, String name) { this.group = group; this.name = name; }
+    public Group getGroup() { return group; }
+    public int getIndex() { return line; }
+    @Override public boolean equals(Object other) {
+        return other instanceof Channel c && name.equals(c.name);
+    }
+    @Override public int hashCode() { return name.hashCode(); }
+}
+"""
+stubs["com/fongmi/android/tv/bean/EpgData.java"] = "package com.fongmi.android.tv.bean; public class EpgData {}"
+stubs["com/fongmi/android/tv/bean/Result.java"] = """
+package com.fongmi.android.tv.bean;
+public class Result {
+    public long position = -1;
+    public void setPosition(long position) { this.position = position; }
+}
+"""
+stubs["com/fongmi/android/tv/playback/live/LiveDeliveryTest.java"] = r"""
+package com.fongmi.android.tv.playback.live;
+import android.os.Looper;
+import androidx.media3.common.C;
+import com.fongmi.android.tv.App;
+import com.fongmi.android.tv.bean.*;
+import com.fongmi.android.tv.event.XrayLiveRulesEvent;
+import com.fongmi.android.tv.playback.PlaybackResult;
+import java.util.*;
+import java.util.concurrent.*;
+import java.util.concurrent.atomic.*;
+import org.greenrobot.eventbus.EventBus;
+
+public final class LiveDeliveryTest {
+    static void check(boolean value, String why) {
+        if (!value) throw new AssertionError(why);
+    }
+    static final class Controller {
+        final LivePlaybackState state = new LivePlaybackState();
+        __CONTROLLER__
+    }
+    static final class Model {
+        LivePlayRequest latestUrlRequest;
+        final List<PlaybackResult<LivePlayRequest>> published = new ArrayList<>();
+        final class Data {
+            void setValue(PlaybackResult<LivePlayRequest> value) { published.add(value); }
+        }
+        final Data playback = new Data();
+        __MODEL__
+    }
+    static void queuedResults() {
+        Group group = new Group("G");
+        Channel a = new Channel(group, "A"), b = new Channel(group, "B");
+        LivePlayRequest oldA = LivePlayRequest.live(a, C.TIME_UNSET);
+        LivePlayRequest reqB = LivePlayRequest.live(b, C.TIME_UNSET);
+        LivePlayRequest newA = LivePlayRequest.live(a, C.TIME_UNSET);
+        check(oldA.matches(newA), "reproduce semantically identical A requests");
+        Controller c = new Controller();
+        c.state.setChannel(a);
+        c.state.setPendingRequest(newA);
+        check(c.cannotApply(new PlaybackResult<>(oldA, new Result())), "stale A accepted after A-B-A");
+        check(c.cannotApply(new PlaybackResult<>(reqB, new Result())), "stale B accepted");
+        check(!c.cannotApply(new PlaybackResult<>(newA, new Result())), "current A rejected");
+        a.line = 1;
+        check(c.cannotApply(new PlaybackResult<>(newA, new Result())), "mutated line accepted");
+        a.line = 0;
+        c.state.clearPendingRequest();
+        check(c.cannotApply(new PlaybackResult<>(newA, new Result())), "cleared request accepted");
+
+        Model m = new Model();
+        m.latestUrlRequest = oldA;
+        m.postUrl(oldA, new Result());
+        m.latestUrlRequest = newA;
+        Result current = new Result();
+        m.postUrl(newA, current);
+        m.postUrl(oldA, new Result()); // late stale result must not overwrite new result
+        App.drain();
+        check(m.published.size() == 1 && m.published.get(0).request() == newA
+                && m.published.get(0).result() == current, "queued old URL displaced current URL");
+        m.postUrl(newA, new Result());
+        m.latestUrlRequest = null;
+        App.drain();
+        check(m.published.size() == 1, "cleared model delivered old URL");
+    }
+    static void phoneDelivery() throws Exception {
+        Looper.getMainLooper();
+        EventBus bus = EventBus.getDefault();
+        bus.subscriber = event -> {}; // generic Object subscriber, or RESET_SECURITY
+        check(!XrayLiveRulesEvent.post("G", "A"), "generic subscriber falsely acknowledged");
+        AtomicInteger received = new AtomicInteger();
+        bus.subscriber = value -> {
+            XrayLiveRulesEvent event = (XrayLiveRulesEvent) value;
+            check(Looper.myLooper() == Looper.getMainLooper(), "delivery not on main");
+            check(event.groups().isEmpty() && event.channels().isEmpty(), "empty lists must clear both fields");
+            received.incrementAndGet();
+            event.markApplied();
+        };
+        check(XrayLiveRulesEvent.post("", ""), "applied empty lists not acknowledged");
+        AtomicReference<Boolean> accepted = new AtomicReference<>();
+        Thread worker = new Thread(() -> accepted.set(XrayLiveRulesEvent.post("", "")));
+        worker.start();
+        Runnable delivery = App.queue.poll(2, TimeUnit.SECONDS);
+        check(delivery != null, "HTTP thread did not dispatch");
+        delivery.run();
+        worker.join(2000);
+        check(Boolean.TRUE.equals(accepted.get()) && received.get() == 2, "HTTP thread did not receive applied acknowledgement");
+
+        Thread interrupted = new Thread(() -> accepted.set(XrayLiveRulesEvent.post("", "")));
+        interrupted.start();
+        Runnable canceled = App.queue.poll(2, TimeUnit.SECONDS);
+        check(canceled != null, "missing pending delivery");
+        interrupted.interrupt();
+        interrupted.join(2000);
+        canceled.run();
+        check(Boolean.FALSE.equals(accepted.get()) && received.get() == 2, "canceled HTTP delivery applied later");
+    }
+    public static void main(String[] args) throws Exception {
+        queuedResults(); phoneDelivery();
+        System.out.println("PASS: Live request identity, main-thread delivery and phone acknowledgement");
+    }
+}
+""".replace("__CONTROLLER__", method("private boolean cannotApply(", controller_source)).replace("__MODEL__", method("private void postUrl(", model_source))
 
 with tempfile.TemporaryDirectory(prefix="xray-live-auto-") as directory:
     work = Path(directory)
@@ -339,6 +520,12 @@ with tempfile.TemporaryDirectory(prefix="xray-live-auto-") as directory:
                 "session/XrayPlaybackSession.java", "session/PlaybackIdentityGate.java",
                 "session/XrayPlaybackAddress.java", "session/XraySessionListener.java"):
         sources.append(str(PRODUCTION / rel))
+    for rel in ("com/fongmi/android/tv/event/XrayLiveRulesEvent.java",
+                "com/fongmi/android/tv/playback/PlaybackResult.java",
+                "com/fongmi/android/tv/playback/live/LivePlayRequest.java",
+                "com/fongmi/android/tv/playback/live/LivePlaybackState.java"):
+        sources.append(str(APP_JAVA / rel))
     subprocess.run(["java", "com.sun.tools.javac.Main", "--release", "17", "-d", str(work), *sources], check=True)
     subprocess.run(["java", "-cp", str(work), "LiveAutoTest"], check=True)
     subprocess.run(["java", "-cp", str(work), "IdleProxyEngineTest"], check=True)
+    subprocess.run(["java", "-cp", str(work), "com.fongmi.android.tv.playback.live.LiveDeliveryTest"], check=True)

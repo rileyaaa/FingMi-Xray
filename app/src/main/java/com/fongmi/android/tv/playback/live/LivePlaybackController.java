@@ -63,6 +63,12 @@ public class LivePlaybackController {
         LivePlayRequest request = state.getActiveRequest();
         if (request == null || !request.matches(channel)) {
             request = LivePlayRequest.live(channel, C.TIME_UNSET);
+        } else {
+            // A new resolver submission must have a new identity, including
+            // the manual START re-resolution of the same station/line.
+            request = request.isCatchup()
+                    ? LivePlayRequest.catchup(channel, request.getCatchupData(), request.getPosition())
+                    : LivePlayRequest.live(channel, request.getPosition());
         }
         requestPlayback(request, true, false);
     }
@@ -305,6 +311,8 @@ public class LivePlaybackController {
     private boolean cannotApply(PlaybackResult<LivePlayRequest> playback) {
         LivePlayRequest pending = state.getPendingRequest();
         LivePlayRequest request = playback.request();
-        return pending == null || !pending.matches(request) || !request.matches(state.getChannel());
+        // A -> B -> A (or a same-line refresh) can leave a previous A result
+        // queued for the main thread. Semantic station equality is insufficient.
+        return pending == null || pending != request || !request.matches(state.getChannel());
     }
 }

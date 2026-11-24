@@ -182,9 +182,11 @@ public final class SettingXrayActivity extends BaseActivity
 
     @Subscribe(threadMode = ThreadMode.MAIN)
     public void onXrayLiveRulesEvent(XrayLiveRulesEvent event) {
-        if (event == null || mOperation == XrayOperation.RESET_SECURITY) return;
+        if (event == null || isFinishing() || isDestroyed() || mXray == null
+                || mOperation == XrayOperation.RESET_SECURITY) return;
         mBinding.liveAutoGroups.setText(event.groups());
         mBinding.liveAutoChannels.setText(event.channels());
+        event.markApplied();
         Notify.show(R.string.xray_live_rules_received);
     }
 

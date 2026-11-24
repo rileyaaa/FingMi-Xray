@@ -5,6 +5,7 @@ import androidx.lifecycle.MutableLiveData;
 import androidx.lifecycle.ViewModel;
 import androidx.media3.common.C;
 
+import com.fongmi.android.tv.App;
 import com.fongmi.android.tv.Constant;
 import com.fongmi.android.tv.api.LiveApi;
 import com.fongmi.android.tv.bean.Channel;
@@ -35,6 +36,8 @@ public class LiveViewModel extends ViewModel implements LiveDataSource {
     private final ViewModelTaskRunner<TaskType> tasks;
     private final LivePlaybackState playbackState;
     private volatile ZoneId zoneId;
+    // Only read/written on the main thread; each URL submission has a distinct request.
+    private LivePlayRequest latestUrlRequest;
 
     public LiveViewModel() {
         this.epg = new MutableLiveData<>();
@@ -105,6 +108,7 @@ public class LiveViewModel extends ViewModel implements LiveDataSource {
 
     @Override
     public void getUrl(LivePlayRequest request) {
+        latestUrlRequest = request;
         execute(TaskType.URL, () -> getUrlResult(request), result -> postUrl(request, result), error -> handleUrlError(request, error));
     }
 
@@ -113,8 +117,13 @@ public class LiveViewModel extends ViewModel implements LiveDataSource {
     }
 
     private void postUrl(LivePlayRequest request, Result result) {
-        if (request.getPosition() != C.TIME_UNSET) result.setPosition(request.getPosition());
-        playback.postValue(new PlaybackResult<>(request, result));
+        // Worker generation checks happen before delivery. Recheck on main
+        // and avoid LiveData.postValue coalescing a newer result with an old one.
+        App.post(() -> {
+            if (latestUrlRequest != request) return;
+            if (request.getPosition() != C.TIME_UNSET) result.setPosition(request.getPosition());
+            playback.setValue(new PlaybackResult<>(request, result));
+        });
     }
 
     private void handleParseError(Throwable t) {
@@ -137,6 +146,7 @@ public class LiveViewModel extends ViewModel implements LiveDataSource {
 
     @Override
     protected void onCleared() {
+        latestUrlRequest = null;
         tasks.cancelAll();
         playbackState.reset();
     }

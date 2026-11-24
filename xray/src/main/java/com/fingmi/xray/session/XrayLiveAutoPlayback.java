@@ -40,6 +40,11 @@ public final class XrayLiveAutoPlayback {
     /** Each playback identity must validate its own URL, even with a retained Core. */
     public boolean hasResolvedRoute() { return routeResolved; }
 
+    /** A resolver result or an already-held media start still belongs to this owner. */
+    public boolean isAwaitingPlayback() {
+        return automatic && (!routeResolved || pending != null);
+    }
+
     /** True means media must not start directly. Unsupported/local targets stay direct. */
     public boolean deferResolved(XrayPlaybackSession session, String url, Runnable start) {
         if (!automatic) return false;
