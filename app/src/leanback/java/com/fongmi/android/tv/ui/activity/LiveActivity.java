@@ -596,8 +596,10 @@ public class LiveActivity extends PlaybackActivity implements GroupAdapter.OnCli
 
     private void resumeRetiredAutoRequest() {
         if (!mXrayAutoReclaimPending || !isBindingOwner()) return;
-        mXrayAutoReclaimPending = false;
+        // Keep the retired-auto marker visible to prepare until it decides
+        // whether to restore direct metadata or suppress it for a new match.
         mLive.refresh();
+        mXrayAutoReclaimPending = false;
     }
 
     @Override
@@ -634,9 +636,9 @@ public class LiveActivity extends PlaybackActivity implements GroupAdapter.OnCli
 
     @Override
     public void prepareXrayForPlaybackChange(LivePlayRequest request) {
+        boolean previousAuto = mLiveAuto.isAutomatic() || mXrayAutoReclaimPending;
         mXrayAutoReclaimPending = false;
         Channel channel = request.getChannel();
-        boolean previousAuto = mLiveAuto.isAutomatic();
         boolean retain = mLiveAuto.prepare(liveGroupName(channel), channel.getName(),
                 !request.isCatchup() && matchesAutoXray(channel));
         mXrayPendingChannelResume = false;
@@ -1183,6 +1185,8 @@ public class LiveActivity extends PlaybackActivity implements GroupAdapter.OnCli
         mBinding.widget.title.setText("");
         mEpgDataAdapter.clear();
         mChannelAdapter.clear();
+        // No proxy-detach callback is guaranteed while automatic START is pending.
+        mChannelAdapter.setXrayLogoSuppressed(false);
         mGroupAdapter.clear();
         mHides.clear();
         mChannel = null;
@@ -1218,11 +1222,18 @@ public class LiveActivity extends PlaybackActivity implements GroupAdapter.OnCli
 
     @Override
     public void setLive(Live item) {
+        boolean retiringAuto = mLiveAuto.isAutomatic() || mXrayAutoReclaimPending;
         mXrayAutoReclaimPending = false;
-        mLiveAuto.reset();
-        mXrayPendingChannelResume = false;
-        mXrayStartedFromExistingPlayback = false;
-        mXray.begin("live:" + ++mPlaybackEpoch);
+        if (retiringAuto) {
+            mViewModel.cancelPlaybackUrl();
+            cancelXrayMetadataRequests();
+            clearArtworkTarget();
+            mBinding.player.setDefaultArtwork(null);
+            // Do not let a detach callback reload the retiring source's logo.
+            mChannel = null;
+            setWidgetLogoSuppressed(false);
+        }
+        resetXrayForPlaybackChange();
         if (item.isSelected()) item.getGroups().clear();
         LiveConfig.get().setHome(item);
         player().reset();

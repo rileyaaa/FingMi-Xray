@@ -408,6 +408,169 @@ public final class LateOwnerResumeTest {
     "protected void onResume()", "private void resumeRetiredAutoRequest()",
 )))
 
+# Source changes and owner reclaims can retire an automatic request before
+# any HTTP resource exists, so the detach callback cannot restore the UI.
+stubs["RetiredMetadataTest.java"] = r"""
+import com.fingmi.xray.session.XrayLiveAutoPlayback;
+import java.util.ArrayList;
+import java.util.List;
+
+public final class RetiredMetadataTest {
+    static class View {
+        static final int GONE = 8;
+        void setVisibility(int value) {}
+        void setText(String value) {}
+    }
+    static class Adapter {
+        boolean suppressed;
+        int size = 1;
+        void clear() { size = 0; }
+        void setXrayLogoSuppressed(boolean value) { suppressed = value; }
+    }
+    static class Player {
+        int resets;
+        void reset() { resets++; }
+        void clear() {}
+        void stop() {}
+        void setDefaultArtwork(Object value) {}
+    }
+    static class Binding {
+        final Control control = new Control();
+        final Widget widget = new Widget();
+        final Player player = new Player();
+        static class Control { final Action action = new Action(); }
+        static class Action { final View line = new View(); }
+        static class Widget { final View title = new View(); }
+    }
+    record Channel(String name) { String getName() { return name; } }
+    record LivePlayRequest(Channel channel, boolean catchup) {
+        Channel getChannel() { return channel; }
+        boolean isCatchup() { return catchup; }
+    }
+    static class Live {
+        final List<Object> groups = new ArrayList<>();
+        boolean isSelected() { return false; }
+        List<Object> getGroups() { return groups; }
+    }
+    static class LiveConfig {
+        static final LiveConfig INSTANCE = new LiveConfig();
+        static LiveConfig get() { return INSTANCE; }
+        void setHome(Live item) {}
+    }
+    static class Activity {
+        final XrayLiveAutoPlayback mLiveAuto = new XrayLiveAutoPlayback();
+        final Session mXray = new Session();
+        final Binding mBinding = new Binding();
+        final Adapter mChannelAdapter = new Adapter(), mGroupAdapter = new Adapter(), mEpgDataAdapter = new Adapter();
+        final List<Object> mHides = new ArrayList<>();
+        final Model mViewModel = new Model();
+        final Controller mLive = new Controller();
+        Channel mChannel = new Channel("A");
+        Object mGroup = new Object();
+        long mPlaybackEpoch;
+        boolean mXrayAutoReclaimPending, mXrayPendingChannelResume, mXrayStartedFromExistingPlayback, mXrayRefreshMetadataOnDetach;
+        boolean matched = true, owner = true, widgetSuppressed;
+        int metadataCancels, restores, retiredLogoRequests, refreshes, sourceLoads;
+        class Session {
+            Object proxy;
+            Object resources() { return proxy; }
+            void begin(String identity) {
+                if (proxy != null) {
+                    proxy = null;
+                    cancelXrayMetadataRequests();
+                    // Model the detach callback's suppression and guarded artwork path.
+                    mChannelAdapter.setXrayLogoSuppressed(false);
+                    setWidgetLogoSuppressed(false);
+                    if (mChannel != null) retiredLogoRequests++;
+                }
+            }
+            void beginLiveAuto(String identity, boolean retain) { if (!retain) begin(identity); }
+        }
+        static class Model {
+            int urlCancels;
+            void cancelPlaybackUrl() { urlCancels++; }
+        }
+        class Controller {
+            void refresh() { refreshes++; prepareXrayForPlaybackChange(new LivePlayRequest(mChannel, false)); }
+            void reset() {}
+        }
+        boolean isBindingOwner() { return owner; }
+        boolean matchesAutoXray(Channel channel) { return matched; }
+        String liveGroupName(Channel channel) { return "G"; }
+        Player player() { return mBinding.player; }
+        void cancelXrayMetadataRequests() { metadataCancels++; }
+        void clearPlaybackDanmakuSource() {}
+        Activity service() { return this; }
+        void onXrayTransitionStarted() {}
+        void setWidgetLogoSuppressed(boolean value) { widgetSuppressed = value; }
+        void suppressAutoXrayArtwork() { mChannelAdapter.setXrayLogoSuppressed(true); widgetSuppressed = true; }
+        void restoreAutoXrayMetadata() { restores++; mChannelAdapter.setXrayLogoSuppressed(false); widgetSuppressed = false; }
+        void clearArtworkTarget() {}
+        void hideControl() {}
+        void getLive() { sourceLoads++; }
+        __METHODS__
+    }
+    static void check(boolean ok, String why) { if (!ok) throw new AssertionError(why); }
+    static Activity pending() {
+        Activity a = new Activity();
+        a.prepareXrayForPlaybackChange(new LivePlayRequest(a.mChannel, false));
+        check(a.mChannelAdapter.suppressed && a.widgetSuppressed, "auto metadata not suppressed");
+        return a;
+    }
+    static Activity retired(boolean matched) {
+        Activity a = pending();
+        a.mXrayAutoReclaimPending = true;
+        a.resetXrayForPlaybackChange(); // pending has no resources, so no detach callback
+        a.matched = matched;
+        return a;
+    }
+    static void sourceChange(boolean active) {
+        Activity a = pending();
+        if (active) a.mXray.proxy = new Object();
+        a.setLive(new Live());
+        check(!a.mChannelAdapter.suppressed && !a.widgetSuppressed, "old suppression survived source change");
+        check(a.retiredLogoRequests == 0 && a.mChannel == null && a.sourceLoads == 1, "retiring logo reloaded or source not changed");
+        check(a.mViewModel.urlCancels == 1 && a.metadataCancels == (active ? 3 : 2), "old auto resolver/metadata not retired");
+    }
+    static void directReclaim(boolean explicit) {
+        Activity a = retired(false);
+        if (explicit) a.resumeRetiredAutoRequest();
+        else a.mLive.refresh();
+        check(a.restores == 1 && !a.mChannelAdapter.suppressed && !a.widgetSuppressed, "retired auto -> direct metadata not restored");
+        a.resumeRetiredAutoRequest();
+        check(a.refreshes == 1 && !a.mXrayAutoReclaimPending, "reclaim repeated");
+    }
+    static void matchedAndOrdinary() {
+        Activity a = retired(true);
+        a.owner = false; a.resumeRetiredAutoRequest();
+        check(a.refreshes == 0 && a.mXrayAutoReclaimPending, "nonowner consumed reclaim");
+        a.owner = true; a.resumeRetiredAutoRequest();
+        check(a.refreshes == 1 && a.restores == 0 && a.mChannelAdapter.suppressed && a.mLiveAuto.isAutomatic(), "matched reclaim exposed direct artwork");
+        Activity b = new Activity(); b.matched = false;
+        b.prepareXrayForPlaybackChange(new LivePlayRequest(b.mChannel, false));
+        b.setLive(new Live());
+        check(b.mViewModel.urlCancels == 0 && b.metadataCancels == 0 && b.restores == 0 && !b.mChannelAdapter.suppressed, "ordinary path changed");
+    }
+    public static void main(String[] args) {
+        switch(args[0]) {
+            case "source-pending" -> sourceChange(false);
+            case "source-active" -> sourceChange(true);
+            case "reclaim-explicit" -> directReclaim(true);
+            case "reclaim-normal" -> directReclaim(false);
+            case "ordinary" -> matchedAndOrdinary();
+            default -> throw new IllegalArgumentException();
+        }
+        System.out.println("PASS: " + args[0]);
+    }
+}
+""".replace("__METHODS__", "\n".join(method(signature, live) for signature in (
+    "private void resumeRetiredAutoRequest()",
+    "public void prepareXrayForPlaybackChange(",
+    "private void resetAdapter()",
+    "public void setLive(Live item)",
+    "public void resetXrayForPlaybackChange()",
+)))
+
 stubs["IdleProxyEngineTest.java"] = r"""
 import com.fingmi.xray.network.XrayHttpClient;
 import okhttp3.OkHttpClient;
@@ -824,6 +987,8 @@ with tempfile.TemporaryDirectory(prefix="xray-live-auto-") as directory:
     subprocess.run(["java", "-cp", str(work), "LiveAutoTest"], check=True)
     subprocess.run(["java", "-cp", str(work), "EngineChangeTest"], check=True)
     subprocess.run(["java", "-cp", str(work), "LateOwnerResumeTest"], check=True)
+    for case in ("source-pending", "source-active", "reclaim-explicit", "reclaim-normal", "ordinary"):
+        subprocess.run(["java", "-cp", str(work), "RetiredMetadataTest", case], check=True)
     subprocess.run(["java", "-cp", str(work), "IdleProxyEngineTest"], check=True)
     subprocess.run(["java", "-cp", str(work), "com.fongmi.android.tv.playback.live.LiveDeliveryTest"], check=True)
     subprocess.run(["java", "-cp", str(work), "MetadataDeliveryTest"], check=True)
