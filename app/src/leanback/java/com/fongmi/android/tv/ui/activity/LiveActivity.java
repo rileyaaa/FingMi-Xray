@@ -1057,6 +1057,9 @@ public class LiveActivity extends PlaybackActivity implements GroupAdapter.OnCli
     }
 
     @Override
+    public boolean usesXrayLiveDeliveryGuard() { return true; }
+
+    @Override
     public boolean isPlaybackStartPending() {
         return isBindingOwner() && mLiveAuto.isAwaitingPlayback();
     }

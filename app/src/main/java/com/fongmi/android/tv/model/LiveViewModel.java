@@ -36,6 +36,8 @@ public class LiveViewModel extends ViewModel implements LiveDataSource {
     private final ViewModelTaskRunner<TaskType> tasks;
     private final LivePlaybackState playbackState;
     private volatile ZoneId zoneId;
+    // Fixed by the host before submitting tasks. Mobile keeps the baseline delivery path.
+    private volatile boolean xrayLiveDeliveryGuard;
     // Only read/written on the main thread; each URL submission has a distinct request.
     private LivePlayRequest latestUrlRequest;
     // Metadata can complete on a worker before a route transition cancels it.
@@ -79,6 +81,7 @@ public class LiveViewModel extends ViewModel implements LiveDataSource {
     }
 
     public LivePlaybackController createPlaybackController(LivePlaybackHost host) {
+        xrayLiveDeliveryGuard = host.usesXrayLiveDeliveryGuard();
         return new LivePlaybackController(host, this, playbackState);
     }
 
@@ -96,6 +99,10 @@ public class LiveViewModel extends ViewModel implements LiveDataSource {
     public void parseXml(Live item) { parseXml(item, null); }
 
     public void parseXml(Live item, OkHttpClient client) {
+        if (!xrayLiveDeliveryGuard) {
+            execute(TaskType.XML, () -> LiveApi.parseXml(item, client), xml::postValue, error -> xml.postValue(false));
+            return;
+        }
         long generation = ++xmlGeneration;
         execute(TaskType.XML, () -> LiveApi.parseXml(item, client),
                 result -> postXml(generation, result), error -> postXml(generation, false));
@@ -110,6 +117,10 @@ public class LiveViewModel extends ViewModel implements LiveDataSource {
     public void getEpg(Channel item) { getEpg(item, null); }
 
     public void getEpg(Channel item, OkHttpClient client) {
+        if (!xrayLiveDeliveryGuard) {
+            execute(TaskType.EPG, () -> LiveApi.getEpg(item, zoneId, client), epg::postValue, error -> epg.postValue(new Epg()));
+            return;
+        }
         long generation = ++epgGeneration;
         execute(TaskType.EPG, () -> LiveApi.getEpg(item, zoneId, client),
                 result -> postEpg(generation, result), error -> postEpg(generation, new Epg()));
@@ -135,7 +146,7 @@ public class LiveViewModel extends ViewModel implements LiveDataSource {
 
     @Override
     public void getUrl(LivePlayRequest request) {
-        latestUrlRequest = request;
+        if (xrayLiveDeliveryGuard) latestUrlRequest = request;
         execute(TaskType.URL, () -> getUrlResult(request), result -> postUrl(request, result), error -> handleUrlError(request, error));
     }
 
@@ -144,6 +155,11 @@ public class LiveViewModel extends ViewModel implements LiveDataSource {
     }
 
     private void postUrl(LivePlayRequest request, Result result) {
+        if (!xrayLiveDeliveryGuard) {
+            if (request.getPosition() != C.TIME_UNSET) result.setPosition(request.getPosition());
+            playback.postValue(new PlaybackResult<>(request, result));
+            return;
+        }
         // Worker generation checks happen before delivery. Recheck on main
         // and avoid LiveData.postValue coalescing a newer result with an old one.
         App.post(() -> {
@@ -173,8 +189,10 @@ public class LiveViewModel extends ViewModel implements LiveDataSource {
 
     @Override
     protected void onCleared() {
-        latestUrlRequest = null;
-        cancelPlaybackMetadata();
+        if (xrayLiveDeliveryGuard) {
+            latestUrlRequest = null;
+            cancelPlaybackMetadata();
+        }
         tasks.cancelAll();
         playbackState.reset();
     }

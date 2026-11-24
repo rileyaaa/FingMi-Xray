@@ -318,8 +318,11 @@ public class LivePlaybackController {
     private boolean cannotApply(PlaybackResult<LivePlayRequest> playback) {
         LivePlayRequest pending = state.getPendingRequest();
         LivePlayRequest request = playback.request();
-        // A -> B -> A (or a same-line refresh) can leave a previous A result
-        // queued for the main thread. Semantic station equality is insufficient.
+        if (!host.usesXrayLiveDeliveryGuard()) {
+            return pending == null || !pending.matches(request) || !request.matches(state.getChannel());
+        }
+        // Xray's held START/retained transport belongs to an actual request,
+        // not merely a semantically identical station/line.
         return pending == null || pending != request || !request.matches(state.getChannel());
     }
 }

@@ -680,7 +680,11 @@ assert apply_rules.index("event.markApplied();") > apply_rules.index("mBinding.l
 APP_JAVA = ROOT / "app/src/main/java"
 controller_source = (APP_JAVA / "com/fongmi/android/tv/playback/live/LivePlaybackController.java").read_text(encoding="utf-8")
 model_source = (APP_JAVA / "com/fongmi/android/tv/model/LiveViewModel.java").read_text(encoding="utf-8")
-assert "latestUrlRequest = request;" in method("public void getUrl(", model_source)
+assert "xrayLiveDeliveryGuard = host.usesXrayLiveDeliveryGuard();" in method("public LivePlaybackController createPlaybackController(", model_source)
+host_source = (APP_JAVA / "com/fongmi/android/tv/playback/live/LivePlaybackHost.java").read_text(encoding="utf-8")
+assert "default boolean usesXrayLiveDeliveryGuard() { return false; }" in host_source
+assert "public boolean usesXrayLiveDeliveryGuard() { return true; }" in live
+assert "if (xrayLiveDeliveryGuard) latestUrlRequest = request;" in method("public void getUrl(", model_source)
 assert "latestUrlRequest = null;" in method("protected void onCleared(", model_source)
 resume = method("public void resumeChannelAfterXrayStart(", controller_source)
 assert "LivePlayRequest.catchup(channel, request.getCatchupData(), request.getPosition())" in resume
@@ -769,6 +773,8 @@ public final class LiveDeliveryTest {
         final LivePlaybackState state = new LivePlaybackState();
         static final class Host {
             boolean playing, waiting;
+            boolean xrayLiveDeliveryGuard = true;
+            boolean usesXrayLiveDeliveryGuard() { return xrayLiveDeliveryGuard; }
             boolean hasPlaybackSession() { return playing; }
             boolean isPlaybackStartPending() { return waiting; }
         }
@@ -779,6 +785,7 @@ public final class LiveDeliveryTest {
     }
     static final class Model {
         LivePlayRequest latestUrlRequest;
+        boolean xrayLiveDeliveryGuard = true;
         enum TaskType { URL }
         static final class Tasks {
             int cancellations;
@@ -788,6 +795,7 @@ public final class LiveDeliveryTest {
         final List<PlaybackResult<LivePlayRequest>> published = new ArrayList<>();
         final class Data {
             void setValue(PlaybackResult<LivePlayRequest> value) { published.add(value); }
+            void postValue(PlaybackResult<LivePlayRequest> value) { App.post(() -> setValue(value)); }
         }
         final Data playback = new Data();
         __MODEL__
@@ -805,6 +813,10 @@ public final class LiveDeliveryTest {
         check(c.cannotApply(new PlaybackResult<>(oldA, new Result())), "stale A accepted after A-B-A");
         check(c.cannotApply(new PlaybackResult<>(reqB, new Result())), "stale B accepted");
         check(!c.cannotApply(new PlaybackResult<>(newA, new Result())), "current A rejected");
+        c.host.xrayLiveDeliveryGuard = false;
+        check(!c.cannotApply(new PlaybackResult<>(oldA, new Result())), "ordinary host no longer uses baseline request matching");
+        check(c.cannotApply(new PlaybackResult<>(reqB, new Result())), "ordinary host accepted a different channel");
+        c.host.xrayLiveDeliveryGuard = true;
         a.line = 1;
         check(c.cannotApply(new PlaybackResult<>(newA, new Result())), "mutated line accepted");
         a.line = 0;
@@ -838,6 +850,14 @@ public final class LiveDeliveryTest {
         App.drain();
         check(m.published.size() == 1 && m.tasks.cancellations == 1,
                 "retired model delivered old URL or did not cancel resolver");
+        Model ordinary = new Model();
+        ordinary.xrayLiveDeliveryGuard = false;
+        LivePlayRequest ordinaryRequest = LivePlayRequest.live(a, 123);
+        Result ordinaryResult = new Result();
+        ordinary.postUrl(ordinaryRequest, ordinaryResult);
+        App.drain();
+        check(ordinary.published.size() == 1 && ordinary.published.get(0).request() == ordinaryRequest
+                && ordinaryResult.position == 123, "ordinary URL delivery now requires a Xray request token");
     }
     static void phoneDelivery() throws Exception {
         Looper.getMainLooper();
@@ -916,6 +936,7 @@ public class MetadataDeliveryTest {
         final Data<Epg> epg = new Data<>();
         final Data<Boolean> xml = new Data<>();
         final Tasks tasks = new Tasks();
+        boolean xrayLiveDeliveryGuard = true;
         private long epgGeneration;
         private long xmlGeneration;
         static class Tasks {
@@ -955,7 +976,16 @@ public class MetadataDeliveryTest {
         App.drain();
         check(m.epg.delivered.size() == 2 && m.epg.delivered.get(1).name.isEmpty(), "latest EPG error dropped");
         check(m.xml.delivered.equals(List.of(true, false)), "latest XML error dropped");
-        System.out.println("PASS: canceled and superseded EPG/XML callbacks rejected; latest success/error delivered");
+        Model ordinary = new Model();
+        ordinary.xrayLiveDeliveryGuard = false;
+        ordinary.getEpg(new Channel("ordinary"), null);
+        ordinary.parseXml(new Live("ordinary"), null);
+        ordinary.successes.get(0).run(); ordinary.successes.get(1).run();
+        App.drain();
+        check(ordinary.epg.delivered.size() == 1 && ordinary.epg.delivered.get(0).name.equals("ordinary")
+                && ordinary.xml.delivered.equals(List.of(true)), "ordinary metadata delivery changed");
+        check(ordinary.epgGeneration == 0 && ordinary.xmlGeneration == 0, "ordinary metadata used Xray generations");
+        System.out.println("PASS: guarded EPG/XML delivery and unguarded ordinary path");
     }
 }
 """.replace("__METADATA_METHODS__", "\n".join(method(signature, model_source) for signature in (

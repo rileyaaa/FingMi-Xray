@@ -22,6 +22,9 @@ public interface LivePlaybackHost {
 
     boolean hasPlaybackSession();
 
+    /** Only the TV Xray integration needs strict delivery across proxy transitions. */
+    default boolean usesXrayLiveDeliveryGuard() { return false; }
+
     /** A host can hold an already-resolved result until its playback transport is ready. */
     default boolean isPlaybackStartPending() { return false; }
 
