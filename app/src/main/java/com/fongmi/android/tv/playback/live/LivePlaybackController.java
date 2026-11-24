@@ -32,6 +32,11 @@ public class LivePlaybackController {
         state.reset();
     }
 
+    /** Retire an unfinished start on owner handoff, preserving the selected station. */
+    public void retirePendingPlayback() {
+        state.clearPlayback();
+    }
+
     public void selectGroup(Group group) {
         state.setGroup(group);
         host.renderGroupSelection(group);
@@ -153,7 +158,9 @@ public class LivePlaybackController {
     private boolean restorePlaybackIfNeeded() {
         LivePlayRequest request = state.getPlayingRequest();
         if (request == null || !request.matches(state.getChannel()) || host.hasPlaybackSession()) return false;
-        refresh();
+        // A resolved result can still be held by the TV's automatic Xray START.
+        // Reselecting that station must not discard it and submit another URL task.
+        if (!host.isPlaybackStartPending()) refresh();
         return true;
     }
 

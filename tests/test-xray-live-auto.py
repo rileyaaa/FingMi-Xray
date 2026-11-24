@@ -346,6 +346,9 @@ resume = method("public void resumeChannelAfterXrayStart(", controller_source)
 assert "LivePlayRequest.catchup(channel, request.getCatchupData(), request.getPosition())" in resume
 assert "LivePlayRequest.live(channel, request.getPosition())" in resume
 assert "if (isBindingOwner() && mLiveAuto.isAwaitingPlayback()) return;" in method("protected void onReclaim(", live)
+assert "return isBindingOwner() && mLiveAuto.isAwaitingPlayback();" in method("public boolean isPlaybackStartPending(", live)
+assert "mXrayAutoReclaimPending = false;" in prepare
+assert "resumeRetiredAutoRequest();" in method("protected void onResume(", live)
 
 stubs["android/os/Looper.java"] = """
 package android.os;
@@ -424,10 +427,24 @@ public final class LiveDeliveryTest {
     }
     static final class Controller {
         final LivePlaybackState state = new LivePlaybackState();
+        static final class Host {
+            boolean playing, waiting;
+            boolean hasPlaybackSession() { return playing; }
+            boolean isPlaybackStartPending() { return waiting; }
+        }
+        final Host host = new Host();
+        int refreshes;
+        void refresh() { refreshes++; }
         __CONTROLLER__
     }
     static final class Model {
         LivePlayRequest latestUrlRequest;
+        enum TaskType { URL }
+        static final class Tasks {
+            int cancellations;
+            void cancel(TaskType type) { if (type == TaskType.URL) cancellations++; }
+        }
+        final Tasks tasks = new Tasks();
         final List<PlaybackResult<LivePlayRequest>> published = new ArrayList<>();
         final class Data {
             void setValue(PlaybackResult<LivePlayRequest> value) { published.add(value); }
@@ -451,8 +468,20 @@ public final class LiveDeliveryTest {
         a.line = 1;
         check(c.cannotApply(new PlaybackResult<>(newA, new Result())), "mutated line accepted");
         a.line = 0;
-        c.state.clearPendingRequest();
-        check(c.cannotApply(new PlaybackResult<>(newA, new Result())), "cleared request accepted");
+        c.retirePendingPlayback();
+        check(c.cannotApply(new PlaybackResult<>(newA, new Result())), "retired request accepted after handoff");
+        check(c.state.getChannel() == a && c.state.getActiveRequest() == null,
+                "handoff must preserve station but retire the old request");
+        c.state.setPlayingRequest(newA, "synthetic");
+        c.host.waiting = true;
+        check(c.restorePlaybackIfNeeded() && c.refreshes == 0,
+                "same-station selection must keep resolved automatic start");
+        c.host.waiting = false;
+        check(c.restorePlaybackIfNeeded() && c.refreshes == 1,
+                "ordinary missing playback still refreshes");
+        c.host.playing = true;
+        check(!c.restorePlaybackIfNeeded() && c.refreshes == 1,
+                "playing session must not refresh");
 
         Model m = new Model();
         m.latestUrlRequest = oldA;
@@ -465,9 +494,10 @@ public final class LiveDeliveryTest {
         check(m.published.size() == 1 && m.published.get(0).request() == newA
                 && m.published.get(0).result() == current, "queued old URL displaced current URL");
         m.postUrl(newA, new Result());
-        m.latestUrlRequest = null;
+        m.cancelPlaybackUrl();
         App.drain();
-        check(m.published.size() == 1, "cleared model delivered old URL");
+        check(m.published.size() == 1 && m.tasks.cancellations == 1,
+                "retired model delivered old URL or did not cancel resolver");
     }
     static void phoneDelivery() throws Exception {
         Looper.getMainLooper();
@@ -506,7 +536,11 @@ public final class LiveDeliveryTest {
         System.out.println("PASS: Live request identity, main-thread delivery and phone acknowledgement");
     }
 }
-""".replace("__CONTROLLER__", method("private boolean cannotApply(", controller_source)).replace("__MODEL__", method("private void postUrl(", model_source))
+""".replace("__CONTROLLER__", "\n".join(method(signature, controller_source) for signature in (
+    "private boolean cannotApply(", "private boolean restorePlaybackIfNeeded(", "public void retirePendingPlayback(",
+))).replace("__MODEL__", "\n".join(method(signature, model_source) for signature in (
+    "private void postUrl(", "public void cancelPlaybackUrl(",
+)))
 
 with tempfile.TemporaryDirectory(prefix="xray-live-auto-") as directory:
     work = Path(directory)

@@ -34,6 +34,8 @@ for name in ('VideoActivity', 'LiveActivity'):
     activity_methods[name] = '\n'.join(method(LEANBACK / (name + '.java'), signature) for signature in (
         'protected void onXrayBindingReplaced()', 'public void resetXrayForPlaybackChange()',
     ))
+    if name == 'LiveActivity':
+        activity_methods[name] += '\n' + method(LEANBACK / (name + '.java'), 'private void resumeRetiredAutoRequest()')
     text = (LEANBACK / (name + '.java')).read_text(encoding='utf-8')
     guard = 'isBindingOwner()' if name == 'LiveActivity' else 'isOwner()'
     assert f'if (service() != null && {guard}) {{' in text
@@ -168,7 +170,20 @@ class VideoActivity extends XrayActivity {
     __VIDEO_METHODS__
 }
 class LiveActivity extends XrayActivity {
+    boolean mXrayAutoReclaimPending;
+    static class LiveController {
+        int retirements, refreshes;
+        void retirePendingPlayback() { retirements++; }
+        void refresh() { refreshes++; }
+    }
+    static class LiveModel {
+        int cancellations;
+        void cancelPlaybackUrl() { cancellations++; }
+    }
+    final LiveController mLive = new LiveController();
+    final LiveModel mViewModel = new LiveModel();
     LiveActivity(PlaybackService service, String key) { super(service, key); }
+    void resumeRetired() { resumeRetiredAutoRequest(); }
     __LIVE_METHODS__
 }
 public class HandoffTest {
@@ -342,6 +357,28 @@ public class HandoffTest {
                 "ordinary failure lost ERROR -> IDLE contract: " + a.states);
         a.mXray.close();
     }
+    static void automaticPendingHandoff() {
+        PlaybackService service = new PlaybackService();
+        LiveActivity live = new LiveActivity(service, "A");
+        live.activate();
+        live.mLiveAuto.prepare("G", "A", true);
+        check(live.mLiveAuto.isAwaitingPlayback(), "automatic URL resolution pending");
+        live.activate();
+        check(live.mLive.retirements == 0, "same owner claim retired pending request");
+        VideoActivity video = new VideoActivity(service, "B");
+        video.activate();
+        check(live.mXrayAutoReclaimPending && live.mLive.retirements == 1
+                && live.mViewModel.cancellations == 1 && !live.mLiveAuto.isAwaitingPlayback(),
+                "old automatic resolver was not retired at handoff");
+        live.resumeRetired();
+        check(live.mLive.refreshes == 0, "inactive Live owner refreshed");
+        live.activate();
+        live.resumeRetired();
+        live.resumeRetired();
+        check(!live.mXrayAutoReclaimPending && live.mLive.refreshes == 1,
+                "return to Live did not re-evaluate retired request exactly once");
+        live.mXray.close(); video.mXray.close();
+    }
     static void mobile(boolean pip) {
         PlaybackService service = new PlaybackService();
         Activity a = new Activity(service, "A"); a.pip = pip; a.activate();
@@ -360,6 +397,7 @@ public class HandoffTest {
         proxyRollbackRetryCannotBeStoppedByOldFailure();
         errorListenerRetryCannotBeStoppedByOldFailure();
         ordinaryAttachFailureStillStops();
+        automaticPendingHandoff();
         mobile(false); mobile(true);
         System.out.println("PASS real Activity/Service binding methods + XrayPlaybackSession: 4 cross-owner/key transfers, reentrant STOP/retry, detach and failure rollback generations, pending Live start, late stop/close, repeated claims and Mobile PiP behavior");
     }

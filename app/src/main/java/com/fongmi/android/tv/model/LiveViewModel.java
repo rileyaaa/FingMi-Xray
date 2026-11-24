@@ -101,6 +101,11 @@ public class LiveViewModel extends ViewModel implements LiveDataSource {
         execute(TaskType.EPG, () -> LiveApi.getEpg(item, zoneId, client), epg::postValue, error -> epg.postValue(new Epg()));
     }
 
+    public void cancelPlaybackUrl() {
+        latestUrlRequest = null;
+        tasks.cancel(TaskType.URL);
+    }
+
     public void cancelPlaybackMetadata() {
         tasks.cancel(TaskType.EPG);
         tasks.cancel(TaskType.XML);

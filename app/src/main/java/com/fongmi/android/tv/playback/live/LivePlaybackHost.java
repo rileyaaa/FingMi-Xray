@@ -22,6 +22,9 @@ public interface LivePlaybackHost {
 
     boolean hasPlaybackSession();
 
+    /** A host can hold an already-resolved result until its playback transport is ready. */
+    default boolean isPlaybackStartPending() { return false; }
+
     boolean isPlaybackServiceReady();
 
     void restorePlaybackKey(@Nullable String key);

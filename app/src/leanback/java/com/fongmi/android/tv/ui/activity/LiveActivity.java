@@ -98,6 +98,7 @@ public class LiveActivity extends PlaybackActivity implements GroupAdapter.OnCli
     private boolean mXrayPendingChannelResume;
     private boolean mXrayStartedFromExistingPlayback;
     private boolean mXrayRefreshMetadataOnDetach;
+    private boolean mXrayAutoReclaimPending;
     private long mPlaybackEpoch;
     private GroupAdapter mGroupAdapter;
     private ChannelAdapter mChannelAdapter;
@@ -569,7 +570,21 @@ public class LiveActivity extends PlaybackActivity implements GroupAdapter.OnCli
 
     @Override
     protected void onXrayBindingReplaced() {
+        if (mLiveAuto.isAwaitingPlayback()) {
+            // A queued resolver result must not start directly after the next
+            // owner claim has reset this automatic policy. Re-evaluate it on
+            // return instead, using the currently saved rules.
+            mXrayAutoReclaimPending = true;
+            mLive.retirePendingPlayback();
+            mViewModel.cancelPlaybackUrl();
+        }
         resetXrayForPlaybackChange();
+    }
+
+    private void resumeRetiredAutoRequest() {
+        if (!mXrayAutoReclaimPending || !isBindingOwner()) return;
+        mXrayAutoReclaimPending = false;
+        mLive.refresh();
     }
 
     @Override
@@ -606,6 +621,7 @@ public class LiveActivity extends PlaybackActivity implements GroupAdapter.OnCli
 
     @Override
     public void prepareXrayForPlaybackChange(LivePlayRequest request) {
+        mXrayAutoReclaimPending = false;
         Channel channel = request.getChannel();
         boolean previousAuto = mLiveAuto.isAutomatic();
         boolean retain = mLiveAuto.prepare(liveGroupName(channel), channel.getName(),
@@ -1026,6 +1042,11 @@ public class LiveActivity extends PlaybackActivity implements GroupAdapter.OnCli
     }
 
     @Override
+    public boolean isPlaybackStartPending() {
+        return isBindingOwner() && mLiveAuto.isAwaitingPlayback();
+    }
+
+    @Override
     public boolean isPlaybackServiceReady() {
         return service() != null;
     }
@@ -1184,6 +1205,7 @@ public class LiveActivity extends PlaybackActivity implements GroupAdapter.OnCli
 
     @Override
     public void setLive(Live item) {
+        mXrayAutoReclaimPending = false;
         mLiveAuto.reset();
         mXrayPendingChannelResume = false;
         mXrayStartedFromExistingPlayback = false;
@@ -1356,6 +1378,14 @@ public class LiveActivity extends PlaybackActivity implements GroupAdapter.OnCli
         super.onStart();
         if (isBindingOwner()) mLiveAuto.resume(mXray);
         mClock.stop().start();
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        // If the old playback key was null, upstream may not invoke onReclaim.
+        // A normal reclaim/selection already consumes the flag in prepare.
+        resumeRetiredAutoRequest();
     }
 
     @Override
