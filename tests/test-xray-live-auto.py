@@ -231,6 +231,90 @@ def method(signature, source=player_source):
         end += 1
     return source[start:end]
 
+# The engine dialog calls the reset hook only for a real engine change.
+# URL delivery is asynchronous on main, after PlayerManager.setEngine().
+assert "this::resetXrayForEngineChange" in method("private void onPlayer()", live)
+stubs["EngineChangeTest.java"] = r"""
+import com.fingmi.xray.session.*;
+import java.util.List;
+
+public final class EngineChangeTest {
+    static final class EngineHost {
+        final LiveAutoTest.Host host = new LiveAutoTest.Host();
+        final XrayLiveAutoPlayback mLiveAuto = host.policy;
+        final XrayPlaybackSession mXray = host.session;
+        long mPlaybackEpoch = 100;
+        boolean mXrayPendingChannelResume, mXrayStartedFromExistingPlayback, mXrayRefreshMetadataOnDetach;
+        int restored, resumed;
+        final Controller mLive = new Controller();
+        class Controller {
+            void resumeChannelAfterXrayStart() {
+                check(!mLiveAuto.isAutomatic() && mXray.state() == XraySessionListener.IDLE,
+                        "new resolver must start after retiring the automatic session");
+                resumed++;
+            }
+        }
+        void restoreAutoXrayMetadata() {
+            check(!mLiveAuto.isAutomatic() && mXray.resources() == null,
+                    "metadata restored before retiring proxy");
+            restored++;
+        }
+        __ENGINE_CHANGE__
+    }
+    static void check(boolean value, String why) {
+        if (!value) throw new AssertionError(why);
+    }
+    static EngineHost select(boolean matched) {
+        EngineHost h = new EngineHost();
+        h.host.select("G", "A", matched);
+        return h;
+    }
+    public static void main(String[] args) {
+        EngineHost h = select(true);
+        h.host.resolved("A", LiveAutoTest.URL);
+        check(h.mLiveAuto.isAwaitingPlayback() && h.host.played.isEmpty(), "reproduce held START");
+        h.resetXrayForEngineChange();
+        check(h.resumed == 1 && h.restored == 1, "resolved pending channel lost on engine change");
+        h.host.core.ready();
+        check(h.host.played.isEmpty(), "late START restarted retired media");
+        h.host.resolved("A-new", LiveAutoTest.URL);
+        check(h.host.played.equals(List.of("A-new:direct")), "selected engine must use ordinary route");
+        h.host.close();
+
+        h = select(true);
+        h.resetXrayForEngineChange();
+        check(h.resumed == 0 && h.restored == 1, "unresolved request duplicated or metadata not restored");
+        h.host.resolved("A", LiveAutoTest.URL);
+        check(h.host.played.equals(List.of("A:direct")) && h.host.core.starts == 0,
+                "unresolved result should continue direct");
+        h.host.close();
+
+        h = select(true);
+        h.host.resolved("A", LiveAutoTest.URL);
+        h.host.core.fail();
+        h.resetXrayForEngineChange();
+        check(h.resumed == 1 && h.restored == 1, "failed START result lost");
+        h.host.close();
+
+        h = select(true);
+        h.host.resolved("A", LiveAutoTest.URL);
+        h.host.core.ready();
+        h.resetXrayForEngineChange();
+        check(h.resumed == 0 && h.restored == 0 && h.host.played.equals(List.of("A:proxy")),
+                "already-playing station unnecessarily re-resolved");
+        h.host.close();
+
+        h = select(false);
+        h.resetXrayForEngineChange();
+        check(h.resumed == 0 && h.restored == 0, "ordinary path changed");
+        h.host.close();
+        System.out.println("PASS: pending/failed/active/unmatched Live engine changes");
+    }
+}
+""".replace("__ENGINE_CHANGE__", "\n".join(method(signature, live) for signature in (
+    "private void resetXrayForEngineChange()", "public void resetXrayForPlaybackChange()",
+)))
+
 stubs["IdleProxyEngineTest.java"] = r"""
 import com.fingmi.xray.network.XrayHttpClient;
 import okhttp3.OkHttpClient;
@@ -645,6 +729,7 @@ with tempfile.TemporaryDirectory(prefix="xray-live-auto-") as directory:
         sources.append(str(APP_JAVA / rel))
     subprocess.run(["java", "com.sun.tools.javac.Main", "--release", "17", "-d", str(work), *sources], check=True)
     subprocess.run(["java", "-cp", str(work), "LiveAutoTest"], check=True)
+    subprocess.run(["java", "-cp", str(work), "EngineChangeTest"], check=True)
     subprocess.run(["java", "-cp", str(work), "IdleProxyEngineTest"], check=True)
     subprocess.run(["java", "-cp", str(work), "com.fongmi.android.tv.playback.live.LiveDeliveryTest"], check=True)
     subprocess.run(["java", "-cp", str(work), "MetadataDeliveryTest"], check=True)

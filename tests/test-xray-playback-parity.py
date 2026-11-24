@@ -331,7 +331,7 @@ require(
 require(
     "app/src/leanback/java/com/fongmi/android/tv/ui/activity/LiveActivity.java",
     "clearArtworkTarget()",
-    "this::resetXrayForPlaybackChange",
+    "this::resetXrayForEngineChange",
     "mXray.stop(preservePlayback)",
     "player().clearPlaybackProxyPreservingState()",
     "mXrayPendingChannelResume",

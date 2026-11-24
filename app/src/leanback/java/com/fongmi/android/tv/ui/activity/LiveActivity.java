@@ -564,8 +564,21 @@ public class LiveActivity extends PlaybackActivity implements GroupAdapter.OnCli
                 this,
                 mBinding.control.action.player,
                 player(),
-                this::resetXrayForPlaybackChange);
+                this::resetXrayForEngineChange);
         hideControl();
+    }
+
+    private void resetXrayForEngineChange() {
+        boolean awaiting = mLiveAuto.isAwaitingPlayback();
+        boolean resolved = mLiveAuto.hasResolvedRoute();
+        resetXrayForPlaybackChange();
+        if (!awaiting) return;
+        restoreAutoXrayMetadata();
+        // An unresolved URL can still complete normally. A resolved result
+        // held for START was just retired, so submit a fresh resolver request
+        // without auto-enabling Xray. Delivery is posted to main, after the
+        // dialog has applied the newly selected ordinary engine.
+        if (resolved) mLive.resumeChannelAfterXrayStart();
     }
 
     @Override
