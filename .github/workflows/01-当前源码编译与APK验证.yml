@@ -2,6 +2,10 @@ name: "01｜当前源码编译与 APK 验证"
 
 on:
   workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/01-当前源码编译与APK验证.yml'
 
 permissions:
   contents: read
