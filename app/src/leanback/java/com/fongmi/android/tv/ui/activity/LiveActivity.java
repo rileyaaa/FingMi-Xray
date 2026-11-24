@@ -530,6 +530,9 @@ public class LiveActivity extends PlaybackActivity implements GroupAdapter.OnCli
             return;
         }
         if (mLiveAuto.retry(mXray)) return;
+        // An automatic request is already waiting for URL validation. Do not
+        // demote it to the manual pending path, which can resolve before START.
+        if (mLiveAuto.isAutomatic() && !mLiveAuto.hasResolvedRoute()) return;
         if (mChannel == null) { Notify.show(R.string.xray_live_required); return; }
         boolean existing = hasPlaybackSession();
         boolean supported = existing
@@ -613,6 +616,9 @@ public class LiveActivity extends PlaybackActivity implements GroupAdapter.OnCli
         // Retiring a playback identity is not the same as retiring its transport.
         // Do this before the new request resolves, even when the same Core is kept.
         if (previousAuto || mLiveAuto.isAutomatic()) {
+            // The retired player's timeout must not fail the new station while
+            // it is resolving or waiting for Core START.
+            player().reset();
             cancelXrayMetadataRequests();
             clearPlaybackDanmakuSource();
             if (retain && mXray.resources() != null && isBindingOwner()) {

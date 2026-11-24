@@ -517,12 +517,26 @@ public class PlayerManager implements ParseCallback {
         old.release();
     }
 
+    /** Live can retire its PlaySpec before the retained proxy is detached. */
+    private void releaseEmptyProxyEngine() {
+        if (!(engine instanceof ExoPlayerEngine exo) || exo.proxy() == null) return;
+        PlayerEngine old = engine;
+        PlayerEngine direct = PlayerEngineFactory.create(decode, listener);
+        player.removeListener(listener);
+        engine = direct;
+        try {
+            setPlayer(direct.getPlayer());
+        } finally {
+            old.release();
+        }
+    }
+
     /**
      * One playback session owns this resource. Changing it forces an Exo engine
      * boundary; an identity change installs null without restarting old media.
      */
     public synchronized void setPlaybackProxy(XrayHttpClient next, boolean preservePlayback) {
-        if (playbackProxy == next) return;
+        if (playbackProxy == next && (next != null || !hasXraySession())) return;
 
         PlaybackSnapshot snapshot = null;
         if (preservePlayback && spec != null && player != null) {
@@ -546,6 +560,10 @@ public class PlayerManager implements ParseCallback {
         // keeps an engine object available for its controllers, so rebuild an
         // empty direct engine here instead of leaving an engine backed by the
         // Xray resources that are about to be closed.
+        if (next == null && spec == null) {
+            releaseEmptyProxyEngine();
+            return;
+        }
         if (next == null && !preservePlayback) {
             if (spec != null) ensureEngine(spec.checkUa());
             return;
@@ -580,6 +598,7 @@ public class PlayerManager implements ParseCallback {
         clearPreload();
 
         if (spec != null) ensureEngine(spec.checkUa());
+        else releaseEmptyProxyEngine();
     }
 
     public synchronized boolean hasXraySession() {

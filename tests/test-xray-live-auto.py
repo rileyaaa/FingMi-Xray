@@ -210,6 +210,113 @@ assert prepare.index("service().onXrayTransitionStarted();") < prepare.index("mX
 assert "clearPlaybackDanmakuSource();" in prepare
 assert "if (!isAutoXrayWaiting()) refreshXrayAwareMetadata();" not in prepare
 assert "if (mLiveAuto.isAutomatic()) refreshXrayAwareMetadata();" in live
+assert prepare.index("player().reset();") < prepare.index("mXray.beginLiveAuto(")
+manual = live.split("private void onXray()", 1)[1].split("private void onPlayer()", 1)[0]
+assert manual.index("if (mLiveAuto.isAutomatic() && !mLiveAuto.hasResolvedRoute()) return;") < manual.index("mLiveAuto.enableManually();")
+
+# Execute the real PlayerManager detach methods with synthetic engine/player
+# boundaries. A retained Xray engine must be retired even with no PlaySpec.
+player_source = (ROOT / "app/src/main/java/com/fongmi/android/tv/player/PlayerManager.java").read_text(encoding="utf-8")
+def method(signature):
+    start = player_source.index(signature)
+    opening = player_source.index("{", start)
+    end, depth = opening + 1, 1
+    while depth:
+        depth += (player_source[end] == "{") - (player_source[end] == "}")
+        end += 1
+    return player_source[start:end]
+
+stubs["IdleProxyEngineTest.java"] = r"""
+import com.fingmi.xray.network.XrayHttpClient;
+import okhttp3.OkHttpClient;
+public final class IdleProxyEngineTest {
+    static final class Player {
+        void removeListener(Object listener) {}
+    }
+    static class PlayerEngine {
+        final Player player = new Player();
+        boolean released;
+        void release() { released = true; }
+        Player getPlayer() { return player; }
+    }
+    static final class ExoPlayerEngine extends PlayerEngine {
+        final XrayHttpClient proxy;
+        ExoPlayerEngine(XrayHttpClient proxy) { this.proxy = proxy; }
+        XrayHttpClient proxy() { return proxy; }
+    }
+    static final class PlayerEngineFactory {
+        static PlayerEngine create(int decode, Object listener) { return new ExoPlayerEngine(null); }
+    }
+    static final class PlaySpec {
+        PlaySpec checkUa() { return this; }
+    }
+    record PlaybackSnapshot(long positionMs) {
+        static PlaybackSnapshot capture(Player player) { return new PlaybackSnapshot(0); }
+        void restore(Player player) {}
+    }
+    record XrayRestore(PlaySpec spec, PlaybackSnapshot snapshot) {}
+    static final class Callback {
+        int transitions;
+        void onXrayTransitionStarted() { transitions++; }
+    }
+    static final class Manager {
+        XrayHttpClient playbackProxy;
+        PlaySpec spec;
+        XrayRestore xrayRestore;
+        PlayerEngine engine;
+        Player player;
+        int decode, starts, rebuilds;
+        final Object listener = new Object();
+        final Callback callback = new Callback();
+        Manager(XrayHttpClient proxy, boolean installed) {
+            playbackProxy = proxy;
+            engine = new ExoPlayerEngine(installed ? proxy : null);
+            player = engine.getPlayer();
+        }
+        void setPlayer(Player next) { player = next; rebuilds++; }
+        void clearPreload() {}
+        void startCurrent(long position) { starts++; }
+        void ensureEngine(PlaySpec spec) { throw new AssertionError("empty spec cannot use media rebuild"); }
+        __METHODS__
+    }
+    static void check(boolean value, String message) {
+        if (!value) throw new AssertionError(message);
+    }
+    public static void main(String[] args) {
+        OkHttpClient direct = new OkHttpClient();
+        for (int mode = 0; mode < 4; mode++) {
+            XrayHttpClient proxy = new XrayHttpClient(1234, direct);
+            Manager m = new Manager(proxy, true);
+            PlayerEngine old = m.engine;
+            if (mode == 0) m.setPlaybackProxy(null, false);
+            if (mode == 1) m.setPlaybackProxy(null, true);
+            if (mode == 2) m.clearPlaybackProxyPreservingState();
+            if (mode == 3) {
+                m.playbackProxy = null;
+                m.setPlaybackProxy(null, false);
+            }
+            check(old.released && m.engine != old, "idle proxy engine not released: " + mode);
+            check(!m.hasXraySession() && m.getPlaybackHttpClient(direct) == direct, "stale network identity: " + mode);
+            check(m.starts == 0 && m.rebuilds == 1 && m.callback.transitions == 1, "unexpected playback restart");
+            m.setPlaybackProxy(null, false);
+            check(m.rebuilds == 1, "repeated detach rebuilt engine");
+        }
+        XrayHttpClient pending = new XrayHttpClient(1234, direct);
+        Manager m = new Manager(pending, false);
+        PlayerEngine old = m.engine;
+        m.setPlaybackProxy(null, false);
+        check(!old.released && m.engine == old && m.rebuilds == 0, "pending-only attach rebuilt direct engine");
+        check(!m.hasXraySession(), "pending proxy not cleared");
+        System.out.println("PASS: empty Live proxy engine retirement");
+    }
+}
+""".replace("__METHODS__", "\n".join(method(signature) for signature in (
+    "private void releaseEmptyProxyEngine(",
+    "public synchronized void setPlaybackProxy(",
+    "public synchronized void clearPlaybackProxyPreservingState(",
+    "public synchronized boolean hasXraySession(",
+    "public synchronized OkHttpClient getPlaybackHttpClient(",
+)))
 
 script = (ROOT / "app/src/main/assets/js/script.js").read_text(encoding="utf-8")
 phone_rules = script.split("function sendXrayLiveRules()", 1)[1].split("function sendDanmaku()", 1)[0]
@@ -234,3 +341,4 @@ with tempfile.TemporaryDirectory(prefix="xray-live-auto-") as directory:
         sources.append(str(PRODUCTION / rel))
     subprocess.run(["java", "com.sun.tools.javac.Main", "--release", "17", "-d", str(work), *sources], check=True)
     subprocess.run(["java", "-cp", str(work), "LiveAutoTest"], check=True)
+    subprocess.run(["java", "-cp", str(work), "IdleProxyEngineTest"], check=True)
