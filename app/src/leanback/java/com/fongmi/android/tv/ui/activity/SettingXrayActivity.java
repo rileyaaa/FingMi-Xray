@@ -14,6 +14,7 @@ import com.fingmi.xray.util.XrayErrorSanitizer;
 import com.fongmi.android.tv.R;
 import com.fongmi.android.tv.databinding.ActivitySettingXrayBinding;
 import com.fongmi.android.tv.event.XrayImportEvent;
+import com.fongmi.android.tv.event.XrayLiveRulesEvent;
 import com.fongmi.android.tv.ui.base.BaseActivity;
 import com.fongmi.android.tv.utils.Notify;
 
@@ -45,6 +46,8 @@ public final class SettingXrayActivity extends BaseActivity
         mXray = new XraySettingsController(this, this);
         mBinding.udpSwitch.setChecked(mXray.isUdpEnabled());
         mBinding.tlsFragmentSwitch.setChecked(mXray.isTlsFragmentEnabled());
+        mBinding.liveAutoGroups.setText(mXray.getLiveAutoGroups());
+        mBinding.liveAutoChannels.setText(mXray.getLiveAutoChannels());
         try {
             mBinding.link.setText(mXray.getShareLink());
             mBinding.link.setSelection(mBinding.link.length());
@@ -73,7 +76,9 @@ public final class SettingXrayActivity extends BaseActivity
         if (mOperation == XrayOperation.RESET_SECURITY) return;
         try {
             mXray.save(readLink(), mBinding.udpSwitch.isChecked(),
-                    mBinding.tlsFragmentSwitch.isChecked());
+                    mBinding.tlsFragmentSwitch.isChecked(),
+                    mBinding.liveAutoGroups.getText().toString(),
+                    mBinding.liveAutoChannels.getText().toString());
             Notify.show(R.string.xray_saved);
         } catch (Exception | LinkageError error) {
             Notify.show(XrayErrorSanitizer.sanitize(error));
@@ -109,6 +114,8 @@ public final class SettingXrayActivity extends BaseActivity
                 mBinding.link.setText("");
                 mBinding.udpSwitch.setChecked(false);
                 mBinding.tlsFragmentSwitch.setChecked(false);
+                mBinding.liveAutoGroups.setText("");
+                mBinding.liveAutoChannels.setText("");
             });
         } catch (Exception | LinkageError error) {
             clearOperation();
@@ -171,6 +178,14 @@ public final class SettingXrayActivity extends BaseActivity
         mBinding.link.setText(link);
         mBinding.link.setSelection(mBinding.link.length());
         Notify.show(R.string.xray_phone_received);
+    }
+
+    @Subscribe(threadMode = ThreadMode.MAIN)
+    public void onXrayLiveRulesEvent(XrayLiveRulesEvent event) {
+        if (event == null || mOperation == XrayOperation.RESET_SECURITY) return;
+        mBinding.liveAutoGroups.setText(event.groups());
+        mBinding.liveAutoChannels.setText(event.channels());
+        Notify.show(R.string.xray_live_rules_received);
     }
 
     private static boolean isBlank(String value) {

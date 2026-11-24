@@ -1,7 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
-<androidx.appcompat.widget.LinearLayoutCompat xmlns:android="http://schemas.android.com/apk/res/android"
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
+    android:fillViewport="true">
+
+<androidx.appcompat.widget.LinearLayoutCompat
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
     android:orientation="vertical"
     android:padding="24dp">
 
@@ -62,7 +67,7 @@
         android:focusable="true"
         android:focusableInTouchMode="true"
         android:nextFocusUp="@id/udp"
-        android:nextFocusDown="@+id/save"
+        android:nextFocusDown="@+id/liveAutoGroups"
         android:orientation="vertical">
 
         <androidx.appcompat.widget.LinearLayoutCompat
@@ -94,6 +99,57 @@
             android:textSize="13sp" />
     </androidx.appcompat.widget.LinearLayoutCompat>
 
+    <com.google.android.material.textview.MaterialTextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="16dp"
+        android:text="@string/xray_live_auto_groups"
+        android:textColor="@color/white"
+        android:textSize="18sp" />
+
+    <com.fongmi.android.tv.ui.custom.CustomEditText
+        android:id="@+id/liveAutoGroups"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="@string/xray_live_auto_groups_hint"
+        android:importantForAutofill="no"
+        android:inputType="textNoSuggestions"
+        android:imeOptions="actionDone"
+        android:maxLength="4096"
+        android:maxLines="2"
+        android:nextFocusUp="@id/tlsFragment"
+        android:nextFocusDown="@+id/liveAutoChannels"
+        android:textSize="16sp" />
+
+    <com.google.android.material.textview.MaterialTextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="10dp"
+        android:text="@string/xray_live_auto_channels"
+        android:textColor="@color/white"
+        android:textSize="18sp" />
+
+    <com.fongmi.android.tv.ui.custom.CustomEditText
+        android:id="@+id/liveAutoChannels"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="@string/xray_live_auto_channels_hint"
+        android:importantForAutofill="no"
+        android:inputType="textNoSuggestions"
+        android:imeOptions="actionDone"
+        android:maxLength="4096"
+        android:maxLines="2"
+        android:nextFocusUp="@id/liveAutoGroups"
+        android:nextFocusDown="@+id/save"
+        android:textSize="16sp" />
+
+    <com.google.android.material.textview.MaterialTextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="@string/xray_live_auto_hint"
+        android:textColor="@color/white"
+        android:textSize="13sp" />
+
     <androidx.appcompat.widget.LinearLayoutCompat
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
@@ -102,6 +158,7 @@
 
         <com.google.android.material.textview.MaterialTextView
             android:id="@+id/save"
+            android:nextFocusUp="@id/liveAutoChannels"
             android:layout_width="0dp"
             android:layout_height="48dp"
             android:layout_marginEnd="16dp"
@@ -157,3 +214,4 @@
     </androidx.appcompat.widget.LinearLayoutCompat>
 
 </androidx.appcompat.widget.LinearLayoutCompat>
+</ScrollView>

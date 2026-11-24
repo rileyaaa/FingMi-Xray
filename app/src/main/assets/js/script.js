@@ -31,6 +31,14 @@ function sendXray() {
     warnToast('已发送到电视');
 }
 
+function sendXrayLiveRules() {
+    const groups = $('#xray_live_groups').val().trim();
+    const channels = $('#xray_live_channels').val().trim();
+    if (!confirm('将覆盖电视上的两项直播规则输入框，继续？')) return;
+    doAction('xrayLiveRules', { groups, channels });
+    warnToast('已发送直播规则到电视，请在电视上保存');
+}
+
 function sendDanmaku() {
     const text = $('#danmaku_text').val().trim();
     if (!text) return;

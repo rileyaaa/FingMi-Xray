@@ -78,6 +78,16 @@
                     </div>
                     <button class="md-btn md-btn-filled md-btn-full" onclick="sendXray()">发送到电视</button>
                     <div class="panel-note">仅发送到当前电视输入框，不会自动保存；回到电视后请按“保存”。需要时可另点“测试连接”。</div>
+                    <div class="md-field">
+                        <label for="xray_live_groups">直播自动开启 Xray 的分组</label>
+                        <textarea id="xray_live_groups" class="md-input md-textarea" rows="2" maxlength="4096" placeholder="港澳台,海外"></textarea>
+                    </div>
+                    <div class="md-field">
+                        <label for="xray_live_channels">直播自动开启 Xray 的频道</label>
+                        <textarea id="xray_live_channels" class="md-input md-textarea" rows="2" maxlength="4096" placeholder="翡翠台,东森幼幼台,东森*"></textarea>
+                    </div>
+                    <button class="md-btn md-btn-filled md-btn-full" onclick="sendXrayLiveRules()">发送直播规则</button>
+                    <div class="panel-note">分组或频道任一命中即自动开启。逗号分隔，* 匹配任意字符。发送会覆盖电视上的两项输入框，留空可清除；不会修改节点，也不会自动保存。</div>
                 </div>
             </div>
             <!-- 本地 -->

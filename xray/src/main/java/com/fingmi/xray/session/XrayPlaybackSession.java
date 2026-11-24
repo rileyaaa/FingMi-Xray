@@ -12,8 +12,8 @@ import java.util.Objects;
 import okhttp3.OkHttpClient;
 
 /**
- * Owns the proxy resources for one manually enabled playback identity.
- * A new VOD episode/source or Live channel/line starts direct by default.
+ * Owns proxy resources for the current playback identity.
+ * TV Live may explicitly retain transport across consecutive saved-rule matches.
  */
 public final class XrayPlaybackSession implements XraySessionListener, AutoCloseable {
 
@@ -47,6 +47,26 @@ public final class XrayPlaybackSession implements XraySessionListener, AutoClose
         assertMain();
         if (closed || !playback.begin(nextIdentity)) return;
         stop(false);
+    }
+
+    /** Advance Live identity without tearing down a still-valid automatic transport. */
+    public void beginLiveAuto(String nextIdentity, boolean retainTransport) {
+        assertMain();
+        if (closed || !playback.begin(nextIdentity)) return;
+        if (retainTransport && (service.isRunning() || service.getState() == STARTING)) {
+            preserveOnStart = false;
+            return;
+        }
+        stop(false);
+    }
+
+    /** Caller holds the resolved media until the proxy is installed. */
+    public boolean enableForResolvedLive() {
+        assertMain();
+        if (closed || !playback.hasIdentity() || !supportsDirectLiveSource(playback.mediaUrl())) return false;
+        preserveOnStart = false;
+        service.start();
+        return true;
     }
 
     /**

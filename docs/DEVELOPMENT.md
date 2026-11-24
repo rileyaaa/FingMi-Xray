@@ -137,13 +137,21 @@ Activity 负责：
 
 - 建立当前播放 identity；
 - 响应用户开启 / 关闭 Xray；
-- 在切集、切台、换源、换线路、刷新或播放器重建等**逻辑播放身份变化**时结束旧会话；
+- 在切集、切台、换源、换线路、刷新或播放器重建等**逻辑播放身份变化**时默认结束旧会话；用户明确开启的连续电视直播自动规则命中场景例外，仅保留代理 transport，播放身份仍推进；
 - 同一播放身份内的 parser 解析结果、HTTP redirect 或 CDN URL 变化只更新当前媒体 URL，不自动停止 Xray，也不回退到直连；不支持的最终请求继续由 Xray scheme / destination guard fail-closed；
 - Live 尚未建立 playback session 时，先按发布版 direct-source 规则拒绝 HTTP(S) `.strm` / YouTube indirection，成功后才清 preload 并启动 Xray；
 - 把新的 `XrayHttpClient` 交给播放器；它保持发布 `pz3` 的资源语义：getter 始终返回会话持有的 OkHttp / RTSP factory，close 只负责幂等 shutdown + 异步 cancel/evict，不额外把 getter 改成同步 `IllegalStateException`；
 - 在 Activity 销毁时关闭 session。
 
 业务页面只决定“当前是什么播放身份”，不实现 Xray Core 细节。
+
+### TV Live 自动开启规则（2026-11-24，开发源码）
+
+`XrayLiveAutoRules` 解析两个最多 4096 字符的规则列表；空白/空项忽略，精确名称与 `*` 通配符按整串匹配（不区分英文大小写，不作为正则表达式），中英文逗号和换行均可分隔。分组或原始/显示频道名任一命中即可。`XrayPreferences` 在现有节点保存事务中一起持久化，删除节点时清除规则。Leanback 节点设置页、原扫码页面及 `XrayLiveRulesEvent` 支持独立填写规则，不读取或回传节点凭据；LAN 输入只填表单，不自动保存。
+
+`LivePlaybackHost.prepareXrayForPlaybackChange` 默认为旧 reset hook；仅 Leanback Live 用 `XrayLiveAutoPlayback` 记录当次命中、手动 OFF、待启动播放及失败重试。新请求推进 `PlaybackIdentityGate`，连续自动命中允许 `beginLiveAuto` 保持 RUNNING/STARTING transport；解析成功并通过原 direct-source guard 后才启动/使用代理，等待 RUNNING 安装完成后再送入播放器。规则不命中、回看、换配置/引擎、owner 交接和后台/销毁按原边界停止；已取消的待播回调不能重新启动旧台。规则未配置时不改变黄金默认路径。保留原远端目的地址限制；普通解析/API 不走全局代理。新台预览和等待代理期间抑制远端 artwork/EPG，切换时取消旧任务。手动 OFF 对当前台及其换线有效，换台重新判定。Live pending 的代理安装以真实 binding owner 而非旧 PlaySpec key 判断。
+
+`tests/test-xray-live-auto.py` 编译实际规则、自动策略、播放 session、身份和地址类，用确定性 controller/网络替身验证匹配、异步 START、连续命中复用、快速换台、手动关闭、错误重试、非代理源、后台及关闭；由 playback parity 自动调用。保留旧版绑定交接及 artwork 回归；本次功能仍需完整 Leanback 构建和真机换台验证，不代表当前正式 APK 已包含该功能。
 
 关闭会话时先卸载播放器代理、清空会话资源引用，再幂等关闭独立 HTTP Dispatcher，异步取消请求并淘汰连接；普通 player client 不随之销毁。STOP 成功后立即解绑，已派发的 STOP 超过 1.5 秒则取消并解绑，未建立连接由 5 秒 bind timeout 收口。500 ms 仅是 controller 关闭且没有待处理 STOP 时的兜底。最后一个客户端解绑、Android 销毁 Service 后，私有进程等待停止最多 3 秒，最终调用 `killProcess` 回收 Go/native 堆；多个合法 Binder owner 尚未全部离开时不能把进程存活直接判成泄漏。HTTP 清理线程在空闲 5 秒后退出。对象可回收和应用总 RSS 立即下降不是同一指标，设备验收应同时观察 `:xray` 进程退出、连接/线程收口及多轮操作后主进程内存是否持续增长。
 
@@ -439,7 +447,7 @@ bash gradlew --no-daemon :app:assembleLeanbackDebug
 - 切集与自动下一集；
 - 切频道；
 - 换线路 / 换源；
-- 同一播放身份内实际 URL / CDN / parser 结果变化时 **不** 重置 Xray；随后切换到新的逻辑播放身份时才重置；
+- 同一播放身份内实际 URL / CDN / parser 结果变化时 **不** 重置 Xray；切换到新的逻辑播放身份时默认重置，连续命中电视直播自动规则时仅保留 transport 并推进 identity；
 - 换播放器；
 - Activity 退出 / 销毁。
 

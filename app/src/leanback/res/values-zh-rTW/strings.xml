@@ -33,7 +33,7 @@
     <string name="xray_on">Xray 開</string>
     <string name="xray_phone_import">手機匯入</string>
     <string name="xray_phone_received">已收到 Xray 連結，請確認後儲存</string>
-    <string name="xray_phone_scan_info">手機掃碼後在瀏覽器貼上完整 Xray 分享連結並傳送到電視\n%s</string>
+    <string name="xray_phone_scan_info">手機掃碼後在瀏覽器填寫 Xray 分享連結或直播規則並傳送到電視\n%s</string>
     <string name="xray_public_http_required">目前直播協議無法保證完整通過 Xray</string>
     <string name="xray_save">儲存</string>
     <string name="xray_saved">Xray 設定已儲存</string>
@@ -44,6 +44,12 @@
     <string name="xray_udp">UDP</string>
     <string name="xray_tls_fragment">TLS 分片</string>
     <string name="xray_tls_fragment_hint">連線緩慢或 TLS 交握失敗時可嘗試；僅適用於 TCP 上的 TLS 連線。</string>
+    <string name="xray_live_auto_groups">自動開啟 Xray 的直播分組</string>
+    <string name="xray_live_auto_groups_hint">例如：港澳台,海外</string>
+    <string name="xray_live_auto_channels">自動開啟 Xray 的直播頻道</string>
+    <string name="xray_live_auto_channels_hint">例如：翡翠台,東森幼幼台,東森*</string>
+    <string name="xray_live_auto_hint">分組或頻道任一符合即自動開啟；逗號分隔，* 符合任意字元。留空不自動開啟。</string>
+    <string name="xray_live_rules_received">已收到直播規則，請確認後儲存</string>
     <string name="xray_vod_public_http_required">目前點播協議無法保證完整通過 Xray</string>
     <string name="xray_vod_required">請先開始點播播放再開啟 Xray</string>
 

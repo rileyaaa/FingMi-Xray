@@ -16,6 +16,11 @@ public final class XrayPreferences {
     }
     public boolean isUdpEnabled() { return udpEnabled; }
     public boolean isTlsFragmentEnabled() { return tlsFragmentEnabled; }
+    public String getLiveAutoGroups() { return ""; }
+    public String getLiveAutoChannels() { return ""; }
+    public void save(String link, boolean udp, boolean tlsFragment, String groups, String channels) {
+        save(link, udp, tlsFragment);
+    }
     public void save(String link, boolean udp) { save(link, udp, false); }
     public void save(String link, boolean udp, boolean tlsFragment) {
         udpEnabled = udp;

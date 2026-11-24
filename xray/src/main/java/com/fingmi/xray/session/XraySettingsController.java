@@ -63,6 +63,18 @@ public final class XraySettingsController implements XrayServiceClient.Listener,
         return preferences.isTlsFragmentEnabled();
     }
 
+    public String getLiveAutoGroups() { return preferences.getLiveAutoGroups(); }
+
+    public String getLiveAutoChannels() { return preferences.getLiveAutoChannels(); }
+
+    public void save(String shareLink, boolean udp, boolean tlsFragment,
+                     String groups, String channels) throws Exception {
+        assertMainThread();
+        ensureOpen();
+        if (activeOperation == XrayOperation.RESET_SECURITY) return;
+        preferences.save(shareLink, udp, tlsFragment, groups, channels);
+    }
+
     public void save(String shareLink, boolean udp) throws Exception {
         save(shareLink, udp, false);
     }

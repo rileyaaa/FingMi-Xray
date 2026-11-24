@@ -145,7 +145,15 @@ public class ArtworkLifecycleTest {
         abstract void createArtwork();
         abstract void clearArtwork();
     }
+    static class AutoLive {
+        void proxyReady() {}
+        void proxyFailed() {}
+        void reset() {}
+    }
     public static class LiveHost extends Host {
+        final AutoLive mLiveAuto = new AutoLive();
+        boolean isAutoXrayWaiting() { return false; }
+        boolean isBindingOwner() { return owner; }
         __LIVE_METHODS__
         void createArtwork() { setArtwork(); }
         void clearArtwork() { clearArtworkTarget(); }

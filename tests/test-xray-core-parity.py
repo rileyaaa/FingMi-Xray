@@ -72,6 +72,31 @@ def normalized_java_mirror(path: str, package_name: str, class_name: str) -> str
 def normalized_legacy_mirror(path: str, package_name: str, class_name: str) -> str:
     text = read(path)
     if class_name == "XrayPreferences":
+        # User-authorized Live auto rules are two optional lists in the same
+        # atomic editor; project only their exact storage additions out.
+        text = text.replace('    private static final String LIVE_GROUPS = "live_auto_groups";\n', '')
+        text = text.replace('    private static final String LIVE_CHANNELS = "live_auto_channels";\n', '')
+        text = text.replace('''    public synchronized String getLiveAutoGroups() {
+        return preferences.getString(LIVE_GROUPS, "");
+    }
+
+    public synchronized String getLiveAutoChannels() {
+        return preferences.getString(LIVE_CHANNELS, "");
+    }
+''', '')
+        text = text.replace('''    public synchronized void save(String shareLink, boolean udp, boolean tlsFragment) throws Exception {
+        save(shareLink, udp, tlsFragment, getLiveAutoGroups(), getLiveAutoChannels());
+    }
+
+''', '')
+        text = text.replace('''save(String shareLink, boolean udp, boolean tlsFragment,
+                                  String groups, String channels) throws Exception {
+        XrayLiveAutoRules rules = new XrayLiveAutoRules(groups, channels);''',
+                            'save(String shareLink, boolean udp, boolean tlsFragment) throws Exception {')
+        text = text.replace('.putString(LIVE_GROUPS, rules.groups())', '')
+        text = text.replace('.putString(LIVE_CHANNELS, rules.channels())', '')
+        text = text.replace('.remove(LIVE_GROUPS)', '')
+        text = text.replace('.remove(LIVE_CHANNELS)', '')
         # User-authorized optional TLS fragmentation adds one default-off flag.
         # Project only that extension out; the released encrypted store remains
         # an exact mirror, including its save/clear failure behavior.

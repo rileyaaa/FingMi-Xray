@@ -36,6 +36,10 @@ public interface LivePlaybackHost {
 
     default void resetXrayForPlaybackChange() { }
 
+    default void prepareXrayForPlaybackChange(LivePlayRequest request) {
+        resetXrayForPlaybackChange();
+    }
+
     void startPlayback(Result result, long position, MediaMetadata metadata);
 
     void resetPlaybackForError(String msg);
@@ -45,6 +49,10 @@ public interface LivePlaybackHost {
     void renderGroupChannels(Group group);
 
     void renderChannelSelection(Channel channel);
+
+    default void renderChannelSelection(Channel channel, boolean newPlayback) {
+        renderChannelSelection(channel);
+    }
 
     void renderLineSelection(Channel channel, boolean show);
 

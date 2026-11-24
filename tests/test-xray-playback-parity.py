@@ -400,7 +400,7 @@ require(
     "app/src/main/java/com/fongmi/android/tv/playback/live/LivePlaybackController.java",
     "selectChannel(Channel channel, boolean resetXray)",
     "resumeChannelAfterXrayStart()",
-    "if (resetXray) host.resetXrayForPlaybackChange()",
+    "if (resetXray) host.prepareXrayForPlaybackChange(request)",
     "requestPlayback(request, true, false)",
 )
 
@@ -436,9 +436,9 @@ require(
     "cancelXrayMetadataRequests()",
     "OkHttp.cancel(normal, LiveApi.METADATA_TAG)",
     "player().getPlaybackHttpClient(normal)",
-    "setWidgetLogoSuppressed(resources != null)",
+    "setWidgetLogoSuppressed(resources != null || isAutoXrayWaiting())",
     "setWidgetLogoSuppressed(false)",
-    "setWidgetLogoSuppressed(mXray != null && mXray.isActive())",
+    "setWidgetLogoSuppressed(deferMetadata || (mXray != null && mXray.isActive()))",
     "Glide.with(mBinding.widget.logo).clear(mBinding.widget.logo)",
     "mBinding.widget.logo.setImageDrawable(null)",
 )
@@ -543,5 +543,7 @@ subprocess.run(
     [sys.executable, str(ROOT / "tests/test-xray-playback-binding-handoff.py")],
     check=True,
 )
+
+subprocess.run([sys.executable, str(ROOT / "tests/test-xray-live-auto.py")], check=True)
 
 print("Xray playback parity guards passed")

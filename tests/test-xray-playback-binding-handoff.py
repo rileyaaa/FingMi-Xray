@@ -22,7 +22,7 @@ def method(path, signature):
 
 
 base_methods = '\n'.join(method(BASE, signature) for signature in (
-    'protected boolean isOwner()', 'private void claimBinding()',
+    'protected boolean isOwner()', 'protected boolean isBindingOwner()', 'private void claimBinding()',
     'protected void onXrayBindingReplaced()', 'private void activateService()',
     'private void initService()', 'private void closePiP()',
 ))
@@ -35,7 +35,8 @@ for name in ('VideoActivity', 'LiveActivity'):
         'protected void onXrayBindingReplaced()', 'public void resetXrayForPlaybackChange()',
     ))
     text = (LEANBACK / (name + '.java')).read_text(encoding='utf-8')
-    assert 'if (service() != null && isOwner()) {' in text
+    guard = 'isBindingOwner()' if name == 'LiveActivity' else 'isOwner()'
+    assert f'if (service() != null && {guard}) {{' in text
     assert 'player().setPlaybackProxy(resources, preserve);' in text
 
 HARNESS = r'''
@@ -84,6 +85,7 @@ class Activity {
 }
 abstract class XrayActivity extends Activity {
     XrayPlaybackSession mXray;
+    final XrayLiveAutoPlayback mLiveAuto = new XrayLiveAutoPlayback();
     int mPlaybackEpoch;
     boolean xrayPlaybackReady, mXrayPendingChannelResume, mXrayStartedFromExistingPlayback, mXrayRefreshMetadataOnDetach;
     boolean stopOnProxyAttach, restartOnProxyAttach;
@@ -128,7 +130,7 @@ abstract class XrayActivity extends Activity {
                     retiredProxy = resources;
                     throw new IllegalStateException("synthetic initial attach failure");
                 }
-                if (mService != null && isOwner()) {
+                if (mService != null && (XrayActivity.this instanceof LiveActivity ? isBindingOwner() : isOwner())) {
                     player().setPlaybackProxy(resources, preserve);
                     if (resources == null) detaches++;
                     else { attaches++; attachedPorts.add(resources.port); }
@@ -202,9 +204,7 @@ public class HandoffTest {
         b.activate();
         XrayHttpClient current = b.mXray.resources();
         check(current != null && !current.closed, "new owner has active resource");
-        // When pending Live starts before its media key is available, the existing
-        // listener owner guard may defer attachment. No lifecycle action closes it.
-        if (!pendingLiveStart || sameKey) check(service.manager.proxy == current, "new owner client installed");
+        check(service.manager.proxy == current, "new binding owner client installed, even before its media key");
         a.lateStop(); a.mXray.close();
         check(b.mXray.resources() == current && !current.closed, "late A stop/destroy cannot close B");
         check(service.manager.proxy != old, "shared player does not retain closed A client");
@@ -352,6 +352,7 @@ public class HandoffTest {
         for (boolean oldLive : new boolean[]{false, true})
             for (boolean sameKey : new boolean[]{false, true}) transfer(oldLive, false, sameKey);
         transfer(false, true, true);
+        transfer(false, true, false);
         reentrantStopDuringProxyAttachDoesNotPublishStaleRunning();
         sameStateReentrantRetryDoesNotRepublishOldRunning();
         restartInsideOldProxyDetachDoesNotInstallStaleEndpoint();
@@ -396,7 +397,7 @@ with tempfile.TemporaryDirectory(prefix='xray-binding-handoff-') as directory:
         file.write_text(content, encoding='utf-8')
         sources.append(str(file))
     sources += [str(ROOT / 'xray/src/main/java/com/fingmi/xray/session' / name) for name in (
-        'XrayPlaybackSession.java', 'XraySessionListener.java', 'PlaybackIdentityGate.java',
+        'XrayPlaybackSession.java', 'XraySessionListener.java', 'PlaybackIdentityGate.java', 'XrayLiveAutoPlayback.java',
     )]
     subprocess.run(['java', 'com.sun.tools.javac.Main', '--release', '17', '-d', str(work), *sources], check=True)
     subprocess.run(['java', '-cp', str(work), 'HandoffTest'], check=True)

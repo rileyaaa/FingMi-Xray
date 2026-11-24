@@ -47,7 +47,7 @@ public class LivePlaybackController {
         LivePlayRequest activeRequest = state.getActiveRequest();
         boolean restore = activeRequest != null && activeRequest.matches(channel);
         state.setChannel(channel);
-        host.renderChannelSelection(channel);
+        host.renderChannelSelection(channel, !restore && resetXray);
         if (restore) {
             restorePlaybackIfNeeded();
         } else {
@@ -254,7 +254,7 @@ public class LivePlaybackController {
             boolean showProgress,
             boolean resetXray) {
         if (!host.isPlaybackServiceReady()) return;
-        if (resetXray) host.resetXrayForPlaybackChange();
+        if (resetXray) host.prepareXrayForPlaybackChange(request);
         state.setPendingRequest(request);
         host.stopPlaybackForRefresh();
         publishPlaybackMetadata(getEpgData(request));

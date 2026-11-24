@@ -143,6 +143,8 @@ JADX 中出现不可能分支、R8 合并控制流或自相矛盾时，必须继
 
 发布版的 Xray 是当前播放身份的网络资源，不是全局状态：
 
+> 2026-11-24 用户明确授权 current 新增电视直播可选分组/频道自动开启规则（尚未发布）。连续匹配的直播可以复用 transport，仍推进 identity 并清理旧媒体请求；两项规则为空时保留黄金手动策略。该变化不是旧 APK 的恢复证据，具体新合同见 [PROJECT.md](PROJECT.md#2-播放-xray-的产品边界) 与 DEVELOPMENT 的 TV Live 自动开启规则；下文仍描述历史黄金行为。
+
 - 新集、新频道、换线路 / 换源、真正更换播放器等**逻辑播放身份变化**后默认直连；同一身份内 parser 解析结果、HTTP redirect 或 CDN 实际 URL 变化不重置 Xray；
 - 启用 Xray 的播放使用独立 SOCKS HTTP 资源；
 - SOCKS hostname 以 unresolved address 交给代理侧解析；

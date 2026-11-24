@@ -13,7 +13,9 @@ import com.fongmi.android.tv.bean.Vod;
 import com.fongmi.android.tv.event.CastEvent;
 import com.fongmi.android.tv.event.RefreshEvent;
 import com.fongmi.android.tv.event.ServerEvent;
+import com.fingmi.xray.config.XrayLiveAutoRules;
 import com.fongmi.android.tv.event.XrayImportEvent;
+import com.fongmi.android.tv.event.XrayLiveRulesEvent;
 import com.fongmi.android.tv.impl.Callback;
 import com.fongmi.android.tv.server.Nano;
 import com.fongmi.android.tv.server.Server;
@@ -59,6 +61,7 @@ public class Action implements Process {
             case "control" -> onControl(params);
             case "danmaku" -> onDanmaku(params);
             case "xray" -> onXray(params);
+            case "xrayLiveRules" -> onXrayLiveRules(params);
         }
     }
 
@@ -86,6 +89,17 @@ public class Action implements Process {
         String link = params.get("link");
         if (TextUtils.isEmpty(link)) return;
         XrayImportEvent.post(link.trim());
+    }
+
+    private void onXrayLiveRules(Map<String, String> params) {
+        // The same LAN input channel as node import: only fill the open TV settings,
+        // never save or reveal existing rules/node credentials to the browser.
+        String groups = params.get("groups");
+        String channels = params.get("channels");
+        if (groups == null || channels == null) return;
+        if (groups.length() > XrayLiveAutoRules.MAX_LENGTH
+                || channels.length() > XrayLiveAutoRules.MAX_LENGTH) return;
+        XrayLiveRulesEvent.post(groups, channels);
     }
 
     private void onSetting(Map<String, String> params) {

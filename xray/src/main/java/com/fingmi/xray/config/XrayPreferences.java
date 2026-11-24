@@ -26,6 +26,8 @@ public final class XrayPreferences {
     private static final String LINK_IV = "link_iv";
     private static final String UDP = "udp";
     private static final String TLS_FRAGMENT = "tls_fragment";
+    private static final String LIVE_GROUPS = "live_auto_groups";
+    private static final String LIVE_CHANNELS = "live_auto_channels";
 
     private final SharedPreferences preferences;
 
@@ -68,11 +70,25 @@ public final class XrayPreferences {
         return preferences.getBoolean(TLS_FRAGMENT, false);
     }
 
+    public synchronized String getLiveAutoGroups() {
+        return preferences.getString(LIVE_GROUPS, "");
+    }
+
+    public synchronized String getLiveAutoChannels() {
+        return preferences.getString(LIVE_CHANNELS, "");
+    }
+
     public synchronized void save(String shareLink, boolean udp) throws Exception {
         save(shareLink, udp, false);
     }
 
     public synchronized void save(String shareLink, boolean udp, boolean tlsFragment) throws Exception {
+        save(shareLink, udp, tlsFragment, getLiveAutoGroups(), getLiveAutoChannels());
+    }
+
+    public synchronized void save(String shareLink, boolean udp, boolean tlsFragment,
+                                  String groups, String channels) throws Exception {
+        XrayLiveAutoRules rules = new XrayLiveAutoRules(groups, channels);
         String normalized = XrayShareLinkNormalizer.normalize(shareLink);
 
         Cipher cipher = Cipher.getInstance("AES/GCM/NoPadding");
@@ -89,6 +105,8 @@ public final class XrayPreferences {
                         Base64.encodeToString(cipher.getIV(), Base64.NO_WRAP))
                 .putBoolean(UDP, udp)
                 .putBoolean(TLS_FRAGMENT, tlsFragment)
+                .putString(LIVE_GROUPS, rules.groups())
+                .putString(LIVE_CHANNELS, rules.channels())
                 .commit()) {
             throw new IllegalStateException("Unable to persist Xray configuration");
         }
@@ -100,6 +118,8 @@ public final class XrayPreferences {
                 .remove(LINK_IV)
                 .remove(UDP)
                 .remove(TLS_FRAGMENT)
+                .remove(LIVE_GROUPS)
+                .remove(LIVE_CHANNELS)
                 .commit()) {
             throw new IllegalStateException("Unable to remove Xray configuration");
         }
