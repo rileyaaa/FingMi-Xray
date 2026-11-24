@@ -84,8 +84,8 @@ else:
             errors.append(f"published libXray builder missing binding contract: {required}")
 
 for workflow_name in (
-    ".github/workflows/current-main-build.yml",
-    ".github/workflows/publish-current-main-test-release.yml",
+    ".github/workflows/01-当前源码编译与APK验证.yml",
+    ".github/workflows/02-正式APK构建与发布.yml",
 ):
     workflow = ROOT / workflow_name
     workflow_text = workflow.read_text(encoding="utf-8")
