@@ -35,7 +35,7 @@ function sendXrayLiveRules() {
     const groups = $('#xray_live_groups').val().trim();
     const channels = $('#xray_live_channels').val().trim();
     if (!confirm('将覆盖电视上的两项直播规则输入框，继续？')) return;
-    doAction('xrayLiveRules', { groups, channels })
+    $.post('/action', { groups, channels, do: 'xrayLiveRules' })
         .done(() => warnToast('电视已接收规则，请在电视设置页确认并保存'))
         .fail(() => warnToast('电视未确认接收规则，请检查网络及电视 Xray 设置页后重试'));
 }
@@ -72,7 +72,7 @@ function setDanmakuSize(val, label) {
 }
 
 function doAction(action, kv) {
-    return $.post('/action', { ...kv, do: action });
+    $.post('/action', { ...kv, do: action });
 }
 
 function openDialog(id) {

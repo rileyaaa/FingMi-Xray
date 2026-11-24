@@ -666,6 +666,7 @@ public final class IdleProxyEngineTest {
 script = (ROOT / "app/src/main/assets/js/script.js").read_text(encoding="utf-8")
 phone_rules = script.split("function sendXrayLiveRules()", 1)[1].split("function sendDanmaku()", 1)[0]
 assert ".done(" in phone_rules and ".fail(" in phone_rules
+assert "$.post('/action', { groups, channels, do: 'xrayLiveRules' })" in phone_rules
 action = (ROOT / "app/src/main/java/com/fongmi/android/tv/server/process/Action.java").read_text(encoding="utf-8")
 phone_handler = action.split("private Response onXrayLiveRules(", 1)[1].split("private void onSetting(", 1)[0]
 assert 'Response.Status.BAD_REQUEST' in phone_handler
