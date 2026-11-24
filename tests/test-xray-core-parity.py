@@ -316,7 +316,9 @@ forbid(
 require(
     "xray/src/main/java/com/fingmi/xray/network/XrayProxySocketFactory.java",
     "return new Socket(proxy);",
-    "InetSocketAddress.createUnresolved(host, port)",
+    "String target = requirePublicDestination(host);",
+    "PublicPlaybackDestinationInterceptor.isPrivateOrReserved(target)",
+    "InetSocketAddress.createUnresolved(target, port)",
     "socket.bind(new InetSocketAddress(localAddress, localPort));",
     "catch (IOException | RuntimeException error)",
     "closeQuietly(socket);",
@@ -327,6 +329,11 @@ require(
 proxy_socket_source = read(
     "xray/src/main/java/com/fingmi/xray/network/XrayProxySocketFactory.java"
 )
+# The two hostname overloads must connect to the guarded, normalized
+# target, not resolve the original hostname locally or bypass the check.
+if (proxy_socket_source.count("String target = requirePublicDestination(host);") != 2
+        or proxy_socket_source.count("InetSocketAddress.createUnresolved(target, port)") != 2):
+    raise SystemExit("Both RTSP hostname overloads must use the validated unresolved target")
 if proxy_socket_source.count("closeQuietly(socket);") != 4:
     raise SystemExit(
         "Xray RTSP socket factory must close every newly-created SOCKS socket when bind/connect fails"
@@ -448,7 +455,11 @@ require(
 require(
     "xray/src/main/java/com/fingmi/xray/session/XraySessionController.java",
     "catch (LinkageError error)",
-    "fail(XrayErrorSanitizer.sanitize(error));",
+    "finishStartFailure(startOperationId, XrayErrorSanitizer.sanitize(error));",
+    "finishStartFailure(startOperationId, XrayErrorSanitizer.fromException(error));",
+    "if (disposed || (operationId != NO_OPERATION\n                && currentOperationId != operationId)) return;",
+    "if (operationId != NO_OPERATION) currentOperationId = NO_OPERATION;",
+    "if (operationId != NO_OPERATION && currentOperationId == NO_OPERATION) {\n                serviceClient.cancel(XrayOperation.START, operationId);",
 )
 
 require(
