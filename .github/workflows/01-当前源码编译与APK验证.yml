@@ -2,10 +2,6 @@ name: "01｜当前源码编译与 APK 验证"
 
 on:
   workflow_dispatch:
-  push:
-    branches: [main]
-    paths:
-      - '.github/workflows/01-当前源码编译与APK验证.yml'
 
 permissions:
   contents: read
@@ -24,7 +20,7 @@ jobs:
       LIBASS_CANDIDATE_SHA256: "f047f8ad84be08aeddb0672500e9b263cafd6f2a009812392554dc55b2019861"
       JADX_VERSION: "1.5.6"
       JADX_SHA256: "545ea2be9c242511bc145755cf4bda2485ade42966e096f8b4d3da2a230e8974"
-      BUILD_SOURCE_SHA: 9c54a6adef98bfcbdd394d062cc2ce128f5d50ef
+      BUILD_SOURCE_SHA: ${{ github.sha }}
 
     steps:
       - uses: actions/checkout@v7
@@ -44,36 +40,33 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          failures=0
-          run_check() { "$@" || { echo "::error::Check failed: $*"; failures=$((failures + 1)); }; }
-          run_check python3 tests/test-xray-android-runtime-compat.py
-          run_check python3 tests/test-xray-core-parity.py
-          run_check python3 tests/test-xray-playback-parity.py
-          run_check python3 tests/test-xray-playback-address-parity.py
-          run_check python3 tests/test-xray-session-races.py
-          run_check python3 tests/test-xray-service-client-lifecycle.py
-          run_check python3 tests/test-xray-normalizer-parity.py
-          run_check python3 tests/test-xray-transport-security-parity.py
-          run_check python3 tests/test-xray-tls-fragment.py --workdir build/work/xray-tls-fragment
-          run_check python3 tests/test-upstream-update-disabled.py
-          run_check python3 scripts/build/check-elf-runtime.py --self-test
-          run_check python3 scripts/build/check-final-apk-native.py --self-test
-          run_check python3 scripts/build/check-final-apk-manifest.py --self-test
-          run_check python3 tests/test-build-hygiene.py
-          run_check python3 tests/test-resolve-release-tag.py
-          run_check python3 tests/test-release-publication.py
-          run_check python3 tests/test-resume-verified-release.py
-          run_check python3 tests/test-media3-dex-linkage.py
-          run_check python3 tests/test-player-candidate-linkage.py
-          run_check python3 tests/test-libass-native-input.py
-          run_check python3 tests/test-tv-network-recovery.py
-          run_check python3 tests/test-xray-rtsp-socket-guard.py
-          run_check python3 tests/test-xray-playback-session-reentry.py
-          run_check python3 tests/test-xray-playback-binding-handoff.py
-          run_check python3 tests/test-xray-side-request-lifecycle.py
-          run_check python3 tests/test-xray-artwork-loader.py
-          run_check python3 tests/test-tv-network-recovery-reentry.py
-          test "$failures" -eq 0
+          python3 tests/test-xray-android-runtime-compat.py
+          python3 tests/test-xray-core-parity.py
+          python3 tests/test-xray-playback-parity.py
+          python3 tests/test-xray-playback-address-parity.py
+          python3 tests/test-xray-session-races.py
+          python3 tests/test-xray-service-client-lifecycle.py
+          python3 tests/test-xray-normalizer-parity.py
+          python3 tests/test-xray-transport-security-parity.py
+          python3 tests/test-xray-tls-fragment.py --workdir build/work/xray-tls-fragment
+          python3 tests/test-upstream-update-disabled.py
+          python3 scripts/build/check-elf-runtime.py --self-test
+          python3 scripts/build/check-final-apk-native.py --self-test
+          python3 scripts/build/check-final-apk-manifest.py --self-test
+          python3 tests/test-build-hygiene.py
+          python3 tests/test-resolve-release-tag.py
+          python3 tests/test-release-publication.py
+          python3 tests/test-resume-verified-release.py
+          python3 tests/test-media3-dex-linkage.py
+          python3 tests/test-player-candidate-linkage.py
+          python3 tests/test-libass-native-input.py
+          python3 tests/test-tv-network-recovery.py
+          python3 tests/test-xray-rtsp-socket-guard.py
+          python3 tests/test-xray-playback-session-reentry.py
+          python3 tests/test-xray-playback-binding-handoff.py
+          python3 tests/test-xray-side-request-lifecycle.py
+          python3 tests/test-xray-artwork-loader.py
+          python3 tests/test-tv-network-recovery-reentry.py
 
       - name: 准备 Android SDK 36 与 37
         shell: bash
@@ -343,9 +336,7 @@ jobs:
         run: |
           set -euo pipefail
           {
-            test "$(git rev-parse HEAD)" = "$BUILD_SOURCE_SHA"
-            echo "commit=$BUILD_SOURCE_SHA"
-            echo "trigger_commit=$GITHUB_SHA"
+            echo "commit=$GITHUB_SHA"
             java -version 2>&1 | head -n 1
             ./gradlew --version | sed -n '1,12p'
             echo "libass_candidate_sha256=$LIBASS_CANDIDATE_SHA256"
@@ -353,7 +344,7 @@ jobs:
           } | tee build/work/current-main/BUILD_RESULT.txt
 
       - name: 上传当前源码构建的 APK
-        if: ${{ false }}
+        if: success()
         uses: actions/upload-artifact@v7
         with:
           name: fingmi-xray-current-main-release
@@ -366,7 +357,7 @@ jobs:
           compression-level: 0
 
       - name: 清理过期的同名构建产物
-        if: ${{ false }}
+        if: success()
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
