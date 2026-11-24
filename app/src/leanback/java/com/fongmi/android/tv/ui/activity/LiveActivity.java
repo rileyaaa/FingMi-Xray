@@ -1399,6 +1399,9 @@ public class LiveActivity extends PlaybackActivity implements GroupAdapter.OnCli
         // If the old playback key was null, upstream may not invoke onReclaim.
         // A normal reclaim/selection already consumes the flag in prepare.
         resumeRetiredAutoRequest();
+        // onStart may run before the binding is reclaimed. Un-suspend only
+        // after super.onResume() has had a chance to claim the player.
+        if (isBindingOwner()) mLiveAuto.resume(mXray);
     }
 
     @Override

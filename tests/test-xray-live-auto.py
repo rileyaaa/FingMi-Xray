@@ -315,6 +315,99 @@ public final class EngineChangeTest {
     "private void resetXrayForEngineChange()", "public void resetXrayForPlaybackChange()",
 )))
 
+# Exercise the real resume hook against the ordering where onStart could
+# not claim the shared player and only onResume obtains the binding.
+stubs["LateOwnerResumeTest.java"] = r"""
+import com.fingmi.xray.session.*;
+import java.util.List;
+
+public final class LateOwnerResumeTest {
+    static class Base {
+        boolean bindingOwner;
+        boolean reclaimOnResume = true;
+        boolean isBindingOwner() { return bindingOwner; }
+        protected void onResume() { bindingOwner = reclaimOnResume; }
+    }
+    static final class Activity extends Base {
+        final LiveAutoTest.Host host = new LiveAutoTest.Host();
+        final XrayLiveAutoPlayback mLiveAuto = host.policy;
+        final XrayPlaybackSession mXray = host.session;
+        boolean mXrayAutoReclaimPending;
+        boolean matched = true;
+        int refreshes;
+        final Controller mLive = new Controller();
+        class Controller {
+            void refresh() { refreshes++; host.select("G", "A", matched); }
+        }
+        void startBoundary() { if (isBindingOwner()) mLiveAuto.resume(mXray); }
+        __RESUME_METHODS__
+    }
+    static void check(boolean ok, String msg) {
+        if (!ok) throw new AssertionError(msg);
+    }
+    static Activity handoff() {
+        Activity a = new Activity();
+        a.host.select("G", "A", true);
+        a.mLiveAuto.suspend(true);
+        a.mXray.stop(false);
+        a.mLiveAuto.reset();
+        a.mXrayAutoReclaimPending = true;
+        return a;
+    }
+    public static void main(String[] args) {
+        Activity a = handoff();
+        a.startBoundary(); // not yet binding owner
+        a.onResume();
+        a.host.resolved("A", LiveAutoTest.URL);
+        check(a.host.core.starts == 1 && a.host.played.isEmpty(),
+                "late owner resume leaves matched channel suspended");
+        a.onResume();
+        a.host.core.ready();
+        a.onResume();
+        check(a.host.played.equals(List.of("A:proxy")) && a.host.core.starts == 1 && a.refreshes == 1,
+                "duplicate resume started media twice");
+        a.host.close();
+
+        Activity b = handoff();
+        b.reclaimOnResume = false;
+        b.startBoundary(); b.onResume();
+        check(b.refreshes == 0 && b.host.core.starts == 0 && b.mXrayAutoReclaimPending,
+                "nonowner resumed");
+        b.host.close();
+
+        Activity c = handoff();
+        c.matched = false;
+        c.startBoundary(); c.onResume();
+        c.host.resolved("A", LiveAutoTest.URL);
+        check(c.host.played.equals(List.of("A:direct")) && c.host.core.starts == 0,
+                "unmatched channel no longer direct");
+        c.host.close();
+
+        Activity d = handoff();
+        d.bindingOwner = true;
+        d.startBoundary(); d.onResume();
+        d.host.resolved("A", LiveAutoTest.URL); d.host.core.ready();
+        check(d.host.played.equals(List.of("A:proxy")) && d.host.core.starts == 1,
+                "normal onStart resume regressed");
+        d.host.close();
+
+        Activity e = new Activity();
+        e.host.select("G", "A", true);
+        e.mLiveAuto.suspend(true);
+        e.host.resolved("A", LiveAutoTest.URL);
+        check(e.host.core.starts == 0, "background began START");
+        e.startBoundary(); e.onResume();
+        check(e.host.core.starts == 1, "resume did not start already-held result");
+        e.host.core.ready();
+        check(e.host.played.equals(List.of("A:proxy")), "held result not delivered");
+        e.host.close();
+        System.out.println("PASS: late-owner foreground, repeated resume, nonowner, held result and ordinary path");
+    }
+}
+""".replace("__RESUME_METHODS__", "\n".join(method(signature, live) for signature in (
+    "protected void onResume()", "private void resumeRetiredAutoRequest()",
+)))
+
 stubs["IdleProxyEngineTest.java"] = r"""
 import com.fingmi.xray.network.XrayHttpClient;
 import okhttp3.OkHttpClient;
@@ -730,6 +823,7 @@ with tempfile.TemporaryDirectory(prefix="xray-live-auto-") as directory:
     subprocess.run(["java", "com.sun.tools.javac.Main", "--release", "17", "-d", str(work), *sources], check=True)
     subprocess.run(["java", "-cp", str(work), "LiveAutoTest"], check=True)
     subprocess.run(["java", "-cp", str(work), "EngineChangeTest"], check=True)
+    subprocess.run(["java", "-cp", str(work), "LateOwnerResumeTest"], check=True)
     subprocess.run(["java", "-cp", str(work), "IdleProxyEngineTest"], check=True)
     subprocess.run(["java", "-cp", str(work), "com.fongmi.android.tv.playback.live.LiveDeliveryTest"], check=True)
     subprocess.run(["java", "-cp", str(work), "MetadataDeliveryTest"], check=True)
