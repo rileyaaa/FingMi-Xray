@@ -102,7 +102,7 @@ require(
     "return !hasXraySession()",
     "if (next == null && !preservePlayback)",
     "if (spec != null) ensureEngine(spec.checkUa());",
-    "if (next != null) callback.onXrayTransitionStarted();\n\n        clearPreload();",
+    "if (next != null || hasXraySession()) callback.onXrayTransitionStarted();\n\n        xrayRestore = null;\n        playbackProxy = next;\n        clearPreload();",
     "if (playbackProxy != null || !canPreloadNext()",
     "PlaybackSnapshot.capture(player)",
     "private record PlaybackSnapshot(long positionMs, boolean playWhenReady, PlaybackParameters playbackParameters, int repeatMode, float volume, long audioOffsetMs, long textOffsetMs)",
@@ -265,9 +265,10 @@ require(
     "service.stop();",
     "finally {\n            closeQuietly(old);\n        }",
     "private static void closeQuietly(XrayHttpClient client)",
-    "else retryProxyRollback(clearResources(preservePlayback));",
-    "retryProxyRollback(clearResourcesAfterError());",
-    "retryProxyRollback(clearResources(preserveOnStop));",
+    "Throwable failure = clearResources(preservePlayback);",
+    "if (!closed && generation == stateCallbackGeneration\n                    && service.getState() == IDLE) retryProxyRollback(failure);",
+    "Throwable failure = state == ERROR\n                    ? clearResourcesAfterError() : clearResources(preserveOnStop);",
+    "if (closed || eventGeneration != stateCallbackGeneration\n                    || service.getState() != controllerState) return;\n            retryProxyRollback(failure);",
     "private void retryProxyRollback(Throwable failure)",
 )
 

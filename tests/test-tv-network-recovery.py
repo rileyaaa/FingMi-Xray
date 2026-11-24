@@ -9,6 +9,7 @@ import tempfile
 ROOT = Path(__file__).resolve().parents[1]
 subprocess.run([sys.executable, str(ROOT / "tests/test-fork-module-boundaries.py")], check=True)
 subprocess.run([sys.executable, str(ROOT / "tests/test-tv-recovery-cold-entry.py")], check=True)
+subprocess.run([sys.executable, str(ROOT / "tests/test-tv-recovery-spider-clear.py")], check=True)
 LIFECYCLE = ROOT / "tv-recovery/src/main/java/com/fingmi/tvrecovery/TvNetworkLifecycle.java"
 COORDINATOR = ROOT / "tv-recovery/src/main/java/com/fingmi/tvrecovery/NetworkRecoveryCoordinator.java"
 ADAPTER = ROOT / "app/src/main/java/com/fingmi/integration/recovery/FongMiNetworkRecovery.java"

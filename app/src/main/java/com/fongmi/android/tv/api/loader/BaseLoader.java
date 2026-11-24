@@ -56,9 +56,11 @@ public class BaseLoader {
      * Recovered TV network-resume ordering: stale Jar/JS/Python spider
      * runtimes are destroyed off the main thread, and only after that cleanup
      * completes may HomeActivity start waiting for a stable network again.
+     * All callers share these loader instances. Keep clears FIFO even when
+     * a Home owner closes while its previous asynchronous clear is running.
      */
     public void clear(Runnable onComplete) {
-        Task.execute(() -> {
+        Task.executeSerial(() -> {
             try {
                 jarLoader.clear();
                 pyLoader.clear();
