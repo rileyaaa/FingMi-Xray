@@ -38,6 +38,10 @@ public class LiveViewModel extends ViewModel implements LiveDataSource {
     private volatile ZoneId zoneId;
     // Only read/written on the main thread; each URL submission has a distinct request.
     private LivePlayRequest latestUrlRequest;
+    // Metadata can complete on a worker before a route transition cancels it.
+    // These generations are checked on main, where LiveData is delivered.
+    private long epgGeneration;
+    private long xmlGeneration;
 
     public LiveViewModel() {
         this.epg = new MutableLiveData<>();
@@ -92,13 +96,29 @@ public class LiveViewModel extends ViewModel implements LiveDataSource {
     public void parseXml(Live item) { parseXml(item, null); }
 
     public void parseXml(Live item, OkHttpClient client) {
-        execute(TaskType.XML, () -> LiveApi.parseXml(item, client), xml::postValue, error -> xml.postValue(false));
+        long generation = ++xmlGeneration;
+        execute(TaskType.XML, () -> LiveApi.parseXml(item, client),
+                result -> postXml(generation, result), error -> postXml(generation, false));
+    }
+
+    private void postXml(long generation, boolean result) {
+        App.post(() -> {
+            if (xmlGeneration == generation) xml.setValue(result);
+        });
     }
 
     public void getEpg(Channel item) { getEpg(item, null); }
 
     public void getEpg(Channel item, OkHttpClient client) {
-        execute(TaskType.EPG, () -> LiveApi.getEpg(item, zoneId, client), epg::postValue, error -> epg.postValue(new Epg()));
+        long generation = ++epgGeneration;
+        execute(TaskType.EPG, () -> LiveApi.getEpg(item, zoneId, client),
+                result -> postEpg(generation, result), error -> postEpg(generation, new Epg()));
+    }
+
+    private void postEpg(long generation, Epg result) {
+        App.post(() -> {
+            if (epgGeneration == generation) epg.setValue(result);
+        });
     }
 
     public void cancelPlaybackUrl() {
@@ -107,6 +127,8 @@ public class LiveViewModel extends ViewModel implements LiveDataSource {
     }
 
     public void cancelPlaybackMetadata() {
+        epgGeneration++;
+        xmlGeneration++;
         tasks.cancel(TaskType.EPG);
         tasks.cancel(TaskType.XML);
     }
@@ -152,6 +174,7 @@ public class LiveViewModel extends ViewModel implements LiveDataSource {
     @Override
     protected void onCleared() {
         latestUrlRequest = null;
+        cancelPlaybackMetadata();
         tasks.cancelAll();
         playbackState.reset();
     }

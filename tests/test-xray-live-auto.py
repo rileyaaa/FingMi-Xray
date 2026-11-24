@@ -542,6 +542,90 @@ public final class LiveDeliveryTest {
     "private void postUrl(", "public void cancelPlaybackUrl(",
 )))
 
+# Run the actual LiveViewModel metadata methods with controlled worker and
+# main-thread queues. In particular, cancellation cannot retract a previously
+# queued LiveData.postValue, so validation must happen at delivery time.
+assert "cancelPlaybackMetadata();" in method("protected void onCleared(", model_source)
+stubs["MetadataDeliveryTest.java"] = r"""
+import com.fongmi.android.tv.App;
+import java.util.*;
+import java.util.concurrent.Callable;
+import java.util.function.Consumer;
+
+public class MetadataDeliveryTest {
+    static class Epg {
+        final String name;
+        Epg() { this(""); }
+        Epg(String name) { this.name = name; }
+    }
+    record Live(String name) {}
+    record Channel(String name) {}
+    static class OkHttpClient {}
+    static class LiveApi {
+        static boolean parseXml(Live item, OkHttpClient client) { return true; }
+        static Epg getEpg(Channel item, Object zone, OkHttpClient client) { return new Epg(item.name()); }
+    }
+    static class Data<T> {
+        List<T> delivered = new ArrayList<>();
+        void setValue(T value) { delivered.add(value); }
+        void postValue(T value) { App.post(() -> setValue(value)); }
+    }
+    enum TaskType { EPG, XML }
+    static class Model {
+        final Object zoneId = new Object();
+        final Data<Epg> epg = new Data<>();
+        final Data<Boolean> xml = new Data<>();
+        final Tasks tasks = new Tasks();
+        private long epgGeneration;
+        private long xmlGeneration;
+        static class Tasks {
+            int cancels;
+            void cancel(TaskType type) { cancels++; }
+        }
+        final List<Runnable> successes = new ArrayList<>();
+        final List<Runnable> failures = new ArrayList<>();
+        <T> void execute(TaskType type, Callable<T> work, Consumer<T> onSuccess, Consumer<Throwable> onError) {
+            successes.add(() -> { try { onSuccess.accept(work.call()); } catch (Exception e) { throw new RuntimeException(e); } });
+            failures.add(() -> onError.accept(new RuntimeException("old failure")));
+        }
+        __METADATA_METHODS__
+    }
+    static void check(boolean value, String msg) { if (!value) throw new AssertionError(msg); }
+    public static void main(String[] args) {
+        Model m = new Model();
+        m.getEpg(new Channel("old"), null);
+        m.parseXml(new Live("old"), null);
+        m.successes.get(0).run(); m.successes.get(1).run();
+        m.cancelPlaybackMetadata();
+        App.drain();
+        check(m.epg.delivered.isEmpty() && m.xml.delivered.isEmpty(), "canceled EPG/XML delivered to new playback");
+        check(m.tasks.cancels == 2, "metadata workers not canceled");
+        m.getEpg(new Channel("A"), null);
+        m.parseXml(new Live("A"), null);
+        m.getEpg(new Channel("B"), null);
+        m.parseXml(new Live("B"), null);
+        m.successes.get(4).run(); m.successes.get(5).run();
+        m.failures.get(2).run(); m.failures.get(3).run();
+        App.drain();
+        check(m.epg.delivered.size() == 1 && m.epg.delivered.get(0).name.equals("B"), "stale EPG failure displaced latest");
+        check(m.xml.delivered.equals(List.of(true)), "stale XML failure displaced latest");
+        m.getEpg(new Channel("current"), null);
+        m.parseXml(new Live("current"), null);
+        m.failures.get(6).run(); m.failures.get(7).run();
+        App.drain();
+        check(m.epg.delivered.size() == 2 && m.epg.delivered.get(1).name.isEmpty(), "latest EPG error dropped");
+        check(m.xml.delivered.equals(List.of(true, false)), "latest XML error dropped");
+        System.out.println("PASS: canceled and superseded EPG/XML callbacks rejected; latest success/error delivered");
+    }
+}
+""".replace("__METADATA_METHODS__", "\n".join(method(signature, model_source) for signature in (
+    "public void parseXml(Live item, OkHttpClient client)",
+    "private void postXml(",
+    "public void getEpg(Channel item, OkHttpClient client)",
+    "private void postEpg(",
+    "public void cancelPlaybackMetadata(",
+)))
+
 with tempfile.TemporaryDirectory(prefix="xray-live-auto-") as directory:
     work = Path(directory)
     sources = []
@@ -563,3 +647,4 @@ with tempfile.TemporaryDirectory(prefix="xray-live-auto-") as directory:
     subprocess.run(["java", "-cp", str(work), "LiveAutoTest"], check=True)
     subprocess.run(["java", "-cp", str(work), "IdleProxyEngineTest"], check=True)
     subprocess.run(["java", "-cp", str(work), "com.fongmi.android.tv.playback.live.LiveDeliveryTest"], check=True)
+    subprocess.run(["java", "-cp", str(work), "MetadataDeliveryTest"], check=True)
