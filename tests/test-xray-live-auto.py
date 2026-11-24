@@ -125,12 +125,18 @@ public final class LiveAutoTest {
     }
     static void retention() {
         Host h = new Host();
-        h.select("G","A",true); h.resolved("A",URL);
+        h.select("G","A",true);
+        check(!h.policy.hasResolvedRoute(),"first station cannot use route before resolution");
+        h.resolved("A",URL);
+        check(h.policy.hasResolvedRoute(),"resolved supported URL allows route when Core ready");
         check(h.played.isEmpty() && h.core.starts == 1,"hold initial media until proxy");
         h.core.ready();
         XrayHttpClient first = h.attached;
         check(first != null && h.played.equals(List.of("A:proxy")),"attach before playback");
-        h.select("G","B",true); h.resolved("B",URL+"2");
+        h.select("G","B",true);
+        check(!h.policy.hasResolvedRoute() && h.attached == first,"retained Core is not a resolved new route");
+        h.resolved("B",URL+"2");
+        check(h.policy.hasResolvedRoute(),"second station validated independently");
         h.select("other","C",true); h.resolved("C",URL+"3");
         check(h.attached == first && !first.closed && h.core.starts == 1 && h.core.stops == 0,
               "consecutive matches reuse Core and client even across groups");
@@ -143,12 +149,16 @@ public final class LiveAutoTest {
     static void rapidSwitch() {
         Host h = new Host();
         h.select("G","A",true); h.resolved("A",URL);
-        h.select("G","B",true); h.resolved("B",URL+"2");
+        h.select("G","B",true);
         h.core.ready();
+        check(!h.policy.hasResolvedRoute() && h.played.isEmpty() && h.attached != null,
+              "late Core readiness cannot activate unresolved new station");
+        h.resolved("B",URL+"2");
         check(h.core.starts == 1 && h.played.equals(List.of("B:proxy")),"STARTING retains only latest media");
         h.select("G","C",true);
         h.resolved("C","http://192.168.1.2/video");
         check(h.attached == null && h.core.stops == 1 && h.played.get(1).equals("C:direct"),"LAN source never proxied");
+        check(!h.policy.hasResolvedRoute() && !h.policy.isAutomatic(),"unsupported source retires automatic route");
         h.select("G","D",true); h.resolved("D",URL);
         h.select("H","E",false); h.core.ready(); h.resolved("E",URL);
         check(h.played.equals(List.of("B:proxy","C:direct","E:direct")),"late START cannot resume retired channel");
@@ -187,6 +197,28 @@ public final class LiveAutoTest {
     }
 }
 """
+
+# The host must apply the same route gate to all new playback metadata,
+# and explicitly retire side work on the transport-retention path.
+live = (ROOT / "app/src/leanback/java/com/fongmi/android/tv/ui/activity/LiveActivity.java").read_text(encoding="utf-8")
+prepare = live.split("public void prepareXrayForPlaybackChange(", 1)[1].split("private void suppressAutoXrayArtwork(", 1)[0]
+assert "!mLiveAuto.hasResolvedRoute()" in live
+assert "newPlayback && shouldDeferNewLiveMetadata(channel)" in live
+assert "if (shouldDeferNewLiveMetadata(channel))" in live
+assert prepare.index("cancelXrayMetadataRequests();") < prepare.index("mXray.beginLiveAuto(")
+assert prepare.index("service().onXrayTransitionStarted();") < prepare.index("mXray.beginLiveAuto(")
+assert "clearPlaybackDanmakuSource();" in prepare
+assert "if (!isAutoXrayWaiting()) refreshXrayAwareMetadata();" not in prepare
+assert "if (mLiveAuto.isAutomatic()) refreshXrayAwareMetadata();" in live
+
+script = (ROOT / "app/src/main/assets/js/script.js").read_text(encoding="utf-8")
+phone_rules = script.split("function sendXrayLiveRules()", 1)[1].split("function sendDanmaku()", 1)[0]
+assert ".done(" in phone_rules and ".fail(" in phone_rules
+action = (ROOT / "app/src/main/java/com/fongmi/android/tv/server/process/Action.java").read_text(encoding="utf-8")
+phone_handler = action.split("private Response onXrayLiveRules(", 1)[1].split("private void onSetting(", 1)[0]
+assert 'Response.Status.BAD_REQUEST' in phone_handler
+assert "hasSubscriberForEvent(XrayLiveRulesEvent.class)" in phone_handler
+assert "XrayLiveRulesEvent.post(groups, channels);" in phone_handler
 
 with tempfile.TemporaryDirectory(prefix="xray-live-auto-") as directory:
     work = Path(directory)

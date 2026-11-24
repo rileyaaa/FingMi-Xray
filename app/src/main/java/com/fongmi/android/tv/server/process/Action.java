@@ -26,6 +26,8 @@ import com.fongmi.android.tv.utils.Notify;
 import com.github.catvod.net.OkHttp;
 import com.github.catvod.utils.Path;
 
+import org.greenrobot.eventbus.EventBus;
+
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -45,6 +47,7 @@ public class Action implements Process {
     public Response doResponse(IHTTPSession session, String url, Map<String, String> files) {
         Map<String, String> params = session.getParms();
         String param = params.get("do");
+        if ("xrayLiveRules".equals(param)) return onXrayLiveRules(params);
         if (!TextUtils.isEmpty(param)) doJob(param, params);
         return Nano.ok();
     }
@@ -61,7 +64,6 @@ public class Action implements Process {
             case "control" -> onControl(params);
             case "danmaku" -> onDanmaku(params);
             case "xray" -> onXray(params);
-            case "xrayLiveRules" -> onXrayLiveRules(params);
         }
     }
 
@@ -91,15 +93,21 @@ public class Action implements Process {
         XrayImportEvent.post(link.trim());
     }
 
-    private void onXrayLiveRules(Map<String, String> params) {
+    private Response onXrayLiveRules(Map<String, String> params) {
         // The same LAN input channel as node import: only fill the open TV settings,
         // never save or reveal existing rules/node credentials to the browser.
         String groups = params.get("groups");
         String channels = params.get("channels");
-        if (groups == null || channels == null) return;
-        if (groups.length() > XrayLiveAutoRules.MAX_LENGTH
-                || channels.length() > XrayLiveAutoRules.MAX_LENGTH) return;
+        if (groups == null || channels == null
+                || groups.length() > XrayLiveAutoRules.MAX_LENGTH
+                || channels.length() > XrayLiveAutoRules.MAX_LENGTH) {
+            return Nano.error(Response.Status.BAD_REQUEST, "Invalid live rule lists");
+        }
+        if (!EventBus.getDefault().hasSubscriberForEvent(XrayLiveRulesEvent.class)) {
+            return Nano.error(Response.Status.BAD_REQUEST, "Open Xray settings on TV first");
+        }
         XrayLiveRulesEvent.post(groups, channels);
+        return Nano.ok();
     }
 
     private void onSetting(Map<String, String> params) {

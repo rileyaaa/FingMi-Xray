@@ -592,7 +592,13 @@ public class LiveActivity extends PlaybackActivity implements GroupAdapter.OnCli
     }
 
     private boolean isAutoXrayWaiting() {
-        return mLiveAuto.isAutomatic() && (mXray == null || mXray.resources() == null);
+        return mLiveAuto.isAutomatic()
+                && (!mLiveAuto.hasResolvedRoute() || mXray == null || mXray.resources() == null);
+    }
+
+    private boolean shouldDeferNewLiveMetadata(Channel channel) {
+        return mLiveAuto.isAutomatic() || mLiveAuto.wants(
+                liveGroupName(channel), channel.getName(), matchesAutoXray(channel));
     }
 
     @Override
@@ -604,12 +610,18 @@ public class LiveActivity extends PlaybackActivity implements GroupAdapter.OnCli
         mXrayPendingChannelResume = false;
         mXrayStartedFromExistingPlayback = false;
         mXrayRefreshMetadataOnDetach = false;
+        // Retiring a playback identity is not the same as retiring its transport.
+        // Do this before the new request resolves, even when the same Core is kept.
+        if (previousAuto || mLiveAuto.isAutomatic()) {
+            cancelXrayMetadataRequests();
+            clearPlaybackDanmakuSource();
+            if (retain && mXray.resources() != null && isBindingOwner()) {
+                service().onXrayTransitionStarted();
+            }
+        }
         mXray.beginLiveAuto("live:" + ++mPlaybackEpoch, retain);
         if (mLiveAuto.isAutomatic()) {
-            cancelXrayMetadataRequests();
-            getPlayerView().setDanmakuSource(null);
             suppressAutoXrayArtwork();
-            if (!isAutoXrayWaiting()) refreshXrayAwareMetadata();
         } else if (previousAuto) {
             restoreAutoXrayMetadata();
         }
@@ -1043,6 +1055,9 @@ public class LiveActivity extends PlaybackActivity implements GroupAdapter.OnCli
             if (isFinishing() || isDestroyed() || !isBindingOwner()) return;
             startPlayer(mPlaybackKey = result.getRealUrl(), result, false, getHome().getTimeout(), position, metadata);
         })) return;
+        // A retained transport is only ready for the new station after its own
+        // URL passed the guard. First START refreshes metadata in onProxyChanged.
+        if (mLiveAuto.isAutomatic()) refreshXrayAwareMetadata();
         startPlayer(mPlaybackKey = result.getRealUrl(), result, false, getHome().getTimeout(), position, metadata);
         if (automatic && !mLiveAuto.isAutomatic()) restoreAutoXrayMetadata();
     }
@@ -1081,9 +1096,9 @@ public class LiveActivity extends PlaybackActivity implements GroupAdapter.OnCli
     public void renderChannelSelection(Channel channel, boolean newPlayback) {
         App.post(mR0, 100);
         mChannel = channel;
-        // Selection is rendered before the request hook. Defer direct remote
-        // artwork/EPG for a new automatic candidate until its route is known.
-        if (newPlayback && mLiveAuto.wants(liveGroupName(channel), channel.getName(), matchesAutoXray(channel))) {
+        // Selection precedes the request hook. Neither a new automatic
+        // candidate nor a station leaving automatic routing may use the old route.
+        if (newPlayback && shouldDeferNewLiveMetadata(channel)) {
             suppressAutoXrayArtwork();
             showInfo(true);
         } else {
@@ -1094,7 +1109,11 @@ public class LiveActivity extends PlaybackActivity implements GroupAdapter.OnCli
 
     @Override
     public void renderLineSelection(Channel channel, boolean show) {
-        if (show) showInfo();
+        if (shouldDeferNewLiveMetadata(channel)) {
+            suppressAutoXrayArtwork();
+            if (show) showInfo(true);
+            else setInfo(true);
+        } else if (show) showInfo();
         else setInfo();
     }
 

@@ -441,6 +441,11 @@ public abstract class PlaybackActivity extends BaseActivity implements MediaCont
         SubtitleSetting.applyStyle(playerView.getSubtitleView());
     }
 
+    /** Retire both the view and its retained source when a Live identity changes. */
+    protected final void clearPlaybackDanmakuSource() {
+        danmakuController.setDataSource(null);
+    }
+
     protected final void updatePlaybackDanmakuClient() {
         // View setup runs before the asynchronous PlaybackService binding.
         danmakuController.setOkHttpClient(mService == null

@@ -8,6 +8,7 @@ public final class XrayLiveAutoPlayback {
     private String channel;
     private boolean manuallyOff;
     private boolean automatic;
+    private boolean routeResolved;
     private boolean failed;
     private boolean suspended;
     private Runnable pending;
@@ -24,6 +25,7 @@ public final class XrayLiveAutoPlayback {
         this.group = group;
         this.channel = channel;
         automatic = next;
+        routeResolved = false;
         failed = false;
         pending = null;
         return retain;
@@ -35,6 +37,9 @@ public final class XrayLiveAutoPlayback {
 
     public boolean isAutomatic() { return automatic; }
 
+    /** Each playback identity must validate its own URL, even with a retained Core. */
+    public boolean hasResolvedRoute() { return routeResolved; }
+
     /** True means media must not start directly. Unsupported/local targets stay direct. */
     public boolean deferResolved(XrayPlaybackSession session, String url, Runnable start) {
         if (!automatic) return false;
@@ -43,6 +48,7 @@ public final class XrayLiveAutoPlayback {
             session.stop(false);
             return false;
         }
+        routeResolved = true;
         if (!suspended && !failed && session.isActive() && session.resources() != null) return false;
         pending = Objects.requireNonNull(start);
         startIfNeeded(session);
@@ -95,6 +101,7 @@ public final class XrayLiveAutoPlayback {
 
     public void cancelRequest() {
         automatic = false;
+        routeResolved = false;
         failed = false;
         pending = null;
     }

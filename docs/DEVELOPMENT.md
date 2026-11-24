@@ -149,7 +149,7 @@ Activity 负责：
 
 `XrayLiveAutoRules` 解析两个最多 4096 字符的规则列表；空白/空项忽略，精确名称与 `*` 通配符按整串匹配（不区分英文大小写，不作为正则表达式），中英文逗号和换行均可分隔。分组或原始/显示频道名任一命中即可。`XrayPreferences` 在现有节点保存事务中一起持久化，删除节点时清除规则。Leanback 节点设置页、原扫码页面及 `XrayLiveRulesEvent` 支持独立填写规则，不读取或回传节点凭据；LAN 输入只填表单，不自动保存。
 
-`LivePlaybackHost.prepareXrayForPlaybackChange` 默认为旧 reset hook；仅 Leanback Live 用 `XrayLiveAutoPlayback` 记录当次命中、手动 OFF、待启动播放及失败重试。新请求推进 `PlaybackIdentityGate`，连续自动命中允许 `beginLiveAuto` 保持 RUNNING/STARTING transport；解析成功并通过原 direct-source guard 后才启动/使用代理，等待 RUNNING 安装完成后再送入播放器。规则不命中、回看、换配置/引擎、owner 交接和后台/销毁按原边界停止；已取消的待播回调不能重新启动旧台。规则未配置时不改变黄金默认路径。保留原远端目的地址限制；普通解析/API 不走全局代理。新台预览和等待代理期间抑制远端 artwork/EPG，切换时取消旧任务。手动 OFF 对当前台及其换线有效，换台重新判定。Live pending 的代理安装以真实 binding owner 而非旧 PlaySpec key 判断。
+`LivePlaybackHost.prepareXrayForPlaybackChange` 默认为旧 reset hook；仅 Leanback Live 用 `XrayLiveAutoPlayback` 记录当次命中、手动 OFF、待启动播放及失败重试。新请求推进 `PlaybackIdentityGate`，连续自动命中允许 `beginLiveAuto` 保持 RUNNING/STARTING transport；解析成功并通过原 direct-source guard 后才启动/使用代理，等待 RUNNING 安装完成后再送入播放器。规则不命中、回看、换配置/引擎、owner 交接和后台/销毁按原边界停止；已取消的待播回调不能重新启动旧台。规则未配置时不改变黄金默认路径。保留原远端目的地址限制；普通解析/API 不走全局代理。新台预览和等待代理期间抑制远端 artwork/EPG；即使 Core 已就绪，当前台也必须独立通过 URL 检查才可恢复元数据。复用 transport 时显式取消旧 XML/EPG、字幕、弹幕及远程图片任务，清除播放器保留的弹幕源。手机规则提交只在 HTTP 成功后提示接收，缺少字段、超限或未打开电视设置时拒绝请求。手动 OFF 对当前台及其换线有效，换台重新判定。Live pending 的代理安装以真实 binding owner 而非旧 PlaySpec key 判断。
 
 `tests/test-xray-live-auto.py` 编译实际规则、自动策略、播放 session、身份和地址类，用确定性 controller/网络替身验证匹配、异步 START、连续命中复用、快速换台、手动关闭、错误重试、非代理源、后台及关闭；由 playback parity 自动调用。保留旧版绑定交接及 artwork 回归；本次功能仍需完整 Leanback 构建和真机换台验证，不代表当前正式 APK 已包含该功能。
 
