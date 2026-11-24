@@ -2,6 +2,10 @@ name: "01｜当前源码编译与 APK 验证"
 
 on:
   workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/01-当前源码编译与APK验证.yml'
 
 permissions:
   contents: read
@@ -20,7 +24,7 @@ jobs:
       LIBASS_CANDIDATE_SHA256: "f047f8ad84be08aeddb0672500e9b263cafd6f2a009812392554dc55b2019861"
       JADX_VERSION: "1.5.6"
       JADX_SHA256: "545ea2be9c242511bc145755cf4bda2485ade42966e096f8b4d3da2a230e8974"
-      BUILD_SOURCE_SHA: ${{ github.sha }}
+      BUILD_SOURCE_SHA: 691f5438d4f940cb636657d7b691f9b4049406ea
 
     steps:
       - uses: actions/checkout@v7
@@ -336,60 +340,18 @@ jobs:
         run: |
           set -euo pipefail
           {
-            echo "commit=$GITHUB_SHA"
+            test "$(git rev-parse HEAD)" = "$BUILD_SOURCE_SHA"
+            echo "commit=$BUILD_SOURCE_SHA"
+            echo "trigger_commit=$GITHUB_SHA"
             java -version 2>&1 | head -n 1
             ./gradlew --version | sed -n '1,12p'
             echo "libass_candidate_sha256=$LIBASS_CANDIDATE_SHA256"
             find app/build/outputs/apk/leanback -type f -name '*.apk' -print0 | sort -z | xargs -0 sha256sum
           } | tee build/work/current-main/BUILD_RESULT.txt
 
-      - name: 上传当前源码构建的 APK
-        if: success()
-        uses: actions/upload-artifact@v7
-        with:
-          name: fingmi-xray-current-main-release
-          path: |
-            app/build/outputs/apk/leanback/release/**/*.apk
-            build/work/current-main/BUILD_RESULT.txt
-            build/reports/problems/problems-report.html
-          if-no-files-found: error
-          retention-days: 2
-          compression-level: 0
-
-      - name: 清理过期的同名构建产物
-        if: success()
+      - name: 验证结束清理本次构建产物（不上传、不发布）
+        if: always()
         shell: bash
-        env:
-          GH_TOKEN: ${{ github.token }}
         run: |
-          set -euo pipefail
-          mapfile -t stale_ids < <(
-            gh api "repos/${GITHUB_REPOSITORY}/actions/artifacts?per_page=100"               --jq '.artifacts
-                    | map(select(.name == "fingmi-xray-current-main-release"))
-                    | sort_by(.id)
-                    | reverse
-                    | .[1:][]
-                    | .id'
-          )
-          for id in "${stale_ids[@]}"; do
-            gh api --method DELETE "repos/${GITHUB_REPOSITORY}/actions/artifacts/$id"
-            echo "DELETE superseded release artifact $id"
-          done
-
-      - name: 失败时上传构建报告
-        if: failure()
-        uses: actions/upload-artifact@v7
-        with:
-          name: fingmi-xray-build-failure-reports
-          path: |
-            app/build/reports/
-            **/build/reports/
-            build/work/current-main/extractor/target/surefire-reports/
-            build/work/current-main/libass-native-input.json
-            build/work/current-main/media3-linkage.json
-            build/work/current-main/player-startup/target/surefire-reports/
-            build/work/current-main/artwork-lifecycle/target/surefire-reports/
-            build/work/current-main/artwork-lifecycle/input-sha256.json
-            catvod/build/test-results/
-          if-no-files-found: ignore
-          retention-days: 1
+          rm -rf app/build/outputs/apk build/work/current-main
+          echo "Validation only: no APK or report artifacts uploaded."
