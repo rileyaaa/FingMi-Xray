@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Exercise real current/released address guards and documented IPv6 repairs."""
+"""Exercise real current/released address guards and documented address repairs."""
 from pathlib import Path
 import subprocess
 import tempfile
@@ -25,6 +25,7 @@ HARNESS = r"""
 package com.fingmi.xray.session;
 
 import com.fongmi.android.tv.xray.legacy.LegacyXrayPlaybackAddress;
+import com.fongmi.android.tv.xray.legacy.LegacyPublicPlaybackDestinationInterceptor;
 import com.fingmi.xray.network.PublicPlaybackDestinationInterceptor;
 import java.net.URI;
 
@@ -122,8 +123,32 @@ public final class PlaybackAddressParityTest {
                 check(scheme + "://[" + host + "]/video", false, false, false);
             }
         }
+        // Only a documented local-host safety correction may differ from qz3.
+        for (String host : new String[] {"localhost.", "media.localhost.", "camera.local.", "LOCALHOST."}) {
+            if (!PublicPlaybackDestinationInterceptor.isPrivateOrReserved(host)
+                    || LegacyPublicPlaybackDestinationInterceptor.isPrivateOrReserved(host)) {
+                throw new AssertionError("root-dot guard did not preserve the documented difference: " + host);
+            }
+            checks++;
+            for (String scheme : new String[] {"http", "https", "rtsp", "rtspt"}) {
+                String url = scheme + "://" + host + "/video";
+                if (XrayPlaybackAddress.supports(url) || XrayPlaybackAddress.supportsDirectLiveSource(url)
+                        || !LegacyXrayPlaybackAddress.isSupportedPublicAddress(url)
+                        || !LegacyXrayPlaybackAddress.isDirectLiveSourceSupported(url)) {
+                    throw new AssertionError("root-dot address eligibility: " + url);
+                }
+                checks++;
+            }
+        }
+        for (String host : new String[] {"media.example.", "MEDIA.EXAMPLE."}) {
+            if (PublicPlaybackDestinationInterceptor.isPrivateOrReserved(host)
+                    || LegacyPublicPlaybackDestinationInterceptor.isPrivateOrReserved(host)) {
+                throw new AssertionError("public absolute hostname must remain eligible: " + host);
+            }
+            checks++;
+        }
         System.out.println("PASS real playback-address guards: " + checks
-                + " cases, including documented public IPv6 repair");
+                + " cases, including documented public IPv6 and DNS root-dot repairs");
     }
 }
 """

@@ -138,9 +138,18 @@ released_destination = normalized_java_mirror(
     "com.fongmi.android.tv.xray.legacy",
     "LegacyPublicPlaybackDestinationInterceptor",
 )
-if current_destination != released_destination:
+# Current intentionally denies local/reserved absolute DNS names as well as
+# their undotted equivalents. Project out only this reviewed extension; the
+# rest of qz3 (including all reserved-address ranges) remains an exact mirror.
+root_dot_guard = (
+    'while (value.endsWith(".")) { value = value.substring(0, value.length() - 1); } '
+    'if (value.isEmpty()) return true; '
+)
+if current_destination.count(root_dot_guard) != 1:
+    raise SystemExit("PublicPlaybackDestinationInterceptor lost the DNS root-dot guard")
+if current_destination.replace(root_dot_guard, "", 1) != released_destination:
     raise SystemExit(
-        "PublicPlaybackDestinationInterceptor diverged from the released qz3 behavioral mirror"
+        "PublicPlaybackDestinationInterceptor diverged outside the documented qz3 root-dot repair"
     )
 
 

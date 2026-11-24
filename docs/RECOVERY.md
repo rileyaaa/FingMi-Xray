@@ -156,7 +156,11 @@ JADX 中出现不可能分支、R8 合并控制流或自相矛盾时，必须继
 
 2026-10-08 从 SHA 固定的黄金 v7 APK 定向提取 `t11.w(String)` 原始 DEX，见 [t11-playback-address.smali](apk-reference/v7/t11-playback-address.smali)：其 `URI.getHost()` 结果直接传入 `qz3.a()`。Android `java.net.URI` 保留 IPv6 主机的方括号，而冻结 `qz3` 的 IPv6 字面地址检查只接受裸地址，因此连公网 IPv6 媒体 URL 也会被拒绝。真实 current / legacy 地址类与各自真实 destination guard 的 JVM 组合复现了这一行为，实际 VOD / Live 启用入口均可达；它与代理节点分享链接的 IPv6 解析是两条路径。
 
-current 只在 `XrayPlaybackAddress` 的 URI 调用边界剥离一对最外层 `[]`，再使用原地址检查器；不改原生核心、CIDR 配置或私网分类。私网、保留、mapped IPv6、zone identifier 继续拒绝，Live HTTP(S) `.strm` 规则保持。旧原始证据与 legacy mirror 不改；`tests/test-xray-playback-address-parity.py` 编译真实检查器，以显式预期验证 135 个场景，只有已登记的公网 IPv6 修复允许与黄金不同。以前该入口共用简化 guard 替身，只证明两份实现一致，不能证明真实 URI 与地址检查器的组合正确。
+current 只在 `XrayPlaybackAddress` 的 URI 调用边界剥离一对最外层 `[]`，再使用原地址检查器；不改原生核心、CIDR 配置或私网分类。私网、保留、mapped IPv6、zone identifier 继续拒绝，Live HTTP(S) `.strm` 规则保持。旧原始证据与 legacy mirror 不改；`tests/test-xray-playback-address-parity.py` 编译真实检查器，以显式预期验证公网 IPv6 修复及下述 DNS 根点修复，其他场景保持黄金行为。以前该入口共用简化 guard 替身，只证明两份实现一致，不能证明真实 URI 与地址检查器的组合正确。
+
+#### DNS 根点与本地目标：current 有意修复
+
+黄金 `qz3` 对原始主机名执行 localhost、.localhost 和 .local 判断，未排除带 DNS 根点的同一目标。current 在 destination guard 内仅为分类去除尾随根点，继续拒绝本地/保留目标，公开绝对域名仍允许且实际请求主机名不改写。该修正在 `2b9e509` 移植入固定主线；冻结 legacy 参考不改。core parity 只投影这段确切差异，地址 parity 使用真实 current/legacy guard 验证四种播放协议的本地根点域名及公开绝对域名，RTSP socket 回归另验证最终连接边界。
 
 ### VOD / Live 身份
 
