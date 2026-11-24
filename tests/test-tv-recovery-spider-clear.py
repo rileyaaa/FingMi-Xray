@@ -3,7 +3,8 @@
 
 Android, Guava adapter and individual Spider loaders are test doubles. Task's
 actual JDK executors, BaseLoader's real dispatch and both recovery coordinators
-run unchanged. This is not a real Spider/native or TV integration test.
+run unchanged. The Guava double models only FIFO delegation; this checks the
+wiring and lane isolation, not Guava internals or real TV integration.
 """
 from pathlib import Path
 import subprocess
@@ -46,19 +47,41 @@ STUBS = {
     "com/google/common/util/concurrent/FutureCallback.java": """package com.google.common.util.concurrent;
         public interface FutureCallback<T> { void onSuccess(T t); void onFailure(Throwable e); }""",
     "com/google/common/util/concurrent/ListeningExecutorService.java": """package com.google.common.util.concurrent;
-        import java.util.concurrent.Future;
-        public interface ListeningExecutorService { void execute(Runnable r); Future<?> submit(Runnable r); }""",
+        import java.util.concurrent.*;
+        public interface ListeningExecutorService extends Executor { Future<?> submit(Runnable r); }""",
     "com/google/common/util/concurrent/MoreExecutors.java": """package com.google.common.util.concurrent;
         import java.util.concurrent.*;
-        import java.util.List;
+        import java.util.*;
         public class MoreExecutors {
             private static final List<ExecutorService> delegates=new CopyOnWriteArrayList<>();
-            public static final List<ExecutorService> dispatched=new CopyOnWriteArrayList<>();
+            public static final List<Executor> sequentialBackends=new CopyOnWriteArrayList<>();
             public static ListeningExecutorService listeningDecorator(ExecutorService service){
                 delegates.add(service);
                 return new ListeningExecutorService(){
-                    public void execute(Runnable r){dispatched.add(service);service.execute(r);}
+                    public void execute(Runnable r){service.execute(r);}
                     public Future<?> submit(Runnable r){return service.submit(r);}
+                };
+            }
+            public static Executor newSequentialExecutor(Executor backend){
+                sequentialBackends.add(backend);
+                // Model Guava's FIFO delegation on the real Task worker pool.
+                return new Executor(){
+                    private final Queue<Runnable> queue=new ArrayDeque<>();
+                    private boolean active;
+                    public synchronized void execute(Runnable r){
+                        queue.add(r);
+                        if(!active){active=true;backend.execute(this::drain);}
+                    }
+                    private void drain(){
+                        while(true){
+                            Runnable next;
+                            synchronized(this){
+                                next=queue.poll();
+                                if(next==null){active=false;return;}
+                            }
+                            next.run();
+                        }
+                    }
                 };
             }
             public static void shutdown(){for(ExecutorService e:delegates)e.shutdownNow();}
@@ -147,22 +170,34 @@ STUBS = {
                 check(r!=null,"clear completion missing");return r;
             }
             public static void main(String[] args) throws Exception {
+                CountDownLatch databaseEntered=new CountDownLatch(1);
+                CountDownLatch releaseDatabase=new CountDownLatch(1);
                 try {
-                    CountDownLatch canary=new CountDownLatch(1);
-                    Task.executeSerial(canary::countDown);
-                    check(canary.await(5,TimeUnit.SECONDS),"serial executor unavailable");
-                    ExecutorService serial=MoreExecutors.dispatched.get(0);
+                    // Backup/restore/history use Task.executeSerial. Occupy that
+                    // lane before Home recovery starts, then test the reverse.
+                    Task.executeSerial(() -> {
+                        databaseEntered.countDown();
+                        try {
+                            if(!releaseDatabase.await(15,TimeUnit.SECONDS))throw new AssertionError("database task blocked");
+                        } catch(InterruptedException e){Thread.currentThread().interrupt();throw new AssertionError(e);}
+                    });
+                    check(databaseEntered.await(5,TimeUnit.SECONDS),"database lane unavailable");
                     Owner oldHome=new Owner(), newHome=new Owner();
                     oldHome.recovery.check();
-                    check(ClearTrace.firstEntered.await(5,TimeUnit.SECONDS),"old clear never started");
+                    check(ClearTrace.firstEntered.await(5,TimeUnit.SECONDS),"Spider clear is blocked by the unrelated database queue");
                     oldHome.recovery.close();
                     BaseLoader.get().clear(); // ordinary VodConfig cleanup on owner destruction
                     newHome.recovery.check();
-                    // Deterministic routing assertion: a general pooled executor is wrong
-                    // even if a slow scheduler has not yet started its second task.
-                    check(MoreExecutors.dispatched.equals(List.of(serial,serial,serial,serial)),
-                        "all three clears must use the same serial executor");
+                    // A single queue for every clear, backed by the original
+                    // normal worker pool rather than the database serial lane.
+                    check(MoreExecutors.sequentialBackends.equals(List.of(Task.executor())),
+                        "all clears must share one sequential wrapper on the ordinary pool");
                     check(ClearTrace.events.equals(List.of("jar1")),"later clear began before old clear finished");
+                    CountDownLatch databaseContinued=new CountDownLatch(1);
+                    Task.executeSerial(databaseContinued::countDown);
+                    releaseDatabase.countDown();
+                    check(databaseContinued.await(5,TimeUnit.SECONDS),"database queue is blocked by Spider clear");
+                    check(ClearTrace.events.equals(List.of("jar1")),"database task passed only after clear escaped its gate");
                     ClearTrace.releaseFirst.countDown();
                     check(ClearTrace.finished.await(5,TimeUnit.SECONDS),"queued clear did not finish");
                     check(ClearTrace.events.equals(List.of("jar1","py1","js1","jar2","py2","js2","jar3","py3","js3")),
@@ -178,8 +213,9 @@ STUBS = {
                         "new owner did not complete recovery exactly once");
                     check(App.posts.isEmpty(),"ordinary clear unexpectedly posted a completion");
                     newHome.recovery.close();
-                    System.out.println("PASS: actual BaseLoader/Task FIFO clear and Home owner handoff");
+                    System.out.println("PASS: actual BaseLoader/Task FIFO clear, database lane isolation and Home owner handoff");
                 } finally {
+                    releaseDatabase.countDown();
                     ClearTrace.releaseFirst.countDown();
                     MoreExecutors.shutdown();
                     Task.scheduler().shutdownNow();

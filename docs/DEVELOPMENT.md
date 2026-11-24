@@ -199,7 +199,7 @@ TV 网络恢复没有放进 `:xray`。
 
 发布版 generation **只**由真实后台 / SCREEN_OFF 后重新进入前台 / SCREEN_ON 推进；前台 Wi-Fi、VPN 或默认网络切换本身不额外创建 generation。Home 也只在自身 `onResume()` / 重新获得窗口焦点时检查是否需要恢复，隐藏在其他播放页面后的 Home 不主动执行恢复。`recoveredGeneration` 只用于防止 Home 重建时漏掉尚未完成的 generation，不增加新的触发来源。
 
-恢复过程在同一 Home coordinator 内按 generation **串行**：如果当前 Spider clear / 网络稳定轮询尚未结束，新 generation 先等待；旧流程发现 generation 已变化后才结束本轮并启动下一轮。跨 Home 重建时，旧 owner 的 close 只废弃回调和轮询，并不能取消已派发的 Spider 清理。为防止新 owner 或普通配置清理与旧任务重叠，所有 `BaseLoader.clear()` / `clear(after)` 复用既有 `Task.executeSerial` FIFO 执行器，仍在后台按 Jar → Python → JS 顺序清理，并在各自任务完成后 post 回调。此修正只序列化共享 loader 的清理，不新增恢复触发、全局恢复状态机或普通 Spider 业务逻辑。回归 `tests/test-tv-recovery-spider-clear.py` 已纳入现有 TV recovery 检查入口，使用实际 BaseLoader、Task、coordinator 与 JDK executor，Android / Guava / Spider 为测试替身，覆盖旧 Home 在清理中关闭、普通配置清理、新 Home 接手以及迟到回调不刷新旧 owner。
+恢复过程在同一 Home coordinator 内按 generation **串行**：如果当前 Spider clear / 网络稳定轮询尚未结束，新 generation 先等待；旧流程发现 generation 已变化后才结束本轮并启动下一轮。跨 Home 重建时，旧 owner 的 close 只废弃回调和轮询，并不能取消已派发的 Spider 清理。为防止新 owner 或普通配置清理与旧任务重叠，所有 `BaseLoader.clear()` / `clear(after)` 通过 `MoreExecutors.newSequentialExecutor(Task.executor())` 共用一个专属 FIFO 队列，复用原有普通后台线程池，不另建线程池，也不占用 `BackupManager` 备份/还原及 `History.clear` 所用的 `Task.executeSerial` 队列。仍按 Jar → Python → JS 顺序清理，并在各自任务完成后 post 回调。此修正只序列化共享 loader 的清理，不新增恢复触发、全局恢复状态机或普通 Spider 业务逻辑。回归 `tests/test-tv-recovery-spider-clear.py` 已纳入现有 TV recovery 检查入口，使用实际 BaseLoader、Task、coordinator 与 JDK executor，Android / Guava / Spider 为测试替身，覆盖旧 Home 在清理中关闭、普通配置清理、新 Home 接手、迟到回调不刷新旧 owner，以及 Spider 清理与备份/历史任务的串行队列双向隔离。Guava 替身只模拟 FIFO 委派，不证明其真实库内部实现。
 
 每一轮顺序：
 

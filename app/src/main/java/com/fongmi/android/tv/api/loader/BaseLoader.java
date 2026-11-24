@@ -11,12 +11,14 @@ import com.fongmi.android.tv.utils.Task;
 import com.github.catvod.crawler.Spider;
 import com.github.catvod.crawler.SpiderNull;
 import com.github.catvod.utils.Crypto;
+import com.google.common.util.concurrent.MoreExecutors;
 
 import org.json.JSONObject;
 
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.concurrent.Executor;
 
 import dalvik.system.DexClassLoader;
 
@@ -25,6 +27,7 @@ public class BaseLoader {
     private final JarLoader jarLoader;
     private final PyLoader pyLoader;
     private final JsLoader jsLoader;
+    private final Executor clearExecutor = MoreExecutors.newSequentialExecutor(Task.executor());
 
     private BaseLoader() {
         jarLoader = new JarLoader();
@@ -58,9 +61,11 @@ public class BaseLoader {
      * completes may HomeActivity start waiting for a stable network again.
      * All callers share these loader instances. Keep clears FIFO even when
      * a Home owner closes while its previous asynchronous clear is running.
+     * Use a dedicated queue on the ordinary worker pool, not the serial
+     * lane used by backup, restore and history operations.
      */
     public void clear(Runnable onComplete) {
-        Task.executeSerial(() -> {
+        clearExecutor.execute(() -> {
             try {
                 jarLoader.clear();
                 pyLoader.clear();
