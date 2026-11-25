@@ -848,3 +848,180 @@ Xray 当前源码重新验证 9000 次 Controller/Client 清理序列、102 次�
 
 已登记的 `OkProxySelector.Policy` 空 host 最小补丁仍需保留；仅当未来用户明确批准单项维护或升级工作时才独立审查其适用性。历史 5.8.x 升级实验不属于当前主分支的构建及发布条件。
 
+
+
+## 12. 2026-11-25 — 独立公开 TV 5.9.0 适配（仅本开发分支）
+
+**未合并或替换 main。** 此节仅记录 `dev/fongmi-upstream-adaptation` 的实际候选工作。冻结来源为 `4a52de1daa465d81df7ac06e886a1f184053253c`，验证提交为 `8819ccf8e3e97bb739f986b04c5cc5e2fad98cf7`，[Actions 45545472828](https://github.com/rileyaaa/FingMi-Xray/actions/runs/45545472828)。Core 仍是冻结的 v26.7.28 定制成套 JNI/bindings，未将独立 Core 候选试验移入此分支。
+
+### 12.1 公开来源与实际候选移植
+
+`scripts/upstream-adaptation/lock.json` 固定实际 TV / Media3 源码 commit/tree、104 个 fork delta 的旧/新/冻结 blob 与策略。AC 真实浅检出公开输入，核对 commit、tree 和许可证 SHA-256，在临时独立 5.9.0 工作树执行移植。57 个文件搬迁或干净三方合并，41 个冲突保持新版上游原状，5 个旧播放器兼容文件暂不移植，其他新版上游文件逐字节保持不变。候选树仅生成在 runner 临时目录，未作为已完成的可构建源码提交，未执行完整 Leanback assemble。独立 AAR 构建使用 5.9.0 公开 SDK/Gradle，不签名、不运行媒体或真实节点。两个正式工作流在本分支保留原定义并禁用 production job；验证入口只给只读权限，源码快照不含历史正式签名目录，不上传产物。
+
+公开来源与许可证实际日志（SHA-256 为许可证文件摘要）：
+
+```text
+SOURCE old_tv FongMi/TV c616c0aa3613e87529791587a9f71b78c278c991 8aa6eebcf6bdf320841ef1158f0434faabc7a61f GPL-3.0 license_sha256=3972dc9744f6499f0f9b2dbf76696f2ae7ad8af9b23dde66d6af86c9dfb36986
+SOURCE tv FongMi/TV d3a0b84b24cf6628d72a4dbc2be453875b005536 82953e314d3009f039bb220db05ca537e0eadc92 GPL-3.0 license_sha256=3972dc9744f6499f0f9b2dbf76696f2ae7ad8af9b23dde66d6af86c9dfb36986
+SOURCE media FongMi/media 3c2cbe8ac742c2fe15eff52f03eeb3b1b648848d b7a4d78a2168bd5065034d37a242b7e51785ea4e Apache-2.0 license_sha256=cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30
+SOURCE media_default FongMi/media 2bc207851df311340767e913931ca7b28cab1794 246fb170134edf5a7b5f8a2ca6f4f8bc81903383 Apache-2.0 license_sha256=cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30
+```
+
+### 12.2 已实际解决的独立构建输入
+
+- REBUILT_WRAPPER hook official_sha256 50cb2376064781c79ec3708fe2c29d1c1efcec56cfb471b25172b433172cb9b7 rebuilt_sha256 fb38e8cda7436908b3b1bc10a7a543f4814dd74eb4d9b69c462f088ab8c98422 public_api_equal True
+- REBUILT_WRAPPER tvbus official_sha256 b759805bf99d6b9fd0ed4882d12614fc4431fc613ef7e3dcb963d8a35d2160b4 rebuilt_sha256 b759805bf99d6b9fd0ed4882d12614fc4431fc613ef7e3dcb963d8a35d2160b4 public_api_equal True
+
+实际运行 `:hook:assembleRelease`、`:tvbus:assembleRelease`、`:tv-recovery:assembleDebug`、`:tv-recovery:testDebugUnitTest`，Gradle 报 BUILD SUCCESSFUL。Hook 公开 JVM API 相同，输出字节摘要不同，不声称 bit-for-bit；TVBus Java wrapper AAR 字节一致，但其外部 native engine（TVCore 动态 System.load）没有重建，也未测试播放。构建脚本 `scripts/upstream-adaptation/rebuild_public_wrappers.py` 可复现此步骤；不提交 AAR 或把产物混同正式 APK。5.9.0 toolchain 已用于独立 library build，不等于整个 app 编译通过。
+
+### 12.3 仍缺失的构建依赖与来源边界
+
+- Media3/Exo/MPV Java：当前公开 FongMi/media 两个分支均不具备完整 5.9.0 调用契约。对 158 个 Leanback/shared import 的存在性扫描得到 50/66 个缺口，嵌套 import 计数不等于独立类数。方法符号初查也报告 setDecoderManager、setBackendPlayer、getSubtitleOffsets 等缺口。需取得完整合法可用的配套源码与 JNI/AAR 构建合同，再进行真正 javac/assemble；不能靠兼容空壳。
+- `app/libs/lib-mpvplayer-release.aar`、`app/libs/lib-decoder-ffmpeg-release.aar`：5.9.0 官方树未跟踪，AbiApkPackaging 明确依赖其统一 libffmpeg.so、libplayer.so、libmpv.so、libc++_shared.so 以及 ABI/DT_NEEDED 校验。FongMi/FFmpeg 的公开 9.1.git (`1a6411b`) 和 9.0.2 (`bdf1719`) 是源码候选（FFmpeg 具体 LGPL/GPL 依赖编译选项）；FongMi/mpv `78fcc83`（仓库许可证标识 GPL-2.0）是核心源码候选，均未证实与 5.9.0 Android JNI 桥及构建配置匹配。未将其二进制投入构建。
+- Libass、ISO/BD-J、字幕、音视频效果等定制媒体功能：需要匹配的公开 Media3 实现、JNI 与 native 依赖，不能使用旧版 Libass 补丁或较高 APK 中反编译的实现替代；未证明完整重建。旧 5.6.3 的固定 Libass 原生来源债仍保留在 main。
+- QuickJS：官方 FongMi/quickjs `764294b`（MIT）是引擎源码候选；5.9.0 TV 树内 runtime-release.aar / wrapper-java.jar 已核对文件摘要，但精确 Android wrapper 构建输入及版本未建立。不能以引擎源码存在证明已重建插件。
+- Node.js：官方 TV 树含两 ABI libnode.so 和公开 C++ bridge；确切 Node 版本、NDK/构建选项与相应源 pin 未确认。两 ABI 摘要见下，未重建或执行。
+- Thunder：官方树中四份 Xunlei SDK SO 的 bytes 和来源可核，但未查得对应 SDK 完整公开源码、许可证/再分发条款，未重建或使用这些库。
+- TVBus：Java wrapper 已解决；外部 native engine 的版本、合法来源及可重建性未证实。Python/Chaquopy 17.2.0 来自公开版本目录，独立 runtime 插件/wheels 及其原生构建、BD-J runtime ZIP 仍需分别核实，不将模块化 runtime APK 误作 host 所缺媒体 AAR。
+- Gradle wrapper、Hook 和 TVBus wrapper 及现有官方 TV 跟踪二进制的完整输入摘要如下。树内官方来源不等于每项 native 的许可证或可复现性已确认；无来源二进制不使用。
+
+```text
+UPSTREAM_BINARY_INPUT app/libs/hook-release.aar bytes 5816 sha256 50cb2376064781c79ec3708fe2c29d1c1efcec56cfb471b25172b433172cb9b7
+UPSTREAM_BINARY_INPUT app/libs/tvbus-release.aar bytes 3184 sha256 b759805bf99d6b9fd0ed4882d12614fc4431fc613ef7e3dcb963d8a35d2160b4
+UPSTREAM_BINARY_INPUT gradle/wrapper/gradle-wrapper.jar bytes 59203 sha256 e996d452d2645e70c01c11143ca2d3742734a28da2bf61f25c82bdc288c9e637
+UPSTREAM_BINARY_INPUT nodejs/src/main/jniLibs/arm64-v8a/libnode.so bytes 48803656 sha256 2c591838e691f3d0f18f4c5e4232a75f467a08cea33d8637aa6ea5a8d47bc416
+UPSTREAM_BINARY_INPUT nodejs/src/main/jniLibs/armeabi-v7a/libnode.so bytes 42630016 sha256 e9a2f2e6489398fb8968134f75ed385e27563ff2c56ec614b224d354e298511b
+UPSTREAM_BINARY_INPUT other/tools/bfg.jar bytes 14483456 sha256 1a75e9390541f4b55d9c01256b361b815c1e0a263e2fb3d072b55c2911ead0b7
+UPSTREAM_BINARY_INPUT quickjs/libs/runtime-release.aar bytes 1286144 sha256 95fe344fc77debc9c3b38d1bff0bf9cc7c151422dc6f7809b0595e2820f60567
+UPSTREAM_BINARY_INPUT quickjs/libs/wrapper-java.jar bytes 823366 sha256 a8ed7aaec3de6f62da4b2c1dbe12626012117bfed4306656df00c267de19913c
+UPSTREAM_BINARY_INPUT thunder/src/main/jniLibs/arm64-v8a/libxl_stat.so bytes 837976 sha256 16d89692e499316519e1da9d6431e31fd4692626c03a2f1509950582cea8521f
+UPSTREAM_BINARY_INPUT thunder/src/main/jniLibs/arm64-v8a/libxl_thunder_sdk.so bytes 5607344 sha256 a2aa4e17470c355da6172333859a1a38445ee77b0fa5cf263e934ae00bce4030
+UPSTREAM_BINARY_INPUT thunder/src/main/jniLibs/armeabi-v7a/libxl_stat.so bytes 501528 sha256 52093068e0ed5651d8565fb2f560de35d72cf73071319cf0d411be55b6983eba
+UPSTREAM_BINARY_INPUT thunder/src/main/jniLibs/armeabi-v7a/libxl_thunder_sdk.so bytes 3680664 sha256 2c202ae36003c2ceaba85bba6560d98f6a56c1559c50cc72d6e3499f9495294a
+```
+
+### 12.4 每个缺失 import 和冲突的证据
+
+下表为存在性筛查，实际调用者路径保存在上述 Actions 的 source-stage job 138973922845 的 MISSING_MEDIA_SOURCE 日志；下列“缺”表示对应公开分支中未找到匹配或外层类型源码。
+
+| Media3 import | release-1.11.0-fongmi | release |
+| --- | --- | --- |
+| `androidx.media3.common.DecoderMode` | 缺 | 缺 |
+| `androidx.media3.common.DiscMenuController` | 缺 | 缺 |
+| `androidx.media3.common.DiscMenuState` | 缺 | 缺 |
+| `androidx.media3.common.DolbyVisionOutputPolicy` | 有候选 | 缺 |
+| `androidx.media3.common.MediaChapter` | 有候选 | 缺 |
+| `androidx.media3.common.MediaEdition` | 有候选 | 缺 |
+| `androidx.media3.common.VideoTransform` | 缺 | 缺 |
+| `androidx.media3.common.audio.AudioChannelMix` | 缺 | 缺 |
+| `androidx.media3.common.audio.AudioChannelMode` | 缺 | 缺 |
+| `androidx.media3.common.audio.AudioEffectParameters` | 缺 | 缺 |
+| `androidx.media3.common.audio.AudioEffectProcessor` | 缺 | 缺 |
+| `androidx.media3.common.text.SubtitleContent` | 缺 | 缺 |
+| `androidx.media3.common.text.SubtitleFontFile` | 缺 | 缺 |
+| `androidx.media3.common.text.SubtitleOffsets` | 缺 | 缺 |
+| `androidx.media3.common.text.SubtitleSelectionState` | 缺 | 缺 |
+| `androidx.media3.common.util.LocalClearKeyLicense` | 缺 | 缺 |
+| `androidx.media3.common.util.TrackSelectionUtil` | 缺 | 缺 |
+| `androidx.media3.datasource.IsoUri` | 缺 | 缺 |
+| `androidx.media3.datasource.ProgressiveIsoCache` | 缺 | 缺 |
+| `androidx.media3.decoder.ffmpeg.FfmpegMotionInterpolationController` | 缺 | 缺 |
+| `androidx.media3.decoder.ffmpeg.FfmpegMotionInterpolationController.FormatSupport` | 缺 | 缺 |
+| `androidx.media3.decoder.ffmpeg.FfmpegMotionInterpolationController.OutputState` | 缺 | 缺 |
+| `androidx.media3.decoder.ffmpeg.FfmpegMotionRenderersFactory` | 缺 | 缺 |
+| `androidx.media3.effect.ColorToneAdjustEffect` | 缺 | 缺 |
+| `androidx.media3.effect.DetailAdjustEffect` | 缺 | 缺 |
+| `androidx.media3.effect.VideoAdjustment` | 缺 | 缺 |
+| `androidx.media3.exoplayer.DecoderManager` | 缺 | 缺 |
+| `androidx.media3.exoplayer.DecoderMode` | 缺 | 缺 |
+| `androidx.media3.exoplayer.audio.AudioEqualizerController` | 缺 | 缺 |
+| `androidx.media3.exoplayer.hls.CmgConfiguration` | 缺 | 缺 |
+| `androidx.media3.exoplayer.iso.BdjRuntime` | 缺 | 缺 |
+| `androidx.media3.exoplayer.iso.IsoDiscPreparation` | 缺 | 缺 |
+| `androidx.media3.exoplayer.iso.IsoNavigationPlayerController` | 缺 | 缺 |
+| `androidx.media3.exoplayer.libass.LibassConfiguration` | 缺 | 缺 |
+| `androidx.media3.exoplayer.libass.LibassFontConfig` | 缺 | 缺 |
+| `androidx.media3.exoplayer.libass.LibassFontFile` | 缺 | 缺 |
+| `androidx.media3.exoplayer.libass.LibassPlaybackSession` | 缺 | 缺 |
+| `androidx.media3.exoplayer.libass.LibassSubtitleController` | 缺 | 缺 |
+| `androidx.media3.exoplayer.source.ContentTypeResolvingMediaSource` | 缺 | 缺 |
+| `androidx.media3.exoplayer.source.DefaultPositionMediaSource` | 缺 | 缺 |
+| `androidx.media3.exoplayer.source.EndTrimMediaSource` | 缺 | 缺 |
+| `androidx.media3.exoplayer.source.preload.DiskPreloadManager` | 有候选 | 缺 |
+| `androidx.media3.exoplayer.text.DefaultSubtitleContentLoader` | 缺 | 缺 |
+| `androidx.media3.exoplayer.text.SecondaryTextOutput` | 缺 | 缺 |
+| `androidx.media3.exoplayer.text.SubtitleTranscript` | 缺 | 缺 |
+| `androidx.media3.exoplayer.text.SubtitleTranscriptParserFactory` | 缺 | 缺 |
+| `androidx.media3.exoplayer.text.SubtitleTranscriptSession` | 缺 | 缺 |
+| `androidx.media3.exoplayer.trackselection.DecodeTrackSelector` | 有候选 | 缺 |
+| `androidx.media3.exoplayer.trackselection.SecondaryTextTrackSelector` | 缺 | 缺 |
+| `androidx.media3.mpvplayer.MpvAndroidOptions` | 有候选 | 缺 |
+| `androidx.media3.mpvplayer.MpvConfigFileInspector` | 缺 | 缺 |
+| `androidx.media3.mpvplayer.MpvDecoderMode` | 缺 | 缺 |
+| `androidx.media3.mpvplayer.MpvLibrary` | 有候选 | 缺 |
+| `androidx.media3.mpvplayer.MpvPlayer` | 有候选 | 缺 |
+| `androidx.media3.mpvplayer.MpvPlayer.VideoOutputOption` | 有候选 | 缺 |
+| `androidx.media3.mpvplayer.MpvPlayerConfig` | 有候选 | 缺 |
+| `androidx.media3.mpvplayer.MpvSubtitleContentLoader` | 缺 | 缺 |
+| `androidx.media3.mpvplayer.MpvSubtitleOptions` | 有候选 | 缺 |
+| `androidx.media3.mpvplayer.audio.MpvAudioFilter` | 有候选 | 缺 |
+| `androidx.media3.mpvplayer.media.MpvDrmSupport` | 缺 | 缺 |
+| `androidx.media3.mpvplayer.video.MpvVideoEqualizer` | 有候选 | 缺 |
+| `androidx.media3.ui.PlayerSeekView` | 有候选 | 缺 |
+| `androidx.media3.ui.danmaku.Danmaku` | 有候选 | 缺 |
+| `androidx.media3.ui.danmaku.DanmakuConfig` | 有候选 | 缺 |
+| `androidx.media3.ui.danmaku.DanmakuPlayerViewController` | 缺 | 缺 |
+| `androidx.media3.ui.libass.LibassPlayerViewController` | 缺 | 缺 |
+
+未解决的候选接线（不采用 ours/theirs 整体覆盖，保持上游待人工移植）：
+
+```text
+CONFLICT_THREE_WAY app/src/leanback/java/com/fongmi/android/tv/ui/activity/HomeActivity.java
+CONFLICT_THREE_WAY app/src/leanback/java/com/fongmi/android/tv/ui/activity/LiveActivity.java
+CONFLICT_REMOVED_PATH app/src/leanback/java/com/fongmi/android/tv/ui/activity/PushActivity.java
+CONFLICT_THREE_WAY app/src/leanback/java/com/fongmi/android/tv/ui/activity/SettingActivity.java
+CONFLICT_THREE_WAY app/src/leanback/java/com/fongmi/android/tv/ui/activity/VideoActivity.java
+CONFLICT_THREE_WAY app/src/leanback/java/com/fongmi/android/tv/ui/adapter/ChannelAdapter.java
+CONFLICT_THREE_WAY app/src/leanback/res/layout/activity_setting.xml
+CONFLICT_THREE_WAY app/src/leanback/res/layout/view_control_live_action.xml
+CONFLICT_THREE_WAY app/src/leanback/res/values-zh-rCN/strings.xml
+CONFLICT_THREE_WAY app/src/leanback/res/values-zh-rTW/strings.xml
+CONFLICT_THREE_WAY app/src/leanback/res/values/strings.xml
+CONFLICT_THREE_WAY app/src/main/AndroidManifest.xml
+CONFLICT_THREE_WAY app/src/main/assets/index.html
+CONFLICT_THREE_WAY app/src/main/assets/js/script.js
+CONFLICT_THREE_WAY app/src/main/java/com/fongmi/android/tv/Updater.java
+CONFLICT_THREE_WAY app/src/main/java/com/fongmi/android/tv/api/LiveApi.java
+CONFLICT_THREE_WAY app/src/main/java/com/fongmi/android/tv/api/loader/BaseLoader.java
+CONFLICT_THREE_WAY app/src/main/java/com/fongmi/android/tv/api/loader/JarLoader.java
+CONFLICT_THREE_WAY app/src/main/java/com/fongmi/android/tv/api/loader/JsLoader.java
+CONFLICT_THREE_WAY app/src/main/java/com/fongmi/android/tv/api/loader/PyLoader.java
+CONFLICT_THREE_WAY app/src/main/java/com/fongmi/android/tv/api/parser/EpgParser.java
+CONFLICT_THREE_WAY app/src/main/java/com/fongmi/android/tv/model/VideoViewModel.java
+CONFLICT_THREE_WAY app/src/main/java/com/fongmi/android/tv/playback/live/LivePlaybackController.java
+CONFLICT_THREE_WAY app/src/main/java/com/fongmi/android/tv/playback/live/LivePlaybackHost.java
+CONFLICT_THREE_WAY app/src/main/java/com/fongmi/android/tv/playback/vod/VodPlaybackController.java
+CONFLICT_THREE_WAY app/src/main/java/com/fongmi/android/tv/playback/vod/VodPlaybackMedia.java
+CONFLICT_THREE_WAY app/src/main/java/com/fongmi/android/tv/player/PlayerManager.java
+CONFLICT_THREE_WAY app/src/main/java/com/fongmi/android/tv/player/engine/PlayerEngineFactory.java
+CONFLICT_THREE_WAY app/src/main/java/com/fongmi/android/tv/player/exo/ExoMediaSourceFactory.java
+CONFLICT_THREE_WAY app/src/main/java/com/fongmi/android/tv/player/exo/ExoPlayerEngine.java
+CONFLICT_THREE_WAY app/src/main/java/com/fongmi/android/tv/player/exo/ExoPlayerSession.java
+CONFLICT_THREE_WAY app/src/main/java/com/fongmi/android/tv/player/mpv/MpvPlayerEngine.java
+CONFLICT_THREE_WAY app/src/main/java/com/fongmi/android/tv/server/process/Action.java
+CONFLICT_THREE_WAY app/src/main/java/com/fongmi/android/tv/service/PlaybackService.java
+CONFLICT_THREE_WAY app/src/main/java/com/fongmi/android/tv/ui/activity/PlaybackActivity.java
+CONFLICT_THREE_WAY app/src/main/java/com/fongmi/android/tv/ui/dialog/DanmakuSearchDialog.java
+CONFLICT_THREE_WAY app/src/main/java/com/fongmi/android/tv/ui/dialog/PlayerEngineDialog.java
+CONFLICT_THREE_WAY app/src/main/java/com/fongmi/android/tv/ui/dialog/SubtitleSearchDialog.java
+CONFLICT_REMOVED_PATH app/src/main/java/com/fongmi/android/tv/utils/Download.java
+CONFLICT_THREE_WAY catvod/src/main/java/com/github/catvod/net/OkProxySelector.java
+CONFLICT_REMOVED_PATH catvod/src/test/java/com/github/catvod/net/OkProxySelectorTest.java
+REVIEW_OLD_MEDIA app/src/main/java/androidx/media3/exoplayer/libass/LibassFontFile.java
+REVIEW_OLD_MEDIA app/src/main/java/androidx/media3/exoplayer/text/SecondaryTextOutput.java
+REVIEW_OLD_MEDIA app/src/main/java/androidx/media3/exoplayer/trackselection/SecondaryTextTrackSelector.java
+REVIEW_OLD_MEDIA app/src/main/java/androidx/media3/ui/danmaku/DanmakuPlayerViewController.java
+REVIEW_OLD_MEDIA app/src/main/java/com/fongmi/android/tv/player/mpv/MpvUtil.java
+```
+
+**结论**：依赖与宿主边界仍阻断完整 5.9.0 Leanback 双 ABI APK，未完成 Android ART、真实网络、直播切换或待机真机回归。继续的必要前提是合法、可追溯且匹配上述缺口的媒体源码/依赖；不把本次独立 library build 说成整套软件通过。main 不改、不合并、不发行。
