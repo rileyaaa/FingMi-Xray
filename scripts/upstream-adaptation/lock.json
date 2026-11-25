@@ -90,21 +90,24 @@
       "old": "6c29f8fc7141209ceb07ea6f4b389e680f3868dd",
       "fork": "0b1de102f7cab38685c7b0fb170c31449f9e3b8c",
       "target": null,
-      "strategy": "three-way"
+      "strategy": "upstream-reviewed",
+      "review": "5.9 replaces PushActivity with LocalConnectDialog; existing Xray phone input is ported to named xray route, including legacy tab=6; do not restore removed ordinary push UI"
     },
     {
       "path": "app/src/leanback/java/com/fongmi/android/tv/ui/activity/SettingActivity.java",
       "old": "aa8be48bce2a2ab233004a5422ed1c5c30042fd4",
       "fork": "b07b4734fe7bc0e627ba40d9a7cc30caa5fda36d",
       "target": "c6da5dea8e601b2eef30d59799f02ec54810fde8",
-      "strategy": "three-way"
+      "strategy": "reviewed-media-host",
+      "resolved": "01f2712fdb3e3467d4473f3b30670b903c21ff3d"
     },
     {
       "path": "app/src/leanback/java/com/fongmi/android/tv/ui/activity/SettingXrayActivity.java",
       "old": null,
       "fork": "f1e95119e9d8010b9ba2c410fb76dfc3e68b1d8e",
       "target": null,
-      "strategy": "fork-addition"
+      "strategy": "reviewed-media-host",
+      "resolved": "6afc494245c1650df121637cdaac1340c7c6abd3"
     },
     {
       "path": "app/src/leanback/java/com/fongmi/android/tv/ui/activity/VideoActivity.java",
@@ -118,14 +121,16 @@
       "old": "a794c8843e5b6dc19c325f721cf20a9195c267de",
       "fork": "035ae0aea1332eedb4970f5cc90b71c3f64d813a",
       "target": "fde190c9a134b88a366e7137e826e2374a28108e",
-      "strategy": "three-way"
+      "strategy": "reviewed-media-host",
+      "resolved": "201bef21fb0acff89d1431f0f43ba3730cfe8a8d"
     },
     {
       "path": "app/src/leanback/res/layout/activity_setting.xml",
       "old": "4dd217956379f0fa8295ef6af9aaca9e125332bb",
       "fork": "8ef1b8b5271fea90756cbcf69baf743bbf7b1c05",
       "target": "4c5932dec9cad11bd7907553da946e576e47de7b",
-      "strategy": "three-way"
+      "strategy": "reviewed-media-host",
+      "resolved": "10e5b30343d5eb4a63e173ec8e7112c56b50cdb5"
     },
     {
       "path": "app/src/leanback/res/layout/activity_setting_xray.xml",
@@ -185,14 +190,16 @@
       "old": "2c54cfb8a8c535d7b86ce74e747c9089623b033c",
       "fork": "088bf59992dbbdd611b6a4cc908084e672015ecb",
       "target": "1dae9aed44d348eb836f5fe4595c418dad57d16d",
-      "strategy": "three-way"
+      "strategy": "reviewed-media-host",
+      "resolved": "fe828b2a5c505185ce999114cc1fdb046331d350"
     },
     {
       "path": "app/src/main/assets/js/script.js",
       "old": "de39e49c7c43b40cb9c6cecec7473911cf70da90",
       "fork": "6dc658558a16ea4ebe0d4cea7ac604d4a09b2d74",
       "target": "22e87e9a3a7a1b2a125edf77c3c263a69a7a2506",
-      "strategy": "three-way"
+      "strategy": "reviewed-media-host",
+      "resolved": "f2658d0456cf9e235b4926fa8f22849aa6ac7f99"
     },
     {
       "path": "app/src/main/java/androidx/media3/exoplayer/libass/LibassFontFile.java",
@@ -823,6 +830,30 @@
       "target": "23d6cd38b096b7682cff22921e1f7d7985e9fa7d",
       "strategy": "reviewed-media-host",
       "resolved": "d027dbda1472058c732753cfeb6c5e3c6f53b0a8"
+    },
+    {
+      "path": "app/src/main/assets/js/navigation.js",
+      "old": null,
+      "fork": null,
+      "target": "b0a3082c9e96ccd58f41d61b3c60bafdaf5b62bb",
+      "strategy": "reviewed-media-host",
+      "resolved": "2fac869f24ddd9d45d0eda42d2e12b81cb293f3a"
+    },
+    {
+      "path": "app/src/main/assets/js/i18n.js",
+      "old": null,
+      "fork": null,
+      "target": "a5e178a63078adcf781c7e4178a2a8d784d52ea5",
+      "strategy": "reviewed-media-host",
+      "resolved": "7b832cb91f206b37293191a342e3cabfb254e959"
+    },
+    {
+      "path": "app/src/main/assets/css/ui.css",
+      "old": "e0a16fc14e5fca8c3ef6817383628264d8b51545",
+      "fork": "e0a16fc14e5fca8c3ef6817383628264d8b51545",
+      "target": "10d9734de07294d6a172a4d54be8c201e453db4c",
+      "strategy": "reviewed-media-host",
+      "resolved": "825ec23dbe86677430eed51fabbaac3d6adb3988"
     }
   ],
   "shared_media_source": [
@@ -1154,7 +1185,21 @@
         ],
         "cmake": "3.22.1",
         "ndk": "29.0.14206865",
-        "status": "isolated actual Gradle AAR candidate; pending separate compile, Java/JNI/ELF packaging audit; no deployment or redistribution"
+        "status": "source-only Gradle AAR gate; exclude locked tracked jniLibs and require packaged PT_LOAD equality to fresh CMake outputs; result pending",
+        "prebuilt_jni_tree": "0ea6ecf982454bf444d33e608513941ce57c3c4e",
+        "prebuilt_jni_blobs": {
+          "arm64-v8a/libmpeghJNI.so": "9fc2d8bc2769d59f5a85c4110df37276b2ab19a5",
+          "armeabi-v7a/libmpeghJNI.so": "8a326fa954422c27148087607789a607096f3b8f",
+          "x86/libmpeghJNI.so": "111170f39b0e0ad9e8a619a5e0a5e06718c13853",
+          "x86_64/libmpeghJNI.so": "08aa0b6934ce1c247f943d8ddb005d125bab4773"
+        },
+        "failed_packaging": {
+          "run": 45648064823,
+          "job": 139324366238,
+          "commit": "d43819193aa1d1490ce4871852038eb4350304ad",
+          "task": ":lib-decoder-mpegh:mergeReleaseNativeLibs",
+          "reason": "tracked jniLibs and rebuilt CMake both supply arm64-v8a/libmpeghJNI.so"
+        }
       }
     },
     "ffmpeg_public_consumer": {

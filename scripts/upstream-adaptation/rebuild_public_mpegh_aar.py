@@ -7,6 +7,7 @@ The Fraunhofer license is separate and no patent rights are asserted.
 """
 import argparse
 import hashlib
+import importlib.util
 from io import BytesIO
 import os
 from pathlib import Path
@@ -16,8 +17,12 @@ import subprocess
 import tempfile
 from zipfile import ZipFile
 
-from prepare_candidate import LOCK, blob, git, guard_fork, verified_checkout
+from prepare_candidate import ROOT, LOCK, blob, git, guard_fork, verified_checkout
 from verify_public_mpegh_native import audit_elf
+
+SPEC = importlib.util.spec_from_file_location("elf_runtime", ROOT/"scripts/build/check-elf-runtime.py")
+elf_runtime = importlib.util.module_from_spec(SPEC)
+SPEC.loader.exec_module(elf_runtime)
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
@@ -35,6 +40,12 @@ def main():
     module = media/lock["module"]
     gradle = module/"build.gradle.kts"
     assert blob(gradle) == gate["consumer_gradle_blob"]
+    prebuilt = module/"src/main/jniLibs"
+    assert git(media, "rev-parse", "HEAD:"+lock["module"]+"/src/main/jniLibs") == gate["prebuilt_jni_tree"]
+    actual_prebuilt = {p.relative_to(prebuilt).as_posix(): blob(p) for p in prebuilt.rglob("*") if p.is_file()}
+    assert actual_prebuilt == gate["prebuilt_jni_blobs"], actual_prebuilt
+    print("VERIFIED_EXCLUDED_TRACKED_JNI", len(actual_prebuilt), gate["prebuilt_jni_tree"], flush=True)
+    elf_runtime.self_test()
     sdk = Path(os.environ["ANDROID_HOME"])
     ndk = sdk/"ndk"/gate["ndk"]
     cmake = sdk/"cmake"/gate["cmake"]
@@ -63,6 +74,9 @@ def main():
     assert not source.exists(), "unexpected pre-existing decoder input"
     extra = '''
 android {
+  // The pinned public module carries prebuilts as well as native source.
+  // This gate uses only externalNativeBuild; never pickFirst or mix inputs.
+  sourceSets.getByName("main").jniLibs.setSrcDirs(emptyList<String>())
   ndkVersion = "29.0.14206865"
   defaultConfig {
     minSdk = 24
@@ -100,6 +114,14 @@ android {
                             "-Dorg.gradle.jvmargs=-Xmx4g -XX:MaxMetaspaceSize=768m",
                             "-PexternalNativeBuildDir="+str(work/"native"),
                             ":lib-decoder-mpegh:assembleRelease"], cwd=media, check=True)
+            intermediates = module/"buildout/intermediates"
+            assert not list((intermediates/"merged_jni_libs").rglob("*.so")), "tracked jniLibs entered source-only build"
+            built = {}
+            for abi in gate["abis"]:
+                paths = [p for p in (intermediates/"cxx").rglob("libmpeghJNI.so")
+                         if p.parent.name == abi and p.parent.parent.name == "obj"]
+                assert len(paths) == 1, (abi, paths)
+                built[abi] = paths[0].read_bytes()
             candidates = [p for p in module.rglob("lib-decoder-mpegh-release.aar")
                           if "outputs" in p.parts]
             assert len(candidates) == 1, candidates
@@ -128,6 +150,12 @@ android {
                     path.parent.mkdir()
                     path.write_bytes(z.read("jni/"+abi+"/libmpeghJNI.so"))
                     audit_elf(path, abi, expected, toolchain)
+                    packaged = path.read_bytes()
+                    assert elf_runtime._fingerprint_bytes(built[abi]) == elf_runtime._fingerprint_bytes(packaged), (abi, "AAR differs from newly linked CMake runtime image")
+                    print("VERIFIED_PACKAGED_MPEGH_SOURCE", abi,
+                          "cmake_sha256", hashlib.sha256(built[abi]).hexdigest(),
+                          "aar_member_sha256", hashlib.sha256(packaged).hexdigest(),
+                          "runtime_PT_LOAD_equal", flush=True)
                     # The isolated candidate must not introduce another copy
                     # of the TV's shared C++ runtime or rely on missing libs.
                     dynamic = subprocess.check_output([str(toolchain/"llvm-readelf"), "--dynamic", str(path)], text=True)
@@ -143,6 +171,7 @@ android {
         if source.exists():
             shutil.rmtree(source)
         assert blob(gradle) == gate["consumer_gradle_blob"]
+        assert {p.relative_to(prebuilt).as_posix(): blob(p) for p in prebuilt.rglob("*") if p.is_file()} == gate["prebuilt_jni_blobs"]
 
 if __name__ == "__main__":
     main()

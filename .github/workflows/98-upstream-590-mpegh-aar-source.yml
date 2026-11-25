@@ -1,0 +1,78 @@
+name: "5.9.0 source-only MPEG-H and settings phone logo gates (no APK)"
+on:
+  push:
+    branches: [dev/fongmi-upstream-adaptation]
+    paths: ['.github/workflows/98-upstream-590-mpegh-aar-source.yml']
+permissions:
+  contents: read
+jobs:
+  mpegh-aar:
+    if: >-
+      github.repository == 'rileyaaa/FingMi-Xray' && github.ref == 'refs/heads/dev/fongmi-upstream-adaptation' && github.event.head_commit.message == 'ci: verify source-only MPEG-H and 5.9 settings phone logo ports'
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          path: fork
+          fetch-depth: 1
+          persist-credentials: false
+      - uses: actions/checkout@v7
+        with:
+          repository: FongMi/media
+          ref: 3c2cbe8ac742c2fe15eff52f03eeb3b1b648848d
+          path: inputs/media
+          fetch-depth: 1
+          persist-credentials: false
+      - uses: actions/checkout@v7
+        with:
+          repository: Fraunhofer-IIS/mpeghdec
+          ref: 335a2587fed4d769f8a21ae8816afd0aaa226b4f
+          path: inputs/mpegh
+          fetch-depth: 1
+          persist-credentials: false
+      - uses: actions/setup-java@v6
+        with:
+          distribution: jetbrains
+          java-version: '21'
+      - name: Prepare fixed public module toolchain
+        shell: bash
+        run: |
+          set -euo pipefail
+          test ! -e fork/signing
+          sdkmanager="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
+          yes | "$sdkmanager" --licenses >/dev/null 2>&1 || true
+          "$sdkmanager" --install 'platforms;android-36' 'ndk;29.0.14206865' 'cmake;3.22.1'
+      - name: Build and audit real public MPEG-H AAR without redistribution
+        run: python3 fork/scripts/upstream-adaptation/rebuild_public_mpegh_aar.py --media inputs/media --mpegh inputs/mpegh
+  settings-phone-logo:
+    if: >-
+      github.repository == 'rileyaaa/FingMi-Xray' && github.ref == 'refs/heads/dev/fongmi-upstream-adaptation' && github.event.head_commit.message == 'ci: verify source-only MPEG-H and 5.9 settings phone logo ports'
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          path: fork
+          fetch-depth: 1
+          persist-credentials: false
+      - uses: actions/checkout@v7
+        with:
+          repository: FongMi/TV
+          ref: c616c0aa3613e87529791587a9f71b78c278c991
+          path: inputs/old-tv
+          fetch-depth: 1
+          persist-credentials: false
+      - uses: actions/checkout@v7
+        with:
+          repository: FongMi/TV
+          ref: d3a0b84b24cf6628d72a4dbc2be453875b005536
+          path: inputs/tv
+          fetch-depth: 1
+          persist-credentials: false
+      - uses: actions/setup-java@v6
+        with:
+          distribution: jetbrains
+          java-version: '21'
+      - name: Verify actual candidate settings, phone routes and logo behavior
+        run: python3 fork/tests/test-upstream-settings-phone-logo.py --old-tv inputs/old-tv --tv inputs/tv

@@ -763,5 +763,164 @@
         ""
       ]
     ]
+  },
+  "app/src/leanback/java/com/fongmi/android/tv/ui/adapter/ChannelAdapter.java": {
+    "from": "target",
+    "base": "fde190c9a134b88a366e7137e826e2374a28108e",
+    "resolved": "201bef21fb0acff89d1431f0f43ba3730cfe8a8d",
+    "edits": [
+      [
+        "    private final List<Channel> mItems;",
+        "    private final List<Channel> mItems;\n    private RecyclerView mRecyclerView;\n    private boolean xrayLogoSuppressed;"
+      ],
+      [
+        "    public void addAll(List<Channel> items) {",
+        "    public void setXrayLogoSuppressed(boolean suppressed) {\n        if (xrayLogoSuppressed == suppressed) return;\n        xrayLogoSuppressed = suppressed;\n\n        if (suppressed && mRecyclerView != null) {\n            for (int index = 0; index < mRecyclerView.getChildCount(); index++) {\n                RecyclerView.ViewHolder holder =\n                        mRecyclerView.getChildViewHolder(mRecyclerView.getChildAt(index));\n                if (holder instanceof ViewHolder channelHolder) {\n                    Glide.with(channelHolder.binding.logo).clear(channelHolder.binding.logo);\n                    channelHolder.binding.logo.setImageDrawable(null);\n                }\n            }\n        }\n        notifyDataSetChanged();\n    }\n\n    public void addAll(List<Channel> items) {"
+      ],
+      [
+        "        item.loadLogo(holder.binding.logo);",
+        "        if (xrayLogoSuppressed) {\n            Glide.with(holder.binding.logo).clear(holder.binding.logo);\n            holder.binding.logo.setImageDrawable(null);\n        } else {\n            item.loadLogo(holder.binding.logo);\n        }"
+      ],
+      [
+        "    @Override\n    public void onViewRecycled(@NonNull ViewHolder holder) {",
+        "    @Override\n    public void onAttachedToRecyclerView(@NonNull RecyclerView recyclerView) {\n        super.onAttachedToRecyclerView(recyclerView);\n        mRecyclerView = recyclerView;\n    }\n\n    @Override\n    public void onDetachedFromRecyclerView(@NonNull RecyclerView recyclerView) {\n        if (mRecyclerView == recyclerView) mRecyclerView = null;\n        super.onDetachedFromRecyclerView(recyclerView);\n    }\n\n    @Override\n    public void onViewRecycled(@NonNull ViewHolder holder) {"
+      ]
+    ]
+  },
+  "app/src/leanback/java/com/fongmi/android/tv/ui/activity/SettingActivity.java": {
+    "from": "target",
+    "base": "c6da5dea8e601b2eef30d59799f02ec54810fde8",
+    "resolved": "01f2712fdb3e3467d4473f3b30670b903c21ff3d",
+    "edits": [
+      [
+        "import com.fongmi.android.tv.Updater;",
+        "import com.fingmi.xray.config.XrayDisplay;\nimport com.fingmi.xray.config.XrayPreferences;"
+      ],
+      [
+        "        setCacheText();\n        setOtherText();\n    }",
+        "        setCacheText();\n        setOtherText();\n        setXrayText();\n    }"
+      ],
+      [
+        "        mBinding.danmaku.setOnClickListener(this::onDanmaku);",
+        "        mBinding.danmaku.setOnClickListener(this::onDanmaku);\n        mBinding.xray.setOnClickListener(this::onXray);"
+      ],
+      [
+        "        mBinding.version.setOnClickListener(this::onVersion);\n",
+        ""
+      ],
+      [
+        "private void onVersion(View view) {\n        Updater.get().start(this, true);\n    }",
+        "private void onXray(View view) {\n        SettingXrayActivity.start(this);\n    }\n\n    private void setXrayText() {\n        try {\n            XrayPreferences preferences = new XrayPreferences(this);\n            if (!preferences.isConfigured()) {\n                mBinding.xrayText.setText(R.string.xray_not_configured);\n                return;\n            }\n            mBinding.xrayText.setText(XrayDisplay.describe(preferences.getShareLink()));\n        } catch (Exception | LinkageError ignored) {\n            mBinding.xrayText.setText(R.string.xray_not_configured);\n        }\n    }\n\n    @Override\n    protected void onResume() {\n        super.onResume();\n        if (mBinding != null) setXrayText();\n    }"
+      ]
+    ]
+  },
+  "app/src/leanback/res/layout/activity_setting.xml": {
+    "from": "target",
+    "base": "4c5932dec9cad11bd7907553da946e576e47de7b",
+    "resolved": "10e5b30343d5eb4a63e173ec8e7112c56b50cdb5",
+    "edits": [
+      [
+        "        <androidx.appcompat.widget.LinearLayoutCompat\n            android:layout_width=\"match_parent\"\n            android:layout_height=\"wrap_content\"\n            android:layout_marginTop=\"16dp\"\n            android:orientation=\"horizontal\">\n\n            <androidx.appcompat.widget.LinearLayoutCompat\n                android:id=\"@+id/module\"",
+        "        <androidx.appcompat.widget.LinearLayoutCompat\n            android:id=\"@+id/xray\"\n            android:layout_width=\"match_parent\"\n            android:layout_height=\"wrap_content\"\n            android:layout_marginTop=\"16dp\"\n            android:background=\"@drawable/selector_item\"\n            android:focusable=\"true\"\n            android:focusableInTouchMode=\"true\"\n            android:orientation=\"horizontal\">\n\n            <com.google.android.material.textview.MaterialTextView\n                android:layout_width=\"wrap_content\"\n                android:layout_height=\"wrap_content\"\n                android:layout_marginEnd=\"16dp\"\n                android:text=\"@string/xray_setting\"\n                android:textColor=\"@color/white\"\n                android:textSize=\"18sp\" />\n\n            <com.google.android.material.textview.MaterialTextView\n                android:id=\"@+id/xrayText\"\n                android:layout_width=\"match_parent\"\n                android:layout_height=\"wrap_content\"\n                android:ellipsize=\"end\"\n                android:gravity=\"end\"\n                android:singleLine=\"true\"\n                android:textColor=\"@color/white\"\n                android:textSize=\"18sp\"\n                tools:text=\"VLESS  e***.com:443\" />\n\n        </androidx.appcompat.widget.LinearLayoutCompat>\n\n        <androidx.appcompat.widget.LinearLayoutCompat\n            android:layout_width=\"match_parent\"\n            android:layout_height=\"wrap_content\"\n            android:layout_marginTop=\"16dp\"\n            android:orientation=\"horizontal\">\n\n            <androidx.appcompat.widget.LinearLayoutCompat\n                android:id=\"@+id/module\""
+      ],
+      [
+        "        <androidx.appcompat.widget.LinearLayoutCompat\n            android:id=\"@+id/version\"\n            android:layout_width=\"match_parent\"\n            android:layout_height=\"wrap_content\"\n            android:layout_marginTop=\"16dp\"\n            android:background=\"@drawable/selector_item\"\n            android:focusable=\"true\"\n            android:focusableInTouchMode=\"true\"\n            android:orientation=\"horizontal\">",
+        "        <androidx.appcompat.widget.LinearLayoutCompat\n            android:id=\"@+id/version\"\n            android:layout_width=\"match_parent\"\n            android:layout_height=\"wrap_content\"\n            android:layout_marginTop=\"16dp\"\n            android:background=\"@drawable/selector_item\"\n            android:focusable=\"false\"\n            android:focusableInTouchMode=\"false\"\n            android:orientation=\"horizontal\">"
+      ]
+    ]
+  },
+  "app/src/leanback/java/com/fongmi/android/tv/ui/activity/SettingXrayActivity.java": {
+    "from": "fork",
+    "base": "f1e95119e9d8010b9ba2c410fb76dfc3e68b1d8e",
+    "resolved": "6afc494245c1650df121637cdaac1340c7c6abd3",
+    "edits": [
+      [
+        "import com.fongmi.android.tv.ui.base.BaseActivity;",
+        "import com.fongmi.android.tv.ui.base.BaseActivity;\nimport com.fongmi.android.tv.ui.dialog.LocalConnectDialog;"
+      ],
+      [
+        "        PushActivity.start(this, 6);",
+        "        LocalConnectDialog.show(this, \"xray\");"
+      ]
+    ]
+  },
+  "app/src/main/assets/index.html": {
+    "from": "target",
+    "base": "1dae9aed44d348eb836f5fe4595c418dad57d16d",
+    "resolved": "fe828b2a5c505185ce999114cc1fdb046331d350",
+    "edits": [
+      [
+        "            <div id=\"panel5\" class=\"tab-panel\">",
+        "            <!-- Xray -->\n            <div id=\"panel6\" class=\"tab-panel\">\n                <div class=\"md-card panel-content\">\n                    <div class=\"md-field\">\n                        <textarea id=\"xray_link\" class=\"md-input md-textarea\" rows=\"7\" autocomplete=\"off\" autocapitalize=\"off\" spellcheck=\"false\" placeholder=\"粘贴 VLESS / VMess / Trojan / Shadowsocks / Hysteria2 分享链接\"></textarea>\n                    </div>\n                    <button id=\"action_xray\" type=\"button\" class=\"md-btn md-btn-filled md-btn-full\" onclick=\"sendXray()\">发送到电视</button>\n                    <div class=\"panel-note\">仅发送到当前电视输入框，不会自动保存；回到电视后请按“保存”。需要时可另点“测试连接”。</div>\n                    <div class=\"md-field\">\n                        <label for=\"xray_live_groups\">直播自动开启 Xray 的分组</label>\n                        <textarea id=\"xray_live_groups\" class=\"md-input md-textarea\" rows=\"2\" maxlength=\"4096\" placeholder=\"港澳台,海外\"></textarea>\n                    </div>\n                    <div class=\"md-field\">\n                        <label for=\"xray_live_channels\">直播自动开启 Xray 的频道</label>\n                        <textarea id=\"xray_live_channels\" class=\"md-input md-textarea\" rows=\"2\" maxlength=\"4096\" placeholder=\"翡翠台,东森幼幼台,东森*\"></textarea>\n                    </div>\n                    <button id=\"action_xrayLiveRules\" type=\"button\" class=\"md-btn md-btn-filled md-btn-full\" onclick=\"sendXrayLiveRules()\">发送直播规则</button>\n                    <div class=\"panel-note\">分组或频道任一命中即自动开启。逗号分隔，* 匹配任意字符。发送会覆盖电视上的两项输入框，留空可清除；不会修改节点，也不会自动保存。</div>\n                </div>\n            </div>\n            <div id=\"panel5\" class=\"tab-panel\">"
+      ],
+      [
+        "<nav class=\"md-nav-bar\">",
+        "<nav class=\"md-nav-bar xray-nav\">"
+      ],
+      [
+        "        </nav>",
+        "            <button id=\"tab6\" class=\"md-nav-item\" type=\"button\" aria-pressed=\"false\" aria-controls=\"panel6\" onclick=\"showPanel(6)\">\n                <div class=\"md-nav-indicator\">\n                    <svg aria-hidden=\"true\" class=\"md-nav-icon\" viewBox=\"0 0 24 24\"><path d=\"M0 0h24v24H0V0z\" fill=\"none\"/><path d=\"M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm-1 15-4-4 1.4-1.4 2.6 2.6 4.6-4.6L17 11l-6 6z\"/></svg>\n                </div>\n                <span class=\"md-nav-label\" data-i18n=\"xray\">Xray</span>\n            </button>\n        </nav>"
+      ]
+    ]
+  },
+  "app/src/main/assets/js/script.js": {
+    "from": "target",
+    "base": "22e87e9a3a7a1b2a125edf77c3c263a69a7a2506",
+    "resolved": "f2658d0456cf9e235b4926fa8f22849aa6ac7f99",
+    "edits": [
+      [
+        "function sendDanmaku() {",
+        "function sendXray() {\n    const link = $('#xray_link').val().trim();\n    if (!link) return;\n    doAction('xray', { link }, () => {\n        if ($('#xray_link').val().trim() === link) $('#xray_link').val('');\n    });\n}\n\nfunction sendXrayLiveRules() {\n    const groups = $('#xray_live_groups').val().trim();\n    const channels = $('#xray_live_channels').val().trim();\n    if (!confirm('将覆盖电视上的两项直播规则输入框，继续？')) return;\n    doAction('xrayLiveRules', { groups, channels }, () => warnToast('电视已接收规则，请在电视设置页确认并保存'));\n}\n\nfunction sendDanmaku() {"
+      ],
+      [
+        "for (let i = 1; i <= 5; i++) {",
+        "for (let i = 1; i <= 6; i++) {"
+      ]
+    ]
+  },
+  "app/src/main/assets/js/navigation.js": {
+    "from": "target",
+    "base": "b0a3082c9e96ccd58f41d61b3c60bafdaf5b62bb",
+    "resolved": "2fac869f24ddd9d45d0eda42d2e12b81cb293f3a",
+    "edits": [
+      [
+        "    settings: {panel: 4, title: 'settings'}, files: {panel: 5, title: 'local'}",
+        "    settings: {panel: 4, title: 'settings'}, files: {panel: 5, title: 'local'},\n    xray: {panel: 6, title: 'xray'}"
+      ],
+      [
+        "    const name = Object.hasOwn(WEB_TABS, tab) ? tab : 'search';",
+        "    const name = tab === '6' ? 'xray' : Object.hasOwn(WEB_TABS, tab) ? tab : 'search';"
+      ]
+    ]
+  },
+  "app/src/main/assets/js/i18n.js": {
+    "from": "target",
+    "base": "a5e178a63078adcf781c7e4178a2a8d784d52ea5",
+    "resolved": "7b832cb91f206b37293191a342e3cabfb254e959",
+    "edits": [
+      [
+        "        settings: 'Settings',",
+        "        settings: 'Settings',\n        xray: 'Xray',"
+      ],
+      [
+        "        settings: '设置',",
+        "        settings: '设置',\n        xray: 'Xray',"
+      ],
+      [
+        "        settings: '設定',",
+        "        settings: '設定',\n        xray: 'Xray',"
+      ]
+    ]
+  },
+  "app/src/main/assets/css/ui.css": {
+    "from": "target",
+    "base": "10d9734de07294d6a172a4d54be8c201e453db4c",
+    "resolved": "825ec23dbe86677430eed51fabbaac3d6adb3988",
+    "edits": [
+      [
+        ".md-nav-item.active .md-nav-indicator {",
+        ".md-nav-bar.xray-nav .md-nav-indicator { max-width: 100%; }\n\n.md-nav-item.active .md-nav-indicator {"
+      ]
+    ]
   }
 }
