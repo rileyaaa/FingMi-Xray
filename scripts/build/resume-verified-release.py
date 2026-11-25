@@ -248,7 +248,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--verified-run-id", required=True, type=int)
     parser.add_argument("--repository", default=os.environ.get("GITHUB_REPOSITORY", ""))
-    parser.add_argument("--tag", default="v5.6.3-xray.1")
+    parser.add_argument("--tag", default="v5.6.3-xray.2")
     parser.add_argument("--replace-existing", action="store_true")
     parser.add_argument("--prune-superseded", action="store_true")
     parser.add_argument("--rollback-tag", default="")
