@@ -1,0 +1,84 @@
+name: Archive fixed development evidence (no build or release)
+on:
+  push:
+    branches: [dev/fongmi-upstream-adaptation]
+    paths: ['.github/workflows/90-archive-validated-development-lines.yml']
+permissions: {}
+concurrency:
+  group: fingmi-exact-archive-maintenance
+  cancel-in-progress: false
+jobs:
+  archive:
+    if: github.repository == 'rileyaaa/FingMi-Xray' && github.ref == 'refs/heads/dev/fongmi-upstream-adaptation'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write
+      actions: read
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: Archive exact commits and retire only completed Core experiment
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json, os, subprocess, tempfile
+          repo = 'rileyaaa/FingMi-Xray'
+          root = 'repos/' + repo
+          assert os.environ['GITHUB_REPOSITORY'] == repo
+          assert os.environ['GITHUB_REF'] == 'refs/heads/dev/fongmi-upstream-adaptation'
+          main = '4a52de1daa465d81df7ac06e886a1f184053253c'
+          dev = 'e3fec1778a2eb652fa276b6b147a4d133ce2e5db'
+          frozen = '97a23d8fc2163c2c2b277e6c0e86a595a4638fa2'
+          core = 'eb0320218901a5829e87e7085a9e312212766a0b'
+          records = [
+              ('frozen-public-validation-97a23d8', frozen, '9a166475155cb5a897627fef6838f965e74afd5f', 45547887003, frozen, 'success'),
+              ('fongmi-upstream-adaptation-e3fec17', dev, '5b632de622f07b96eef73f67ebc34beb3316bf11', 45545472828, '8819ccf8e3e97bb739f986b04c5cc5e2fad98cf7', 'failure'),
+              ('xray-core-stable-eb03202', core, 'd38ce1fd715d1ec0e3fd4b20bc29ee51c0a3c2d6', 45544415939, core, 'failure'),
+          ]
+          def api(path, *args):
+              return json.loads(subprocess.check_output(['gh', 'api', root + path, *args], text=True))
+          def ref(name):
+              return api('/git/ref/' + name)['object']['sha']
+          current = os.environ['GITHUB_SHA']
+          assert ref('heads/main') == main
+          assert ref('heads/dev/fongmi-upstream-adaptation') == current
+          assert ref('heads/dev/frozen-public-validation') == frozen
+          assert ref('heads/dev/xray-core-stable') == core
+          change = api('/commits/' + current)
+          assert [p['sha'] for p in change['parents']] == [dev]
+          assert [f['filename'] for f in change['files']] == ['.github/workflows/90-archive-validated-development-lines.yml']
+          for name, sha, tree, run_id, run_sha, conclusion in records:
+              assert api('/git/commits/' + sha)['tree']['sha'] == tree
+              run = api('/actions/runs/' + str(run_id))
+              assert (run['head_sha'], run['status'], run['conclusion']) == (run_sha, 'completed', conclusion)
+              tag = 'tags/archive/' + name
+              # Existing tags must match exactly; never move or overwrite.
+              probe = subprocess.run(['gh','api',root+'/git/ref/'+tag], capture_output=True, text=True)
+              if probe.returncode == 0:
+                  assert json.loads(probe.stdout)['object']['sha'] == sha
+              else:
+                  assert 'HTTP 404' in probe.stderr, 'archive lookup failed'
+                  created = api('/git/refs','--method','POST','-f','ref=refs/'+tag,'-f','sha='+sha)
+                  assert created['object']['sha'] == sha
+              assert ref(tag) == sha
+              print('ARCHIVED', tag, sha, tree, 'run', run_id, conclusion)
+          assert ref('heads/main') == main
+          assert ref('heads/dev/frozen-public-validation') == frozen
+          assert ref('heads/dev/fongmi-upstream-adaptation') == current
+          assert ref('heads/dev/xray-core-stable') == core
+          assert ref('tags/archive/xray-core-stable-eb03202') == core
+          # Empty local repository, no checkout or fetch, and an exact remote lease.
+          # The token is provided only through the runner's credential helper.
+          with tempfile.TemporaryDirectory() as tmp:
+              subprocess.run(['git','init','-q',tmp],check=True)
+              subprocess.run(['git','-C',tmp,'config','credential.helper','!gh auth git-credential'],check=True)
+              subprocess.run(['git','-C',tmp,'push','--force-with-lease=refs/heads/dev/xray-core-stable:'+core,'https://github.com/'+repo+'.git',':refs/heads/dev/xray-core-stable'],check=True)
+          missing = subprocess.run(['gh','api',root+'/git/ref/heads/dev/xray-core-stable'],capture_output=True,text=True)
+          assert missing.returncode != 0 and 'HTTP 404' in missing.stderr
+          assert ref('heads/main') == main
+          assert ref('heads/dev/frozen-public-validation') == frozen
+          assert ref('heads/dev/fongmi-upstream-adaptation') == current
+          print('PASS exact Core branch cleanup; frozen signing input retained; no main, build, or release change')
+          PY
