@@ -1,0 +1,535 @@
+name: "Frozen 563002 unsigned signing handoff (no publication)"
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [dev/fongmi-upstream-adaptation]
+    paths:
+      - '.github/workflows/04-frozen-signing-handoff.yml'
+      - 'scripts/maintenance/request-frozen-signing-handoff.txt'
+permissions:
+  contents: read
+
+jobs:
+  build:
+    if: github.repository == 'rileyaaa/FingMi-Xray' && github.ref == 'refs/heads/dev/fongmi-upstream-adaptation'
+    name: "只构建与验证，不发布"
+    runs-on: ubuntu-latest
+    timeout-minutes: 100
+
+    env:
+      OLD_V7_SHA256: "cacc7a90ce082adf955fc80a444b54f8cc86d5b5c3ac7acb13d1392b59928bda"
+      OLD_V8_SHA256: "b5ac05193c1e19809fc7ffb3048f7d75aaa2124eace9953d669f4a81a477c21d"
+      MEDIA3_CONTAINER_SHA256: "930fca2f018f06f1d08c12599f8c97f31eddbd728edee5de06eb53a882f8fc54"
+      LIBASS_CANDIDATE_SHA256: "f047f8ad84be08aeddb0672500e9b263cafd6f2a009812392554dc55b2019861"
+      JADX_VERSION: "1.5.6"
+      JADX_SHA256: "545ea2be9c242511bc145755cf4bda2485ade42966e096f8b4d3da2a230e8974"
+      BUILD_SOURCE_SHA: "97a23d8fc2163c2c2b277e6c0e86a595a4638fa2"
+      BUILD_SOURCE_TREE: "9a166475155cb5a897627fef6838f965e74afd5f"
+
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ env.BUILD_SOURCE_SHA }}
+          fetch-depth: 1
+          persist-credentials: false
+
+      - uses: actions/setup-java@v6
+        with:
+          distribution: jetbrains
+          java-version: "21"
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.10"
+
+      - name: Check exact frozen scope and generate test-only key
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REF" = refs/heads/dev/fongmi-upstream-adaptation
+          test "$(git rev-parse HEAD)" = "$BUILD_SOURCE_SHA"
+          test "$(git rev-parse 'HEAD^{tree}')" = "$BUILD_SOURCE_TREE"
+          test "$(git rev-parse --is-shallow-repository)" = true
+          test ! -e signing
+          test "$(git ls-remote --tags https://github.com/rileyaaa/FingMi-Xray.git refs/tags/archive/frozen-public-validation-97a23d8 | cut -f1)" = "$BUILD_SOURCE_SHA"
+          python3 - <<'PY'
+          import json, subprocess
+          from pathlib import Path
+          lock = json.loads(Path("scripts/public-validation/lock.json").read_text())
+          blobs = {}
+          for row in subprocess.check_output(["git","ls-tree","-r","-z","HEAD"]).split(b"\0"):
+              if not row: continue
+              meta, name = row.split(b"\t",1)
+              name = name.decode()
+              assert not name.startswith("signing/")
+              if name not in lock["allowed_changed"]: blobs[name] = meta.decode().split()[2]
+          assert blobs == lock["unchanged"] and len(blobs) == 1522
+          assert not lock["production_publication"]
+          print("PASS frozen immutable source tree and all 1522 locked blobs; workflow ref separate from source ref")
+          PY
+          key="$RUNNER_TEMP/fingmi-public-test.jks"
+          test ! -e "$key"
+          keytool -genkeypair -storetype JKS -keystore "$key" -alias androiddebugkey -storepass android -keypass android -keyalg RSA -keysize 2048 -validity 2 -dname 'CN=FingMi test only' -noprompt
+          chmod 600 "$key"
+          echo "FINGMI_TEST_KEYSTORE=$key" >> "$GITHUB_ENV"
+          cert="$(keytool -exportcert -keystore "$key" -alias androiddebugkey -storepass android | sha256sum | cut -d ' ' -f1)"
+          echo "FINGMI_TEST_CERT_SHA=$cert" >> "$GITHUB_ENV"
+
+      - name: 运行项目源码检查
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 tests/test-xray-android-runtime-compat.py
+          python3 tests/test-xray-core-parity.py
+          python3 tests/test-xray-playback-parity.py
+          python3 tests/test-xray-playback-address-parity.py
+          python3 tests/test-xray-session-races.py
+          python3 tests/test-xray-service-client-lifecycle.py
+          python3 tests/test-xray-normalizer-parity.py
+          python3 tests/test-xray-transport-security-parity.py
+          python3 tests/test-xray-tls-fragment.py --workdir build/work/xray-tls-fragment
+          python3 tests/test-upstream-update-disabled.py
+          python3 scripts/build/check-elf-runtime.py --self-test
+          python3 scripts/build/check-final-apk-native.py --self-test
+          python3 scripts/build/check-final-apk-manifest.py --self-test
+          # Private release hygiene is replaced only on this branch by the exact-tree public guard.
+          python3 tests/test-resolve-release-tag.py
+          python3 tests/test-release-publication.py
+          python3 tests/test-resume-verified-release.py
+          python3 tests/test-media3-dex-linkage.py
+          python3 tests/test-player-candidate-linkage.py
+          python3 tests/test-libass-native-input.py
+          python3 tests/test-tv-network-recovery.py
+          python3 tests/test-xray-rtsp-socket-guard.py
+          python3 tests/test-xray-playback-session-reentry.py
+          python3 tests/test-xray-playback-binding-handoff.py
+          python3 tests/test-xray-side-request-lifecycle.py
+          python3 tests/test-xray-artwork-loader.py
+          python3 tests/test-tv-network-recovery-reentry.py
+
+      - name: 准备 Android SDK 36 与 37
+        shell: bash
+        run: |
+          set -euo pipefail
+          sdk_root="${ANDROID_HOME:-/usr/local/lib/android/sdk}"
+          sdkmanager="$sdk_root/cmdline-tools/latest/bin/sdkmanager"
+          test -x "$sdkmanager"
+          yes | "$sdkmanager" --licenses >/dev/null 2>&1 || true
+          "$sdkmanager" --channel=3 --install 'platforms;android-36' 'build-tools;36.0.0' 'platforms;android-37.0' 'build-tools;37.0.0'
+
+      - name: 检查上游 Gradle 工具链
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash gradlew --no-daemon -Porg.gradle.java.installations.auto-download=false \
+            help --stacktrace --warning-mode all
+
+      - name: Verify disposable signing boundary
+        shell: bash
+        run: |
+          set -euo pipefail
+          test ! -e signing
+          test -s "$FINGMI_TEST_KEYSTORE"
+          test -n "$FINGMI_TEST_CERT_SHA"
+
+      - name: 重建并校验固定播放器及原生依赖
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p build/work/current-main/input build/work/current-main/restored
+
+          curl -fL --retry 3 'https://github.com/rileyaaa/FingMi-Xray/releases/download/v5.6.3-xray.1/FongMi-Xray-TV-v5.6.3-xray.1-armeabi-v7a.apk' -o build/work/current-main/input/libass-source-v7.apk
+          curl -fL --retry 3 'https://github.com/rileyaaa/FingMi-Xray/releases/download/v5.6.3-xray.1/FongMi-Xray-TV-v5.6.3-xray.1-arm64-v8a.apk' -o build/work/current-main/input/libass-source-v8.apk
+          printf '%s  %s\n' '64fdc38928f96185e924444e9c4ca33c582021e732df4b7e041daa4321615424' build/work/current-main/input/libass-source-v7.apk '004cd5e003a644a7e421a859cd7a7187e98e729bea94af157127dd3d20609bd5' build/work/current-main/input/libass-source-v8.apk | sha256sum -c -
+          python3 scripts/public-validation/verify.py reference build/work/current-main/input/libass-source-v7.apk build/work/current-main/input/libass-source-v8.apk
+          python3 scripts/build/libass_native_input.py --native-source retained-release --v7-apk build/work/current-main/input/libass-source-v7.apk --v8-apk build/work/current-main/input/libass-source-v8.apk --report build/work/current-main/libass-native-input.json
+
+          bash scripts/build/build-player-aar-candidate.sh \
+            --workdir build/work/current-main/player-source \
+            --output build/work/current-main/input/player-candidate.zip
+
+          curl -fL --retry 3 'https://github.com/rileyaaa/FingMi-Xray/releases/download/v5.6.0-xray.5/FongMi-Xray-TV-v5.6.0-xray.5-armeabi-v7a.apk' -o build/work/current-main/input/published-v560-v7.apk
+          curl -fL --retry 3 'https://github.com/rileyaaa/FingMi-Xray/releases/download/v5.6.0-xray.5/FongMi-Xray-TV-v5.6.0-xray.5-arm64-v8a.apk' -o build/work/current-main/input/published-v560-v8.apk
+
+          curl -fL --retry 3             'https://dl.google.com/dl/android/maven2/androidx/media3/media3-container/1.11.0/media3-container-1.11.0.aar'             -o build/work/current-main/input/media3-container-1.11.0.aar
+
+          curl -fL --retry 3 --retry-delay 2             "https://github.com/skylot/jadx/releases/download/v${JADX_VERSION}/jadx-${JADX_VERSION}.zip"             -o build/work/current-main/input/jadx.zip
+
+          printf '%s  %s\n'             "$OLD_V7_SHA256" build/work/current-main/input/published-v560-v7.apk             "$OLD_V8_SHA256" build/work/current-main/input/published-v560-v8.apk             "$MEDIA3_CONTAINER_SHA256" build/work/current-main/input/media3-container-1.11.0.aar             "$JADX_SHA256" build/work/current-main/input/jadx.zip             | sha256sum -c -
+
+          mkdir -p build/work/current-main/tools/jadx
+          unzip -q build/work/current-main/input/jadx.zip -d build/work/current-main/tools/jadx
+          chmod +x build/work/current-main/tools/jadx/bin/jadx
+
+      - name: 准备公开播放器与 Xray 原生依赖
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 scripts/build/import-player-aar-candidate.py             build/work/current-main/input/player-candidate.zip
+
+          bash scripts/recovery/fetch-libxray.sh
+          sdk_root="${ANDROID_HOME:-/usr/local/lib/android/sdk}"
+          python3 scripts/build/build-published-libxray-aar.py             --official-aar libxray/libs/libXray.aar             --v7-apk build/work/current-main/input/published-v560-v7.apk             --v8-apk build/work/current-main/input/published-v560-v8.apk             --jadx build/work/current-main/tools/jadx/bin/jadx             --android-jar "$sdk_root/platforms/android-37.0/android.jar"             --work-dir build/work/current-main/libxray-bindings             --to build/work/current-main/restored/libXray.aar
+
+          cp build/work/current-main/restored/libXray.aar libxray/libs/libXray.aar
+
+      - name: Record existing frozen native parity evidence
+        run: echo 'Unchanged production blobs and golden native pins; prior AC 45412392420 covers native regression.'
+
+      - name: Libass 前清理已验证的 Xray 临时文件
+        shell: bash
+        run: |
+          set -euo pipefail
+          work="build/work/current-main"
+          du -sh "$work"
+          # Both ABI checks passed. Keep the player/container/Libass APK inputs,
+          # imported AARs and build caches; only retire consumed Xray scratch.
+          rm -rf \
+            "$work/tools" \
+            "$work/restored" \
+            "$work/libxray-bindings" \
+            "$work/xray-native-chain"
+          rm -f \
+            "$work/input/published-v560-v7.apk" \
+            "$work/input/published-v560-v8.apk" \
+            "$work/input/jadx.zip"
+          df -h .
+
+      - name: 重建并导入 Libass 兼容组件
+        shell: bash
+        run: |
+          set -euo pipefail
+          work="build/work/current-main"
+          mvn -B dependency:get -Dartifact=org.robolectric:android-all:15-robolectric-12650502
+          mvn -B dependency:get -Dartifact=com.google.guava:guava:33.3.1-android
+          mvn -B dependency:get -Dartifact=androidx.annotation:annotation-jvm:1.9.1 -DremoteRepositories=google::default::https://dl.google.com/dl/android/maven2
+
+          python3 scripts/build/build-libass-extractor.py             --candidate "$work/input/player-candidate.zip"             --workdir "$work/extractor"             --container "$work/input/media3-container-1.11.0.aar"             --maven "$(command -v mvn)"
+
+          android_all="$HOME/.m2/repository/org/robolectric/android-all/15-robolectric-12650502/android-all-15-robolectric-12650502.jar"
+          test -s "$android_all"
+
+          python3 scripts/build/build-libass-candidate.py             --native-source retained-release             --candidate "$work/input/player-candidate.zip"             --extractor "$work/extractor/lib-extractor-libass-release.aar"             --container "$work/input/media3-container-1.11.0.aar"             --v7-apk "$work/input/libass-source-v7.apk"             --v8-apk "$work/input/libass-source-v8.apk"             --android-jar "$android_all"             --output "$work/lib-exoplayer-libass-reconstructed.aar"
+
+          echo "$LIBASS_CANDIDATE_SHA256  $work/lib-exoplayer-libass-reconstructed.aar" | sha256sum -c -
+          python3 scripts/build/check-libass-contract.py --aar "$work/lib-exoplayer-libass-reconstructed.aar"
+
+          python3 scripts/build/import-libass-candidate.py             --aar "$work/lib-exoplayer-libass-reconstructed.aar"             --extractor "$work/extractor/lib-extractor-libass-release.aar"             --container "$work/input/media3-container-1.11.0.aar"
+
+          # Reclaim remaining verified Libass scratch before Gradle compile/assemble.
+          # Xray runtime images and reconstruction tools were already retired above.
+          rm -rf \
+            "$work/input" \
+            "$work/extractor"
+          rm -f \
+            "$work/lib-exoplayer-libass-reconstructed.aar" \
+            "$work/lib-exoplayer-libass-reconstructed.json"
+          mkdir -p "$work"
+          df -h .
+
+      - name: 验证播放器组件启动
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 tests/test-player-startup.py \
+            --libs app/libs --workdir build/work/current-main/player-startup \
+            --maven "$(command -v mvn)" --local-repository "$HOME/.m2/repository"
+          # The test jars and Android sandbox reports are no longer needed on success.
+          rm -rf build/work/current-main/player-startup
+
+      - name: 验证 Xray 图片加载生命周期
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 tests/test-xray-artwork-lifecycle.py \
+            --workdir build/work/current-main/artwork-lifecycle \
+            --maven "$(command -v mvn)" --local-repository "$HOME/.m2/repository"
+          # Retain only failure evidence; resolved jars are disposable test inputs.
+          rm -rf build/work/current-main/artwork-lifecycle
+
+      - name: 验证代理主机名崩溃回归
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash gradlew --no-daemon :catvod:testDebugUnitTest --stacktrace --warning-mode all
+
+      - name: 编译当前 Leanback 源码
+        shell: bash
+        run: |
+          set -euo pipefail
+          chmod +x gradlew
+          ./gradlew --no-daemon :xray:testDebugUnitTest :tv-recovery:testDebugUnitTest :app:compileLeanbackReleaseJavaWithJavac --stacktrace --warning-mode all
+
+      - name: 打包 Android TV Release APK
+        shell: bash
+        run: |
+          set -euo pipefail
+          ./gradlew --no-daemon :app:assembleLeanbackRelease --stacktrace --warning-mode all
+
+      - name: 校验最终 APK 中的 MPEG-H
+        shell: bash
+        run: |
+          set -euo pipefail
+          for abi in armeabi-v7a arm64-v8a; do
+            apk="$(find app/build/outputs/apk/leanback -type f -name "leanback-${abi//-/_}.apk" -print -quit)"
+            test -n "$apk"
+            test -s "$apk"
+            entry="lib/${abi}/libmpeghJNI.so"
+            unzip -Z1 "$apk" | grep -Fx "$entry"
+            size="$(unzip -p "$apk" "$entry" | wc -c)"
+            test "$size" -gt 100000
+            unzip -p "$apk" 'classes*.dex' | strings | grep -F 'Landroidx/media3/decoder/mpegh/MpeghAudioRenderer;' >/dev/null
+            echo "PASS MPEG-H ${abi}: ${size} bytes in $apk"
+          done
+
+      - name: 校验最终 APK 中的原生运行库
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 scripts/build/check-final-apk-native.py \
+            --apk-dir app/build/outputs/apk/leanback --build-type release
+
+      - name: 验证最终 Media3 DEX 依赖
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -t apks < <(
+            find app/build/outputs/apk/leanback -type f -name 'leanback-*.apk' -print | sort
+          )
+          test "${#apks[@]}" -eq 2
+          python3 scripts/build/check-final-apk-media3.py \
+            --apk "${apks[0]}" --apk "${apks[1]}" \
+            --report build/work/current-main/media3-linkage.json
+
+      - name: 验证最终 Leanback Manifest 安全约束
+        shell: bash
+        run: |
+          set -euo pipefail
+          sdk_root="${ANDROID_HOME:-/usr/local/lib/android/sdk}"
+          apkanalyzer="$sdk_root/cmdline-tools/latest/bin/apkanalyzer"
+          test -x "$apkanalyzer"
+          mapfile -t apks < <(
+            find app/build/outputs/apk/leanback -type f -name 'leanback-*.apk' -print | sort
+          )
+          test "${#apks[@]}" -eq 2
+          for apk in "${apks[@]}"; do
+            test -s "$apk"
+            python3 scripts/build/check-final-apk-manifest.py \
+              --apkanalyzer "$apkanalyzer" \
+              --apk "$apk"
+            GITHUB_SHA="$BUILD_SOURCE_SHA" python3 scripts/public-validation/verify.py test-apk "$apk"
+          done
+      - name: 记录构建输入与输出
+        if: success()
+        shell: bash
+        run: |
+          set -euo pipefail
+          {
+            echo "workflow_commit=$GITHUB_SHA"
+            echo "source_commit=$BUILD_SOURCE_SHA"
+            echo "source_tree=$BUILD_SOURCE_TREE"
+            java -version 2>&1 | head -n 1
+            ./gradlew --version | sed -n '1,12p'
+            echo "libass_candidate_sha256=$LIBASS_CANDIDATE_SHA256"
+            find app/build/outputs/apk/leanback -type f -name '*.apk' -print0 | sort -z | xargs -0 sha256sum
+          } | tee build/work/current-main/BUILD_RESULT.txt
+
+      - name: Create unsigned candidates from verified test APK payloads
+        shell: bash
+        run: |
+          set -euo pipefail
+          out=build/work/current-main/signing-handoff
+          mkdir -p "$out"
+          cat > "$out/verify_handoff.py" <<'PY'
+          #!/usr/bin/env python3
+          """Verify only non-secret frozen APK payloads and signing identity."""
+          import argparse
+          import hashlib
+          import json
+          import os
+          from pathlib import Path
+          import re
+          import subprocess
+          import xml.etree.ElementTree as ET
+          from zipfile import ZipFile
+          
+          SOURCE = "97a23d8fc2163c2c2b277e6c0e86a595a4638fa2"
+          CERT = "3cd86f4fdf6044e7e60307624bf0d8c892dfd83b81ce21748504fcbba28763c2"
+          NAMES = {"arm64-v8a": "leanback-arm64_v8a.apk", "armeabi-v7a": "leanback-armeabi_v7a.apk"}
+          NS = "{http://schemas.android.com/apk/res/android}"
+          SIG = re.compile(r"(?i)^META-INF/(?:MANIFEST\.MF|[^/]+\.(?:SF|RSA|DSA|EC)|SIG-[^/]+)$")
+          
+          def run(*cmd):
+              return subprocess.check_output([str(c) for c in cmd], text=True)
+          
+          def sha(path):
+              with path.open("rb") as f:
+                  h = hashlib.sha256()
+                  for b in iter(lambda: f.read(1024*1024), b""):
+                      h.update(b)
+                  return h.hexdigest()
+          
+          def payload(path):
+              with ZipFile(path) as z:
+                  infos = z.infolist()
+                  assert len({i.filename for i in infos}) == len(infos), "duplicate ZIP names"
+                  result = {}
+                  for i in infos:
+                      if SIG.fullmatch(i.filename):
+                          continue
+                      h = hashlib.sha256()
+                      with z.open(i) as f:
+                          for b in iter(lambda: f.read(1024*1024), b""):
+                              h.update(b)
+                      result[i.filename] = [i.file_size, i.compress_type, h.hexdigest()]
+                  return result
+          
+          def identity(path, abi, sdk):
+              tools = sdk / "build-tools/37.0.0"
+              analyzer = sdk / "cmdline-tools/latest/bin/apkanalyzer"
+              run(tools / "zipalign", "-c", "-P", "16", "-v", "4", path)
+              root = ET.fromstring(run(analyzer, "manifest", "print", path))
+              assert (root.get("package"), root.get(NS+"versionName"), root.get(NS+"versionCode")) == ("com.fongmi.android.tv", "v5.6.3-xray.2", "563002")
+              app = root.find("application")
+              assert app is not None and app.get(NS+"debuggable","false") == "false" and app.get(NS+"testOnly","false") == "false"
+              with ZipFile(path) as z:
+                  assert 'revision: "' + SOURCE + '"' in z.read("META-INF/version-control-info.textproto").decode()
+                  libs = {n.split("/")[1] for n in z.namelist() if n.startswith("lib/") and n.endswith(".so")}
+                  assert libs == {abi}, (path, libs)
+                  assert z.getinfo("lib/"+abi+"/libmpeghJNI.so").file_size > 100000
+              print("PASS identity/alignment", abi, path.name, "com.fongmi.android.tv 563002", SOURCE)
+          
+          def signature(path, sdk, signed):
+              signer = sdk / "build-tools/37.0.0/apksigner"
+              if signed:
+                  out = run(signer, "verify", "--verbose", "--print-certs", path)
+                  certs = set(re.findall(r"(?m)^(?:Signer #\d+:?|V\d+(?:\.\d+)? Signer:) certificate SHA-256 digest: ([0-9a-f]+)", out))
+                  assert certs == {CERT} and "Number of signers: 1" in out
+                  assert re.search(r"(?im)^Verified using v2 scheme .*:\s*true", out)
+                  print("PASS original .1 signing identity", path.name, CERT)
+              else:
+                  with ZipFile(path) as z, path.open("rb") as f:
+                      assert not any(SIG.fullmatch(n) for n in z.namelist()), "JAR signature entries present"
+                      f.seek(z.start_dir - 16)
+                      assert f.read(16) != b"APK Sig Block 42", "APK signing block present"
+                  r = subprocess.run([str(signer),"verify",str(path)],capture_output=True,text=True)
+                  assert r.returncode != 0, "candidate unexpectedly verifies as signed"
+                  print("PASS no v1 or APK signing block", path.name)
+          
+          def main():
+              p = argparse.ArgumentParser()
+              p.add_argument("--handoff", required=True, type=Path)
+              p.add_argument("--signed-dir", type=Path, help="Optional offline-signed copies, with same APK basenames")
+              p.add_argument("--sdk", type=Path, default=Path(os.environ.get("ANDROID_HOME",os.environ.get("ANDROID_SDK_ROOT","/usr/local/lib/android/sdk"))))
+              a = p.parse_args()
+              recorded = json.loads((a.handoff/"PAYLOAD_SHA256.json").read_text())
+              assert recorded["source"] == SOURCE
+              assert recorded["tree"] == "9a166475155cb5a897627fef6838f965e74afd5f"
+              assert recorded["expected_certificate_sha256"] == CERT
+              assert set(recorded["apks"]) == set(NAMES)
+              for abi,name in NAMES.items():
+                  candidate = a.handoff/"unsigned"/name
+                  r = recorded["apks"][abi]
+                  assert sha(candidate) == r["sha256"]
+                  assert payload(candidate) == r["payload"]
+                  identity(candidate,abi,a.sdk)
+                  signature(candidate,a.sdk,False)
+                  if a.signed_dir:
+                      signed = a.signed_dir/name
+                      assert payload(signed) == r["payload"], "signed payload changed"
+                      identity(signed,abi,a.sdk)
+                      signature(signed,a.sdk,True)
+                      print("SIGNED SHA256", sha(signed), name)
+              print("PASS handoff", "and formal APK verification" if a.signed_dir else "unsigned candidates only; not installable")
+          if __name__ == "__main__":
+              main()
+          PY
+          python3 - <<'PY'
+          import copy, json, os, shutil, subprocess, sys, tempfile
+          from pathlib import Path
+          from zipfile import ZipFile
+          sys.path.insert(0, str(Path("build/work/current-main/signing-handoff").resolve()))
+          from verify_handoff import SOURCE, CERT, NAMES, SIG, sha, payload, identity, signature
+          base = Path("build/work/current-main/signing-handoff")
+          out = base/"unsigned"
+          out.mkdir()
+          sdk = Path(os.environ.get("ANDROID_HOME","/usr/local/lib/android/sdk"))
+          tools = sdk/"build-tools/37.0.0"
+          result = {"source": SOURCE, "tree": "9a166475155cb5a897627fef6838f965e74afd5f", "expected_certificate_sha256": CERT, "workflow_commit": os.environ["GITHUB_SHA"], "run_id": os.environ["GITHUB_RUN_ID"], "apks": {}}
+          for abi, name in NAMES.items():
+              matches = list(Path("app/build/outputs/apk/leanback").rglob(name))
+              assert len(matches) == 1
+              signed = matches[0]
+              expected = payload(signed)
+              with tempfile.TemporaryDirectory() as td:
+                  unaligned = Path(td)/"unsigned.apk"
+                  with ZipFile(signed) as zin, ZipFile(unaligned, "w", allowZip64=False) as zout:
+                      for info in zin.infolist():
+                          if SIG.fullmatch(info.filename):
+                              print("Remove test JAR signature entry", info.filename)
+                              continue
+                          with zin.open(info) as src, zout.open(copy.copy(info), "w") as dst:
+                              shutil.copyfileobj(src,dst,1024*1024)
+                  target = out/name
+                  subprocess.run([str(tools/"zipalign"),"-P","16","-f","4",str(unaligned),str(target)],check=True)
+              assert payload(target) == expected, "unsigned payload or compression method differs"
+              identity(target,abi,sdk)
+              signature(target,sdk,False)
+              result["apks"][abi] = {"sha256": sha(target), "size": target.stat().st_size, "payload": expected, "verified_test_input_sha256": sha(signed)}
+              print("PASS unsigned payload identical to verified test APK", abi, result["apks"][abi]["sha256"], target.stat().st_size)
+          (base/"PAYLOAD_SHA256.json").write_text(json.dumps(result,sort_keys=True,indent=2)+"\n")
+          PY
+          python3 scripts/build/check-final-apk-native.py --apk-dir "$out/unsigned" --build-type release
+          python3 scripts/build/check-final-apk-media3.py --apk "$out/unsigned/leanback-arm64_v8a.apk" --apk "$out/unsigned/leanback-armeabi_v7a.apk" --report "$out/media3-linkage.json"
+          for apk in "$out"/unsigned/*.apk; do
+            python3 scripts/build/check-final-apk-manifest.py --apkanalyzer "$ANDROID_HOME/cmdline-tools/latest/bin/apkanalyzer" --apk "$apk"
+          done
+          cp build/work/current-main/BUILD_RESULT.txt "$out/BUILD_RESULT.txt"
+          cat > "$out/README.md" <<'DOC'
+          # Frozen 563002 unsigned handoff
+          
+          NOT installable. No formal key, no test key, no signed APK, no Release.
+          Source: 97a23d8fc2163c2c2b277e6c0e86a595a4638fa2
+          Tree: 9a166475155cb5a897627fef6838f965e74afd5f
+          Expected original .1 public certificate SHA-256:
+          3cd86f4fdf6044e7e60307624bf0d8c892dfd83b81ce21748504fcbba28763c2
+          
+          Use a controlled offline machine with Android SDK build-tools 37.0.0, cmdline-tools/latest and Python 3. Do not transfer credentials to CI/chat. Validate SHA256SUMS and the unsigned payload before signing.
+          
+              sha256sum -c SHA256SUMS
+              python3 verify_handoff.py --handoff . --sdk "$ANDROID_HOME"
+          
+          With the trusted original keystore and its known alias, export ONLY the public certificate with keytool (interactive password), then compare its DER SHA-256 with the expected fingerprint above. Do not proceed on mismatch. Set KS and ALIAS locally; never put a password in a command line, output, artifact or repository.
+          
+              keytool -exportcert -keystore "$KS" -alias "$ALIAS" -file original-public.der
+              sha256sum original-public.der
+              mkdir -p signed
+              for apk in unsigned/*.apk; do
+                "$ANDROID_HOME/build-tools/37.0.0/apksigner" sign --ks "$KS" --ks-key-alias "$ALIAS" --v1-signing-enabled true --v2-signing-enabled true --v4-signing-enabled false --out "signed/$(basename "$apk")" "$apk" || exit 1
+              done
+              python3 verify_handoff.py --handoff . --signed-dir signed --sdk "$ANDROID_HOME"
+          
+          Sign only after alignment verification, do not modify APKs after signing. The verifier compares all non-signature entries, identity, source revision, ABI, alignment and original certificate. On a test TV with .1 installed, back up data and use adb install -r signed/leanback-<matching ABI>.apk. Confirm app data/settings, versionCode 563002 and actual playback/recovery. Never uninstall to claim an upgrade. Return only signed APKs, final hashes, public verification and actual installation results. Release .2 once only after approval gates; no replacement of .1.
+          DOC
+          python3 "$out/verify_handoff.py" --handoff "$out"
+          (cd "$out" && sha256sum unsigned/*.apk PAYLOAD_SHA256.json verify_handoff.py BUILD_RESULT.txt media3-linkage.json README.md > SHA256SUMS && cat SHA256SUMS)
+          # Upload an allowlisted directory only; no test key or test-signed APK.
+          rm -rf "$out/__pycache__"
+          test "$(find "$out" -type f | wc -l)" -eq 8
+          test "$(find "$out" -type f -name '*.apk' | wc -l)" -eq 2
+      - name: Upload only unsigned signing handoff
+        uses: actions/upload-artifact@v7
+        with:
+          name: unsigned-frozen-563002-${{ github.run_id }}
+          path: build/work/current-main/signing-handoff/
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Clean test key and local APK outputs
+        if: always()
+        shell: bash
+        run: |
+          rm -f "$RUNNER_TEMP/fingmi-public-test.jks"
+          rm -rf app/build/outputs/apk build/work/current-main
+          echo 'NO RELEASE; only unsigned handoff artifact permitted; test key and all local APKs cleaned.'
