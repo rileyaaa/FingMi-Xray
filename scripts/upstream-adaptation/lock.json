@@ -818,7 +818,14 @@
       "tree": "70c01945120e5e1ec780d8f987d4aef1fbac671e",
       "coordinate": "androidx.media3:media3-common:1.11.0",
       "class": "androidx/media3/common/MediaItem.class",
-      "status": "source build candidate; customized public baseline only"
+      "status": "public source AAR built; customized public baseline only",
+      "verified_build": {
+        "run": 45588016507,
+        "job": 139114518166,
+        "workflow_commit": "18e099f25416635c4120522089cb48c554167d3d",
+        "size": 665440,
+        "sha256": "f835fd9dca0dd562e56430dc0861b468888dbb85301cff314753f1dcdd1fc186"
+      }
     },
     {
       "module": "lib-database",
@@ -826,7 +833,24 @@
       "tree": "4b17bde909283355be9b2258dae8faf3ffe425e8",
       "coordinate": "androidx.media3:media3-database:1.11.0",
       "class": "androidx/media3/database/StandaloneDatabaseProvider.class",
-      "status": "same complete official source tree; compare formal Google Maven API"
+      "status": "built from pinned public source; exact match to formal Google Maven AAR; full TV linkage pending",
+      "verified_build": {
+        "run": 45588016507,
+        "job": 139114518166,
+        "workflow_commit": "18e099f25416635c4120522089cb48c554167d3d",
+        "size": 7197,
+        "sha256": "520e6f814e42a7d428db187ac073b453c0fcba0f4f5f4edd1cf33fafd2cfb740"
+      },
+      "official_maven": {
+        "pom": {
+          "size": 1723,
+          "sha256": "951d795778085be496046b11743865f8c4f9e7c385ed163c38bcacb185177e5e"
+        },
+        "aar": {
+          "size": 7197,
+          "sha256": "520e6f814e42a7d428db187ac073b453c0fcba0f4f5f4edd1cf33fafd2cfb740"
+        }
+      }
     },
     {
       "module": "lib-datasource-okhttp",
@@ -834,7 +858,14 @@
       "tree": "dd2df6ce9ffc8987d04612c85941c9b5bec81a0f",
       "coordinate": "androidx.media3:media3-datasource-okhttp:1.11.0",
       "class": "androidx/media3/datasource/okhttp/OkHttpDataSource$Factory.class",
-      "status": "fork source candidate; do not replace with Google Maven implementation"
+      "status": "fork source AAR built; do not replace with Google Maven implementation",
+      "verified_build": {
+        "run": 45588016507,
+        "job": 139114518166,
+        "workflow_commit": "18e099f25416635c4120522089cb48c554167d3d",
+        "size": 9879,
+        "sha256": "67875d86e6339b75baf39c359b22da12ce1fce24f9d15b2144583c568bef742c"
+      }
     },
     {
       "module": "lib-exoplayer-rtsp",
@@ -842,7 +873,14 @@
       "tree": "1996f032d3e8622742ad124cf11a1369a8e20096",
       "coordinate": "androidx.media3:media3-exoplayer-rtsp:1.11.0",
       "class": "androidx/media3/exoplayer/rtsp/RtspMediaSource$Factory.class",
-      "status": "fork source candidate; verify socket factory API before Xray integration"
+      "status": "fork source AAR built; verify socket factory API before Xray integration",
+      "verified_build": {
+        "run": 45588016507,
+        "job": 139114518166,
+        "workflow_commit": "18e099f25416635c4120522089cb48c554167d3d",
+        "size": 165543,
+        "sha256": "4d9c19231d4a629c01ac601da1fbc452fea86fab87d0c709008cd307076d1952"
+      }
     }
   ]
 }

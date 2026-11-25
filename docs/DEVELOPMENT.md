@@ -1071,6 +1071,19 @@ JDK21 --release 17 实际编译六份固定候选 Java 文件（包含 PlaybackR
 
 AC [45588016507](https://github.com/rileyaaa/FingMi-Xray/actions/runs/45588016507) 固定 18e099f 的恢复 job 139114518780 成功：58 项移植/干净合并、39 项宿主冲突和 5 项旧媒体待审；19 项生命周期及 4 个变体、BaseLoader FIFO/交接/失败/销毁及两项变体通过，33 normalizer + 8 display 边界、6 Hysteria2 URI 片段回归、真实 Xray Java session lifecycle 与 11 项播放会话同步重入通过，5.9.0 Android tv-recovery assembleDebug / testDebugUnitTest BUILD SUCCESSFUL。该 AC 不包含本节较晚提交的 Live 移植；后者只获 JDK 证据，下一批统一验收已接入测试脚本。现有 Core 不变，旧分享 native 兼容仍须双 ABI 实测。
 
+### 12.8 公开 Media3 实际构建证据
+
+AC [45588016507](https://github.com/rileyaaa/FingMi-Xray/actions/runs/45588016507) 两项 job 均 success，固定 workflow commit 18e099f25416635c4120522089cb48c554167d3d。公开 Media3 job 139114518166 在 3m59s Gradle 构建成功，来源 FongMi/media 3c2cbe8ac742c2fe15eff52f03eeb3b1b648848d / tree b7a4d78a2168bd5065034d37a242b7e51785ea4e（Apache-2.0，许可证 SHA-256 cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30）。实际产物如下，已记入 lock.json 的 verified_build：
+
+| 模块 | bytes | SHA-256 |
+| --- | ---: | --- |
+| lib-common | 665440 | f835fd9dca0dd562e56430dc0861b468888dbb85301cff314753f1dcdd1fc186 |
+| lib-database | 7197 | 520e6f814e42a7d428db187ac073b453c0fcba0f4f5f4edd1cf33fafd2cfb740 |
+| lib-datasource-okhttp | 9879 | 67875d86e6339b75baf39c359b22da12ce1fce24f9d15b2144583c568bef742c |
+| lib-exoplayer-rtsp | 165543 | 4d9c19231d4a629c01ac601da1fbc452fea86fab87d0c709008cd307076d1952 |
+
+Google Maven 正式 media3-database:1.11.0 POM 1723 字节、SHA-256 951d795778085be496046b11743865f8c4f9e7c385ed163c38bcacb185177e5e；AAR 7197 字节与本次源码构建完整 SHA-256 一致，public API 对比通过。datasource-okhttp 的 Call.Factory 与 RTSP 的 setSocketFactory(javax.net.SocketFactory) 在真实重建 classes.jar 上通过 javap 检查。以上是一次已完成构建的实际摘要、不是第二次重建的一致性证明；未来验证必须对照固定来源、依赖及记录的 digest，发现不同则先调查，不静默换件。没有保留或上传 AAR、没有部署到 app/libs、没有完成完整播放器/JNI/native 或双 ABI APK。临时 workflow 已结束，移除本次一次性 push 文件，不删除 run；复现入口为固定 18e099f 的 workflow 内容和当前脚本，Live 新移植需下次独立批量验收，不冒称在该 AC 内已测试。
+
 ## 13. 冻结 5.6.3-xray.2 无正式密钥构建与离线签名交接
 
 本节只适用于用户明确授权的单一开发测试分支 `dev/fongmi-upstream-adaptation`。默认 `main` 固定为 `4a52de1daa465d81df7ac06e886a1f184053253c`，仓库实际为 public；正式版本基线、两项业务维护边界及历史黄金证据不变。5.9.0 适配和候选 Core 均未通过完整兼容门禁，不得将其输入用于本次冻结版。三条线的固定 Git 归档引用分别为 `archive/frozen-public-validation-97a23d8`、`archive/fongmi-upstream-adaptation-e3fec17`、`archive/xray-core-stable-eb03202`。归档 tag 不是正式 Release。正式签名及发布必须独立验收。
