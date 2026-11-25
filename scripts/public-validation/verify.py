@@ -40,7 +40,24 @@ def scope():
     s = (ROOT / L["validation_workflow"]).read_text()
     assert not re.search(r"contents:\s*write|actions:\s*write|secrets\.|upload-artifact|GH_TOKEN|gh release|scripts/build/(?:publish-current-release|resume-verified-release)\.py", s)
     g = (ROOT / "app/build.gradle").read_text()
-    assert "signing/release-signing.properties" not in g and "signingConfigs.release" not in g
+    # The ABI finalizer explicitly reads android.signingConfigs.release.
+    # Its name is a Gradle contract, not permission to use a formal key.
+    # Require the exact test-only definition, with no second storeFile.
+    assert """def testKeystorePath = System.getenv('FINGMI_TEST_KEYSTORE')
+if (!testKeystorePath || !file(testKeystorePath).isFile()) throw new GradleException('CI-only test keystore required')""" in g
+    assert """    signingConfigs {
+        release {
+            storeFile file(testKeystorePath)
+            storeType 'JKS'
+            keyAlias 'androiddebugkey'
+            keyPassword 'android'
+            storePassword 'android'
+        }
+    }""" in g
+    assert g.count("signingConfigs {") == 1 and g.count("storeFile") == 1
+    assert g.count("signingConfig = signingConfigs.release") == 2
+    assert "signingConfig = signingConfigs.debug" not in g
+    assert "signing/release-signing.properties" not in g and "releaseSigning" not in g
     assert 'versionName "v5.6.3-xray.2"' in g and "versionCode 563002" in g
     print("PASS frozen source scope:", len(blobs), "unchanged tracked blobs")
 
