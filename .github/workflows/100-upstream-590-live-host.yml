@@ -1,14 +1,14 @@
-name: "5.9.0 VOD activity and engine-owner gate (no APK)"
+name: "5.9.0 Live activity and pending owner gate (no APK)"
 on:
   push:
     branches: [dev/fongmi-upstream-adaptation]
-    paths: ['.github/workflows/99-upstream-590-vod-host.yml']
+    paths: ['.github/workflows/100-upstream-590-live-host.yml']
 permissions:
   contents: read
 jobs:
-  vod-host:
+  live-host:
     if: >-
-      github.repository == 'rileyaaa/FingMi-Xray' && github.ref == 'refs/heads/dev/fongmi-upstream-adaptation' && github.event.head_commit.message == 'ci: verify 5.9 VOD activity and engine owner once'
+      github.repository == 'rileyaaa/FingMi-Xray' && github.ref == 'refs/heads/dev/fongmi-upstream-adaptation' && github.event.head_commit.message == 'ci: verify 5.9 Live activity and pending owner once'
     runs-on: ubuntu-latest
     timeout-minutes: 12
     steps:
@@ -35,5 +35,5 @@ jobs:
         with:
           distribution: jetbrains
           java-version: '21'
-      - name: Verify actual VOD and engine-owner host methods
-        run: python3 fork/tests/test-upstream-vod-activity.py --old-tv inputs/old-tv --tv inputs/tv
+      - name: Verify actual Live activity and pending owner methods
+        run: python3 fork/tests/test-upstream-live-activity.py --old-tv inputs/old-tv --tv inputs/tv

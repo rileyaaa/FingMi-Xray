@@ -83,7 +83,8 @@
       "old": "3210c50f151be4aa613d3f39d0429e7c12884107",
       "fork": "58232c84b42a767a2235532c04bc6c80bc84650d",
       "target": "23900c3a0398d1a6aaafefa7a3f54e38b8d6066c",
-      "strategy": "three-way"
+      "strategy": "reviewed-live-host",
+      "resolved": "f636c8e185c1976e736af3d5249960ae70fd1cf4"
     },
     {
       "path": "app/src/leanback/java/com/fongmi/android/tv/ui/activity/PushActivity.java",
