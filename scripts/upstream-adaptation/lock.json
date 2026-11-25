@@ -59,7 +59,8 @@
       "old": "f9eb4bc353f23c1041a29529e841d0801f39fe3f",
       "fork": "51ecf68e51ef47cb02c0a68fba7f40c8a85fd940",
       "target": "53cdc92809208e084147872f845bf7f902371398",
-      "strategy": "three-way"
+      "strategy": "reviewed-media-host",
+      "resolved": "22bb69957139ce433f7f83c73ba232ee1cbf72f3"
     },
     {
       "path": "app/src/leanback/java/com/fingmi/integration/recovery/TvDlnaLifecycle.java",
@@ -138,7 +139,8 @@
       "old": "ee258c7f79b9a162564b93431ceb10862c2838a6",
       "fork": "89b4472b7b1ae60717fbad591cb8caf1176575f9",
       "target": "b4b526246d4c62f5bac5058a491f2c74fc2ca6fc",
-      "strategy": "three-way"
+      "strategy": "reviewed-media-host",
+      "resolved": "c95d58e72a0b58e388ce54309d7070fe56bc091c"
     },
     {
       "path": "app/src/leanback/res/layout/view_control_vod_action.xml",
@@ -152,21 +154,24 @@
       "old": "c031f9cb42fd6b1400db8c9c5f0a7becf2eb7ebf",
       "fork": "d99350ef201cce61fa1b94e19555ffed4c7b46c6",
       "target": "6592d9578fba98b7add3bba10e17c845b64d707c",
-      "strategy": "three-way"
+      "strategy": "reviewed-media-host",
+      "resolved": "260bae38ee0b89ece70072c2f9cabd2f67bec89f"
     },
     {
       "path": "app/src/leanback/res/values-zh-rTW/strings.xml",
       "old": "403a145b26c9f575473455253d976312f05447f8",
       "fork": "4473a04760b78f25298e4347ad541e79ac3f7873",
       "target": "05680325dc4fd4edecde06948d3434873169b543",
-      "strategy": "three-way"
+      "strategy": "reviewed-media-host",
+      "resolved": "59a116d004ec4141c5b721f9c83e0a90e8f40139"
     },
     {
       "path": "app/src/leanback/res/values/strings.xml",
       "old": "0345c309b8f7329d2f187847ea842d0d059091ab",
       "fork": "fe4007daf01948d1a7e13131f6d2ba70a7ab2efc",
       "target": "f9c57fe1470cfa2dc11dda961d200961e4f16158",
-      "strategy": "three-way"
+      "strategy": "reviewed-media-host",
+      "resolved": "69d28394bc53f11475f1527e7adf63381b307932"
     },
     {
       "path": "app/src/main/AndroidManifest.xml",
@@ -334,7 +339,8 @@
       "old": "cbc5c98ff3a30fd37eec1d71605ed303e0dbd7ee",
       "fork": "1fab1244f6bea636eb6430174b047f19a7398f99",
       "target": "8018783f5ee396567e87f47edeeb03c7c17f5a0a",
-      "strategy": "three-way"
+      "strategy": "reviewed-media-host",
+      "resolved": "f2ecdb06cfd29ac90ca03a36532e3207ca4dd25a"
     },
     {
       "path": "app/src/main/java/com/fongmi/android/tv/model/ViewModelTaskRunner.java",
@@ -442,7 +448,8 @@
       "old": "4b5b0e157f4accfb250ad378f87f0d50918e9c00",
       "fork": "36e0d5a2a1a4f309d1264f03e7ae2020ffac5b3d",
       "target": "6572ca9dfa32a087b85b03aa5049f97120f8b36b",
-      "strategy": "three-way"
+      "strategy": "reviewed-media-host",
+      "resolved": "60ec85c8db6b19a8a19154dec792139dbfa8a163"
     },
     {
       "path": "app/src/main/java/com/fongmi/android/tv/service/PlaybackService.java",
@@ -457,7 +464,8 @@
       "old": "80b367269cab4771f55170c1d4e67c838f7ce720",
       "fork": "4ad6a78e27362fc7a90036b4f384e67736a30cc0",
       "target": "3ed88dcf1bb9e06b86b09e07bff1065768ba996b",
-      "strategy": "three-way"
+      "strategy": "reviewed-media-host",
+      "resolved": "2e505691ab43c0076b904d4e8f6ca8026f8c94b4"
     },
     {
       "path": "app/src/main/java/com/fongmi/android/tv/ui/dialog/DanmakuSearchDialog.java",

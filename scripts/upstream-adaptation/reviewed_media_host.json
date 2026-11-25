@@ -619,5 +619,149 @@
         "    public static int searchDanmaku(OkHttpClient client, Result result, History history, Episode episode, BooleanSupplier isCurrent, Consumer<Danmaku> set, Consumer<Danmaku> add) {\n        if (!isCurrent.getAsBoolean()) return -1;\n        DanmakuApi.cancel();\n        if (!DanmakuApi.canSearch()) return -1;\n        if (VodConfig.get().getSite(result.getKey()).getDanmaku() == 0) return -1;\n        return DanmakuApi.search(client, history.getVodName(), episode.getName(), items -> {\n            if (!isCurrent.getAsBoolean()) return;\n            items.stream().findFirst().ifPresent(danmaku -> {\n                if (DanmakuSetting.isSpiderFirst() && !result.getDanmaku().isEmpty()) add.accept(danmaku);\n                else set.accept(danmaku);\n            });\n        }, error -> { }, null);\n    }\n\n    public static void searchDanmaku(Result result, History history, Episode episode, BooleanSupplier isCurrent, Consumer<Danmaku> set, Consumer<Danmaku> add) {"
       ]
     ]
+  },
+  "app/src/main/java/com/fongmi/android/tv/ui/activity/PlaybackActivity.java": {
+    "from": "target",
+    "base": "3ed88dcf1bb9e06b86b09e07bff1065768ba996b",
+    "resolved": "2e505691ab43c0076b904d4e8f6ca8026f8c94b4",
+    "edits": [
+      [
+        "    protected void onTracksChanged() {",
+        "    protected void onPlaybackUrlChanged(String url) { }\n\n    /** Retire the previous TV owner's Xray session before the next binding is installed. */\n    protected void onXrayBindingReplaced() { }\n\n    protected void onTracksChanged() {"
+      ],
+      [
+        "    private void onPlaybackReplaced() {\n        playbackReplaced = true;",
+        "    private void onPlaybackReplaced() {\n        playbackReplaced = true;\n        onXrayBindingReplaced();"
+      ],
+      [
+        "        playerView.setDiscMenuController(discMenu());\n        syncDanmakuSource();",
+        "        playerView.setDiscMenuController(discMenu());\n        updatePlaybackDanmakuClient();\n        syncDanmakuSource();"
+      ],
+      [
+        "        danmakuController.setOkHttpClient(OkHttp.player());",
+        "        updatePlaybackDanmakuClient();"
+      ],
+      [
+        "    private void syncDanmakuSource() {",
+        "    /** Clear both static and live sources on an explicit playback-owner transition. */\n    protected final void clearPlaybackDanmakuSource() {\n        setDanmakuSource(null);\n    }\n\n    protected final void updatePlaybackDanmakuClient() {\n        if (mService != null && player().isXrayPlaybackSuspended()) clearPlaybackDanmakuSource();\n        danmakuController.setOkHttpClient(mService == null\n                ? OkHttp.player() : player().getPlaybackHttpClient(OkHttp.player()));\n    }\n\n    private void syncDanmakuSource() {"
+      ],
+      [
+        "    private void setDanmakuSource(@Nullable Uri uri) {\n        boolean live",
+        "    private void setDanmakuSource(@Nullable Uri uri) {\n        if (mService != null && player().isXrayPlaybackSuspended()) uri = null;\n        boolean live"
+      ],
+      [
+        "        @Override\n        public void onPlayerRebuild(Player player) {",
+        "        @Override\n        public void onPlaybackUrlChanged(String url) {\n            if (isNativePlaybackOwner()) PlaybackActivity.this.onPlaybackUrlChanged(url);\n        }\n\n        @Override\n        public void onPlayerRebuild(Player player) {"
+      ]
+    ]
+  },
+  "app/src/main/java/com/fongmi/android/tv/model/VideoViewModel.java": {
+    "from": "target",
+    "base": "8018783f5ee396567e87f47edeeb03c7c17f5a0a",
+    "resolved": "f2ecdb06cfd29ac90ca03a36532e3207ca4dd25a",
+    "edits": [
+      [
+        "    @Override\n    public void cancelContent() {",
+        "    /** Cancel only VOD transition work; do not stop the ordinary search lane. */\n    public void cancelXrayTransitionRequests() {\n        requestTasks.cancel(TaskType.DETAIL);\n        requestTasks.cancel(TaskType.PLAYBACK);\n        requestTasks.cancel(TaskType.PRELOAD);\n    }\n\n    @Override\n    public void cancelContent() {"
+      ]
+    ]
+  },
+  "app/src/main/java/com/fongmi/android/tv/server/process/Action.java": {
+    "from": "target",
+    "base": "6572ca9dfa32a087b85b03aa5049f97120f8b36b",
+    "resolved": "60ec85c8db6b19a8a19154dec792139dbfa8a163",
+    "edits": [
+      [
+        "import com.fongmi.android.tv.event.CastEvent;",
+        "import com.fingmi.xray.config.XrayLiveAutoRules;\nimport com.fongmi.android.tv.event.CastEvent;\nimport com.fongmi.android.tv.event.XrayImportEvent;\nimport com.fongmi.android.tv.event.XrayLiveRulesEvent;"
+      ],
+      [
+        "        if (\"refresh\".equals(param)) return onRefresh(params);",
+        "        if (\"refresh\".equals(param)) return onRefresh(params);\n        if (\"xrayLiveRules\".equals(param)) return onXrayLiveRules(params);"
+      ],
+      [
+        "            case \"danmaku\" -> onDanmaku(params);",
+        "            case \"danmaku\" -> onDanmaku(params);\n            case \"xray\" -> onXray(params);"
+      ],
+      [
+        "    private void onSetting(Map<String, String> params) {",
+        "    private void onXray(Map<String, String> params) {\n        String link = params.get(\"link\");\n        if (TextUtils.isEmpty(link)) return;\n        XrayImportEvent.post(link.trim());\n    }\n\n    private Response onXrayLiveRules(Map<String, String> params) {\n        // The same LAN input channel as node import: only fill the open TV settings,\n        // never save or reveal existing rules/node credentials to the browser.\n        String groups = params.get(\"groups\");\n        String channels = params.get(\"channels\");\n        if (groups == null || channels == null\n                || groups.length() > XrayLiveAutoRules.MAX_LENGTH\n                || channels.length() > XrayLiveAutoRules.MAX_LENGTH) {\n            return Nano.error(Response.Status.BAD_REQUEST, \"Invalid live rule lists\");\n        }\n        if (!XrayLiveRulesEvent.post(groups, channels)) {\n            return Nano.error(Response.Status.BAD_REQUEST, \"TV settings did not confirm rule input\");\n        }\n        return Nano.ok();\n    }\n\n    private void onSetting(Map<String, String> params) {"
+      ]
+    ]
+  },
+  "app/src/leanback/res/values/strings.xml": {
+    "from": "target",
+    "base": "f9c57fe1470cfa2dc11dda961d200961e4f16158",
+    "resolved": "69d28394bc53f11475f1527e7adf63381b307932",
+    "edits": [
+      [
+        "<resources xmlns:xliff=\"http://schemas.android.com/apk/res-auto\">\n\n",
+        "<resources xmlns:xliff=\"http://schemas.android.com/apk/res-auto\">\n\n    <string name=\"app_name\">FongMi-Xray</string>\n\n"
+      ],
+      [
+        "</resources>",
+        "    <!-- Xray -->\n    <string name=\"xray_changed_retry\">Xray settings changed while the connection test was running. Test again.</string>\n    <string name=\"xray_delete\">Delete</string>\n    <string name=\"xray_deleted\">Xray configuration deleted</string>\n    <string name=\"xray_error\">Xray ERROR</string>\n    <string name=\"xray_link\">Share link</string>\n    <string name=\"xray_link_hint\">VLESS, VMess, Trojan, Shadowsocks or Hysteria 2 link</string>\n    <string name=\"xray_live_required\">Select a live channel before enabling Xray</string>\n    <string name=\"xray_not_configured\">Not configured</string>\n    <string name=\"xray_off\">Xray OFF</string>\n    <string name=\"xray_on\">Xray ON</string>\n    <string name=\"xray_phone_import\">Phone input</string>\n    <string name=\"xray_phone_received\">Xray link received. Review it and save on TV.</string>\n    <string name=\"xray_phone_scan_info\">Scan with your phone, enter a share link or live rules, and send them to TV\\n%s</string>\n    <string name=\"xray_public_http_required\">This live protocol cannot be fully proxied by Xray</string>\n    <string name=\"xray_save\">Save</string>\n    <string name=\"xray_saved\">Xray configuration saved</string>\n    <string name=\"xray_setting\">Xray setting</string>\n    <string name=\"xray_starting\">Xray starting</string>\n    <string name=\"xray_test\">Test connection</string>\n    <string name=\"xray_test_success\">Connected, %1$d ms</string>\n    <string name=\"xray_udp\">UDP</string>\n    <string name=\"xray_tls_fragment\">TLS fragmentation</string>\n    <string name=\"xray_tls_fragment_hint\">Try for slow connections or TLS handshake failures; applies to TLS over TCP.</string>\n    <string name=\"xray_live_auto_groups\">Auto-enable Xray for live groups</string>\n    <string name=\"xray_live_auto_groups_hint\">e.g. Overseas,Hong Kong</string>\n    <string name=\"xray_live_auto_channels\">Auto-enable Xray for live channels</string>\n    <string name=\"xray_live_auto_channels_hint\">e.g. Jade,ETTV Kids,ETTV*</string>\n    <string name=\"xray_live_auto_hint\">Either list can match. Separate names with commas; * matches any characters. Empty lists disable automatic Xray.</string>\n    <string name=\"xray_live_rules_received\">Live rules received. Review and save on TV.</string>\n    <string name=\"xray_vod_public_http_required\">This video protocol cannot be fully proxied by Xray</string>\n    <string name=\"xray_vod_required\">Start video playback before enabling Xray</string>\n\n</resources>"
+      ]
+    ]
+  },
+  "app/src/leanback/res/values-zh-rCN/strings.xml": {
+    "from": "target",
+    "base": "6592d9578fba98b7add3bba10e17c845b64d707c",
+    "resolved": "260bae38ee0b89ece70072c2f9cabd2f67bec89f",
+    "edits": [
+      [
+        "<resources xmlns:xliff=\"http://schemas.android.com/apk/res-auto\">\n\n",
+        "<resources xmlns:xliff=\"http://schemas.android.com/apk/res-auto\">\n\n    <string name=\"app_name\">FongMi-Xray</string>\n\n"
+      ],
+      [
+        "</resources>",
+        "    <!-- Xray -->\n    <string name=\"xray_changed_retry\">连接测试期间 Xray 设置已修改，请重新测试。</string>\n    <string name=\"xray_delete\">删除</string>\n    <string name=\"xray_deleted\">Xray 配置已删除</string>\n    <string name=\"xray_error\">Xray 错误</string>\n    <string name=\"xray_link\">分享链接</string>\n    <string name=\"xray_link_hint\">VLESS、VMess、Trojan、Shadowsocks 或 Hysteria 2 链接</string>\n    <string name=\"xray_live_required\">请先选择直播频道再开启 Xray</string>\n    <string name=\"xray_not_configured\">未配置</string>\n    <string name=\"xray_off\">Xray 关</string>\n    <string name=\"xray_on\">Xray 开</string>\n    <string name=\"xray_phone_import\">手机导入</string>\n    <string name=\"xray_phone_received\">已收到 Xray 链接，请确认后保存</string>\n    <string name=\"xray_phone_scan_info\">手机扫码后在浏览器填写 Xray 分享链接或直播规则并发送到电视\\n%s</string>\n    <string name=\"xray_public_http_required\">当前直播协议无法保证完整通过 Xray</string>\n    <string name=\"xray_save\">保存</string>\n    <string name=\"xray_saved\">Xray 配置已保存</string>\n    <string name=\"xray_setting\">Xray 设置</string>\n    <string name=\"xray_starting\">Xray 启动中</string>\n    <string name=\"xray_test\">测试连接</string>\n    <string name=\"xray_test_success\">连接成功，%1$d 毫秒</string>\n    <string name=\"xray_udp\">UDP</string>\n    <string name=\"xray_tls_fragment\">TLS 分片</string>\n    <string name=\"xray_tls_fragment_hint\">连接慢或 TLS 握手失败时可尝试；仅适用于 TCP 上的 TLS 连接。</string>\n    <string name=\"xray_live_auto_groups\">自动开启 Xray 的直播分组</string>\n    <string name=\"xray_live_auto_groups_hint\">例如：港澳台,海外</string>\n    <string name=\"xray_live_auto_channels\">自动开启 Xray 的直播频道</string>\n    <string name=\"xray_live_auto_channels_hint\">例如：翡翠台,东森幼幼台,东森*</string>\n    <string name=\"xray_live_auto_hint\">分组或频道任一命中即自动开启；逗号分隔，* 匹配任意字符。留空不自动开启。</string>\n    <string name=\"xray_live_rules_received\">已收到直播规则，请确认后保存</string>\n    <string name=\"xray_vod_public_http_required\">当前点播协议无法保证完整通过 Xray</string>\n    <string name=\"xray_vod_required\">请先开始点播播放再开启 Xray</string>\n\n</resources>"
+      ]
+    ]
+  },
+  "app/src/leanback/res/values-zh-rTW/strings.xml": {
+    "from": "target",
+    "base": "05680325dc4fd4edecde06948d3434873169b543",
+    "resolved": "59a116d004ec4141c5b721f9c83e0a90e8f40139",
+    "edits": [
+      [
+        "<resources xmlns:xliff=\"http://schemas.android.com/apk/res-auto\">\n\n",
+        "<resources xmlns:xliff=\"http://schemas.android.com/apk/res-auto\">\n\n    <string name=\"app_name\">FongMi-Xray</string>\n\n"
+      ],
+      [
+        "</resources>",
+        "    <!-- Xray -->\n    <string name=\"xray_changed_retry\">連線測試期間 Xray 設定已修改，請重新測試。</string>\n    <string name=\"xray_delete\">刪除</string>\n    <string name=\"xray_deleted\">Xray 設定已刪除</string>\n    <string name=\"xray_error\">Xray 錯誤</string>\n    <string name=\"xray_link\">分享連結</string>\n    <string name=\"xray_link_hint\">VLESS、VMess、Trojan、Shadowsocks 或 Hysteria 2 連結</string>\n    <string name=\"xray_live_required\">請先選擇直播頻道再開啟 Xray</string>\n    <string name=\"xray_not_configured\">未設定</string>\n    <string name=\"xray_off\">Xray 關</string>\n    <string name=\"xray_on\">Xray 開</string>\n    <string name=\"xray_phone_import\">手機匯入</string>\n    <string name=\"xray_phone_received\">已收到 Xray 連結，請確認後儲存</string>\n    <string name=\"xray_phone_scan_info\">手機掃碼後在瀏覽器填寫 Xray 分享連結或直播規則並傳送到電視\\n%s</string>\n    <string name=\"xray_public_http_required\">目前直播協議無法保證完整通過 Xray</string>\n    <string name=\"xray_save\">儲存</string>\n    <string name=\"xray_saved\">Xray 設定已儲存</string>\n    <string name=\"xray_setting\">Xray 設定</string>\n    <string name=\"xray_starting\">Xray 啟動中</string>\n    <string name=\"xray_test\">測試連線</string>\n    <string name=\"xray_test_success\">連線成功，%1$d 毫秒</string>\n    <string name=\"xray_udp\">UDP</string>\n    <string name=\"xray_tls_fragment\">TLS 分片</string>\n    <string name=\"xray_tls_fragment_hint\">連線緩慢或 TLS 交握失敗時可嘗試；僅適用於 TCP 上的 TLS 連線。</string>\n    <string name=\"xray_live_auto_groups\">自動開啟 Xray 的直播分組</string>\n    <string name=\"xray_live_auto_groups_hint\">例如：港澳台,海外</string>\n    <string name=\"xray_live_auto_channels\">自動開啟 Xray 的直播頻道</string>\n    <string name=\"xray_live_auto_channels_hint\">例如：翡翠台,東森幼幼台,東森*</string>\n    <string name=\"xray_live_auto_hint\">分組或頻道任一符合即自動開啟；逗號分隔，* 符合任意字元。留空不自動開啟。</string>\n    <string name=\"xray_live_rules_received\">已收到直播規則，請確認後儲存</string>\n    <string name=\"xray_vod_public_http_required\">目前點播協議無法保證完整通過 Xray</string>\n    <string name=\"xray_vod_required\">請先開始點播播放再開啟 Xray</string>\n\n</resources>"
+      ]
+    ]
+  },
+  "app/src/leanback/res/layout/view_control_live_action.xml": {
+    "from": "target",
+    "base": "b4b526246d4c62f5bac5058a491f2c74fc2ca6fc",
+    "resolved": "c95d58e72a0b58e388ce54309d7070fe56bc091c",
+    "edits": [
+      [
+        "        <com.google.android.material.textview.MaterialTextView\n            android:id=\"@+id/decoder\"",
+        "        <com.google.android.material.textview.MaterialTextView\n            android:id=\"@+id/xray\"\n            style=\"@style/Control\"\n            android:layout_marginEnd=\"8dp\"\n            android:text=\"@string/xray_off\" />\n\n        <com.google.android.material.textview.MaterialTextView\n            android:id=\"@+id/decoder\""
+      ]
+    ]
+  },
+  "app/src/leanback/AndroidManifest.xml": {
+    "from": "target",
+    "base": "53cdc92809208e084147872f845bf7f902371398",
+    "resolved": "22bb69957139ce433f7f83c73ba232ee1cbf72f3",
+    "edits": [
+      [
+        "    <uses-permission android:name=\"android.permission.RECEIVE_BOOT_COMPLETED\" />\n",
+        ""
+      ],
+      [
+        "        <service\n            android:name=\".service.DLNARendererService\"",
+        "        <activity\n            android:name=\".ui.activity.SettingXrayActivity\"\n            android:configChanges=\"screenSize|smallestScreenSize|screenLayout|orientation\"\n            android:screenOrientation=\"sensorLandscape\" />\n\n        <service\n            android:name=\".service.DLNARendererService\""
+      ],
+      [
+        "        <receiver\n            android:name=\".receiver.BootReceiver\"\n            android:exported=\"true\"\n            android:priority=\"999\">\n            <intent-filter>\n                <action android:name=\"android.intent.action.BOOT_COMPLETED\" />\n                <action android:name=\"android.intent.action.QUICKBOOT_POWERON\" />\n            </intent-filter>\n        </receiver>\n\n",
+        ""
+      ]
+    ]
   }
 }
