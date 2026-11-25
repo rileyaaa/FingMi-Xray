@@ -42,8 +42,8 @@ jobs:
           assert ref('heads/dev/fongmi-upstream-adaptation') == current
           assert ref('heads/dev/frozen-public-validation') == frozen
           change = api('/commits/'+current)
-          assert [p['sha'] for p in change['parents']] == ['bc4471aa60abc88df8f1ac6515e913dd90c56e5a']
-          expected = {'.github/workflows/01-当前源码编译与APK验证.yml','.github/workflows/04-frozen-signing-handoff.yml','.github/workflows/90-retire-frozen-validation.yml','docs/DEVELOPMENT.md','docs/AI_COLLABORATION.md','docs/PROJECT.md','docs/FROZEN_SIGNING_HANDOFF.md'}
+          assert [p['sha'] for p in change['parents']] == ['b29ac51490bf5b2215884ea45e724ef2314f7802']
+          expected = {'.github/workflows/90-retire-frozen-validation.yml'}
           assert {f['filename'] for f in change['files']} == expected
           assert ref('tags/archive/frozen-public-validation-97a23d8') == frozen
           assert ref('tags/archive/fongmi-upstream-adaptation-e3fec17') == 'e3fec1778a2eb652fa276b6b147a4d133ce2e5db'
@@ -55,15 +55,13 @@ jobs:
           a=api('/actions/artifacts/'+str(artifact_id))
           assert (a['id'],a['name'],a['expired'],a['size_in_bytes'],a['digest']) == (artifact_id,'unsigned-frozen-563002-45570721364',False,126799059,'sha256:35fbda2824f2770a5b63bba6134be62f7a95e15ded2e868c5e504c728a5a41d0')
           assert a['workflow_run']['id']==45570721364 and a['workflow_run']['head_sha']==handoff
-          tag='tags/archive/frozen-signing-handoff-4b3fa6f'
-          probe=subprocess.run(['gh','api',root+'/git/ref/'+tag],capture_output=True,text=True)
-          if probe.returncode == 0:
-              assert json.loads(probe.stdout)['object']['sha']==handoff
-          else:
-              assert 'HTTP 404' in probe.stderr
-              assert api('/git/refs','--method','POST','-f','ref=refs/'+tag,'-f','sha='+handoff)['object']['sha']==handoff
-          assert ref(tag)==handoff
-          print('PASS exact source archive, successful handoff workflow archive, and live unsigned artifact',artifact_id,a['digest'])
+          # The immutable handoff commit is retained in the surviving branch's ancestry.
+          # Do not request an unnecessary new tag: GitHub denied that operation (HTTP 403).
+          assert api('/git/commits/'+handoff)['tree']['sha']=='2f25798206a6a8d02f5d5a560d1a282ec0349eac'
+          comparison=api('/compare/'+handoff+'...'+current)
+          assert comparison['merge_base_commit']['sha']==handoff
+          assert comparison['behind_by']==0
+          print('PASS exact source archive, retained handoff commit, and live unsigned artifact',artifact_id,a['digest'])
           assert ref('heads/main')==main
           assert ref('heads/dev/fongmi-upstream-adaptation')==current
           assert ref('heads/dev/frozen-public-validation')==frozen
@@ -76,7 +74,7 @@ jobs:
           assert ref('heads/main')==main
           assert ref('heads/dev/fongmi-upstream-adaptation')==current
           assert ref('tags/archive/frozen-public-validation-97a23d8')==frozen
-          assert ref(tag)==handoff
+          assert api('/compare/'+handoff+'...'+current)['merge_base_commit']['sha']==handoff
           assert not api('/actions/artifacts/'+str(artifact_id))['expired']
           assert sorted(x['name'] for x in api('/branches?per_page=100'))==['dev/fongmi-upstream-adaptation','main']
           print('PASS exactly two branches; unsigned artifact retained; no build, signing or release')
