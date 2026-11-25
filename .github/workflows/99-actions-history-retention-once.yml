@@ -1,0 +1,95 @@
+name: Retain latest 20 Actions runs (one time)
+on:
+  push:
+    branches:
+      - dev/fongmi-upstream-adaptation
+    paths:
+      - .github/workflows/99-actions-history-retention-once.yml
+permissions:
+  actions: write
+jobs:
+  cleanup:
+    if: >-
+      github.repository == 'rileyaaa/FingMi-Xray' &&
+      github.ref == 'refs/heads/dev/fongmi-upstream-adaptation' &&
+      github.event.head_commit.message == 'ci: retain latest 20 Actions runs once'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Delete only allowlisted old completed runs and verify exact retention
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json
+          import os
+          import subprocess
+          import time
+          
+          CONFIG = json.loads("{\"repo\":\"rileyaaa/FingMi-Xray\",\"baseline_count\":37,\"keep\":[45659421691,45654771289,45654370576,45653208817,45648064823,45647615337,45641018729,45609610298,45609274767,45608824619,45599358297,45598129403,45596644795,45596534600,45594863690,45592463373,45592114369,45588016507,45575664234],\"remove\":[45573647259,45573557587,45570721364,45569613541,45547887003,45545853739,45545472828,45544415939,45412392420,45387025652,45383535795,45382172802,45373765415,45370220493,45354104839,45353616232,45353008522,45352485231],\"limit\":20}")
+          repo = CONFIG['repo']
+          if os.environ['GITHUB_REPOSITORY'] != repo:
+              raise SystemExit('STOP: unexpected repository')
+          self_id = int(os.environ['GITHUB_RUN_ID'])
+          keep = set(CONFIG['keep']) | {self_id}
+          remove = set(CONFIG['remove'])
+          
+          def api(path, method='GET'):
+              if method == 'DELETE':
+                  if path not in {'actions/runs/' + str(n) for n in remove}:
+                      raise SystemExit('STOP: attempted deletion outside fixed run allowlist')
+              result = subprocess.run(['gh', 'api', '--method', method, 'repos/' + repo + '/' + path],
+                                      text=True, capture_output=True)
+              if result.returncode:
+                  raise SystemExit('STOP: ' + method + ' ' + path + ': ' + result.stderr.strip())
+              return json.loads(result.stdout) if method == 'GET' else None
+          
+          def snapshot():
+              runs = []
+              total = None
+              for page in range(1, 1001):
+                  data = api('actions/runs?per_page=100&page=' + str(page))
+                  if total is None:
+                      total = data['total_count']
+                  if total != data['total_count']:
+                      raise SystemExit('STOP: run list changed during pagination')
+                  runs.extend(data['workflow_runs'])
+                  if len(runs) >= total or not data['workflow_runs']:
+                      break
+              if len(runs) != total or len({r['id'] for r in runs}) != total:
+                  raise SystemExit('STOP: incomplete or duplicated run listing')
+              return sorted(runs, key=lambda r: (r['created_at'], r['id']), reverse=True)
+          
+          before = snapshot()
+          before_ids = {r['id'] for r in before}
+          latest = {r['id'] for r in before[:CONFIG['limit']]}
+          if not keep <= before_ids or self_id not in latest or remove & latest or remove & keep:
+              raise SystemExit('STOP: expected recent runs or retention boundary changed')
+          if before_ids != keep | remove:
+              raise SystemExit('STOP: concurrent new/deleted run; no deletions performed')
+          targets = [r for r in reversed(before) if r['id'] in remove]
+          if len(targets) != len(remove) or any(r['status'] != 'completed' for r in targets):
+              raise SystemExit('STOP: a target is missing or still active; no deletions performed')
+          print(f'Before={len(before)}; retain={len(keep)}; delete={len(targets)}', flush=True)
+          print('Protected run IDs: ' + ','.join(map(str, sorted(keep, reverse=True))), flush=True)
+          deleted = []
+          for row in targets:
+              rid = row['id']
+              current = api('actions/runs/' + str(rid))
+              if current['id'] != rid or current['status'] != 'completed' or current['created_at'] != row['created_at']:
+                  raise SystemExit('STOP: target became active or changed: ' + str(rid))
+              api('actions/runs/' + str(rid), 'DELETE')
+              deleted.append(rid)
+              print('Deleted completed run ' + str(rid), flush=True)
+              time.sleep(1)
+          after = snapshot()
+          after_ids = {r['id'] for r in after}
+          if remove & after_ids or not keep <= after_ids:
+              raise SystemExit('STOP: retention verification failed')
+          if len(after) != CONFIG['limit'] or after_ids != keep:
+              raise SystemExit('STOP: concurrent new run changed final count: ' + str(len(after)))
+          print(f'PASS: deleted {len(deleted)} old completed runs; exactly {len(after)} latest runs retained (including this cleanup)', flush=True)
+          print('Remaining run IDs: ' + ','.join(str(r['id']) for r in after), flush=True)
+          PY
