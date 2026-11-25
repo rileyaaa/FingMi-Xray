@@ -1146,6 +1146,12 @@ FFmpeg 公开 consumer manifest ec9f8c76 锁定历史 producer FongMi/mpv-androi
 
 Actions `45609274767` / job `139188254192` (`1feed2d`) 仅执行 native 重验；ARMv7 4,847,928 bytes SHA-256 `e9fcbbb89307ba99bbccd56e28d353ebf02f34ca9d66689e5dd18b1c8fd33b5a`，ARM64 6,152,872 bytes SHA-256 `581451b75ce718d4aae0239fbca21379bb47e1384cd29474f0cc88ef50f5c23d`。两个 ABI 都通过 16 个 JNI 方法、JNI_OnLoad、3 个 PT_LOAD 段与 16 KB 对齐、动态依赖及无 RPATH/RUNPATH/TEXTREL 检查。结果写入来源锁；没有归档或发布二进制，没有宣称完整 AAR 或 5.9.0 播放器/应用可用。
 
+### 12. 本批最终验收记录
+
+- Actions `45609610298` / job `139189413876` (`0651c07`) success：两个搜索窗口实际候选源方法 16 断言与 generation 负向控制通过（确定性 UI/API 边界，非 Android UI 链接）。候选统计 71 transferred/clean merge、29 unresolved、5 old-media-review；上游未触碰范围校验通过。
+- 本批仅新增宿主、侧请求、MPEG-H 双 ABI 源码编译/ELF/JNI 证据；未原样重复 45596644795 或此前 14 个公开 AAR 构建。FFmpeg 消费端来源锁已取得精确 producer/commit/ABI 摘要，但旧 run/artifacts API 404，没有拿到匹配的制品。完整 MPV、FFmpeg、Libass、ISO/CMG 等定制合同、Activity 与播放器全量链接、真机待机/解码/回放仍待完成。稳定 Xray Core 仍保留已验证的现有版本，未绕过旧分享导入与配置兼容门禁。
+- 本批三次验收均已结束，删除自己的 94 临时 workflow；不修改冻结版发版、签名、主线或其他会话的工作流。不把局部通过标记为 5.9.0 双 ABI APK 可交付。
+
 ## 13. 冻结 5.6.3-xray.2 无正式密钥构建与离线签名交接
 
 本节只适用于用户明确授权的单一开发测试分支 `dev/fongmi-upstream-adaptation`。默认 `main` 固定为 `4a52de1daa465d81df7ac06e886a1f184053253c`，仓库实际为 public；正式版本基线、两项业务维护边界及历史黄金证据不变。5.9.0 适配和候选 Core 均未通过完整兼容门禁，不得将其输入用于本次冻结版。三条线的固定 Git 归档引用分别为 `archive/frozen-public-validation-97a23d8`、`archive/fongmi-upstream-adaptation-e3fec17`、`archive/xray-core-stable-eb03202`。归档 tag 不是正式 Release。正式签名及发布必须独立验收。
