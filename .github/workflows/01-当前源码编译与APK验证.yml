@@ -1,395 +1,103 @@
-name: "01｜当前源码编译与 APK 验证"
-
+name: "FongMi 5.9.0 public source adaptation (no release)"
 on:
-  workflow_dispatch:
-
+  push:
+    branches: [dev/fongmi-upstream-adaptation]
+    paths:
+      - '.github/workflows/01-当前源码编译与APK验证.yml'
+      - 'scripts/upstream-adaptation/**'
+      - 'xray/**'
+      - 'libxray/**'
+      - 'tv-recovery/**'
+      - 'app/src/**'
+      - 'catvod/src/**'
+      - 'tests/**'
 permissions:
   contents: read
-  actions: write
-
 jobs:
-  build:
-    name: "只构建与验证，不发布"
+  source-stage:
+    name: "Actual upstream candidate overlay and dependency gate"
     runs-on: ubuntu-latest
-    timeout-minutes: 100
-
-    env:
-      OLD_V7_SHA256: "cacc7a90ce082adf955fc80a444b54f8cc86d5b5c3ac7acb13d1392b59928bda"
-      OLD_V8_SHA256: "b5ac05193c1e19809fc7ffb3048f7d75aaa2124eace9953d669f4a81a477c21d"
-      MEDIA3_CONTAINER_SHA256: "930fca2f018f06f1d08c12599f8c97f31eddbd728edee5de06eb53a882f8fc54"
-      LIBASS_CANDIDATE_SHA256: "f047f8ad84be08aeddb0672500e9b263cafd6f2a009812392554dc55b2019861"
-      JADX_VERSION: "1.5.6"
-      JADX_SHA256: "545ea2be9c242511bc145755cf4bda2485ade42966e096f8b4d3da2a230e8974"
-      BUILD_SOURCE_SHA: ${{ github.sha }}
-
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v7
         with:
-          ref: ${{ env.BUILD_SOURCE_SHA }}
-
+          path: fork
+          fetch-depth: 1
+          persist-credentials: false
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.10'
+      - uses: actions/checkout@v7
+        with:
+          repository: FongMi/TV
+          ref: c616c0aa3613e87529791587a9f71b78c278c991
+          path: inputs/old-tv
+          fetch-depth: 1
+          persist-credentials: false
+      - uses: actions/checkout@v7
+        with:
+          repository: FongMi/TV
+          ref: d3a0b84b24cf6628d72a4dbc2be453875b005536
+          path: inputs/tv
+          fetch-depth: 1
+          persist-credentials: false
+      - uses: actions/checkout@v7
+        with:
+          repository: FongMi/media
+          ref: 3c2cbe8ac742c2fe15eff52f03eeb3b1b648848d
+          path: inputs/media
+          fetch-depth: 1
+          persist-credentials: false
+      - uses: actions/checkout@v7
+        with:
+          repository: FongMi/media
+          ref: 2bc207851df311340767e913931ca7b28cab1794
+          path: inputs/media-default
+          fetch-depth: 1
+          persist-credentials: false
+      - name: Materialize pinned 5.9.0 and apply explicit fork deltas
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REF" = refs/heads/dev/fongmi-upstream-adaptation
+          test ! -e fork/signing
+          python3 fork/scripts/upstream-adaptation/prepare_candidate.py --old-tv inputs/old-tv --tv inputs/tv --media inputs/media --media-default inputs/media-default
+  independent-libraries:
+    name: "Rebuild official Java wrappers and recovery library"
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          path: fork
+          fetch-depth: 1
+          persist-credentials: false
+      - uses: actions/checkout@v7
+        with:
+          repository: FongMi/TV
+          ref: d3a0b84b24cf6628d72a4dbc2be453875b005536
+          path: inputs/tv
+          fetch-depth: 1
+          persist-credentials: false
       - uses: actions/setup-java@v6
         with:
           distribution: jetbrains
-          java-version: "21"
-
+          java-version: '21'
       - uses: actions/setup-python@v7
         with:
-          python-version: "3.10"
-
-      - name: 运行项目源码检查
+          python-version: '3.10'
+      - name: Prepare official Android SDK
         shell: bash
         run: |
           set -euo pipefail
-          python3 tests/test-xray-android-runtime-compat.py
-          python3 tests/test-xray-core-parity.py
-          python3 tests/test-xray-playback-parity.py
-          python3 tests/test-xray-playback-address-parity.py
-          python3 tests/test-xray-session-races.py
-          python3 tests/test-xray-service-client-lifecycle.py
-          python3 tests/test-xray-normalizer-parity.py
-          python3 tests/test-xray-transport-security-parity.py
-          python3 tests/test-xray-tls-fragment.py --workdir build/work/xray-tls-fragment
-          python3 tests/test-upstream-update-disabled.py
-          python3 scripts/build/check-elf-runtime.py --self-test
-          python3 scripts/build/check-final-apk-native.py --self-test
-          python3 scripts/build/check-final-apk-manifest.py --self-test
-          python3 tests/test-build-hygiene.py
-          python3 tests/test-resolve-release-tag.py
-          python3 tests/test-release-publication.py
-          python3 tests/test-resume-verified-release.py
-          python3 tests/test-media3-dex-linkage.py
-          python3 tests/test-player-candidate-linkage.py
-          python3 tests/test-libass-native-input.py
-          python3 tests/test-tv-network-recovery.py
-          python3 tests/test-xray-rtsp-socket-guard.py
-          python3 tests/test-xray-playback-session-reentry.py
-          python3 tests/test-xray-playback-binding-handoff.py
-          python3 tests/test-xray-side-request-lifecycle.py
-          python3 tests/test-xray-artwork-loader.py
-          python3 tests/test-tv-network-recovery-reentry.py
-
-      - name: 准备 Android SDK 36 与 37
-        shell: bash
-        run: |
-          set -euo pipefail
+          test "$GITHUB_REF" = refs/heads/dev/fongmi-upstream-adaptation
+          test ! -e fork/signing
           sdk_root="${ANDROID_HOME:-/usr/local/lib/android/sdk}"
           sdkmanager="$sdk_root/cmdline-tools/latest/bin/sdkmanager"
-          test -x "$sdkmanager"
           yes | "$sdkmanager" --licenses >/dev/null 2>&1 || true
-          "$sdkmanager" --channel=3 --install 'platforms;android-36' 'build-tools;36.0.0' 'platforms;android-37.0' 'build-tools;37.0.0'
-
-      - name: 检查上游 Gradle 工具链
+          "$sdkmanager" --channel=3 --install 'platforms;android-37.0' 'build-tools;37.0.0'
+      - name: Compile independent public libraries and verify wrapper API
         shell: bash
         run: |
           set -euo pipefail
-          bash gradlew --no-daemon -Porg.gradle.java.installations.auto-download=false \
-            help --stacktrace --warning-mode all
-
-      - name: 检查项目固定签名配置
-        shell: bash
-        run: |
-          set -euo pipefail
-          python3 scripts/build/check-release-signing.py
-
-      - name: 重建并校验固定播放器及原生依赖
-        shell: bash
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          set -euo pipefail
-          mkdir -p build/work/current-main/input build/work/current-main/restored
-
-          # Keep a published fork APK as a native container until replacement is verified.
-          # Snapshot the newest eligible version, independent of Latest/prerelease labels; verify both SO pins.
-          python3 scripts/build/libass_native_input.py \
-            --fetch-retained "$GITHUB_REPOSITORY" \
-            --output-dir build/work/current-main/input \
-            --report build/work/current-main/libass-native-input.json
-
-          bash scripts/build/build-player-aar-candidate.sh \
-            --workdir build/work/current-main/player-source \
-            --output build/work/current-main/input/player-candidate.zip
-
-          gh release download v5.6.0-xray.5             --repo rileyaaa/FingMi-Xray             --pattern 'FongMi-Xray-TV-v5.6.0-xray.5-armeabi-v7a.apk'             --pattern 'FongMi-Xray-TV-v5.6.0-xray.5-arm64-v8a.apk'             --dir build/work/current-main/input
-          mv build/work/current-main/input/FongMi-Xray-TV-v5.6.0-xray.5-armeabi-v7a.apk             build/work/current-main/input/published-v560-v7.apk
-          mv build/work/current-main/input/FongMi-Xray-TV-v5.6.0-xray.5-arm64-v8a.apk             build/work/current-main/input/published-v560-v8.apk
-
-
-          curl -fL --retry 3             'https://dl.google.com/dl/android/maven2/androidx/media3/media3-container/1.11.0/media3-container-1.11.0.aar'             -o build/work/current-main/input/media3-container-1.11.0.aar
-
-          curl -fL --retry 3 --retry-delay 2             "https://github.com/skylot/jadx/releases/download/v${JADX_VERSION}/jadx-${JADX_VERSION}.zip"             -o build/work/current-main/input/jadx.zip
-
-          printf '%s  %s\n'             "$OLD_V7_SHA256" build/work/current-main/input/published-v560-v7.apk             "$OLD_V8_SHA256" build/work/current-main/input/published-v560-v8.apk             "$MEDIA3_CONTAINER_SHA256" build/work/current-main/input/media3-container-1.11.0.aar             "$JADX_SHA256" build/work/current-main/input/jadx.zip             | sha256sum -c -
-
-          mkdir -p build/work/current-main/tools/jadx
-          unzip -q build/work/current-main/input/jadx.zip -d build/work/current-main/tools/jadx
-          chmod +x build/work/current-main/tools/jadx/bin/jadx
-
-      - name: 准备公开播放器与 Xray 原生依赖
-        shell: bash
-        run: |
-          set -euo pipefail
-          python3 scripts/build/import-player-aar-candidate.py             build/work/current-main/input/player-candidate.zip
-
-          bash scripts/recovery/fetch-libxray.sh
-          sdk_root="${ANDROID_HOME:-/usr/local/lib/android/sdk}"
-          python3 scripts/build/build-published-libxray-aar.py             --official-aar libxray/libs/libXray.aar             --v7-apk build/work/current-main/input/published-v560-v7.apk             --v8-apk build/work/current-main/input/published-v560-v8.apk             --jadx build/work/current-main/tools/jadx/bin/jadx             --android-jar "$sdk_root/platforms/android-37.0/android.jar"             --work-dir build/work/current-main/libxray-bindings             --to build/work/current-main/restored/libXray.aar
-
-          cp build/work/current-main/restored/libXray.aar libxray/libs/libXray.aar
-
-      - name: 对照已发布 v7 与 arm64 原生库验证 Xray
-        shell: bash
-        run: |
-          set -euo pipefail
-          work="build/work/current-main/xray-native-chain"
-          mkdir -p "$work"
-
-          unzip -p build/work/current-main/input/published-v560-v7.apk \
-            lib/armeabi-v7a/libgojni.so > "$work/published-v7-libgojni.so"
-          unzip -p build/work/current-main/input/published-v560-v8.apk \
-            lib/arm64-v8a/libgojni.so > "$work/published-arm64-libgojni.so"
-          printf '%s  %s\n%s  %s\n' \
-            "6f01f219fe4087790cd8e647394de9dbefc61e0d750d927924b93f120b06fb7e" "$work/published-v7-libgojni.so" \
-            "40b08a399871973ba6ad5898ca7097961337d7aeddb4b3378b153a66679eeece" "$work/published-arm64-libgojni.so" \
-            | sha256sum -c -
-
-          python3 scripts/recovery/prepare-native-converter-harness.py \
-            --workdir "$work/v7-harness" \
-            --jni "$work/published-v7-libgojni.so"
-
-          python3 tests/test-current-native-share-chain.py \
-            --abi armeabi-v7a \
-            --workdir "$work/test" \
-            --jni "$work/published-v7-libgojni.so" \
-            --bridge "$work/v7-harness/invoke-bridge" \
-            --qemu "$work/v7-harness/qemu/usr/bin/qemu-arm-static" \
-            --android-root "$work/v7-harness/android/root"
-
-          # The verified v7 runtime is no longer needed by the arm64 test.
-          du -sh "$work/v7-harness"
-          rm -rf "$work/v7-harness"
-          df -h .
-
-          python3 scripts/recovery/prepare-native-converter-harness.py \
-            --abi arm64-v8a \
-            --workdir "$work/arm64-harness" \
-            --jni "$work/published-arm64-libgojni.so"
-
-          python3 tests/test-current-native-share-chain.py \
-            --abi arm64-v8a \
-            --workdir "$work/test" \
-            --jni "$work/published-arm64-libgojni.so" \
-            --bridge "$work/arm64-harness/invoke-bridge" \
-            --qemu "$work/arm64-harness/qemu/usr/bin/qemu-aarch64-static" \
-            --android-root "$work/arm64-harness/android/root"
-
-          du -sh "$work/arm64-harness"
-          rm -rf "$work/arm64-harness"
-          df -h .
-
-      - name: Libass 前清理已验证的 Xray 临时文件
-        shell: bash
-        run: |
-          set -euo pipefail
-          work="build/work/current-main"
-          du -sh "$work"
-          # Both ABI checks passed. Keep the player/container/Libass APK inputs,
-          # imported AARs and build caches; only retire consumed Xray scratch.
-          rm -rf \
-            "$work/tools" \
-            "$work/restored" \
-            "$work/libxray-bindings" \
-            "$work/xray-native-chain"
-          rm -f \
-            "$work/input/published-v560-v7.apk" \
-            "$work/input/published-v560-v8.apk" \
-            "$work/input/jadx.zip"
-          df -h .
-
-      - name: 重建并导入 Libass 兼容组件
-        shell: bash
-        run: |
-          set -euo pipefail
-          work="build/work/current-main"
-          mvn -B dependency:get -Dartifact=org.robolectric:android-all:15-robolectric-12650502
-          mvn -B dependency:get -Dartifact=com.google.guava:guava:33.3.1-android
-          mvn -B dependency:get -Dartifact=androidx.annotation:annotation-jvm:1.9.1 -DremoteRepositories=google::default::https://dl.google.com/dl/android/maven2
-
-          python3 scripts/build/build-libass-extractor.py             --candidate "$work/input/player-candidate.zip"             --workdir "$work/extractor"             --container "$work/input/media3-container-1.11.0.aar"             --maven "$(command -v mvn)"
-
-          android_all="$HOME/.m2/repository/org/robolectric/android-all/15-robolectric-12650502/android-all-15-robolectric-12650502.jar"
-          test -s "$android_all"
-
-          python3 scripts/build/build-libass-candidate.py             --native-source retained-release             --candidate "$work/input/player-candidate.zip"             --extractor "$work/extractor/lib-extractor-libass-release.aar"             --container "$work/input/media3-container-1.11.0.aar"             --v7-apk "$work/input/libass-source-v7.apk"             --v8-apk "$work/input/libass-source-v8.apk"             --android-jar "$android_all"             --output "$work/lib-exoplayer-libass-reconstructed.aar"
-
-          echo "$LIBASS_CANDIDATE_SHA256  $work/lib-exoplayer-libass-reconstructed.aar" | sha256sum -c -
-          python3 scripts/build/check-libass-contract.py --aar "$work/lib-exoplayer-libass-reconstructed.aar"
-
-          python3 scripts/build/import-libass-candidate.py             --aar "$work/lib-exoplayer-libass-reconstructed.aar"             --extractor "$work/extractor/lib-extractor-libass-release.aar"             --container "$work/input/media3-container-1.11.0.aar"
-
-          # Reclaim remaining verified Libass scratch before Gradle compile/assemble.
-          # Xray runtime images and reconstruction tools were already retired above.
-          rm -rf \
-            "$work/input" \
-            "$work/extractor"
-          rm -f \
-            "$work/lib-exoplayer-libass-reconstructed.aar" \
-            "$work/lib-exoplayer-libass-reconstructed.json"
-          mkdir -p "$work"
-          df -h .
-
-      - name: 验证播放器组件启动
-        shell: bash
-        run: |
-          set -euo pipefail
-          python3 tests/test-player-startup.py \
-            --libs app/libs --workdir build/work/current-main/player-startup \
-            --maven "$(command -v mvn)" --local-repository "$HOME/.m2/repository"
-          # The test jars and Android sandbox reports are no longer needed on success.
-          rm -rf build/work/current-main/player-startup
-
-      - name: 验证 Xray 图片加载生命周期
-        shell: bash
-        run: |
-          set -euo pipefail
-          python3 tests/test-xray-artwork-lifecycle.py \
-            --workdir build/work/current-main/artwork-lifecycle \
-            --maven "$(command -v mvn)" --local-repository "$HOME/.m2/repository"
-          # Retain only failure evidence; resolved jars are disposable test inputs.
-          rm -rf build/work/current-main/artwork-lifecycle
-
-      - name: 验证代理主机名崩溃回归
-        shell: bash
-        run: |
-          set -euo pipefail
-          bash gradlew --no-daemon :catvod:testDebugUnitTest --stacktrace --warning-mode all
-
-      - name: 编译当前 Leanback 源码
-        shell: bash
-        run: |
-          set -euo pipefail
-          chmod +x gradlew
-          ./gradlew --no-daemon :xray:testDebugUnitTest :tv-recovery:testDebugUnitTest :app:compileLeanbackReleaseJavaWithJavac --stacktrace --warning-mode all
-
-      - name: 打包 Android TV Release APK
-        shell: bash
-        run: |
-          set -euo pipefail
-          ./gradlew --no-daemon :app:assembleLeanbackRelease --stacktrace --warning-mode all
-
-      - name: 校验最终 APK 中的 MPEG-H
-        shell: bash
-        run: |
-          set -euo pipefail
-          for abi in armeabi-v7a arm64-v8a; do
-            apk="$(find app/build/outputs/apk/leanback -type f -name "leanback-${abi//-/_}.apk" -print -quit)"
-            test -n "$apk"
-            test -s "$apk"
-            entry="lib/${abi}/libmpeghJNI.so"
-            unzip -Z1 "$apk" | grep -Fx "$entry"
-            size="$(unzip -p "$apk" "$entry" | wc -c)"
-            test "$size" -gt 100000
-            unzip -p "$apk" 'classes*.dex' | strings | grep -F 'Landroidx/media3/decoder/mpegh/MpeghAudioRenderer;' >/dev/null
-            echo "PASS MPEG-H ${abi}: ${size} bytes in $apk"
-          done
-
-      - name: 校验最终 APK 中的原生运行库
-        shell: bash
-        run: |
-          set -euo pipefail
-          python3 scripts/build/check-final-apk-native.py \
-            --apk-dir app/build/outputs/apk/leanback --build-type release
-
-      - name: 验证最终 Media3 DEX 依赖
-        shell: bash
-        run: |
-          set -euo pipefail
-          mapfile -t apks < <(
-            find app/build/outputs/apk/leanback -type f -name 'leanback-*.apk' -print | sort
-          )
-          test "${#apks[@]}" -eq 2
-          python3 scripts/build/check-final-apk-media3.py \
-            --apk "${apks[0]}" --apk "${apks[1]}" \
-            --report build/work/current-main/media3-linkage.json
-
-      - name: 验证最终 Leanback Manifest 安全约束
-        shell: bash
-        run: |
-          set -euo pipefail
-          sdk_root="${ANDROID_HOME:-/usr/local/lib/android/sdk}"
-          apkanalyzer="$sdk_root/cmdline-tools/latest/bin/apkanalyzer"
-          test -x "$apkanalyzer"
-          mapfile -t apks < <(
-            find app/build/outputs/apk/leanback -type f -name 'leanback-*.apk' -print | sort
-          )
-          test "${#apks[@]}" -eq 2
-          for apk in "${apks[@]}"; do
-            test -s "$apk"
-            python3 scripts/build/check-final-apk-manifest.py \
-              --apkanalyzer "$apkanalyzer" \
-              --apk "$apk"
-            python3 scripts/build/check-release-signing.py --sdk "$sdk_root" --apk "$apk"
-          done
-      - name: 记录构建输入与输出
-        if: success()
-        shell: bash
-        run: |
-          set -euo pipefail
-          {
-            echo "commit=$GITHUB_SHA"
-            java -version 2>&1 | head -n 1
-            ./gradlew --version | sed -n '1,12p'
-            echo "libass_candidate_sha256=$LIBASS_CANDIDATE_SHA256"
-            find app/build/outputs/apk/leanback -type f -name '*.apk' -print0 | sort -z | xargs -0 sha256sum
-          } | tee build/work/current-main/BUILD_RESULT.txt
-
-      - name: 上传当前源码构建的 APK
-        if: success()
-        uses: actions/upload-artifact@v7
-        with:
-          name: fingmi-xray-current-main-release
-          path: |
-            app/build/outputs/apk/leanback/release/**/*.apk
-            build/work/current-main/BUILD_RESULT.txt
-            build/reports/problems/problems-report.html
-          if-no-files-found: error
-          retention-days: 2
-          compression-level: 0
-
-      - name: 清理过期的同名构建产物
-        if: success()
-        shell: bash
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          set -euo pipefail
-          mapfile -t stale_ids < <(
-            gh api "repos/${GITHUB_REPOSITORY}/actions/artifacts?per_page=100"               --jq '.artifacts
-                    | map(select(.name == "fingmi-xray-current-main-release"))
-                    | sort_by(.id)
-                    | reverse
-                    | .[1:][]
-                    | .id'
-          )
-          for id in "${stale_ids[@]}"; do
-            gh api --method DELETE "repos/${GITHUB_REPOSITORY}/actions/artifacts/$id"
-            echo "DELETE superseded release artifact $id"
-          done
-
-      - name: 失败时上传构建报告
-        if: failure()
-        uses: actions/upload-artifact@v7
-        with:
-          name: fingmi-xray-build-failure-reports
-          path: |
-            app/build/reports/
-            **/build/reports/
-            build/work/current-main/extractor/target/surefire-reports/
-            build/work/current-main/libass-native-input.json
-            build/work/current-main/media3-linkage.json
-            build/work/current-main/player-startup/target/surefire-reports/
-            build/work/current-main/artwork-lifecycle/target/surefire-reports/
-            build/work/current-main/artwork-lifecycle/input-sha256.json
-            catvod/build/test-results/
-          if-no-files-found: ignore
-          retention-days: 1
+          python3 fork/scripts/upstream-adaptation/rebuild_public_wrappers.py inputs/tv

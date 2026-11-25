@@ -1,0 +1,795 @@
+{
+  "schema": 1,
+  "frozen_main": "4a52de1daa465d81df7ac06e886a1f184053253c",
+  "frozen_tree": "bbba85e3756c2a2ddba05c5b5bfd402052c3d588",
+  "upstream": {
+    "old_tv": {
+      "repo": "FongMi/TV",
+      "ref": "c616c0aa3613e87529791587a9f71b78c278c991",
+      "tree": "8aa6eebcf6bdf320841ef1158f0434faabc7a61f",
+      "license": "GPL-3.0",
+      "version": "5.6.3"
+    },
+    "tv": {
+      "repo": "FongMi/TV",
+      "ref": "d3a0b84b24cf6628d72a4dbc2be453875b005536",
+      "tree": "82953e314d3009f039bb220db05ca537e0eadc92",
+      "license": "GPL-3.0",
+      "version": "5.9.0"
+    },
+    "media": {
+      "repo": "FongMi/media",
+      "ref": "3c2cbe8ac742c2fe15eff52f03eeb3b1b648848d",
+      "tree": "b7a4d78a2168bd5065034d37a242b7e51785ea4e",
+      "license": "Apache-2.0",
+      "branch": "release-1.11.0-fongmi"
+    },
+    "media_default": {
+      "repo": "FongMi/media",
+      "ref": "2bc207851df311340767e913931ca7b28cab1794",
+      "tree": "246fb170134edf5a7b5f8a2ca6f4f8bc81903383",
+      "license": "Apache-2.0",
+      "branch": "release"
+    }
+  },
+  "fork_scope": [
+    {
+      "path": "app/build.gradle",
+      "old": "58c2b58dbb50340e3e480225fa22117f833b3011",
+      "fork": "2d3e19cbd41ad4fadbc039c9daa22534d1883b96",
+      "target": "4db9cae3dcf725ee039bcfe8307dd320039d2f83",
+      "strategy": "gradle-wiring"
+    },
+    {
+      "path": "app/proguard-rules.pro",
+      "old": "3b08c31057caca10ebcbec20164390944c5c90cb",
+      "fork": "8ee323b10197a8775e98af9de20f9a1dd0c5f5d1",
+      "target": "c98268fe00a411e5a759f5cb7e92cdc00822819f",
+      "strategy": "three-way"
+    },
+    {
+      "path": "app/src/leanback/AndroidManifest.xml",
+      "old": "f9eb4bc353f23c1041a29529e841d0801f39fe3f",
+      "fork": "51ecf68e51ef47cb02c0a68fba7f40c8a85fd940",
+      "target": "53cdc92809208e084147872f845bf7f902371398",
+      "strategy": "three-way"
+    },
+    {
+      "path": "app/src/leanback/java/com/fingmi/integration/recovery/TvDlnaLifecycle.java",
+      "old": null,
+      "fork": "93b8bb30b57ebf8d22309ed2c7e003954cc8dc70",
+      "target": null,
+      "strategy": "fork-addition"
+    },
+    {
+      "path": "app/src/leanback/java/com/fongmi/android/tv/ui/activity/HomeActivity.java",
+      "old": "e7f5942d6378a9bf8b5d5bbf25163c18fade7405",
+      "fork": "15e5ab20cceef25b6a979961b8edd13cee109f0e",
+      "target": "4b8a2c24a794a57a56d6ac411315de89bed7c7d5",
+      "strategy": "three-way"
+    },
+    {
+      "path": "app/src/leanback/java/com/fongmi/android/tv/ui/activity/LiveActivity.java",
+      "old": "3210c50f151be4aa613d3f39d0429e7c12884107",
+      "fork": "58232c84b42a767a2235532c04bc6c80bc84650d",
+      "target": "23900c3a0398d1a6aaafefa7a3f54e38b8d6066c",
+      "strategy": "three-way"
+    },
+    {
+      "path": "app/src/leanback/java/com/fongmi/android/tv/ui/activity/PushActivity.java",
+      "old": "6c29f8fc7141209ceb07ea6f4b389e680f3868dd",
+      "fork": "0b1de102f7cab38685c7b0fb170c31449f9e3b8c",
+      "target": null,
+      "strategy": "three-way"
+    },
+    {
+      "path": "app/src/leanback/java/com/fongmi/android/tv/ui/activity/SettingActivity.java",
+      "old": "aa8be48bce2a2ab233004a5422ed1c5c30042fd4",
+      "fork": "b07b4734fe7bc0e627ba40d9a7cc30caa5fda36d",
+      "target": "c6da5dea8e601b2eef30d59799f02ec54810fde8",
+      "strategy": "three-way"
+    },
+    {
+      "path": "app/src/leanback/java/com/fongmi/android/tv/ui/activity/SettingXrayActivity.java",
+      "old": null,
+      "fork": "f1e95119e9d8010b9ba2c410fb76dfc3e68b1d8e",
+      "target": null,
+      "strategy": "fork-addition"
+    },
+    {
+      "path": "app/src/leanback/java/com/fongmi/android/tv/ui/activity/VideoActivity.java",
+      "old": "ffd5fc1f1bc0321f1806ae9915a616c4a7f3b9b4",
+      "fork": "4702edfc8d57774bc7617cb36c039424127449ed",
+      "target": "b4f84d51ef41c0e630795f8f25858fa2c067cab0",
+      "strategy": "three-way"
+    },
+    {
+      "path": "app/src/leanback/java/com/fongmi/android/tv/ui/adapter/ChannelAdapter.java",
+      "old": "a794c8843e5b6dc19c325f721cf20a9195c267de",
+      "fork": "035ae0aea1332eedb4970f5cc90b71c3f64d813a",
+      "target": "fde190c9a134b88a366e7137e826e2374a28108e",
+      "strategy": "three-way"
+    },
+    {
+      "path": "app/src/leanback/res/layout/activity_setting.xml",
+      "old": "4dd217956379f0fa8295ef6af9aaca9e125332bb",
+      "fork": "8ef1b8b5271fea90756cbcf69baf743bbf7b1c05",
+      "target": "4c5932dec9cad11bd7907553da946e576e47de7b",
+      "strategy": "three-way"
+    },
+    {
+      "path": "app/src/leanback/res/layout/activity_setting_xray.xml",
+      "old": null,
+      "fork": "31216959f02230716cff5a9ee75f5c79eb4513dd",
+      "target": null,
+      "strategy": "fork-addition"
+    },
+    {
+      "path": "app/src/leanback/res/layout/view_control_live_action.xml",
+      "old": "ee258c7f79b9a162564b93431ceb10862c2838a6",
+      "fork": "89b4472b7b1ae60717fbad591cb8caf1176575f9",
+      "target": "b4b526246d4c62f5bac5058a491f2c74fc2ca6fc",
+      "strategy": "three-way"
+    },
+    {
+      "path": "app/src/leanback/res/layout/view_control_vod_action.xml",
+      "old": "fbe8b31844703fd1e7e84922f56becabf069c527",
+      "fork": "bcd895bd03a051246866e56e7ddba43a21de99fb",
+      "target": "dd3a5b4c9a15be5427d1844f3beb6edfe4cfcfc6",
+      "strategy": "three-way"
+    },
+    {
+      "path": "app/src/leanback/res/values-zh-rCN/strings.xml",
+      "old": "c031f9cb42fd6b1400db8c9c5f0a7becf2eb7ebf",
+      "fork": "d99350ef201cce61fa1b94e19555ffed4c7b46c6",
+      "target": "6592d9578fba98b7add3bba10e17c845b64d707c",
+      "strategy": "three-way"
+    },
+    {
+      "path": "app/src/leanback/res/values-zh-rTW/strings.xml",
+      "old": "403a145b26c9f575473455253d976312f05447f8",
+      "fork": "4473a04760b78f25298e4347ad541e79ac3f7873",
+      "target": "05680325dc4fd4edecde06948d3434873169b543",
+      "strategy": "three-way"
+    },
+    {
+      "path": "app/src/leanback/res/values/strings.xml",
+      "old": "0345c309b8f7329d2f187847ea842d0d059091ab",
+      "fork": "fe4007daf01948d1a7e13131f6d2ba70a7ab2efc",
+      "target": "f9c57fe1470cfa2dc11dda961d200961e4f16158",
+      "strategy": "three-way"
+    },
+    {
+      "path": "app/src/main/AndroidManifest.xml",
+      "old": "21b5ac68df3499f01cbb3483ca4a89f2d49e85ab",
+      "fork": "31c276e53dd5747eb9d4119aac241b0066199b2f",
+      "target": "ee7161e815d4b95a5a99e1964a8bba29f3b991d0",
+      "strategy": "three-way"
+    },
+    {
+      "path": "app/src/main/assets/index.html",
+      "old": "2c54cfb8a8c535d7b86ce74e747c9089623b033c",
+      "fork": "088bf59992dbbdd611b6a4cc908084e672015ecb",
+      "target": "1dae9aed44d348eb836f5fe4595c418dad57d16d",
+      "strategy": "three-way"
+    },
+    {
+      "path": "app/src/main/assets/js/script.js",
+      "old": "de39e49c7c43b40cb9c6cecec7473911cf70da90",
+      "fork": "6dc658558a16ea4ebe0d4cea7ac604d4a09b2d74",
+      "target": "22e87e9a3a7a1b2a125edf77c3c263a69a7a2506",
+      "strategy": "three-way"
+    },
+    {
+      "path": "app/src/main/java/androidx/media3/exoplayer/libass/LibassFontFile.java",
+      "old": null,
+      "fork": "4f7924c02e255deed9e79b43b7b3427fa7bc31fb",
+      "target": null,
+      "strategy": "old-media-compat-review"
+    },
+    {
+      "path": "app/src/main/java/androidx/media3/exoplayer/text/SecondaryTextOutput.java",
+      "old": null,
+      "fork": "d70c10b100ffe283578a0de5a9c46434815790da",
+      "target": null,
+      "strategy": "old-media-compat-review"
+    },
+    {
+      "path": "app/src/main/java/androidx/media3/exoplayer/trackselection/SecondaryTextTrackSelector.java",
+      "old": null,
+      "fork": "74b63a70faf6c45a4056d2353e973f851035bfd1",
+      "target": null,
+      "strategy": "old-media-compat-review"
+    },
+    {
+      "path": "app/src/main/java/androidx/media3/ui/danmaku/DanmakuPlayerViewController.java",
+      "old": null,
+      "fork": "9c97e963e27aeb10d34cb4c9745d38790b118986",
+      "target": null,
+      "strategy": "old-media-compat-review"
+    },
+    {
+      "path": "app/src/main/java/com/fingmi/integration/recovery/FongMiNetworkRecovery.java",
+      "old": null,
+      "fork": "4ffe7c5ee180341df70decdf90a5f43a9227bbb9",
+      "target": null,
+      "strategy": "fork-addition"
+    },
+    {
+      "path": "app/src/main/java/com/fingmi/integration/xray/XrayArtworkBitmapLoader.java",
+      "old": null,
+      "fork": "87d37b22a7dfcd51d7750ec326285510136952b7",
+      "target": null,
+      "strategy": "fork-addition"
+    },
+    {
+      "path": "app/src/main/java/com/fongmi/android/tv/Updater.java",
+      "old": "784603388ff8c41ff95f47e7d9441e8001ded0b8",
+      "fork": "6327c74615d04f7161d30047ceeb9e3ac868f9bd",
+      "target": "c1c9dd6bbca62c3a11ea0e59f4e7cc85ec8fff71",
+      "strategy": "three-way"
+    },
+    {
+      "path": "app/src/main/java/com/fongmi/android/tv/api/DanmakuApi.java",
+      "old": "3ff1d5a0563768917145457a79b5ca3ed5935479",
+      "fork": "200ebcb58a2dcfa7c6bb9bdac6d4443b068870d5",
+      "target": "3ff1d5a0563768917145457a79b5ca3ed5935479",
+      "strategy": "three-way"
+    },
+    {
+      "path": "app/src/main/java/com/fongmi/android/tv/api/LiveApi.java",
+      "old": "0971a30698f73227728cc7cd558b554a4424cfa6",
+      "fork": "7a588aa874221817bf90cdb7ba0c2633885204b8",
+      "target": "2e167a5ef71ab74cd531f3abdae16d27643e38c2",
+      "strategy": "three-way"
+    },
+    {
+      "path": "app/src/main/java/com/fongmi/android/tv/api/SubtitleApi.java",
+      "old": "05d65c17f8fe7d6b8591ad4c6f4025fc21a2638b",
+      "fork": "164550eea486bde539afbf8f4d796bb50b249fbd",
+      "target": "d16c1d820ac804be1efb0946887a5834bbdfdbdc",
+      "strategy": "three-way"
+    },
+    {
+      "path": "app/src/main/java/com/fongmi/android/tv/api/loader/BaseLoader.java",
+      "old": "42ff0b0ce66fd7cea042e3f7ae7eb222a618009d",
+      "fork": "773ace0d53d99d88ce99568e8b75c5f198301dbf",
+      "target": "a4129fc79a16c2920907d184c8e264dd49435cb3",
+      "strategy": "three-way"
+    },
+    {
+      "path": "app/src/main/java/com/fongmi/android/tv/api/loader/JarLoader.java",
+      "old": "c90ca035a30edc6406190a835eccb4c3648d7d52",
+      "fork": "3d49da6bcaa71e2c9990db29e3c3232f2aca18ac",
+      "target": "c7cab88da3bd189f0b73af8af73f5ad65e6a378a",
+      "strategy": "three-way"
+    },
+    {
+      "path": "app/src/main/java/com/fongmi/android/tv/api/loader/JsLoader.java",
+      "old": "337ce94648abd2484c2e426e92c37d55314f5d19",
+      "fork": "1bff5f6742b0e92644c1e26b41c823443ee719fa",
+      "target": "5395e2e488cae61595fa70340e9e67699533b999",
+      "strategy": "three-way"
+    },
+    {
+      "path": "app/src/main/java/com/fongmi/android/tv/api/loader/PyLoader.java",
+      "old": "115efa8291da733423261b3f2005b605603fcbe8",
+      "fork": "c2b8201fdb617391261b8cb4b84edf62382c8955",
+      "target": "5757d5b7a011ff016795cafa1c58606b73e149a3",
+      "strategy": "three-way"
+    },
+    {
+      "path": "app/src/main/java/com/fongmi/android/tv/api/parser/EpgParser.java",
+      "old": "9720f173d6e6eb78425e57565570fea2e069417c",
+      "fork": "84366467743e6fa30c58f7d5f89af4aef04fb62e",
+      "target": "51f8a35d1cb26cafd3488f3f74de8c2dc1ba6313",
+      "strategy": "three-way"
+    },
+    {
+      "path": "app/src/main/java/com/fongmi/android/tv/event/XrayImportEvent.java",
+      "old": null,
+      "fork": "d15b41f3af59fa05a3f247cb614d32e182cfdda9",
+      "target": null,
+      "strategy": "fork-addition"
+    },
+    {
+      "path": "app/src/main/java/com/fongmi/android/tv/event/XrayLiveRulesEvent.java",
+      "old": null,
+      "fork": "add3e9ec9123905ebaa12adbe88f8a03419dd5e4",
+      "target": null,
+      "strategy": "fork-addition"
+    },
+    {
+      "path": "app/src/main/java/com/fongmi/android/tv/model/LiveViewModel.java",
+      "old": "c3d1b0b1f775eb77482b6f639feed488c8dd88dc",
+      "fork": "cb85883ef29790e31607fa8e4682a89ad560e18d",
+      "target": "ec0c09db0e0ab89eb0ac7e46c9c317f98d58f532",
+      "strategy": "three-way"
+    },
+    {
+      "path": "app/src/main/java/com/fongmi/android/tv/model/SiteViewModel.java",
+      "old": "ecad4b71ba16cd5a21c9837ef4d861703df2dcda",
+      "fork": "a604c55a9ab6c7ff02faadbdd44f2854569621c8",
+      "target": "6caf2594eb23388c501593a0a8f1a825e60a5ae5",
+      "strategy": "three-way"
+    },
+    {
+      "path": "app/src/main/java/com/fongmi/android/tv/model/VideoViewModel.java",
+      "old": "cbc5c98ff3a30fd37eec1d71605ed303e0dbd7ee",
+      "fork": "1fab1244f6bea636eb6430174b047f19a7398f99",
+      "target": "8018783f5ee396567e87f47edeeb03c7c17f5a0a",
+      "strategy": "three-way"
+    },
+    {
+      "path": "app/src/main/java/com/fongmi/android/tv/model/ViewModelTaskRunner.java",
+      "old": "2f1bfbc1bf74d141c1b20c4a635af6e1895dbb42",
+      "fork": "42887d4770a4e0ca9fb8a82f04782328b8f3abda",
+      "target": "b93fdef8690073c3351f0476983514df9dd7cb63",
+      "strategy": "three-way"
+    },
+    {
+      "path": "app/src/main/java/com/fongmi/android/tv/playback/live/LivePlaybackController.java",
+      "old": "3612e277d329dc8dbbd93b18b53048fe0df34100",
+      "fork": "71d9877592c5d824d61b3215b29f1bfd869f632f",
+      "target": "f2c114f8dd8caf17d8d9d8943508e4a367ca54c7",
+      "strategy": "three-way"
+    },
+    {
+      "path": "app/src/main/java/com/fongmi/android/tv/playback/live/LivePlaybackHost.java",
+      "old": "e67d717e53aa6928d3db032c94b14bf79321a7ab",
+      "fork": "b2b23f99c1d54c5f9e853de7655699b84e9f7e10",
+      "target": "27324f628850fbd43403955ca4a7879ae9dc7942",
+      "strategy": "three-way"
+    },
+    {
+      "path": "app/src/main/java/com/fongmi/android/tv/playback/vod/VodPlaybackController.java",
+      "old": "1e1e479767c48397bd05bb943736b44f5df36f1e",
+      "fork": "6f17fde6f3041ed1db4c7d63fd272bffd398d214",
+      "target": "f5243a28fbe116f4c3391f5dd53d648a9c1e0537",
+      "strategy": "three-way"
+    },
+    {
+      "path": "app/src/main/java/com/fongmi/android/tv/playback/vod/VodPlaybackHost.java",
+      "old": "e7abdb776aecfce9036c006e6bb3b650e3c14772",
+      "fork": "ff97e34e4b74fb9894ffce0e2cab8aa73fdbe4bb",
+      "target": "e638bff279b94ff89bce4f4c860731f538b2cbb2",
+      "strategy": "three-way"
+    },
+    {
+      "path": "app/src/main/java/com/fongmi/android/tv/playback/vod/VodPlaybackMedia.java",
+      "old": "537bd98d54ecc20df8aadeac63d09a871be4b109",
+      "fork": "cc14b7368456a59b6b2a5ec4fef54bbd7b1e2038",
+      "target": "4f14e475047cb7761722905507f81489731fe5d4",
+      "strategy": "three-way"
+    },
+    {
+      "path": "app/src/main/java/com/fongmi/android/tv/player/PlayerManager.java",
+      "old": "7010b21159ff26410eb6c738a4e19826cd9364c5",
+      "fork": "1686d9df87b16e8ec23e3e2618683fec3a481a3c",
+      "target": "f7cb9dbbcaefafd41b4a2f23767d46d8fe6c9863",
+      "strategy": "three-way"
+    },
+    {
+      "path": "app/src/main/java/com/fongmi/android/tv/player/engine/PlayerEngineFactory.java",
+      "old": "22eae76a3bd712091b8c2a28c67cf4b9baf8d821",
+      "fork": "dd0f4b4df2c2f97f3176e773c6fad1f4328b2e48",
+      "target": "64637ef91407ed6fe095959c33cfcef2b41258cf",
+      "strategy": "three-way"
+    },
+    {
+      "path": "app/src/main/java/com/fongmi/android/tv/player/exo/ExoMediaSourceFactory.java",
+      "old": "8cb687f9b4abb488f43ffcf5ca8716febac30099",
+      "fork": "368a3bb442d57ee21781647f4d4d99b589c7dffa",
+      "target": "d2fdb8706c3261feb5687d676278c676e12289c1",
+      "strategy": "three-way"
+    },
+    {
+      "path": "app/src/main/java/com/fongmi/android/tv/player/exo/ExoPlayerEngine.java",
+      "old": "362123af3d09917b3352b9089a190d0609ec0e00",
+      "fork": "250c7c6246cea994c65a3ecfdc05e2a3080148b8",
+      "target": "0cc4391d238316a77b6a1d655e5f7574dfd2f398",
+      "strategy": "three-way"
+    },
+    {
+      "path": "app/src/main/java/com/fongmi/android/tv/player/exo/ExoPlayerSession.java",
+      "old": "e10b7cb7cc4821a351f62498023f8ad5a8202449",
+      "fork": "e04a868993e918388c15acbc7e3de93053649999",
+      "target": "dfde10b51a6605c6656126847b9c582a032e8c82",
+      "strategy": "three-way"
+    },
+    {
+      "path": "app/src/main/java/com/fongmi/android/tv/player/mpv/MpvPlayerEngine.java",
+      "old": "16d8088009c5579e55b13956093f92d284213131",
+      "fork": "5b9cd19f4b35a70316b85d4c19c97c97eda10dfe",
+      "target": "cdd833c714e878850c2a192d1fe426c3f0b5a532",
+      "strategy": "three-way"
+    },
+    {
+      "path": "app/src/main/java/com/fongmi/android/tv/player/mpv/MpvUtil.java",
+      "old": "e8ae05512710931111edaad78847995bcbb52a72",
+      "fork": "e55ea565942166008838b94cd529e7e35a00586b",
+      "target": "23a5812369a20c978b4cd7015af31c0cbb6a16f1",
+      "strategy": "old-media-compat-review"
+    },
+    {
+      "path": "app/src/main/java/com/fongmi/android/tv/server/process/Action.java",
+      "old": "4b5b0e157f4accfb250ad378f87f0d50918e9c00",
+      "fork": "36e0d5a2a1a4f309d1264f03e7ae2020ffac5b3d",
+      "target": "6572ca9dfa32a087b85b03aa5049f97120f8b36b",
+      "strategy": "three-way"
+    },
+    {
+      "path": "app/src/main/java/com/fongmi/android/tv/service/PlaybackService.java",
+      "old": "0a3aba93823379bf7f23fc2999c91e24f1501fc1",
+      "fork": "a4b9d8f242a4ed3a993542fd699e69604a644f9d",
+      "target": "3a8504dabe6f2906f431a43ca7c19bfa22387723",
+      "strategy": "three-way"
+    },
+    {
+      "path": "app/src/main/java/com/fongmi/android/tv/ui/activity/PlaybackActivity.java",
+      "old": "80b367269cab4771f55170c1d4e67c838f7ce720",
+      "fork": "4ad6a78e27362fc7a90036b4f384e67736a30cc0",
+      "target": "3ed88dcf1bb9e06b86b09e07bff1065768ba996b",
+      "strategy": "three-way"
+    },
+    {
+      "path": "app/src/main/java/com/fongmi/android/tv/ui/dialog/DanmakuSearchDialog.java",
+      "old": "c909a6f12af90288bc8a4b7168c02c683cb0a338",
+      "fork": "3f7a6ba9e0d9f0b4de78175e283c1ed6cab7b58d",
+      "target": "f49c91dd4ddd1512bde85600e6fa5a1cb1ac380c",
+      "strategy": "three-way"
+    },
+    {
+      "path": "app/src/main/java/com/fongmi/android/tv/ui/dialog/PlayerEngineDialog.java",
+      "old": "179311fdb1e73bdf030f55b474de295e91959e5a",
+      "fork": "8d595c60598f100494e88b6df543338db17f0116",
+      "target": "569517ee6871f3b7e431701f4b8a602bd9e36845",
+      "strategy": "three-way"
+    },
+    {
+      "path": "app/src/main/java/com/fongmi/android/tv/ui/dialog/SubtitleSearchDialog.java",
+      "old": "fdfdb8efcba15e3c9eebd97926c98dad6c72a177",
+      "fork": "06cd5d2f115212d58888a928a5e54d732143abbd",
+      "target": "f8904eeddd45dbab2d2a198485a93e3421b33367",
+      "strategy": "three-way"
+    },
+    {
+      "path": "app/src/main/java/com/fongmi/android/tv/utils/Download.java",
+      "old": "84ab7b6020fa2cdea80eec40568b1f7e4254ab44",
+      "fork": "68cfdb6a70ba92e6f03f6ca287c4059d781f7b2a",
+      "target": null,
+      "strategy": "three-way"
+    },
+    {
+      "path": "app/src/main/java/com/fongmi/android/tv/utils/ImgUtil.java",
+      "old": "cdd09762527313c43797b34bc0216a48a6680756",
+      "fork": "05ccbd9502b3cb1b16f6b689dede70d033aac1f3",
+      "target": "84099006ea25ac9a8fd5a0c4b713b84d24f1bd2f",
+      "strategy": "three-way"
+    },
+    {
+      "path": "app/src/main/java/com/fongmi/android/tv/utils/OkGlideModule.java",
+      "old": "cd3ffb9d3b435d7f69f2b13759c6cc4bdc447b54",
+      "fork": "3d56c8210ae54bda0f3e4dd73daef608be046562",
+      "target": "cd3ffb9d3b435d7f69f2b13759c6cc4bdc447b54",
+      "strategy": "three-way"
+    },
+    {
+      "path": "app/src/mobile/java/com/fingmi/integration/recovery/TvDlnaLifecycle.java",
+      "old": null,
+      "fork": "b57a1c05233294233c9295ee014d674dd4e22248",
+      "target": null,
+      "strategy": "fork-addition"
+    },
+    {
+      "path": "catvod/src/main/java/com/github/catvod/net/OkDns.java",
+      "old": "e3341a3eb467ab62cac6b5a466ac99ed0304a258",
+      "fork": "566d3739aed1a259389fe1ea2e73cc482dd441d6",
+      "target": "e3341a3eb467ab62cac6b5a466ac99ed0304a258",
+      "strategy": "three-way"
+    },
+    {
+      "path": "catvod/src/main/java/com/github/catvod/net/OkHttp.java",
+      "old": "834dcbdffeeaab4bc2ba2f7f652f600627ef46cb",
+      "fork": "f4f175c5497f217d9f19322f9b0c14c061011157",
+      "target": "a18050020acee6f0a854499e6390b30ec1c39f28",
+      "strategy": "three-way"
+    },
+    {
+      "path": "catvod/src/main/java/com/github/catvod/net/OkProxySelector.java",
+      "old": "1876eaeea1d483df2654ed35e774e8681d382f65",
+      "fork": "37a476b2d24676c9bae36ea98ef2acdfc2b1bbb1",
+      "target": "c078c1e9c125353f9044c1d509ccdd5dcf5a7125",
+      "strategy": "three-way"
+    },
+    {
+      "path": "catvod/src/test/java/com/github/catvod/net/OkProxySelectorTest.java",
+      "old": "025456ecd995d2046309665d268391a7ae71b52e",
+      "fork": "4d781efca5635e5ecb1e9d9cc97e42c24c25bcc3",
+      "target": null,
+      "strategy": "three-way"
+    },
+    {
+      "path": "libxray/build.gradle",
+      "old": null,
+      "fork": "d733af8a16c74c1853ee9458a68691b82423be2a",
+      "target": null,
+      "strategy": "module"
+    },
+    {
+      "path": "tv-recovery/build.gradle",
+      "old": null,
+      "fork": "0b0580dcc362c42a8a988dc37d87203cdd3c0f46",
+      "target": null,
+      "strategy": "module"
+    },
+    {
+      "path": "tv-recovery/src/main/AndroidManifest.xml",
+      "old": null,
+      "fork": "94cbbcfc396aca20240417158bac4d52ba4e1a14",
+      "target": null,
+      "strategy": "module"
+    },
+    {
+      "path": "tv-recovery/src/main/java/com/fingmi/tvrecovery/NetworkRecoveryCoordinator.java",
+      "old": null,
+      "fork": "6d335d87264379b037ee682d38fc1c4d85825af7",
+      "target": null,
+      "strategy": "module"
+    },
+    {
+      "path": "tv-recovery/src/main/java/com/fingmi/tvrecovery/TvNetworkLifecycle.java",
+      "old": null,
+      "fork": "3591fb17bb0b69a583760644331f1fbd1606deda",
+      "target": null,
+      "strategy": "module"
+    },
+    {
+      "path": "tv-recovery/src/test/java/com/fingmi/tvrecovery/NetworkRecoveryCoordinatorTest.java",
+      "old": null,
+      "fork": "e0e1049aeff61bb86b4497438de062f90b323a86",
+      "target": null,
+      "strategy": "module"
+    },
+    {
+      "path": "xray/build.gradle",
+      "old": null,
+      "fork": "9e08dbb5947657ad742feca3fa6bd6b2076293e4",
+      "target": null,
+      "strategy": "module"
+    },
+    {
+      "path": "xray/src/main/AndroidManifest.xml",
+      "old": null,
+      "fork": "c8205d5a145c0e4fd7a411d6d33b934ab9492e52",
+      "target": null,
+      "strategy": "module"
+    },
+    {
+      "path": "xray/src/main/aidl/com/fingmi/xray/service/IXrayCallback.aidl",
+      "old": null,
+      "fork": "280c239c67d88914ac1d3717ead8d219310fd3e2",
+      "target": null,
+      "strategy": "module"
+    },
+    {
+      "path": "xray/src/main/aidl/com/fingmi/xray/service/IXrayService.aidl",
+      "old": null,
+      "fork": "6b4a0565e7ddb7c4abbe1b4931c71d420628d513",
+      "target": null,
+      "strategy": "module"
+    },
+    {
+      "path": "xray/src/main/java/com/fingmi/xray/config/XrayConfigFactory.java",
+      "old": null,
+      "fork": "6a609745fea0a28e376580d8b6703a81fc3f68ab",
+      "target": null,
+      "strategy": "module"
+    },
+    {
+      "path": "xray/src/main/java/com/fingmi/xray/config/XrayDisplay.java",
+      "old": null,
+      "fork": "49f0c97bd9daba7df7ec570ba00d02b2a9d26c95",
+      "target": null,
+      "strategy": "module"
+    },
+    {
+      "path": "xray/src/main/java/com/fingmi/xray/config/XrayLiveAutoRules.java",
+      "old": null,
+      "fork": "3c8e3896d8d94d394be4ca7cdeae00ce287fbd94",
+      "target": null,
+      "strategy": "module"
+    },
+    {
+      "path": "xray/src/main/java/com/fingmi/xray/config/XrayPreferences.java",
+      "old": null,
+      "fork": "a9389e5dbca10ef228a1033926ee315370fc12b0",
+      "target": null,
+      "strategy": "module"
+    },
+    {
+      "path": "xray/src/main/java/com/fingmi/xray/config/XrayShareLinkNormalizer.java",
+      "old": null,
+      "fork": "f652b3af7a06554dd16b35ea3f1b8c0bd0972b9a",
+      "target": null,
+      "strategy": "module"
+    },
+    {
+      "path": "xray/src/main/java/com/fingmi/xray/core/LibXrayBridge.java",
+      "old": null,
+      "fork": "75a2826596251f8034b87fe6dc2448675891501b",
+      "target": null,
+      "strategy": "module"
+    },
+    {
+      "path": "xray/src/main/java/com/fingmi/xray/network/PublicPlaybackDestinationInterceptor.java",
+      "old": null,
+      "fork": "2e3d2ec6ea90a0026d921fd77a7909ea811a9619",
+      "target": null,
+      "strategy": "module"
+    },
+    {
+      "path": "xray/src/main/java/com/fingmi/xray/network/XrayHttpClient.java",
+      "old": null,
+      "fork": "f107adcb5091d187a8650600faaee920d4f96728",
+      "target": null,
+      "strategy": "module"
+    },
+    {
+      "path": "xray/src/main/java/com/fingmi/xray/network/XrayProxySocketFactory.java",
+      "old": null,
+      "fork": "3637e951ac866a213d378632aa44f470f669a10a",
+      "target": null,
+      "strategy": "module"
+    },
+    {
+      "path": "xray/src/main/java/com/fingmi/xray/security/XrayCertificatePins.java",
+      "old": null,
+      "fork": "fb0eb72e84431e45097b07f0a79190a719020d9b",
+      "target": null,
+      "strategy": "module"
+    },
+    {
+      "path": "xray/src/main/java/com/fingmi/xray/security/XrayShareLinkSecurity.java",
+      "old": null,
+      "fork": "2ee1c193c72c7f6cf7bc39150eb69dea9cd9bf32",
+      "target": null,
+      "strategy": "module"
+    },
+    {
+      "path": "xray/src/main/java/com/fingmi/xray/service/XrayGenerationGate.java",
+      "old": null,
+      "fork": "f06e413ebfc4e791ecfca6385c08fb40cc93cc45",
+      "target": null,
+      "strategy": "module"
+    },
+    {
+      "path": "xray/src/main/java/com/fingmi/xray/service/XrayOperation.java",
+      "old": null,
+      "fork": "581497a03033c27bf0247bf8fc37cbade0831ed9",
+      "target": null,
+      "strategy": "module"
+    },
+    {
+      "path": "xray/src/main/java/com/fingmi/xray/service/XrayService.java",
+      "old": null,
+      "fork": "d9589d2a12ddaacedc3e5b40979742cb357ca441",
+      "target": null,
+      "strategy": "module"
+    },
+    {
+      "path": "xray/src/main/java/com/fingmi/xray/session/PlaybackIdentityGate.java",
+      "old": null,
+      "fork": "2729c0dd93cbc432b4cb3cd5b3aed11e33e31ffb",
+      "target": null,
+      "strategy": "module"
+    },
+    {
+      "path": "xray/src/main/java/com/fingmi/xray/session/XrayLiveAutoPlayback.java",
+      "old": null,
+      "fork": "b3b5c6e1279e4495dcf37b30447e5f522428daa7",
+      "target": null,
+      "strategy": "module"
+    },
+    {
+      "path": "xray/src/main/java/com/fingmi/xray/session/XrayOperationIds.java",
+      "old": null,
+      "fork": "4ba8b3c0ffb955b772f090ad24b2e3448b7e8f08",
+      "target": null,
+      "strategy": "module"
+    },
+    {
+      "path": "xray/src/main/java/com/fingmi/xray/session/XrayPlaybackAddress.java",
+      "old": null,
+      "fork": "330191a7cdb74a6eb62b7dcd0d058b8de74eac1e",
+      "target": null,
+      "strategy": "module"
+    },
+    {
+      "path": "xray/src/main/java/com/fingmi/xray/session/XrayPlaybackSession.java",
+      "old": null,
+      "fork": "22457acd9be3b67335a69d39456267df30948f84",
+      "target": null,
+      "strategy": "module"
+    },
+    {
+      "path": "xray/src/main/java/com/fingmi/xray/session/XrayResult.java",
+      "old": null,
+      "fork": "7739ec43272df4c985152faf030dbaaab362424b",
+      "target": null,
+      "strategy": "module"
+    },
+    {
+      "path": "xray/src/main/java/com/fingmi/xray/session/XrayServiceClient.java",
+      "old": null,
+      "fork": "43a9824512c7e18b7e255f7056f8f39ae62673b3",
+      "target": null,
+      "strategy": "module"
+    },
+    {
+      "path": "xray/src/main/java/com/fingmi/xray/session/XraySessionController.java",
+      "old": null,
+      "fork": "4b7d006e8e55723afb04785e54bbf49a9a6da89d",
+      "target": null,
+      "strategy": "module"
+    },
+    {
+      "path": "xray/src/main/java/com/fingmi/xray/session/XraySessionListener.java",
+      "old": null,
+      "fork": "b4e7c3f86e0382cbd12c65f26dcf91daedcee906",
+      "target": null,
+      "strategy": "module"
+    },
+    {
+      "path": "xray/src/main/java/com/fingmi/xray/session/XraySettingsController.java",
+      "old": null,
+      "fork": "4dfb70c79c447be7d8c7289e3711d83833d42058",
+      "target": null,
+      "strategy": "module"
+    },
+    {
+      "path": "xray/src/main/java/com/fingmi/xray/util/XrayErrorSanitizer.java",
+      "old": null,
+      "fork": "34eaa9bbcc1d02d561e21a6475a36dcae366a26e",
+      "target": null,
+      "strategy": "module"
+    },
+    {
+      "path": "xray/src/test/java/com/fingmi/xray/session/PlaybackIdentityGateTest.java",
+      "old": null,
+      "fork": "f9e20e5f53f5178d9008cba2e5649fb8adf2f37d",
+      "target": null,
+      "strategy": "module"
+    }
+  ],
+  "public_native_candidates": [
+    {
+      "repository": "FongMi/FFmpeg",
+      "branch": "release-9.1-fongmi",
+      "commit": "1a6411b6cadf99c897598fa594ad62c51d4804ed",
+      "version": "9.1.git",
+      "status": "source candidate only; matching host JNI and build flags not established; FFmpeg LGPL/GPL depends on configuration"
+    },
+    {
+      "repository": "FongMi/FFmpeg",
+      "branch": "release-9.0-fongmi",
+      "commit": "bdf17191d55d78984ea742fe858fbf9b9aaa5775",
+      "version": "9.0.2",
+      "status": "older source candidate; not an interchangeable prebuilt"
+    },
+    {
+      "repository": "FongMi/mpv",
+      "branch": "fongmi",
+      "commit": "78fcc8320644546a3a8ab1d5c148b900575c2c63",
+      "license": "GPL-2.0 repository metadata",
+      "status": "mpv core source; does not supply matching Android Media3 JNI glue"
+    },
+    {
+      "repository": "FongMi/quickjs",
+      "branch": "fongmi",
+      "commit": "764294be2244f0eb7836b56a79d00becff9684c7",
+      "license": "MIT",
+      "status": "engine source; Android runtime AAR and wrapper exact provenance/build not established"
+    }
+  ]
+}
