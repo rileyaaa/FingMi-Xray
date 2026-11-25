@@ -1202,3 +1202,16 @@ python3 verify_handoff.py --handoff . --signed-dir signed --sdk "$ANDROID_HOME"
 ```
 
 验收只需正式签名 APK、最终文件 SHA-256、公开签名与校验记录；禁止返回签名凭证。用对应 ABI 真机在保留 .1 数据的条件下 `adb install -r`，不卸载旧版冒充覆盖；实际测试范围必须如实记录。正式 .2 仅在通过验收后按用户授权发布 GitHub Releases 一次（非 draft、非 prerelease），tag 与版本名一致、仅 APK，原 .1 不同名覆盖，旧资产按用户最新保留要求处理；不自动清理旧 Release，不发布试签或无签名包，不改 main。待签名交接仍需保留远端 Artifact，但原冻结分支可通过归档 tag 与固定 commit 完整复现，不是继续保留第三分支的理由。
+
+### 5.9.0 基础播放宿主与 TV 资源独立验收
+
+- AC 45641018729 / job 139299361569（fc7f9553）：19 项实际候选 Java 方法断言及三个负向对照；75 个移植/干净合并、25 个未解冲突、5 个旧媒体待审。临时 95 已由 10db6b8b 删除，测试保留。
+- 11346fe3 固定八个原冲突路径的输入/输出 blob。PlaybackActivity 保留新版 binding 替换、Web/PiP/DiscMenu、输出绑定及 LiveDanmaku 分发；补旧 TV Xray owner 退役钩子、当前 native owner URL 通知、播放 client 选择和主动挂起时静态/直播弹幕源拒绝。VideoViewModel 只恢复 DETAIL/PLAYBACK/PRELOAD 三 lane 的 Xray 过渡取消，不调用 stopSearch，不覆盖新版 resolve/quality/builtin。Action 只恢复旧手机输入两入口，保留新版 sync/refresh/文件及控制响应。三语字符串及 Live 控制列只追加原 Xray 元素，Leanback Manifest 恢复 SettingXrayActivity，继续排除 BootReceiver/RECEIVE_BOOT_COMPLETED。
+- AC 45647615337 / job 139322767826（11346fe3）真实候选 82 个移植/干净合并、18 个未解冲突、5 个旧媒体待审；18 项方法断言、四项负向对照、XML 结构保留通过。Android/Media3 用确定性 JVM 边界，不宣称 Android aapt/ART 或完整 APK。保留 test-upstream-owner-resources.py，删除临时 96。实际 Leanback Live/Video、Setting、手机前端、主 Manifest 的自更新/模块安装分离与 MPV 宿主仍待移植。
+
+### 稳定 Core 与可重建依赖边界复核
+
+- 2026-11-25 核对正式 XTLS/libXray、Xray-core 最新均 v26.11.9，仍为原候选。独立历史 AC 45544415939 job 138970443908（v7）与 138970444230（arm64）实际相同：v2 导入 0/26，v3 23/26，exact golden 0/26，旧 runtime config 校验 26/26、本地生命周期成功。缺 TLS/Hysteria2 TOFU probe；旧可用 vmess-kcp-wireguard-seed、vmess-qr-ws、vmess-qr-grpc 被拒绝。
+- 新的源码定位：XTLS/libXray@5a0f7d8d1c28b34afb5727b04b26a10f6dbac7e3 的 invoke.go blob 50e83024088f6ff30ff87d8a643631de814b80bc 只接受 API 3，dispatcher 无两个旧 probe；share/parse_share.go blob 0ef5bf6f3f2638ea1efcf89ff99de0c392fc90ac 用 url.Parse 后按 scheme 分派，vmessOutbound 取 hostname/port，没有旧 VMess QR JSON 专门分支；share/convert_share.go b14546d057f3bad164fe25d5e472c2700218ae65 对投影 outbound 做 buildable filter，share/transport_build.go 00d06c4d01277ff51faba8a43145d5607b2b5c59 的 KCP 传输字段只有 mtu/tti 并另用 fm 表达 FinalMask。当前 LibXrayBridge 固定 API 2 并校验两个 64 hex 指纹。不得仅替换版本号、跳过 TOFU 或丢旧 KCP seed 字段；当前 Core 保留 v26.7.28。没有重复已失败候选，也没有建立新 Core 可替换证据。
+- 14 个已验公开 AAR 与上一轮 MPEG-H 独立双 ABI JNI 不是完整播放器。此次单独新门禁 rebuild_public_mpegh_aar.py 以固定公开 FongMi/media + Fraunhofer r3.0.2 实际 Gradle lib-decoder-mpegh:assembleRelease，按 TV API 24、NDK 29、CMake 3.22.1、双 ABI 与原有 16 KB 约束生成临时完整 AAR；仅改变 runner 本地 Gradle 构建约束，未改 native 源。检查编译后的 Java class/native 方法、AAR 内准确两个 ABI JNI、动态依赖与 ELF 对齐，不部署、不上传、不声称专利许可或完整定制 TV 兼容。实际结果等待新 AC。
+- 定制 MPV/FFmpeg/Libass/ISO/CMG 等缺件未被替换，历史 FFmpeg consumer 依赖 manifest 不是可取得 producer artifact。主线、正式 workflow、签名及 Release 不改。
