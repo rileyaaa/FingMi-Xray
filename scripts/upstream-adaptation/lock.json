@@ -458,7 +458,8 @@
       "old": "c909a6f12af90288bc8a4b7168c02c683cb0a338",
       "fork": "3f7a6ba9e0d9f0b4de78175e283c1ed6cab7b58d",
       "target": "f49c91dd4ddd1512bde85600e6fa5a1cb1ac380c",
-      "strategy": "three-way"
+      "strategy": "reviewed-media-host",
+      "resolved": "4dc22a27840324fa6dff2ce464871315dd56fbe5"
     },
     {
       "path": "app/src/main/java/com/fongmi/android/tv/ui/dialog/PlayerEngineDialog.java",
@@ -472,7 +473,8 @@
       "old": "fdfdb8efcba15e3c9eebd97926c98dad6c72a177",
       "fork": "06cd5d2f115212d58888a928a5e54d732143abbd",
       "target": "f8904eeddd45dbab2d2a198485a93e3421b33367",
-      "strategy": "three-way"
+      "strategy": "reviewed-media-host",
+      "resolved": "cabad2244dc3c08adb676d773a6ad169c93c20f1"
     },
     {
       "path": "app/src/main/java/com/fongmi/android/tv/utils/Download.java",

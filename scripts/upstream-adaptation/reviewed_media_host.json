@@ -371,5 +371,83 @@
         "        default void onPlaybackUrlChanged(String url) { }\n\n        default void onPlayerRebuild(Player player) {\n        }"
       ]
     ]
+  },
+  "app/src/main/java/com/fongmi/android/tv/ui/dialog/SubtitleSearchDialog.java": {
+    "from": "target",
+    "base": "f8904eeddd45dbab2d2a198485a93e3421b33367",
+    "resolved": "cabad2244dc3c08adb676d773a6ad169c93c20f1",
+    "edits": [
+      [
+        "import java.util.List;\n",
+        "import java.util.List;\nimport java.util.function.BiFunction;\n\nimport com.github.catvod.net.OkHttp;\nimport okhttp3.OkHttpClient;\n"
+      ],
+      [
+        "    private PlayerManager player;",
+        "    private PlayerManager player;\n    private int requestId = -1;\n    private long requestGeneration;"
+      ],
+      [
+        "        if (this.player != null && player == null) {\n            SubtitleApi.cancel();\n            showResults(adapter.getItemCount() == 0);\n        }",
+        "        if (this.player != null && this.player != player) {\n            cancelRequest();\n            if (binding != null) showResults(adapter.getItemCount() == 0);\n        }"
+      ],
+      [
+        "    private void search() {",
+        "    private void cancelRequest() {\n        requestGeneration++;\n        SubtitleApi.cancel(requestId);\n        requestId = -1;\n    }\n\n    private void onXrayTransitionCancelled(long generation) {\n        if (generation != requestGeneration || binding == null) return;\n        cancelRequest();\n        scroller.endLoading(false);\n        showResults(adapter.getItemCount() == 0);\n    }\n\n    private void requestWithPlaybackClient(BiFunction<OkHttpClient, Runnable, Integer> request) {\n        PlayerManager owner = player;\n        if (owner == null) {\n            onXrayTransitionCancelled(requestGeneration);\n            return;\n        }\n        synchronized (owner) {\n            if (binding == null || !PlaybackDialog.isCurrentPlayer(this, owner)\n                    || owner.isXrayPlaybackSuspended()) {\n                onXrayTransitionCancelled(requestGeneration);\n                return;\n            }\n            long generation = ++requestGeneration;\n            requestId = request.apply(owner.getPlaybackHttpClient(OkHttp.client()),\n                    () -> onXrayTransitionCancelled(generation));\n        }\n    }\n\n    private void search() {"
+      ],
+      [
+        "        SubtitleApi.detail(item.getId(), this::showItems, this::onError);",
+        "        requestWithPlaybackClient((client, cancelled) -> SubtitleApi.detail(client, item.getId(), this::showItems, this::onError, cancelled));"
+      ],
+      [
+        "        SubtitleApi.loadSubtitle(item, this::showDownloaded, this::onError);",
+        "        requestWithPlaybackClient((client, cancelled) -> SubtitleApi.loadSubtitle(client, item, this::showDownloaded, this::onError, cancelled));"
+      ],
+      [
+        "        SubtitleApi.search(keyword, nextPos, this::onSearch, this::onSearchError);",
+        "        requestWithPlaybackClient((client, cancelled) -> SubtitleApi.search(client, keyword, nextPos, this::onSearch, this::onSearchError, cancelled));"
+      ],
+      [
+        "            SubtitleApi.cancel();\n            showResults(false);",
+        "            cancelRequest();\n            showResults(false);"
+      ],
+      [
+        "        scroller.reset();\n        SubtitleApi.cancel();",
+        "        scroller.reset();\n        cancelRequest();"
+      ],
+      [
+        "        states.clear();\n        binding = null;\n        player = null;\n        SubtitleApi.cancel();",
+        "        cancelRequest();\n        states.clear();\n        binding = null;\n        player = null;"
+      ]
+    ]
+  },
+  "app/src/main/java/com/fongmi/android/tv/ui/dialog/DanmakuSearchDialog.java": {
+    "from": "target",
+    "base": "f49c91dd4ddd1512bde85600e6fa5a1cb1ac380c",
+    "resolved": "4dc22a27840324fa6dff2ce464871315dd56fbe5",
+    "edits": [
+      [
+        "import java.util.List;\n",
+        "import java.util.List;\nimport java.util.function.BiFunction;\n\nimport com.github.catvod.net.OkHttp;\nimport okhttp3.OkHttpClient;\n"
+      ],
+      [
+        "    private PlayerManager player;",
+        "    private PlayerManager player;\n    private int requestId = -1;\n    private long requestGeneration;"
+      ],
+      [
+        "        if (this.player != null && player == null) {\n            DanmakuApi.cancel();\n            showResults(adapter.getItemCount() == 0);\n        }",
+        "        if (this.player != null && this.player != player) {\n            cancelRequest();\n            if (binding != null) showResults(adapter.getItemCount() == 0);\n        }"
+      ],
+      [
+        "    private void search() {",
+        "    private void cancelRequest() {\n        requestGeneration++;\n        DanmakuApi.cancel(requestId);\n        requestId = -1;\n    }\n\n    private void onXrayTransitionCancelled(long generation) {\n        if (generation != requestGeneration || binding == null) return;\n        cancelRequest();\n        showResults(adapter.getItemCount() == 0);\n    }\n\n    private void requestWithPlaybackClient(BiFunction<OkHttpClient, Runnable, Integer> request) {\n        PlayerManager owner = player;\n        if (owner == null) {\n            onXrayTransitionCancelled(requestGeneration);\n            return;\n        }\n        synchronized (owner) {\n            if (binding == null || !PlaybackDialog.isCurrentPlayer(this, owner)\n                    || owner.isXrayPlaybackSuspended()) {\n                onXrayTransitionCancelled(requestGeneration);\n                return;\n            }\n            long generation = ++requestGeneration;\n            requestId = request.apply(owner.getPlaybackHttpClient(OkHttp.player()),\n                    () -> onXrayTransitionCancelled(generation));\n        }\n    }\n\n    private void search() {"
+      ],
+      [
+        "        DanmakuApi.search(getKeyword(), getEpisode(), this::onSuccess, this::onError);",
+        "        requestWithPlaybackClient((client, cancelled) -> DanmakuApi.search(client, getKeyword(), getEpisode(), this::onSuccess, this::onError, cancelled));"
+      ],
+      [
+        "        binding = null;\n        player = null;\n        DanmakuApi.cancel();",
+        "        cancelRequest();\n        binding = null;\n        player = null;"
+      ]
+    ]
   }
 }
