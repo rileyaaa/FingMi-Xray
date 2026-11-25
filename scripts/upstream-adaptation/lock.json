@@ -895,5 +895,87 @@
         "sha256": "4d9c19231d4a629c01ac601da1fbc452fea86fab87d0c709008cd307076d1952"
       }
     }
+  ],
+  "public_media_next_build": [
+    {
+      "module": "lib-container",
+      "path": "libraries/container",
+      "tree": "14a42d7cd105243519462e4a42079c54a86a30cf",
+      "coordinate": "androidx.media3:media3-container:1.11.0",
+      "class": "androidx/media3/container/Mp4Box.class",
+      "status": "public source build candidate; not complete customized TV implementation"
+    },
+    {
+      "module": "lib-decoder",
+      "path": "libraries/decoder",
+      "tree": "293972bc677ae7196e2fb3eb07a56a426983a610",
+      "coordinate": "androidx.media3:media3-decoder:1.11.0",
+      "class": "androidx/media3/decoder/Decoder.class",
+      "status": "public source build candidate; not complete customized TV implementation"
+    },
+    {
+      "module": "lib-datasource",
+      "path": "libraries/datasource",
+      "tree": "34348ead45039173b329fdab28816838655c0b7f",
+      "coordinate": "androidx.media3:media3-datasource:1.11.0",
+      "class": "androidx/media3/datasource/DefaultDataSource.class",
+      "status": "public source build candidate; not complete customized TV implementation"
+    },
+    {
+      "module": "lib-extractor",
+      "path": "libraries/extractor",
+      "tree": "fec75bcae193c68c9b57a91f99cbf8c6568ec50e",
+      "coordinate": "androidx.media3:media3-extractor:1.11.0",
+      "class": "androidx/media3/extractor/DefaultExtractorsFactory.class",
+      "status": "public source build candidate; not complete customized TV implementation"
+    },
+    {
+      "module": "lib-exoplayer",
+      "path": "libraries/exoplayer",
+      "tree": "022186917db1b0c4af5600495aa17c0eb912762e",
+      "coordinate": "androidx.media3:media3-exoplayer:1.11.0",
+      "class": "androidx/media3/exoplayer/ExoPlayer.class",
+      "status": "public source build candidate; not complete customized TV implementation"
+    },
+    {
+      "module": "lib-exoplayer-hls",
+      "path": "libraries/exoplayer_hls",
+      "tree": "3272a287bc78b37a1ae8844aeeb686ca980ed734",
+      "coordinate": "androidx.media3:media3-exoplayer-hls:1.11.0",
+      "class": "androidx/media3/exoplayer/hls/HlsMediaSource.class",
+      "status": "public source build candidate; not complete customized TV implementation"
+    },
+    {
+      "module": "lib-exoplayer-dash",
+      "path": "libraries/exoplayer_dash",
+      "tree": "aaae9d588921a6dcd6eab652d8885417eb42f913",
+      "coordinate": "androidx.media3:media3-exoplayer-dash:1.11.0",
+      "class": "androidx/media3/exoplayer/dash/DashMediaSource.class",
+      "status": "public source build candidate; not complete customized TV implementation"
+    },
+    {
+      "module": "lib-exoplayer-smoothstreaming",
+      "path": "libraries/exoplayer_smoothstreaming",
+      "tree": "3eb6e17fc47befa5d7f05947a2bd509fa0c148b9",
+      "coordinate": "androidx.media3:media3-exoplayer-smoothstreaming:1.11.0",
+      "class": "androidx/media3/exoplayer/smoothstreaming/SsMediaSource.class",
+      "status": "public source build candidate; not complete customized TV implementation"
+    },
+    {
+      "module": "lib-session",
+      "path": "libraries/session",
+      "tree": "e259a6c1546ca7493b50a8cbb01b968e40636f0c",
+      "coordinate": "androidx.media3:media3-session:1.11.0",
+      "class": "androidx/media3/session/MediaSession.class",
+      "status": "public source build candidate; not complete customized TV implementation"
+    },
+    {
+      "module": "lib-ui",
+      "path": "libraries/ui",
+      "tree": "6605e7f6d590061a66ae51044173c244661d78da",
+      "coordinate": "androidx.media3:media3-ui:1.11.0",
+      "class": "androidx/media3/ui/PlayerView.class",
+      "status": "public source build candidate; not complete customized TV implementation"
+    }
   ]
 }

@@ -1088,6 +1088,10 @@ Google Maven 正式 media3-database:1.11.0 POM 1723 字节、SHA-256 951d7957780
 
 固定 5.9.0 的 OkHttp、ExoMediaSourceFactory、ExoPlayerSession、ExoPlayerEngine、PlayerEngineFactory 与新版 SubtitleFileContent 输入 blob，逐锚点生成候选（reviewed_media_host.json）。保留现有 TV 普通 API/DNS 资源换代，以及新版 Auth.Context / redirect 语义；新增显式 client 的 Auth.Context 绑定，不能退回全局 player client。代理媒体 HTTP 使用同一 session client（包括 DRM、ISO 导航传入的 data source 和字幕转录入口），复用既有 scheme guard 和 RTSP TCP socket factory，不使用直连磁盘缓存、不在代理 engine 中跨媒体预加载。普通路径仍调用原有 factory、cache、metadata、decoder、navigation 和 preload 行为。新版字幕读取仅对传入代理资源的 session 使用代理，不修改 MPV 普通字幕读取。所有输出 blob 已记录；仍须验证真实候选与可用媒体制品。由于新版定制 ContentTypeResolvingMediaSource/ISO/CMG 内部取流、播放器服务与 PlayerManager 所有权未完成验收，本批仅提供未启用的代理 engine 构造及匹配接线，不将其提前接入 PlayerManager，不宣称真实播放已可用。Core、主线及发版文件不变。
 
+### 12.10 独立 transport 验收与第二组公开 Media3
+
+新增 verify_transport_batch.py，严格生成并核对本轮六份 media host 与上一轮 Live host 的实际候选输出，编译真实 PlayerEngineFactory 及从候选抽取的既有 scheme guard（确定性 Android/Media3/engine 替身）；可另行使用 5.9.0 原 Gradle/SDK 编译实际 catvod，复制候选中未修改的三份 Xray 网络源码作为测试输入，用 Robolectric/真实 OkHttp Auth、redirect 和 XrayHttpClient 回归（HTTP 终端交换为确定性替身）。不执行正式 APK、签名或整个旧候选门禁。新增第二组十个公开 Media3 Java 模块 source tree 锁；支持独立 staging 目录及 provenance 清单，已验摘要的重建必须匹配锁，Google Maven database 要求完整 AAR 字节一致。新组第一次构建摘要待日志，禁止当作完整定制播放器或覆盖 app/libs。
+
 ## 13. 冻结 5.6.3-xray.2 无正式密钥构建与离线签名交接
 
 本节只适用于用户明确授权的单一开发测试分支 `dev/fongmi-upstream-adaptation`。默认 `main` 固定为 `4a52de1daa465d81df7ac06e886a1f184053253c`，仓库实际为 public；正式版本基线、两项业务维护边界及历史黄金证据不变。5.9.0 适配和候选 Core 均未通过完整兼容门禁，不得将其输入用于本次冻结版。三条线的固定 Git 归档引用分别为 `archive/frozen-public-validation-97a23d8`、`archive/fongmi-upstream-adaptation-e3fec17`、`archive/xray-core-stable-eb03202`。归档 tag 不是正式 Release。正式签名及发布必须独立验收。
