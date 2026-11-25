@@ -2,9 +2,9 @@
 
 本文件集中维护 AI 在 FingMi-Xray 仓库中与用户共同开发时必须遵守的执行限制。工程事实以 [DEVELOPMENT.md](DEVELOPMENT.md) 为准，长期架构以 [PROJECT.md](PROJECT.md) 为准，旧发布版证据以 [RECOVERY.md](RECOVERY.md) 为准。
 
-## 1. Actions / AC 默认不跑，且禁止原地轮询
+## 1. Actions / AC 按需执行，且禁止原地轮询
 
-- 用户使用的 Actions / AC 额度有限，应把 CI 计算额度视为稀缺资源。**默认不触发 Actions；能通过静态审计、现有源码 guard / JVM / parity 脚本、已有且仍适用的证据完成判断时，就不要为了“再验证一下”启动 AC。**
+- 用户使用的 Actions / AC 额度有限，应把 CI 计算额度视为稀缺资源。**用户明确授权查 Bug、定位和修复期间按实际需要执行 AC，无需逐次请求许可。** 能通过静态审计、现有源码 guard / JVM / parity 脚本或仍适用的已有证据完成判断时，不为“再验证一下”启动 AC。
 - 每次准备触发 run 前必须先综合评估：这次 run 是否会提供能够改变当前开发决策的新增证据；是否存在不消耗 AC 的等价验证；是否可以先把同一轮源码审计和确定修复集中完成，再一次性验证。三项中没有明确必要性时，不运行。
 - 适合消耗 AC 的场景主要是：静态审计已经收敛、需要 compiler / Gradle / APK / native / Manifest 级证据确认当前 HEAD；某个已定位问题只有真实构建或运行环境才能判定；或用户明确要求执行。即使需要运行，也只执行与本项目 Android TV / Leanback 目标和当前变更直接相关的最小验证，不顺带编译无关 variant。
 - 禁止形成“发现一个小问题 → 改一次 → 跑一次 AC”的循环；普通文档修改、source guard 小改、尚未完成的一轮竞态审计，以及纯粹出于安心的重复构建，都不足以单独触发 run。应优先积累到一个稳定检查点后再集中验证。
@@ -21,7 +21,7 @@
 - 最新 runs 列表确认 run 已完成后，才读取该 run 的 jobs / logs 核对实际成功步骤或失败原因。
 - 长期 Actions 只使用 `workflow_dispatch` 手动触发，不允许 push trigger、marker、定时或自动串联。冻结 main 的三个手动入口保持原状；用户指定的单一开发分支通过既有 01 手动入口明确选择单个任务，默认 none 不构建，独立的 04 workflow 仅受该手动任务调用；02/03 在开发分支强制禁用。上游自动升级仍禁用，5.9.0 仅限隔离实验。见 [DEVELOPMENT.md](DEVELOPMENT.md#13-冻结-563-xray2-无正式密钥构建与离线签名交接)。
 - 如果当前自动化环境既没有 `workflow_dispatch` 调用能力，又明确阻止修改 workflow trigger，则不得通过强制移动 `main`、回退默认分支、复用旧自动 trigger commit 或其他方式绕过平台安全限制。保持仓库 pure manual-only，由用户在 GitHub Actions 页面使用 `Run workflow` 触发；AI 继续完成不依赖该触发动作的审计、文档、存储清理和后续结果核验。
-- GitHub Releases 只发布 APK，长期保留 `v5.6.0-xray.5` 黄金参考和一个当前正式版。**今后不生成、上传或暂存项目源码 ZIP / `source-backup-*` Release**；当前仓库实际为 public；正式签名凭证不得进入公开 AC、日志、聊天或 Artifact，原签名仅限用户授权的受控离线环境。
+- GitHub Releases 只发布 APK，长期保留 `v5.6.0-xray.5` 黄金参考和一个当前正式版。**今后不生成、上传或暂存项目源码 ZIP / `source-backup-*` Release**；当前仓库实际为 public；不把正式签名凭证输出到聊天、日志、Artifact 或 Release，不提交、导出或转移到其他项目。用户于 2026-11-25 明确授权 .2 对已验冻结候选在同仓现有开发分支使用原有签名文件和配置的一次性签名；必须预先公开非秘密实施代码、使用最小权限、核对原证书并清理临时 checkout。无正式密钥构建入口仍不读取原签名材料；此授权不扩大到其他项目或永久工作流，不绕过正式发布器的私有项目门禁。
 
 
 ## 3. 冻结 main 与单一开发测试分支

@@ -1044,7 +1044,7 @@ gh workflow run '01-当前源码编译与APK验证.yml' \
 
 ### 已验交接产物（2026-11-25）
 
-Artifact [15001953802](https://github.com/rileyaaa/FingMi-Xray/actions/runs/45570721364/artifacts/15001953802) 名称 `unsigned-frozen-563002-45570721364`，126799059 字节，外层 ZIP SHA-256 `35fbda2824f2770a5b63bba6134be62f7a95e15ded2e868c5e504c728a5a41d0`，有效期截至 2026-12-09 07:57:23 UTC。它是待离线签名的短期交接区，不是 Release 或长期备份；签名前下载并核对，不因清理临时分支而删除。
+Artifact [15001953802](https://github.com/rileyaaa/FingMi-Xray/actions/runs/45570721364/artifacts/15001953802) 名称 `unsigned-frozen-563002-45570721364`，126799059 字节，外层 ZIP SHA-256 `35fbda2824f2770a5b63bba6134be62f7a95e15ded2e868c5e504c728a5a41d0`，有效期截至 2026-12-09 07:57:23 UTC。它是待原签名验收的短期交接区，不是 Release 或长期备份；签名前下载并核对，不因清理临时分支而删除。
 
 | 文件 | 字节 | SHA-256 |
 | --- | ---: | --- |
@@ -1060,14 +1060,14 @@ Artifact [15001953802](https://github.com/rileyaaa/FingMi-Xray/actions/runs/4557
 
 ### 正式签名与 Release 门禁
 
-旧 .1 双 ABI 实际公开证书 SHA-256：`3cd86f4fdf6044e7e60307624bf0d8c892dfd83b81ce21748504fcbba28763c2`，包名 com.fongmi.android.tv，versionCode 563001。用户指定使用原签名而非新证书。受控离线执行入口尚未确认；不得将原私钥或密码交给公开 AC、聊天、日志或 Artifact，也不得把 public 仓库称为私有。若原签名材料曾公开，不能因转为本地副本就宣称从未泄露。
+旧 .1 双 ABI 实际公开证书 SHA-256：`3cd86f4fdf6044e7e60307624bf0d8c892dfd83b81ce21748504fcbba28763c2`，包名 com.fongmi.android.tv，versionCode 563001。用户指定使用原签名而非新证书。2026-11-25 用户最新明确授权同仓既有开发分支使用冻结 main 原签名文件与配置对这批已验候选执行一次性签名，不要求用户另行离线签名。签名材料仅在同仓临时 runner 通过原路径使用，不能输出、重新提交、导出或进入日志、聊天、Artifact、Release；不扩大权限。无正式密钥构建流程继续独立，不接触原签名。实际仓库为 public，不能宣称签名材料未公开或已恢复保密。原 `publish-current-release.py` 的 `private is True` 安全门禁不变；公开仓库正式发布被阻止时保留已验候选，禁止绕过。
 
-在用户控制的离线环境解压交接 ZIP，安装 Android SDK build-tools 37.0.0、cmdline-tools/latest、Python 3。按包内 README 以交互方式检查原 keystore 的 DER 公开证书 SHA-256，严格匹配 .1 后才签两个无签名候选。先后运行：
+正式签名环境解压交接 ZIP，使用 Android SDK build-tools 37.0.0、cmdline-tools/latest、Python 3。只签已固定摘要的两个无签名候选，先检查原 keystore 的 DER 公开证书 SHA-256，严格匹配 .1。一次性同仓签名复用原 `check-release-signing.py`、配置字段和交接验证脚本；由子进程环境传递密码而非输出。以下为非秘密验证入口（离线使用时亦适用）：
 
 ```sh
 sha256sum -c SHA256SUMS
 python3 verify_handoff.py --handoff . --sdk "$ANDROID_HOME"
-# 依交接 README 离线使用原签名，产物置于 signed/，不修改签名后的 APK。
+# 使用原签名，产物置于 signed/，不修改签名后的 APK。
 python3 verify_handoff.py --handoff . --signed-dir signed --sdk "$ANDROID_HOME"
 ```
 
