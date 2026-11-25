@@ -1152,6 +1152,10 @@ Actions `45609274767` / job `139188254192` (`1feed2d`) 仅执行 native 重验�
 - 本批仅新增宿主、侧请求、MPEG-H 双 ABI 源码编译/ELF/JNI 证据；未原样重复 45596644795 或此前 14 个公开 AAR 构建。FFmpeg 消费端来源锁已取得精确 producer/commit/ABI 摘要，但旧 run/artifacts API 404，没有拿到匹配的制品。完整 MPV、FFmpeg、Libass、ISO/CMG 等定制合同、Activity 与播放器全量链接、真机待机/解码/回放仍待完成。稳定 Xray Core 仍保留已验证的现有版本，未绕过旧分享导入与配置兼容门禁。
 - 本批三次验收均已结束，删除自己的 94 临时 workflow；不修改冻结版发版、签名、主线或其他会话的工作流。不把局部通过标记为 5.9.0 双 ABI APK 可交付。
 
+### 12. 5.9.0 Live EPG 与 VOD 播放身份接线候选
+
+固定公开 5.9.0 的 LiveApi、EpgParser、LiveViewModel、VodPlaybackHost、VodPlaybackController、VodPlaybackMedia，以输入/输出 blob 锁定的最小移植。EPG 保留新版 XMLTV 时间/别名/排序、临时下载/校验/缓存、三日查询与回看 Auth；只有显式播放 client 才改走当前 client 和 metadata tag，普通调用仍使用原下载及 OkHttp.string。LiveViewModel 保留新版 Notify 错误和 TaskRunner，TV owner 对 URL、XML、EPG 在主线程再次核验代际并在取消时退役，普通宿主保留 postValue；cancelUrl 与既有 cancelPlaybackUrl 共用取消入口。VOD 手动切集/线路/源/质量、显式重载与 push 退役旧代理，保留新版解析展开、预载及普通回看逻辑；新增既有 clearPreloadForXray 接口与保留新版 isCurrent 的显式 Danmaku client/请求 ID overload。自动预载过渡及 Activity 实际绑定仍需与 PlayerManager 的代理预载禁止一同验证，不把局部接口当作完整接管。当前仅源锚点与输出摘要验证，待专项目标回归与完整 Android 链接；不改变冻结源码、签名、发布、Core 或旧 ABI 产物。公开 Media3 两分支在本次复核仍为原固定 commit；历史 FFmpeg producer 的 depinfo/download-deps 明确另有移动的 libass/MPV 和其他依赖，现有 consumer manifest 并未固定全部历史输入，不能称历史二进制可重现或补齐定制 TV 5.9 合同。
+
 ## 13. 冻结 5.6.3-xray.2 无正式密钥构建与离线签名交接
 
 本节只适用于用户明确授权的单一开发测试分支 `dev/fongmi-upstream-adaptation`。默认 `main` 固定为 `4a52de1daa465d81df7ac06e886a1f184053253c`，仓库实际为 public；正式版本基线、两项业务维护边界及历史黄金证据不变。5.9.0 适配和候选 Core 均未通过完整兼容门禁，不得将其输入用于本次冻结版。三条线的固定 Git 归档引用分别为 `archive/frozen-public-validation-97a23d8`、`archive/fongmi-upstream-adaptation-e3fec17`、`archive/xray-core-stable-eb03202`。归档 tag 不是正式 Release。正式签名及发布必须独立验收。

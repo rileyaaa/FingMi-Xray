@@ -251,7 +251,8 @@
       "old": "0971a30698f73227728cc7cd558b554a4424cfa6",
       "fork": "7a588aa874221817bf90cdb7ba0c2633885204b8",
       "target": "2e167a5ef71ab74cd531f3abdae16d27643e38c2",
-      "strategy": "three-way"
+      "strategy": "reviewed-media-host",
+      "resolved": "df0138ae3c510e853bbc113128f61375e422ca2c"
     },
     {
       "path": "app/src/main/java/com/fongmi/android/tv/api/SubtitleApi.java",
@@ -295,7 +296,8 @@
       "old": "9720f173d6e6eb78425e57565570fea2e069417c",
       "fork": "84366467743e6fa30c58f7d5f89af4aef04fb62e",
       "target": "51f8a35d1cb26cafd3488f3f74de8c2dc1ba6313",
-      "strategy": "three-way"
+      "strategy": "reviewed-media-host",
+      "resolved": "8819406efc21deeb900dd5d86a68260edba43980"
     },
     {
       "path": "app/src/main/java/com/fongmi/android/tv/event/XrayImportEvent.java",
@@ -316,7 +318,8 @@
       "old": "c3d1b0b1f775eb77482b6f639feed488c8dd88dc",
       "fork": "cb85883ef29790e31607fa8e4682a89ad560e18d",
       "target": "ec0c09db0e0ab89eb0ac7e46c9c317f98d58f532",
-      "strategy": "three-way"
+      "strategy": "reviewed-media-host",
+      "resolved": "367f6c10fc6c583887cf08d4a2d8ab7d50f76d0a"
     },
     {
       "path": "app/src/main/java/com/fongmi/android/tv/model/SiteViewModel.java",
@@ -361,21 +364,24 @@
       "old": "1e1e479767c48397bd05bb943736b44f5df36f1e",
       "fork": "6f17fde6f3041ed1db4c7d63fd272bffd398d214",
       "target": "f5243a28fbe116f4c3391f5dd53d648a9c1e0537",
-      "strategy": "three-way"
+      "strategy": "reviewed-media-host",
+      "resolved": "28fb39ff54d2d1679a504a640b4b35df4b6a1c74"
     },
     {
       "path": "app/src/main/java/com/fongmi/android/tv/playback/vod/VodPlaybackHost.java",
       "old": "e7abdb776aecfce9036c006e6bb3b650e3c14772",
       "fork": "ff97e34e4b74fb9894ffce0e2cab8aa73fdbe4bb",
       "target": "e638bff279b94ff89bce4f4c860731f538b2cbb2",
-      "strategy": "three-way"
+      "strategy": "reviewed-media-host",
+      "resolved": "f38a1296bd9d8da196d5c27fce737385a7f7fae3"
     },
     {
       "path": "app/src/main/java/com/fongmi/android/tv/playback/vod/VodPlaybackMedia.java",
       "old": "537bd98d54ecc20df8aadeac63d09a871be4b109",
       "fork": "cc14b7368456a59b6b2a5ec4fef54bbd7b1e2038",
       "target": "4f14e475047cb7761722905507f81489731fe5d4",
-      "strategy": "three-way"
+      "strategy": "reviewed-media-host",
+      "resolved": "759d9ce69408f26a4bd4975f343eb02cf68b8a2d"
     },
     {
       "path": "app/src/main/java/com/fongmi/android/tv/player/PlayerManager.java",

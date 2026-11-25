@@ -449,5 +449,175 @@
         "        cancelRequest();\n        binding = null;\n        player = null;"
       ]
     ]
+  },
+  "app/src/main/java/com/fongmi/android/tv/api/LiveApi.java": {
+    "from": "target",
+    "base": "2e167a5ef71ab74cd531f3abdae16d27643e38c2",
+    "resolved": "df0138ae3c510e853bbc113128f61375e422ca2c",
+    "edits": [
+      [
+        "import com.github.catvod.net.OkHttp;",
+        "import com.github.catvod.net.OkHttp;\n\nimport okhttp3.OkHttpClient;\nimport okhttp3.Response;"
+      ],
+      [
+        "public class LiveApi {",
+        "public class LiveApi {\n\n    public static final String METADATA_TAG = LiveApi.class.getName().concat(\".metadata\");"
+      ],
+      [
+        "        boolean parsed = false;\n        for (String url : item.getEpgXml()) parsed |= startXml(item, url);",
+        "        return parseXml(item, null);\n    }\n\n    public static boolean parseXml(@NonNull Live item, OkHttpClient client) {\n        boolean parsed = false;\n        for (String url : item.getEpgXml()) {\n            if (client != null && Thread.currentThread().isInterrupted()) break;\n            parsed |= startXml(item, url, client);\n        }"
+      ],
+      [
+        "        for (int offset = -1; offset <= 1; offset++) fetchEpgDay(item, zoneId, offset);",
+        "        return getEpg(item, zoneId, null);\n    }\n\n    @NonNull\n    public static Epg getEpg(@NonNull Channel item, @NonNull ZoneId zoneId, OkHttpClient client) {\n        for (int offset = -1; offset <= 1; offset++) {\n            if (client != null && Thread.currentThread().isInterrupted()) break;\n            fetchEpgDay(item, zoneId, offset, client);\n        }"
+      ],
+      [
+        "private static boolean startXml(Live item, String url) {",
+        "private static boolean startXml(Live item, String url, OkHttpClient client) {"
+      ],
+      [
+        "            EpgParser.start(item, url);",
+        "            if (client == null) EpgParser.start(item, url);\n            else EpgParser.start(item, url, client, METADATA_TAG);"
+      ],
+      [
+        "private static void fetchEpgDay(@NonNull Channel item, @NonNull ZoneId zoneId, int offset) {",
+        "private static void fetchEpgDay(@NonNull Channel item, @NonNull ZoneId zoneId, int offset, OkHttpClient client) {"
+      ],
+      [
+        "        if (need) item.setData(Epg.objectFrom(OkHttp.string(url), item.getTvgId(), date, zoneId));",
+        "        if (!need) return;\n        if (client == null) {\n            item.setData(Epg.objectFrom(OkHttp.string(url), item.getTvgId(), date, zoneId));\n            return;\n        }\n        if (Thread.currentThread().isInterrupted()) return;\n        try (Response response = OkHttp.newCall(client, url, METADATA_TAG).execute()) {\n            if (response.body() == null || Thread.currentThread().isInterrupted()) return;\n            String body = response.body().string();\n            if (!Thread.currentThread().isInterrupted()) item.setData(Epg.objectFrom(body, item.getTvgId(), date, zoneId));\n        } catch (Exception e) {\n            e.printStackTrace();\n        }"
+      ]
+    ]
+  },
+  "app/src/main/java/com/fongmi/android/tv/api/parser/EpgParser.java": {
+    "from": "target",
+    "base": "51f8a35d1cb26cafd3488f3f74de8c2dc1ba6313",
+    "resolved": "8819406efc21deeb900dd5d86a68260edba43980",
+    "edits": [
+      [
+        "import com.github.catvod.utils.Path;",
+        "import com.github.catvod.utils.Path;\n\nimport okhttp3.OkHttpClient;"
+      ],
+      [
+        "    public static synchronized void start(Live live, String url) throws Exception {\n        checkInterrupted();",
+        "    public static synchronized void start(Live live, String url) throws Exception {\n        start(live, url, null, url);\n    }\n\n    public static synchronized void start(Live live, String url, OkHttpClient client, String tag) throws Exception {\n        checkInterrupted();"
+      ],
+      [
+        "XmlData data = loadXml(url, Path.epg(Crypto.md5(url) + \".xml\"));",
+        "XmlData data = loadXml(url, Path.epg(Crypto.md5(url) + \".xml\"), client, tag);"
+      ],
+      [
+        "private static XmlData loadXml(String url, File file) throws Exception {",
+        "private static XmlData loadXml(String url, File file, OkHttpClient client, String tag) throws Exception {"
+      ],
+      [
+        "            Download.create(url, download).get();",
+        "            Download request = Download.create(url, download);\n            if (client != null) request.client(client).tag(tag == null ? url : tag);\n            request.get();"
+      ]
+    ]
+  },
+  "app/src/main/java/com/fongmi/android/tv/model/LiveViewModel.java": {
+    "from": "target",
+    "base": "ec0c09db0e0ab89eb0ac7e46c9c317f98d58f532",
+    "resolved": "367f6c10fc6c583887cf08d4a2d8ab7d50f76d0a",
+    "edits": [
+      [
+        "import com.fongmi.android.tv.Constant;",
+        "import com.fongmi.android.tv.App;\nimport com.fongmi.android.tv.Constant;"
+      ],
+      [
+        "import java.time.ZoneId;",
+        "import okhttp3.OkHttpClient;\n\nimport java.time.ZoneId;"
+      ],
+      [
+        "    private volatile ZoneId zoneId;",
+        "    private volatile ZoneId zoneId;\n    private volatile boolean xrayLiveDeliveryGuard;\n    private LivePlayRequest latestUrlRequest;\n    private long epgGeneration;\n    private long xmlGeneration;"
+      ],
+      [
+        "        return new LivePlaybackController(host, this, playbackState);",
+        "        xrayLiveDeliveryGuard = host.usesXrayLiveDeliveryGuard();\n        return new LivePlaybackController(host, this, playbackState);"
+      ],
+      [
+        "    public void parseXml(Live item) {\n        execute(TaskType.XML, () -> LiveApi.parseXml(item), xml::postValue, error -> xml.postValue(false));\n    }\n\n    public void getEpg(Channel item) {\n        execute(TaskType.EPG, () -> LiveApi.getEpg(item, zoneId), epg::postValue, error -> epg.postValue(new Epg()));\n    }",
+        "    public void parseXml(Live item) { parseXml(item, null); }\n\n    public void parseXml(Live item, OkHttpClient client) {\n        if (!xrayLiveDeliveryGuard) {\n            execute(TaskType.XML, () -> LiveApi.parseXml(item, client), xml::postValue, error -> xml.postValue(false));\n            return;\n        }\n        long generation = ++xmlGeneration;\n        execute(TaskType.XML, () -> LiveApi.parseXml(item, client), result -> postXml(generation, result), error -> postXml(generation, false));\n    }\n\n    private void postXml(long generation, boolean result) {\n        App.post(() -> {\n            if (xmlGeneration == generation) xml.setValue(result);\n        });\n    }\n\n    public void getEpg(Channel item) { getEpg(item, null); }\n\n    public void getEpg(Channel item, OkHttpClient client) {\n        if (!xrayLiveDeliveryGuard) {\n            execute(TaskType.EPG, () -> LiveApi.getEpg(item, zoneId, client), epg::postValue, error -> epg.postValue(new Epg()));\n            return;\n        }\n        long generation = ++epgGeneration;\n        execute(TaskType.EPG, () -> LiveApi.getEpg(item, zoneId, client), result -> postEpg(generation, result), error -> postEpg(generation, new Epg()));\n    }\n\n    private void postEpg(long generation, Epg result) {\n        App.post(() -> {\n            if (epgGeneration == generation) epg.setValue(result);\n        });\n    }\n\n    public void cancelPlaybackMetadata() {\n        epgGeneration++;\n        xmlGeneration++;\n        tasks.cancel(TaskType.EPG);\n        tasks.cancel(TaskType.XML);\n    }\n\n    public void cancelPlaybackUrl() { cancelUrl(); }"
+      ],
+      [
+        "    public void getUrl(LivePlayRequest request) {\n        execute(",
+        "    public void getUrl(LivePlayRequest request) {\n        if (xrayLiveDeliveryGuard) latestUrlRequest = request;\n        execute("
+      ],
+      [
+        "    public void cancelUrl() {\n        tasks.cancel(TaskType.URL);",
+        "    public void cancelUrl() {\n        latestUrlRequest = null;\n        tasks.cancel(TaskType.URL);"
+      ],
+      [
+        "        if (request.getPosition() != C.TIME_UNSET) result.setPosition(request.getPosition());\n        playback.postValue(new PlaybackResult<>(request, result));",
+        "        if (!xrayLiveDeliveryGuard) {\n            if (request.getPosition() != C.TIME_UNSET) result.setPosition(request.getPosition());\n            playback.postValue(new PlaybackResult<>(request, result));\n            return;\n        }\n        App.post(() -> {\n            if (latestUrlRequest != request) return;\n            if (request.getPosition() != C.TIME_UNSET) result.setPosition(request.getPosition());\n            playback.setValue(new PlaybackResult<>(request, result));\n        });"
+      ],
+      [
+        "    protected void onCleared() {\n        tasks.cancelAll();",
+        "    protected void onCleared() {\n        if (xrayLiveDeliveryGuard) {\n            latestUrlRequest = null;\n            cancelPlaybackMetadata();\n        }\n        tasks.cancelAll();"
+      ]
+    ]
+  },
+  "app/src/main/java/com/fongmi/android/tv/playback/vod/VodPlaybackHost.java": {
+    "from": "target",
+    "base": "e638bff279b94ff89bce4f4c860731f538b2cbb2",
+    "resolved": "f38a1296bd9d8da196d5c27fce737385a7f7fae3",
+    "edits": [
+      [
+        "    void stopPlaybackForRefresh();",
+        "    void stopPlaybackForRefresh();\n\n    default void resetXrayForPlaybackChange() { }"
+      ]
+    ]
+  },
+  "app/src/main/java/com/fongmi/android/tv/playback/vod/VodPlaybackController.java": {
+    "from": "target",
+    "base": "f5243a28fbe116f4c3391f5dd53d648a9c1e0537",
+    "resolved": "28fb39ff54d2d1679a504a640b4b35df4b6a1c74",
+    "edits": [
+      [
+        "        String target = url.substring(PUSH_PREFIX.length());\n        dataSource.cancelContent();",
+        "        String target = url.substring(PUSH_PREFIX.length());\n        host.resetXrayForPlaybackChange();\n        dataSource.cancelContent();"
+      ],
+      [
+        "        if (!force && selected.isSelected()) return;\n        preloader.clear();",
+        "        if (!force && selected.isSelected()) return;\n        host.resetXrayForPlaybackChange();\n        preloader.clear();"
+      ],
+      [
+        "        if (explicit) host.clearVodPlayId();\n        if (preloader.seek(item)) return;",
+        "        if (explicit) host.clearVodPlayId();\n        host.resetXrayForPlaybackChange();\n        if (preloader.seek(item)) return;"
+      ],
+      [
+        "        state.setQualityPosition(result.getUrl().getPosition());\n        preloader.clear();",
+        "        host.resetXrayForPlaybackChange();\n        state.setQualityPosition(result.getUrl().getPosition());\n        preloader.clear();"
+      ],
+      [
+        "        state.setAutoFallback(autoFallback);\n        saveCurrentHistory();",
+        "        state.setAutoFallback(autoFallback);\n        host.resetXrayForPlaybackChange();\n        saveCurrentHistory();"
+      ],
+      [
+        "    private void reloadPlayback() {\n        preloader.clear();",
+        "    private void reloadPlayback() {\n        host.resetXrayForPlaybackChange();\n        preloader.clear();"
+      ],
+      [
+        "    public void onPreloadResult(PlaybackResult<VodPlayRequest> preload) {",
+        "    public void clearPreloadForXray() {\n        preloader.clear();\n    }\n\n    public void onPreloadResult(PlaybackResult<VodPlayRequest> preload) {"
+      ]
+    ]
+  },
+  "app/src/main/java/com/fongmi/android/tv/playback/vod/VodPlaybackMedia.java": {
+    "from": "target",
+    "base": "4f14e475047cb7761722905507f81489731fe5d4",
+    "resolved": "759d9ce69408f26a4bd4975f343eb02cf68b8a2d",
+    "edits": [
+      [
+        "import com.fongmi.android.tv.setting.DanmakuSetting;",
+        "import com.fongmi.android.tv.setting.DanmakuSetting;\n\nimport okhttp3.OkHttpClient;"
+      ],
+      [
+        "    public static void searchDanmaku(Result result, History history, Episode episode, BooleanSupplier isCurrent, Consumer<Danmaku> set, Consumer<Danmaku> add) {",
+        "    public static int searchDanmaku(OkHttpClient client, Result result, History history, Episode episode, BooleanSupplier isCurrent, Consumer<Danmaku> set, Consumer<Danmaku> add) {\n        DanmakuApi.cancel();\n        if (!isCurrent.getAsBoolean() || !DanmakuApi.canSearch()) return -1;\n        if (VodConfig.get().getSite(result.getKey()).getDanmaku() == 0) return -1;\n        return DanmakuApi.search(client, history.getVodName(), episode.getName(), items -> {\n            if (!isCurrent.getAsBoolean()) return;\n            items.stream().findFirst().ifPresent(danmaku -> {\n                if (DanmakuSetting.isSpiderFirst() && !result.getDanmaku().isEmpty()) add.accept(danmaku);\n                else set.accept(danmaku);\n            });\n        }, error -> { }, null);\n    }\n\n    public static void searchDanmaku(Result result, History history, Episode episode, BooleanSupplier isCurrent, Consumer<Danmaku> set, Consumer<Danmaku> add) {"
+      ]
+    ]
   }
 }
