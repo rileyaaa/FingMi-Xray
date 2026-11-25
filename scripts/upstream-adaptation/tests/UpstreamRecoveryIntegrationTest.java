@@ -18,7 +18,8 @@ import org.robolectric.annotation.LooperMode;
 import java.util.concurrent.atomic.AtomicInteger;
 import okhttp3.OkHttpClient;
 import static org.junit.Assert.*;
-import static org.robolectric.Shadows.shadowOf;
+import org.robolectric.shadows.ShadowLooper;
+import org.robolectric.shadow.api.Shadow;
 
 @RunWith(RobolectricTestRunner.class)
 @Config(sdk=35,manifest=Config.NONE)
@@ -52,9 +53,9 @@ public class UpstreamRecoveryIntegrationTest {
                 public void refreshHome(){refreshes.incrementAndGet();TvNetworkLifecycle.markRecovered(TvNetworkLifecycle.generation());}
             });
             recovery.check();assertEquals(0,clears.get());
-            app.sendBroadcast(new Intent(Intent.ACTION_SCREEN_OFF));shadowOf(Looper.getMainLooper()).idle();
+            app.sendBroadcast(new Intent(Intent.ACTION_SCREEN_OFF));mainLooper().idle();
             assertEquals(1,stops.get());
-            app.sendBroadcast(new Intent(Intent.ACTION_SCREEN_ON));shadowOf(Looper.getMainLooper()).idle();
+            app.sendBroadcast(new Intent(Intent.ACTION_SCREEN_ON));mainLooper().idle();
             assertEquals(first+1,TvNetworkLifecycle.generation());
             lifecycle.startRendererIfNeeded();assertEquals(2,starts.get());
             recovery.check();recovery.check();assertEquals(1,cancels.get());assertEquals(1,clears.get());
@@ -75,4 +76,5 @@ public class UpstreamRecoveryIntegrationTest {
         }finally{owner.pause().stop().destroy();}
     }
     private static void runPoll(Runnable[] poll){Runnable r=poll[0];assertNotNull(r);poll[0]=null;r.run();}
+    private static ShadowLooper mainLooper(){return Shadow.extract(Looper.getMainLooper());}
 }

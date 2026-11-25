@@ -22,7 +22,8 @@ import org.robolectric.annotation.LooperMode;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import static org.junit.Assert.*;
-import static org.robolectric.Shadows.shadowOf;
+import org.robolectric.shadows.ShadowLooper;
+import org.robolectric.shadow.api.Shadow;
 
 /** Full actual FongMi adapter and leanback renderer bridge; app-only services
  * are boundary fixtures, not Android/player source replacements. */
@@ -48,19 +49,20 @@ public class UpstreamRecoveryAdapterTest {
             assertEquals(2,DLNARendererService.starts);
             assertEquals(1,cancel.get());assertEquals(1,progress.get());assertEquals(1,ImgUtil.resets);assertEquals(1,BaseLoader.get().clears);
             assertNotSame(api,OkHttp.client());assertSame(player,OkHttp.player());assertSame(bound,xray.client());
-            shadowOf(Looper.getMainLooper()).idleFor(7,TimeUnit.SECONDS);
+            mainLooper().idleFor(7,TimeUnit.SECONDS);
             assertEquals(0,refresh.get());
             BaseLoader.get().complete();
-            shadowOf(Looper.getMainLooper()).idleFor(7,TimeUnit.SECONDS);
+            mainLooper().idleFor(7,TimeUnit.SECONDS);
             assertEquals(1,refresh.get());assertEquals(first+1,TvNetworkLifecycle.recoveredGeneration());
             recovery.check();assertEquals(1,BaseLoader.get().clears);
             screen(app,Intent.ACTION_SCREEN_OFF);screen(app,Intent.ACTION_SCREEN_ON);
             recovery.check();assertEquals(2,BaseLoader.get().clears);
             alive[0]=false;recovery.close();BaseLoader.get().complete();
-            shadowOf(Looper.getMainLooper()).idleFor(7,TimeUnit.SECONDS);
+            mainLooper().idleFor(7,TimeUnit.SECONDS);
             assertEquals(1,refresh.get());assertEquals(first+1,TvNetworkLifecycle.recoveredGeneration());
             assertSame(player,OkHttp.player());assertSame(bound,xray.client());assertFalse(bound.dispatcher().executorService().isShutdown());
         }finally{recovery.close();owner.pause().stop().destroy();}
     }
-    private static void screen(Application app,String action){app.sendBroadcast(new Intent(action));shadowOf(Looper.getMainLooper()).idle();}
+    private static void screen(Application app,String action){app.sendBroadcast(new Intent(action));mainLooper().idle();}
+    private static ShadowLooper mainLooper(){return Shadow.extract(Looper.getMainLooper());}
 }

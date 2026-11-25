@@ -1259,7 +1259,7 @@
       "ffmpeg": "04482c8d13ac27b2a9fe93f5d388929eef8af5f4",
       "dav1d": "54706fc6bc0cdecab7e9593974a4039cc038fca7",
       "libplacebo": "04b3a0918fb32b8f374193aaead8b509274aae97",
-      "status": "new JNI compile/link using locked public consumer dependencies; not full producer rebuild, not deployment",
+      "status": "verified actual public source JNI compile/link and ELF/JNI/16KB/dependency closure passed both ABIs; pinned public consumer dependencies not rebuilt; no AAR/APK/runtime or redistribution",
       "license_line_endings": {
         "producer": "FongMi/libplacebo@04b3a0918fb32b8f374193aaead8b509274aae97",
         "producer_and_consumer_git_blob": "20fb9c7da21cb5a29e10f614a03661a935181652",
@@ -1267,6 +1267,30 @@
         "manifest_crlf_sha256": "575888be9ac31801886babca6456e1beb346fa4fb3dd76f52111f8048e38d58a",
         "failed_run": 45672262184,
         "failed_job": 139410395263
+      },
+      "verification": {
+        "run": 45672857780,
+        "job": 139412494231,
+        "commit": "cd36649801e306b8f9bb98d7ebf1ff31c8732232",
+        "kind": "standalone source compile/link + exact public consumer binary input SHA-256 + ELF/JNI/16KB/DT_NEEDED closure",
+        "outputs": {
+          "armeabi-v7a": {
+            "bytes": 1962072,
+            "sha256": "7bc0b2d12c127d5d29f8636d6028cee2b31b9853bb156a83af38d1d126a6004e",
+            "jni": 22,
+            "load_segments": 3,
+            "minimum_page_alignment": 16384
+          },
+          "arm64-v8a": {
+            "bytes": 2138256,
+            "sha256": "735d5dbdf3acb744df1d6613fe964c69035d2765a0e08692b64954b7d85a0f32",
+            "jni": 22,
+            "load_segments": 3,
+            "minimum_page_alignment": 16384
+          }
+        },
+        "input_shared_libraries_per_abi": 7,
+        "producer_rebuilt": false
       }
     }
   }

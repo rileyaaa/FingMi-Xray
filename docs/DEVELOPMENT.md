@@ -1240,3 +1240,18 @@ python3 verify_handoff.py --handoff . --signed-dir signed --sdk "$ANDROID_HOME"
 - 4581baf2 AC 45672262184：job 139410395263 在 renderer LICENSE 的 SHA-256 前置检查停止，没有编译；consumer/producer（FongMi/libplacebo@04b3a0918）同一 LGPL-2.1 Git blob 20fb9c7da21cb5a29e10f614a03661a935181652，LF checkout b3aa400aca6d2ba1f0bd03bd98d03d1fe7489a3bbb26969d72016360af8a5c9d，规范 CRLF 后恰为 manifest 575888be9ac31801886babca6456e1beb346fa4fb3dd76f52111f8048e38d58a。仅固定文本 LF/CRLF 等价可核验；所有二进制必须逐字节匹配 SHA-256。job 139410394790 在 SDK 安装停止，未编译；恢复已成功 #45608824619 使用的 SDK 精确入口 --channel=3 platforms;android-37.0，未降低 compileSdk。
 - 新候选保留完整 FongMiNetworkRecovery 与 Leanback TvDlnaLifecycle 的 Android 编译和 Robolectric 回归；App 主线程调度、DLNA service、Glide failure-reset、BaseLoader completion 为明确测试边界，真实 catvod/OkHttp 与 Xray client、生命周期/协调器及上游 SpiderLoader 另外完整执行。不能代替完整 Home/真实 TV/插件/播放器。
 - Updater 候选仅保留 5.9 runtime module 通知和 transferText 原方法，应用 APK 检查/下载/安装回调 no-op，版本行非更新入口；RuntimeInstaller 不改。主 Manifest 仍是明确冲突：旧 fork 明文禁用 REQUEST_INSTALL_PACKAGES，5.9 独立 runtime 安装要求该权限；不自行放宽权限，也不删除正常 runtime 功能，不把当前候选当可交付 APK。旧 app/utils/Download 已被实际 catvod 下载器替代（#45608824619），不恢复旧类，检查候选无引用。101 临时触发移除。
+
+#### FFmpeg JNI 独立重建实际结果与 Android 恢复测试编译边界
+
+AC [45672857780](https://github.com/rileyaaa/FingMi-Xray/actions/runs/45672857780)，固定 commit `cd36649801e306b8f9bb98d7ebf1ff31c8732232`。FFmpeg job 139412494231 success：实际 CMake 编译并链接 `ffmpegJNI`，每 ABI 7 个锁定公开共享库、34 个 renderer headers 与 libplacebo archive 通过输入审计；文本 LF/CRLF 等价需匹配 manifest 摘要，二进制摘要无例外。
+
+| ABI | libffmpegJNI.so bytes | SHA-256 | JNI | PT_LOAD |
+| --- | ---: | --- | ---: | ---: |
+| armeabi-v7a | 1962072 | `7bc0b2d12c127d5d29f8636d6028cee2b31b9853bb156a83af38d1d126a6004e` | 22 | 3 |
+| arm64-v8a | 2138256 | `735d5dbdf3acb744df1d6613fe964c69035d2765a0e08692b64954b7d85a0f32` | 22 | 3 |
+
+两个 ABI 的新 JNI 与固定输入 ELF 均通过 16KB 最低对齐、SONAME 和动态依赖闭包检查；JNI_OnLoad 存在。历史 producer 依赖未重建，临时 JNI 输出非发布制品，不声称完整 AAR、APK、运行时解码或分发权已验收。
+
+settings-boundary job 139412494163 success：实际 staged 应用更新空壳、runtime 模块通知、删除旧 Download 接线验证通过；2 unresolved / 5 old-media-review。主 Manifest 安装权限策略与 MPV 定制接口仍阻塞。
+
+recovery-integration job 139412493675 failure：SDK 37.0 安装成功；`:tv-recovery:assembleDebug` 与 `:catvod:assembleDebug` 完成；`:catvod:compileDebugUnitTestJavaWithJavac` 在 UpstreamRecoveryAdapterTest.java:51 的 `Shadows.shadowOf(Looper.getMainLooper())` 多载解析报告 `android.hardware.fingerprint.FingerprintManager` 不存在。测试尚未运行，不能标记恢复集成成功。后续仅将两份新增恢复测试改为显式 `ShadowLooper` + `Shadow.extract`，不改断言、compileSdk、实际宿主源或边界；只重新执行恢复集成，不重新执行 FFmpeg、设置、Live、VOD 或 MPEG-H。
