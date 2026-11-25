@@ -40,7 +40,14 @@ def main():
             dst=tests/"com/fongmi/android/tv"/rel;dst.parent.mkdir(parents=True,exist_ok=True);shutil.copyfile(candidate/(prefix+rel),dst)
         for n,pkg in (("UpstreamRecoveryIntegrationTest.java","com/github/catvod/net"),("UpstreamSpiderLifecycleTest.java","com/fongmi/android/tv/api/loader")):
             dst=tests/pkg/n;dst.parent.mkdir(parents=True,exist_ok=True);shutil.copyfile(ROOT/"scripts/upstream-adaptation/tests"/n,dst)
-        classes=["com.github.catvod.net.OkProxySelectorTest","com.github.catvod.net.UpstreamRecoveryIntegrationTest","com.fongmi.android.tv.api.loader.UpstreamSpiderLifecycleTest"]
+        for rel in ("app/src/main/java/com/fingmi/integration/recovery/FongMiNetworkRecovery.java","app/src/leanback/java/com/fingmi/integration/recovery/TvDlnaLifecycle.java"):
+            row=next(x for x in LOCK["fork_scope"] if x["path"]==rel)
+            assert blob(candidate/rel)==row["resolved"],rel
+            dst=tests/"com/fingmi/integration/recovery"/Path(rel).name
+            dst.parent.mkdir(parents=True,exist_ok=True);shutil.copyfile(candidate/rel,dst)
+        shutil.copytree(ROOT/"scripts/upstream-adaptation/tests/recovery-boundaries",tests,dirs_exist_ok=True)
+        shutil.copyfile(ROOT/"scripts/upstream-adaptation/tests/UpstreamRecoveryAdapterTest.java",tests/"com/fingmi/integration/recovery/UpstreamRecoveryAdapterTest.java")
+        classes=["com.github.catvod.net.OkProxySelectorTest","com.github.catvod.net.UpstreamRecoveryIntegrationTest","com.fongmi.android.tv.api.loader.UpstreamSpiderLifecycleTest","com.fingmi.integration.recovery.UpstreamRecoveryAdapterTest"]
         cmd=["bash",str(project/"gradlew"),"--no-daemon","-Porg.gradle.java.installations.auto-download=false",":catvod:assembleDebug",":tv-recovery:assembleDebug",":catvod:testDebugUnitTest"]
         for c in classes:cmd+=["--tests",c]
         subprocess.run(cmd,cwd=project,check=True)

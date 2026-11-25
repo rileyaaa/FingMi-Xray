@@ -252,7 +252,8 @@
       "old": "784603388ff8c41ff95f47e7d9441e8001ded0b8",
       "fork": "6327c74615d04f7161d30047ceeb9e3ac868f9bd",
       "target": "c1c9dd6bbca62c3a11ea0e59f4e7cc85ec8fff71",
-      "strategy": "three-way"
+      "strategy": "reviewed-recovery-host",
+      "resolved": "4573a4c37e45a38bc20929cec7b69297a2d790d5"
     },
     {
       "path": "app/src/main/java/com/fongmi/android/tv/api/DanmakuApi.java",
@@ -509,7 +510,8 @@
       "old": "84ab7b6020fa2cdea80eec40568b1f7e4254ab44",
       "fork": "68cfdb6a70ba92e6f03f6ca287c4059d781f7b2a",
       "target": null,
-      "strategy": "three-way"
+      "strategy": "upstream-reviewed",
+      "review": "5.9 moved Download to catvod. Explicit client/tag/cancellation port in reviewed-media-host already verified by actual Android downloader AC 45608824619. Do not reintroduce removed app Download; check no old package references."
     },
     {
       "path": "app/src/main/java/com/fongmi/android/tv/utils/ImgUtil.java",
@@ -1257,7 +1259,15 @@
       "ffmpeg": "04482c8d13ac27b2a9fe93f5d388929eef8af5f4",
       "dav1d": "54706fc6bc0cdecab7e9593974a4039cc038fca7",
       "libplacebo": "04b3a0918fb32b8f374193aaead8b509274aae97",
-      "status": "new JNI compile/link using locked public consumer dependencies; not full producer rebuild, not deployment"
+      "status": "new JNI compile/link using locked public consumer dependencies; not full producer rebuild, not deployment",
+      "license_line_endings": {
+        "producer": "FongMi/libplacebo@04b3a0918fb32b8f374193aaead8b509274aae97",
+        "producer_and_consumer_git_blob": "20fb9c7da21cb5a29e10f614a03661a935181652",
+        "checkout_lf_sha256": "b3aa400aca6d2ba1f0bd03bd98d03d1fe7489a3bbb26969d72016360af8a5c9d",
+        "manifest_crlf_sha256": "575888be9ac31801886babca6456e1beb346fa4fb3dd76f52111f8048e38d58a",
+        "failed_run": 45672262184,
+        "failed_job": 139410395263
+      }
     }
   }
 }

@@ -1,14 +1,14 @@
-name: "5.9.0 public FFmpeg JNI and Android recovery integration (no APK)"
+name: "5.9.0 corrected FFmpeg provenance and recovery integration (no APK)"
 on:
   push:
     branches: [dev/fongmi-upstream-adaptation]
-    paths: ['.github/workflows/101-upstream-590-ffmpeg-recovery.yml']
+    paths: ['.github/workflows/102-upstream-590-ffmpeg-recovery.yml']
 permissions:
   contents: read
 jobs:
   ffmpeg-jni:
     if: >-
-      github.repository == 'rileyaaa/FingMi-Xray' && github.ref == 'refs/heads/dev/fongmi-upstream-adaptation' && github.event.head_commit.message == 'ci: verify public FFmpeg JNI and Android recovery integration once'
+      github.repository == 'rileyaaa/FingMi-Xray' && github.ref == 'refs/heads/dev/fongmi-upstream-adaptation' && github.event.head_commit.message == 'ci: verify corrected FFmpeg provenance and recovery adapter integration'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -40,7 +40,7 @@ jobs:
         run: python3 fork/scripts/upstream-adaptation/verify_public_ffmpeg_native.py --media inputs/media
   recovery-integration:
     if: >-
-      github.repository == 'rileyaaa/FingMi-Xray' && github.ref == 'refs/heads/dev/fongmi-upstream-adaptation' && github.event.head_commit.message == 'ci: verify public FFmpeg JNI and Android recovery integration once'
+      github.repository == 'rileyaaa/FingMi-Xray' && github.ref == 'refs/heads/dev/fongmi-upstream-adaptation' && github.event.head_commit.message == 'ci: verify corrected FFmpeg provenance and recovery adapter integration'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -74,6 +74,33 @@ jobs:
           test ! -e fork/signing
           sdkmanager="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
           yes | "$sdkmanager" --licenses >/dev/null 2>&1 || true
-          "$sdkmanager" --install 'platforms;android-37' 'build-tools;37.0.0'
+          "$sdkmanager" --channel=3 --install 'platforms;android-37.0' 'build-tools;37.0.0'
       - name: Compile actual Android modules and run integration tests
         run: python3 fork/scripts/upstream-adaptation/verify_android_recovery_integration.py --old-tv inputs/old-tv --tv inputs/tv
+  settings-boundary:
+    if: >-
+      github.repository == 'rileyaaa/FingMi-Xray' && github.ref == 'refs/heads/dev/fongmi-upstream-adaptation' && github.event.head_commit.message == 'ci: verify corrected FFmpeg provenance and recovery adapter integration'
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          path: fork
+          fetch-depth: 1
+          persist-credentials: false
+      - uses: actions/checkout@v7
+        with:
+          repository: FongMi/TV
+          ref: c616c0aa3613e87529791587a9f71b78c278c991
+          path: inputs/old-tv
+          fetch-depth: 1
+          persist-credentials: false
+      - uses: actions/checkout@v7
+        with:
+          repository: FongMi/TV
+          ref: d3a0b84b24cf6628d72a4dbc2be453875b005536
+          path: inputs/tv
+          fetch-depth: 1
+          persist-credentials: false
+      - name: Verify actual update and runtime module source boundary
+        run: python3 fork/tests/test-upstream-runtime-update-boundary.py --old-tv inputs/old-tv --tv inputs/tv

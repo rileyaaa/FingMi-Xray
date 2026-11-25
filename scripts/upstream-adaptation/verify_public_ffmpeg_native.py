@@ -14,7 +14,25 @@ def sha(p):return hashlib.sha256(p.read_bytes()).hexdigest()
 def output(*args):return subprocess.check_output(list(map(str,args)),text=True)
 def run(*args):subprocess.run(list(map(str,args)),check=True)
 def check_sha(p,s):
-    assert re.fullmatch("[0-9a-f]{64}",s) and p.is_file() and sha(p)==s,("input digest",str(p))
+    assert p.is_file() and re.fullmatch("[0-9a-f]{64}",s),("missing input or invalid digest",str(p))
+    actual=sha(p)
+    assert actual==s,("binary digest",str(p),"actual",actual,"expected",s)
+
+def check_text_sha(p,s):
+    """Only an exact CRLF/LF equivalence on the pinned textual source."""
+    assert p.is_file() and re.fullmatch("[0-9a-f]{64}",s),p
+    data=p.read_bytes()
+    actual=hashlib.sha256(data).hexdigest()
+    if actual==s:return
+    assert b"\0" not in data,p
+    data.decode("utf-8",errors="strict")
+    lf=data.replace(b"\r\n",b"\n")
+    assert b"\r" not in lf,p
+    assert data in (lf,lf.replace(b"\n",b"\r\n")),p
+    crlf=lf.replace(b"\n",b"\r\n")
+    alternatives={hashlib.sha256(lf).hexdigest(),hashlib.sha256(crlf).hexdigest()}
+    assert s in alternatives,("text digest mismatch",str(p),actual,s)
+    print("VERIFIED_PINNED_TEXT_LINE_ENDINGS",str(p),actual,s,flush=True)
 
 def elf(p,abi,tc):
     d=p.read_bytes()
@@ -51,7 +69,12 @@ def main():
     sdk=Path(os.environ["ANDROID_HOME"]);ndk=sdk/"ndk"/g["ndk"];cmake=sdk/"cmake"/g["cmake"]/"bin"
     assert re.search(r"Pkg.Revision\s*=\s*"+re.escape(g["ndk"])+r"\s*$",(ndk/"source.properties").read_text(),re.M)
     tc=ndk/"toolchains/llvm/prebuilt/linux-x86_64/bin"
-    check_sha(main/"renderer-sdk/LICENSE",m["sha256.renderer-sdk.LICENSE"])
+    license=main/"renderer-sdk/LICENSE"
+    evidence=g["license_line_endings"]
+    assert blob(license)==evidence["producer_and_consumer_git_blob"]
+    assert sha(license)==evidence["checkout_lf_sha256"]
+    assert m["sha256.renderer-sdk.LICENSE"]==evidence["manifest_crlf_sha256"]
+    check_text_sha(license,m["sha256.renderer-sdk.LICENSE"])
     expected=set();j=main/"java/androidx/media3/decoder/ffmpeg"
     for cls,count in (("FfmpegAudioDecoder",8),("FfmpegVideoDecoder",10),("FfmpegLibrary",4)):
         methods=re.findall(r"\bnative\s+\w+\s+(\w+)\s*\(",(j/(cls+".java")).read_text())
@@ -66,12 +89,12 @@ def main():
                 assert {x.name for x in libdir.iterdir()}==set(libs)
                 for n in libs:check_sha(libdir/n,m["sha256."+abi+"."+n])
                 for n,rel in (("libplacebo.a","lib/libplacebo.a"),("config.h","include/libplacebo/config.h"),("headers.sha256","headers.sha256")):
-                    check_sha(renderer/rel,m["sha256.renderer-sdk."+abi+"."+n])
+                    (check_sha if n=="libplacebo.a" else check_text_sha)(renderer/rel,m["sha256.renderer-sdk."+abi+"."+n])
                 listed=set()
                 for line in (renderer/"headers.sha256").read_text().splitlines():
                     digest,n=line.split();rel=Path(n)
                     assert not rel.is_absolute() and ".." not in rel.parts and n not in listed
-                    check_sha(renderer/"include"/rel,digest);listed.add(n)
+                    check_text_sha(renderer/"include"/rel,digest);listed.add(n)
                 assert listed=={x.relative_to(renderer/"include").as_posix() for x in (renderer/"include").rglob("*") if x.is_file()}
                 print("VERIFIED_PUBLIC_FFMPEG_INPUTS",abi,len(libs),len(listed),"headers + renderer archive; producer not rebuilt",flush=True)
                 build=Path(tmp)/abi
