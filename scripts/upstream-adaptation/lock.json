@@ -251,7 +251,8 @@
       "old": "05d65c17f8fe7d6b8591ad4c6f4025fc21a2638b",
       "fork": "164550eea486bde539afbf8f4d796bb50b249fbd",
       "target": "d16c1d820ac804be1efb0946887a5834bbdfdbdc",
-      "strategy": "three-way"
+      "strategy": "reviewed-media-host",
+      "resolved": "290690f333f45ea8e5985059e6fe5d947093dddd"
     },
     {
       "path": "app/src/main/java/com/fongmi/android/tv/api/loader/BaseLoader.java",
@@ -781,6 +782,14 @@
       "target": "17e3f025e4bf1304bc61b9b3ddf69f99a8ef2cf9",
       "strategy": "reviewed-media-host",
       "resolved": "6c1f7cc8de7fae9f5e7156ae8a55905573b8a6ad"
+    },
+    {
+      "path": "catvod/src/main/java/com/github/catvod/net/Download.java",
+      "old": null,
+      "fork": null,
+      "target": "c01a7f3aa9df9d6f1063454c96ed901a910caba1",
+      "strategy": "reviewed-media-host",
+      "resolved": "0ef776e8eda553b40fbc6eccff9df84dd99620aa"
     }
   ],
   "shared_media_source": [

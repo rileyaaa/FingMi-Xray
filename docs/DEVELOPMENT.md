@@ -1092,6 +1092,10 @@ Google Maven 正式 media3-database:1.11.0 POM 1723 字节、SHA-256 951d7957780
 
 新增 verify_transport_batch.py，严格生成并核对本轮六份 media host 与上一轮 Live host 的实际候选输出，编译真实 PlayerEngineFactory 及从候选抽取的既有 scheme guard（确定性 Android/Media3/engine 替身）；可另行使用 5.9.0 原 Gradle/SDK 编译实际 catvod，复制候选中未修改的三份 Xray 网络源码作为测试输入，用 Robolectric/真实 OkHttp Auth、redirect 和 XrayHttpClient 回归（HTTP 终端交换为确定性替身）。不执行正式 APK、签名或整个旧候选门禁。新增第二组十个公开 Media3 Java 模块 source tree 锁；支持独立 staging 目录及 provenance 清单，已验摘要的重建必须匹配锁，Google Maven database 要求完整 AAR 字节一致。新组第一次构建摘要待日志，禁止当作完整定制播放器或覆盖 app/libs。
 
+### 12.11 5.9.0 字幕侧请求与新 Download 路由候选
+
+在上一批 AC 45596644795 已运行时继续独立代码。5.9.0 Download 移至 catvod，旧 app Download 的 client/tag 写法不能直接迁移。保留新版下载器的文件大小、Range/续传/分段、取消、校验和回调实现，仅新增每实例非空 Call.Factory 绑定，download() 首次请求及 request(client) 保存的 continuation factory 一致，不选显式 factory 时仍使用原 OkHttp.client()。SubtitleApi 保留新版搜索/详情解析、归档和 Task/Download 包路径，移植既有 request id、Call/Download 所有权、异步 UI 投递/ZIP 解压、旧 owner 取消及 Xray transition completion；旧 request id 不能取消新任务。固定输入输出 Download c01a7f3a -> 0ef776e8、SubtitleApi d16c1d82 -> 290690f3。新增 test-upstream-side-requests.py 复用原 16 项回归和一项下载 client/旧 owner 验证，实际 Download 只做源码 transport handoff 门禁，IO/真实服务接管仍需验证；本提交未进入正在跑的 AC，不宣称已通过。
+
 ## 13. 冻结 5.6.3-xray.2 无正式密钥构建与离线签名交接
 
 本节只适用于用户明确授权的单一开发测试分支 `dev/fongmi-upstream-adaptation`。默认 `main` 固定为 `4a52de1daa465d81df7ac06e886a1f184053253c`，仓库实际为 public；正式版本基线、两项业务维护边界及历史黄金证据不变。5.9.0 适配和候选 Core 均未通过完整兼容门禁，不得将其输入用于本次冻结版。三条线的固定 Git 归档引用分别为 `archive/frozen-public-validation-97a23d8`、`archive/fongmi-upstream-adaptation-e3fec17`、`archive/xray-core-stable-eb03202`。归档 tag 不是正式 Release。正式签名及发布必须独立验收。
