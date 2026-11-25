@@ -1055,6 +1055,14 @@ python3 tests/test-upstream-recovery-loader.py --base-loader /path/to/pinned-tv/
 
 **Xray 接线尚未改动**：5.9.0 PlayerEngineFactory.create 已去掉旧 decode 入参；PlayerManager 的 replaceEngine/ensureEngine 及 ExoMediaSourceFactory 新增 Auth.Context、独立 SubtitleTranscriptSession、LibassPlaybackSession，默认 OkHttp.player(auth) 与共享缓存。旧 fork 的 playbackProxy、切换时保留播放状态/清理 side requests、RTSP socket factory、DRM 同代理和禁止复用普通直连缓存必须重新按新宿主合同接线，不能以旧 5.6.3 factory/engine 整体覆盖。继续优先审 Home 的生命周期与普通 API/DNS reset 的新入口；播放器适配等待对应公开 media 接口。无新的全量 Android AC：完整 native/media gate 仍阻塞，且本轮局部证据不需要再跑已失败的候选。
 
+### 12.6 TV 恢复宿主整组移植与独立 Media3 构建验收
+
+基于 `837d8f4` 的 BaseLoader 恢复回调移植，新增 `reviewed_recovery_host.json` 和严格输入/输出 blob 门禁。只对固定 5.9.0 Home、SiteViewModel 及自有恢复生命周期、Leanback 渲染桥和适配器实施逐锚点移植；当前 5.6.3 原文件不变。Home 在 adapter 初始化后、权限请求前注册恢复，等待初始配置 ready 且 Home resumed 才检查网络代际；恢复只刷新内容，不重放新版 pending 外部 Intent，保留新版 `releaseResources()` 的 Home/PlaybackService/NodeRuntime 所有权。SiteViewModel 只取消 RESULT lane、清 loadingHome；新版 TaskRunner 已包含 cancel 和更完整的主线程结果门禁，直接保留，不套回旧实现。API37+ 的 DLNA start 服从 ACCESS_LOCAL_NETWORK，统一由恢复生命周期按已有启动状态重试，权限拒绝、普通页面切换或后台 SCREEN_ON 不额外启动；不修改 DLNA 播放实现。
+
+实际本地 JDK21 验收：四份真实候选 Java blob `97a04e5c`、`6d335d87`、`ae204d77`、`a0bc77a9` 与已核对的固定输出完全一致，`test-upstream-host-recovery.py` 19 项断言及 4 个负向变体通过。覆盖权限拒绝/授权、API36 行为、冷外部入口、内部导航、配置重建、重复 SCREEN_OFF/ON、两次稳定采样、旧 Home 退出/新 Home 接管。Android、HTTP/DNS/Glide 与 Spider 清理是确定性替身，不声称实际 Activity、网络或 TV 播放通过。
+
+新增独立验收 `verify_recovery_batch.py`：只生成实际候选并检查已移植路径与真实上游 Intent、普通 player/auth/redirect、图片请求边界；运行新旧两组恢复测试和已移植 Xray Java normalizer/session 回归，并可单独构建实际候选 tv-recovery Android library。其余候选冲突仍保持上游，不运行已知缺件的全 APK 门禁。新增 `public_media_build` 固定四个可独立从公开 FongMi/media 构建的模块 tree（common、database、datasource-okhttp、exoplayer-rtsp），`rebuild_public_media.py` 只构建对应 AAR，记录实际 SHA-256，database 对照 Google Maven 1.11.0 POM/AAR API，两个网络模块检查 Call.Factory / SocketFactory 接口。不复制到 app/libs；构建结果待新验收日志，不能冒称已通过。上游 APK 自更新与 runtime module 安装属于不同路径，5.9.0 Updater/Manifest/Setting 仍待分拆，不发布当前候选。保持现有定制 Core 和旧分享/导入契约，未重新验收新版 Core。
+
 ## 13. 冻结 5.6.3-xray.2 无正式密钥构建与离线签名交接
 
 本节只适用于用户明确授权的单一开发测试分支 `dev/fongmi-upstream-adaptation`。默认 `main` 固定为 `4a52de1daa465d81df7ac06e886a1f184053253c`，仓库实际为 public；正式版本基线、两项业务维护边界及历史黄金证据不变。5.9.0 适配和候选 Core 均未通过完整兼容门禁，不得将其输入用于本次冻结版。三条线的固定 Git 归档引用分别为 `archive/frozen-public-validation-97a23d8`、`archive/fongmi-upstream-adaptation-e3fec17`、`archive/xray-core-stable-eb03202`。归档 tag 不是正式 Release。正式签名及发布必须独立验收。

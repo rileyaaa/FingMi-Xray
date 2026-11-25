@@ -1,0 +1,97 @@
+{
+  "app/src/leanback/java/com/fongmi/android/tv/ui/activity/HomeActivity.java": {
+    "from": "target",
+    "edits": [
+      [
+        "import com.fongmi.android.tv.App;",
+        "import com.fingmi.integration.recovery.FongMiNetworkRecovery;\nimport com.fongmi.android.tv.App;"
+      ],
+      [
+        "    private Clock mClock;",
+        "    private Clock mClock;\n    private FongMiNetworkRecovery mNetworkRecovery;\n    private boolean recoveryResumed;"
+      ],
+      [
+        "        setAdapter();\n        checkPermission();",
+        "        setAdapter();\n        mNetworkRecovery = new FongMiNetworkRecovery(\n                getApplication(),\n                () -> mViewModel.cancelResultRequest(),\n                () -> mBinding.progressLayout.showProgress(),\n                () -> !isFinishing() && !isDestroyed(),\n                () -> {\n                    // The existing pending Intent is consumed only by onConfigReady.\n                    showContent();\n                    getVideo();\n                });\n        checkPermission();"
+      ],
+      [
+        "        if (allGranted) DLNARendererService.start(this);",
+        "        if (allGranted && !isFinishing() && !isDestroyed()) mNetworkRecovery.onLocalNetworkPermissionGranted();"
+      ],
+      [
+        "        actionReady = true;\n        showContent();\n        consumeAction();",
+        "        actionReady = true;\n        showContent();\n        consumeAction();\n        checkNetworkGeneration();"
+      ],
+      [
+        "    @Override\n    protected void onResume() {\n        super.onResume();\n        mClock.start();\n    }\n\n    @Override\n    protected void onPause() {\n        super.onPause();",
+        "    private void checkNetworkGeneration() {\n        // Initial config and pending external playback must retain upstream order.\n        if (actionReady && recoveryResumed && !isFinishing() && !isDestroyed() && mNetworkRecovery != null) mNetworkRecovery.check();\n    }\n\n    @Override\n    protected void onResume() {\n        super.onResume();\n        mClock.start();\n        recoveryResumed = true;\n        checkNetworkGeneration();\n    }\n\n    @Override\n    public void onWindowFocusChanged(boolean hasFocus) {\n        super.onWindowFocusChanged(hasFocus);\n        if (hasFocus) checkNetworkGeneration();\n    }\n\n    @Override\n    protected void onPause() {\n        recoveryResumed = false;\n        super.onPause();"
+      ],
+      [
+        "    protected void onDestroy() {\n        if (--instanceCount",
+        "    protected void onDestroy() {\n        recoveryResumed = false;\n        if (mNetworkRecovery != null) mNetworkRecovery.close();\n        if (--instanceCount"
+      ]
+    ],
+    "base": "4b8a2c24a794a57a56d6ac411315de89bed7c7d5",
+    "resolved": "4263c1b1a715aabcdbbaef652ab5a62802542f5b"
+  },
+  "app/src/main/java/com/fongmi/android/tv/model/SiteViewModel.java": {
+    "from": "target",
+    "edits": [
+      [
+        "    public void stopSearch() {",
+        "    /** Retire only Home's result lane; keep the upstream action/search lanes. */\n    public void cancelResultRequest() {\n        tasks.cancel(TaskType.RESULT);\n        loadingHome = false;\n    }\n\n    public void stopSearch() {"
+      ]
+    ],
+    "base": "6caf2594eb23388c501593a0a8f1a825e60a5ae5",
+    "resolved": "4c114952e524c6c5bb734b858110102055032d0c"
+  },
+  "tv-recovery/src/main/java/com/fingmi/tvrecovery/TvNetworkLifecycle.java": {
+    "from": "fork",
+    "edits": [
+      [
+        "    public void onActivityResumed(@NonNull Activity activity) {\n        boolean startDlna;",
+        "    public void onActivityResumed(@NonNull Activity activity) {\n        startRendererIfNeeded();\n    }\n\n    /** A resumed Home may retry after a local-network permission grant or screen ON. */\n    public void startRendererIfNeeded() {\n        boolean startDlna;"
+      ],
+      [
+        "            startDlna = !dlnaStarted;",
+        "            if (startedActivities.isEmpty() || backgroundPending) return;\n            startDlna = !dlnaStarted;"
+      ]
+    ],
+    "base": "3591fb17bb0b69a583760644331f1fbd1606deda",
+    "resolved": "97a04e5cad533cd5d2b94a4a64c5fdaf500ada1a"
+  },
+  "app/src/main/java/com/fingmi/integration/recovery/FongMiNetworkRecovery.java": {
+    "from": "fork",
+    "edits": [
+      [
+        "    private final NetworkRecoveryCoordinator coordinator;",
+        "    private final NetworkRecoveryCoordinator coordinator;\n    private final TvNetworkLifecycle lifecycle;"
+      ],
+      [
+        "        TvNetworkLifecycle.get(application, new TvNetworkLifecycle.Renderer() {",
+        "        lifecycle = TvNetworkLifecycle.get(application, new TvNetworkLifecycle.Renderer() {"
+      ],
+      [
+        "    public void check() { coordinator.check(); }",
+        "    public void check() {\n        lifecycle.startRendererIfNeeded();\n        coordinator.check();\n    }\n\n    public void onLocalNetworkPermissionGranted() { lifecycle.startRendererIfNeeded(); }"
+      ]
+    ],
+    "base": "4ffe7c5ee180341df70decdf90a5f43a9227bbb9",
+    "resolved": "ae204d77c90d37d6fbcb32419adfdc55841db070"
+  },
+  "app/src/leanback/java/com/fingmi/integration/recovery/TvDlnaLifecycle.java": {
+    "from": "fork",
+    "edits": [
+      [
+        "import android.content.Context;",
+        "import android.Manifest;\nimport android.content.Context;\nimport android.content.pm.PackageManager;\nimport android.os.Build;"
+      ],
+      [
+        "    static void start(Context context) {\n        DLNARendererService.start(context);",
+        "    static void start(Context context) {\n        // TV 5.9.0 requests local-network permission on API 37+. A failed\n        // start leaves the lifecycle eligible to retry after the grant.\n        if (Build.VERSION.SDK_INT >= 37 && context.checkSelfPermission(Manifest.permission.ACCESS_LOCAL_NETWORK) != PackageManager.PERMISSION_GRANTED) {\n            throw new SecurityException(\"Local-network permission required for renderer\");\n        }\n        DLNARendererService.start(context);"
+      ]
+    ],
+    "base": "93b8bb30b57ebf8d22309ed2c7e003954cc8dc70",
+    "resolved": "a0bc77a9ef7eed0453f924b98616c78ec6e2b20c"
+  }
+}

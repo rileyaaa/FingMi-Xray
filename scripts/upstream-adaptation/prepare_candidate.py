@@ -11,6 +11,7 @@ import hashlib
 import json
 from pathlib import Path
 from recovery_loader import adapt_base_loader
+from reviewed_recovery_host import adapt_reviewed_host
 import re
 import shutil
 import subprocess
@@ -75,6 +76,20 @@ def overlay(old, target, dest):
         if strategy == "old-media-compat-review":
             manual.append(p)
             print("REVIEW_OLD_MEDIA", p)
+            continue
+        if strategy == "upstream-reviewed":
+            # 5.9.0 already contains the fork cancellation primitive and
+            # additionally guards main-thread result delivery on cancelAll.
+            print("KEEP_UPSTREAM_EQUIVALENT", p, row["target"], flush=True)
+            continue
+        if strategy == "reviewed-recovery-host":
+            data = adapt_reviewed_host(row, b, c)
+            output.parent.mkdir(parents=True, exist_ok=True)
+            output.write_bytes(data)
+            if blob(output) != row["resolved"]:
+                raise RuntimeError("Reviewed host port drift: " + p)
+            merged.append(p)
+            print("RESOLVED_RECOVERY_HOST", p, row["resolved"], flush=True)
             continue
         if strategy == "recovery-loader-590":
             # Resolve only the reviewed TV recovery callback/queue contract on

@@ -59,14 +59,16 @@
       "old": null,
       "fork": "93b8bb30b57ebf8d22309ed2c7e003954cc8dc70",
       "target": null,
-      "strategy": "fork-addition"
+      "strategy": "reviewed-recovery-host",
+      "resolved": "a0bc77a9ef7eed0453f924b98616c78ec6e2b20c"
     },
     {
       "path": "app/src/leanback/java/com/fongmi/android/tv/ui/activity/HomeActivity.java",
       "old": "e7f5942d6378a9bf8b5d5bbf25163c18fade7405",
       "fork": "15e5ab20cceef25b6a979961b8edd13cee109f0e",
       "target": "4b8a2c24a794a57a56d6ac411315de89bed7c7d5",
-      "strategy": "three-way"
+      "strategy": "reviewed-recovery-host",
+      "resolved": "4263c1b1a715aabcdbbaef652ab5a62802542f5b"
     },
     {
       "path": "app/src/leanback/java/com/fongmi/android/tv/ui/activity/LiveActivity.java",
@@ -213,7 +215,8 @@
       "old": null,
       "fork": "4ffe7c5ee180341df70decdf90a5f43a9227bbb9",
       "target": null,
-      "strategy": "fork-addition"
+      "strategy": "reviewed-recovery-host",
+      "resolved": "ae204d77c90d37d6fbcb32419adfdc55841db070"
     },
     {
       "path": "app/src/main/java/com/fingmi/integration/xray/XrayArtworkBitmapLoader.java",
@@ -312,7 +315,8 @@
       "old": "ecad4b71ba16cd5a21c9837ef4d861703df2dcda",
       "fork": "a604c55a9ab6c7ff02faadbdd44f2854569621c8",
       "target": "6caf2594eb23388c501593a0a8f1a825e60a5ae5",
-      "strategy": "three-way"
+      "strategy": "reviewed-recovery-host",
+      "resolved": "4c114952e524c6c5bb734b858110102055032d0c"
     },
     {
       "path": "app/src/main/java/com/fongmi/android/tv/model/VideoViewModel.java",
@@ -326,7 +330,7 @@
       "old": "2f1bfbc1bf74d141c1b20c4a635af6e1895dbb42",
       "fork": "42887d4770a4e0ca9fb8a82f04782328b8f3abda",
       "target": "b93fdef8690073c3351f0476983514df9dd7cb63",
-      "strategy": "three-way"
+      "strategy": "upstream-reviewed"
     },
     {
       "path": "app/src/main/java/com/fongmi/android/tv/playback/live/LivePlaybackController.java",
@@ -543,7 +547,8 @@
       "old": null,
       "fork": "3591fb17bb0b69a583760644331f1fbd1606deda",
       "target": null,
-      "strategy": "module"
+      "strategy": "reviewed-recovery-host",
+      "resolved": "97a04e5cad533cd5d2b94a4a64c5fdaf500ada1a"
     },
     {
       "path": "tv-recovery/src/test/java/com/fingmi/tvrecovery/NetworkRecoveryCoordinatorTest.java",
@@ -802,6 +807,40 @@
       "commit": "764294be2244f0eb7836b56a79d00becff9684c7",
       "license": "MIT",
       "status": "engine source; Android runtime AAR and wrapper exact provenance/build not established"
+    }
+  ],
+  "public_media_build": [
+    {
+      "module": "lib-common",
+      "path": "libraries/common",
+      "tree": "70c01945120e5e1ec780d8f987d4aef1fbac671e",
+      "coordinate": "androidx.media3:media3-common:1.11.0",
+      "class": "androidx/media3/common/MediaItem.class",
+      "status": "source build candidate; customized public baseline only"
+    },
+    {
+      "module": "lib-database",
+      "path": "libraries/database",
+      "tree": "4b17bde909283355be9b2258dae8faf3ffe425e8",
+      "coordinate": "androidx.media3:media3-database:1.11.0",
+      "class": "androidx/media3/database/StandaloneDatabaseProvider.class",
+      "status": "same complete official source tree; compare formal Google Maven API"
+    },
+    {
+      "module": "lib-datasource-okhttp",
+      "path": "libraries/datasource_okhttp",
+      "tree": "dd2df6ce9ffc8987d04612c85941c9b5bec81a0f",
+      "coordinate": "androidx.media3:media3-datasource-okhttp:1.11.0",
+      "class": "androidx/media3/datasource/okhttp/OkHttpDataSource$Factory.class",
+      "status": "fork source candidate; do not replace with Google Maven implementation"
+    },
+    {
+      "module": "lib-exoplayer-rtsp",
+      "path": "libraries/exoplayer_rtsp",
+      "tree": "1996f032d3e8622742ad124cf11a1369a8e20096",
+      "coordinate": "androidx.media3:media3-exoplayer-rtsp:1.11.0",
+      "class": "androidx/media3/exoplayer/rtsp/RtspMediaSource$Factory.class",
+      "status": "fork source candidate; verify socket factory API before Xray integration"
     }
   ]
 }
