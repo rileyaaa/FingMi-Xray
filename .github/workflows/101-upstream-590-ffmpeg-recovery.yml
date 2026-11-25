@@ -1,0 +1,79 @@
+name: "5.9.0 public FFmpeg JNI and Android recovery integration (no APK)"
+on:
+  push:
+    branches: [dev/fongmi-upstream-adaptation]
+    paths: ['.github/workflows/101-upstream-590-ffmpeg-recovery.yml']
+permissions:
+  contents: read
+jobs:
+  ffmpeg-jni:
+    if: >-
+      github.repository == 'rileyaaa/FingMi-Xray' && github.ref == 'refs/heads/dev/fongmi-upstream-adaptation' && github.event.head_commit.message == 'ci: verify public FFmpeg JNI and Android recovery integration once'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          path: fork
+          fetch-depth: 1
+          persist-credentials: false
+      - uses: actions/checkout@v7
+        with:
+          repository: FongMi/media
+          ref: 3c2cbe8ac742c2fe15eff52f03eeb3b1b648848d
+          path: inputs/media
+          fetch-depth: 1
+          persist-credentials: false
+      - uses: actions/setup-java@v6
+        with:
+          distribution: jetbrains
+          java-version: '21'
+      - name: Prepare pinned Android toolchain
+        shell: bash
+        run: |
+          set -euo pipefail
+          test ! -e fork/signing
+          sdkmanager="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
+          yes | "$sdkmanager" --licenses >/dev/null 2>&1 || true
+          "$sdkmanager" --install 'ndk;29.0.14206865' 'cmake;3.22.1'
+      - name: Verify public inputs and rebuild both ABI JNI
+        run: python3 fork/scripts/upstream-adaptation/verify_public_ffmpeg_native.py --media inputs/media
+  recovery-integration:
+    if: >-
+      github.repository == 'rileyaaa/FingMi-Xray' && github.ref == 'refs/heads/dev/fongmi-upstream-adaptation' && github.event.head_commit.message == 'ci: verify public FFmpeg JNI and Android recovery integration once'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          path: fork
+          fetch-depth: 1
+          persist-credentials: false
+      - uses: actions/checkout@v7
+        with:
+          repository: FongMi/TV
+          ref: c616c0aa3613e87529791587a9f71b78c278c991
+          path: inputs/old-tv
+          fetch-depth: 1
+          persist-credentials: false
+      - uses: actions/checkout@v7
+        with:
+          repository: FongMi/TV
+          ref: d3a0b84b24cf6628d72a4dbc2be453875b005536
+          path: inputs/tv
+          fetch-depth: 1
+          persist-credentials: false
+      - uses: actions/setup-java@v6
+        with:
+          distribution: jetbrains
+          java-version: '21'
+      - name: Prepare pinned Android toolchain
+        shell: bash
+        run: |
+          set -euo pipefail
+          test ! -e fork/signing
+          sdkmanager="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
+          yes | "$sdkmanager" --licenses >/dev/null 2>&1 || true
+          "$sdkmanager" --install 'platforms;android-37' 'build-tools;37.0.0'
+      - name: Compile actual Android modules and run integration tests
+        run: python3 fork/scripts/upstream-adaptation/verify_android_recovery_integration.py --old-tv inputs/old-tv --tv inputs/tv

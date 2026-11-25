@@ -290,21 +290,24 @@
       "old": "c90ca035a30edc6406190a835eccb4c3648d7d52",
       "fork": "3d49da6bcaa71e2c9990db29e3c3232f2aca18ac",
       "target": "c7cab88da3bd189f0b73af8af73f5ad65e6a378a",
-      "strategy": "three-way"
+      "strategy": "upstream-reviewed",
+      "review": "5.9 BaseLoader swaps owner; SpiderLoader closes old Spider, cancels pending FutureTask, clears subclass references, destroys retired spiders at exit. Preserve upstream split close/destroy; actual lifecycle test required."
     },
     {
       "path": "app/src/main/java/com/fongmi/android/tv/api/loader/JsLoader.java",
       "old": "337ce94648abd2484c2e426e92c37d55314f5d19",
       "fork": "1bff5f6742b0e92644c1e26b41c823443ee719fa",
       "target": "5395e2e488cae61595fa70340e9e67699533b999",
-      "strategy": "three-way"
+      "strategy": "upstream-reviewed",
+      "review": "5.9 BaseLoader swaps owner; SpiderLoader closes old Spider, cancels pending FutureTask, clears subclass references, destroys retired spiders at exit. Preserve upstream split close/destroy; actual lifecycle test required."
     },
     {
       "path": "app/src/main/java/com/fongmi/android/tv/api/loader/PyLoader.java",
       "old": "115efa8291da733423261b3f2005b605603fcbe8",
       "fork": "c2b8201fdb617391261b8cb4b84edf62382c8955",
       "target": "5757d5b7a011ff016795cafa1c58606b73e149a3",
-      "strategy": "three-way"
+      "strategy": "upstream-reviewed",
+      "review": "5.9 BaseLoader swaps owner; SpiderLoader closes old Spider, cancels pending FutureTask, clears subclass references, destroys retired spiders at exit. Preserve upstream split close/destroy; actual lifecycle test required."
     },
     {
       "path": "app/src/main/java/com/fongmi/android/tv/api/parser/EpgParser.java",
@@ -549,14 +552,16 @@
       "old": "1876eaeea1d483df2654ed35e774e8681d382f65",
       "fork": "37a476b2d24676c9bae36ea98ef2acdfc2b1bbb1",
       "target": "c078c1e9c125353f9044c1d509ccdd5dcf5a7125",
-      "strategy": "three-way"
+      "strategy": "upstream-reviewed",
+      "review": "5.9 native HttpUrl policy preserves fork origin normalization; port real loopback regression"
     },
     {
       "path": "catvod/src/test/java/com/github/catvod/net/OkProxySelectorTest.java",
       "old": "025456ecd995d2046309665d268391a7ae71b52e",
       "fork": "4d781efca5635e5ecb1e9d9cc97e42c24c25bcc3",
       "target": null,
-      "strategy": "three-way"
+      "strategy": "reviewed-recovery-host",
+      "resolved": "fd7bafd2683b279e7790b16ba941cca15f94337a"
     },
     {
       "path": "libxray/build.gradle",
@@ -1230,6 +1235,29 @@
       "dav1d_commit": "54706fc6bc0cdecab7e9593974a4039cc038fca7",
       "libplacebo_commit": "04b3a0918fb32b8f374193aaead8b509274aae97",
       "status": "exact historical public consumer manifest available; producer run and artifacts HTTP 404; no supplied binary or complete TV 5.9 contract"
+    },
+    "ffmpeg": {
+      "module": "libraries/decoder_ffmpeg",
+      "tree": "67a7cc5cee292c022b7837d3b78d4dd500b3c6e0",
+      "jni_tree": "9612a58fbd6787e3618612f539764c2445146075",
+      "headers_tree": "c9703f0b87d738ff662b0b8c99423535b77c856a",
+      "renderer_tree": "2ed8d03dcc701c98f3dd7b449cacf4704921de2c",
+      "jni_libs_tree": "d19efa5b1eef9f81083912298d016cf2e1518ca4",
+      "manifest_blob": "ec9f8c76c66cdf5b50bdf4bf031cfab51f336551",
+      "cmake_blob": "086fe3a78b1c6f7dcb70faf133e8fa22e4b83479",
+      "ndk": "29.0.14206865",
+      "cmake": "3.22.1",
+      "min_sdk": 24,
+      "abis": [
+        "armeabi-v7a",
+        "arm64-v8a"
+      ],
+      "producer": "99a60ad2141d5ace94453590903c2c6b9a0a2443",
+      "producer_run": 31346106984,
+      "ffmpeg": "04482c8d13ac27b2a9fe93f5d388929eef8af5f4",
+      "dav1d": "54706fc6bc0cdecab7e9593974a4039cc038fca7",
+      "libplacebo": "04b3a0918fb32b8f374193aaead8b509274aae97",
+      "status": "new JNI compile/link using locked public consumer dependencies; not full producer rebuild, not deployment"
     }
   }
 }
