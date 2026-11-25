@@ -337,14 +337,16 @@
       "old": "3612e277d329dc8dbbd93b18b53048fe0df34100",
       "fork": "71d9877592c5d824d61b3215b29f1bfd869f632f",
       "target": "f2c114f8dd8caf17d8d9d8943508e4a367ca54c7",
-      "strategy": "three-way"
+      "strategy": "reviewed-live-host",
+      "resolved": "c7f79c6e44f664b138ff19d20133d884e116cad0"
     },
     {
       "path": "app/src/main/java/com/fongmi/android/tv/playback/live/LivePlaybackHost.java",
       "old": "e67d717e53aa6928d3db032c94b14bf79321a7ab",
       "fork": "b2b23f99c1d54c5f9e853de7655699b84e9f7e10",
       "target": "27324f628850fbd43403955ca4a7879ae9dc7942",
-      "strategy": "three-way"
+      "strategy": "reviewed-live-host",
+      "resolved": "b8774f566e9ad4f430ccac68e3b7e48feadab6ad"
     },
     {
       "path": "app/src/main/java/com/fongmi/android/tv/playback/vod/VodPlaybackController.java",

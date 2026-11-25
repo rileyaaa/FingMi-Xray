@@ -1063,6 +1063,14 @@ python3 tests/test-upstream-recovery-loader.py --base-loader /path/to/pinned-tv/
 
 新增独立验收 `verify_recovery_batch.py`：只生成实际候选并检查已移植路径与真实上游 Intent、普通 player/auth/redirect、图片请求边界；运行新旧两组恢复测试和已移植 Xray Java normalizer/session 回归，并可单独构建实际候选 tv-recovery Android library。其余候选冲突仍保持上游，不运行已知缺件的全 APK 门禁。新增 `public_media_build` 固定四个可独立从公开 FongMi/media 构建的模块 tree（common、database、datasource-okhttp、exoplayer-rtsp），`rebuild_public_media.py` 只构建对应 AAR，记录实际 SHA-256，database 对照 Google Maven 1.11.0 POM/AAR API，两个网络模块检查 Call.Factory / SocketFactory 接口。不复制到 app/libs；构建结果待新验收日志，不能冒称已通过。上游 APK 自更新与 runtime module 安装属于不同路径，5.9.0 Updater/Manifest/Setting 仍待分拆，不发布当前候选。保持现有定制 Core 和旧分享/导入契约，未重新验收新版 Core。
 
+### 12.7 Live 请求身份与 Xray 宿主接口移植
+
+固定 5.9.0 LivePlaybackController/LivePlaybackHost 输入 blob f2c114f8/27324f62，使用 reviewed_live_host.json 逐锚点移植，输出 c7f79c6e/b8774f56。普通宿主保留上游 pending 对象身份门禁、preparePlaybackForRefresh 无条件替代旧播放前的准备而非强制 stop、回看 TIME_UNSET 回退及 push 路由。仅显式启用 TV Xray 宿主门禁时清理旧播放身份；手动 START 重新解析使用新请求但不再次换代，等待代理 START 的已解析请求不会被重连或重复选择重发，退役时清空请求并取消解析，同步回调已换代则不提交旧任务，push 路由先退役 Xray。LivePlaybackState、LivePlayRequest 和 LiveDataSource 保留固定上游实现。
+
+JDK21 --release 17 实际编译六份固定候选 Java 文件（包含 PlaybackResult），tests/test-upstream-live-host.py 16 项断言和 4 个负向变体全部通过；测试 blob bb5803ae、移植规则 c82dc07b。Android、Media3、解析和 Xray owner 为确定性边界替身，不等于真实 LiveActivity、Web 播放、PlaybackService、PlayerManager 或 native 已通过。实际 TV Activity 的代理绑定、自动规则、元数据和 Web 路由仍须逐项移植，旧 Activity 不整块覆盖。
+
+AC [45588016507](https://github.com/rileyaaa/FingMi-Xray/actions/runs/45588016507) 固定 18e099f 的恢复 job 139114518780 成功：58 项移植/干净合并、39 项宿主冲突和 5 项旧媒体待审；19 项生命周期及 4 个变体、BaseLoader FIFO/交接/失败/销毁及两项变体通过，33 normalizer + 8 display 边界、6 Hysteria2 URI 片段回归、真实 Xray Java session lifecycle 与 11 项播放会话同步重入通过，5.9.0 Android tv-recovery assembleDebug / testDebugUnitTest BUILD SUCCESSFUL。该 AC 不包含本节较晚提交的 Live 移植；后者只获 JDK 证据，下一批统一验收已接入测试脚本。现有 Core 不变，旧分享 native 兼容仍须双 ABI 实测。
+
 ## 13. 冻结 5.6.3-xray.2 无正式密钥构建与离线签名交接
 
 本节只适用于用户明确授权的单一开发测试分支 `dev/fongmi-upstream-adaptation`。默认 `main` 固定为 `4a52de1daa465d81df7ac06e886a1f184053253c`，仓库实际为 public；正式版本基线、两项业务维护边界及历史黄金证据不变。5.9.0 适配和候选 Core 均未通过完整兼容门禁，不得将其输入用于本次冻结版。三条线的固定 Git 归档引用分别为 `archive/frozen-public-validation-97a23d8`、`archive/fongmi-upstream-adaptation-e3fec17`、`archive/xray-core-stable-eb03202`。归档 tag 不是正式 Release。正式签名及发布必须独立验收。

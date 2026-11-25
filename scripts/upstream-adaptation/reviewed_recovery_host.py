@@ -1,10 +1,14 @@
 #!/usr/bin/env python3
-"""Apply only reviewed recovery host edits to exact locked input blobs."""
+"""Apply only reviewed host edits to exact locked input blobs."""
 import hashlib
 import json
 from pathlib import Path
 
 PORTS = json.loads(Path(__file__).with_name("reviewed_recovery_host.json").read_text())
+LIVE_PORTS = json.loads(Path(__file__).with_name("reviewed_live_host.json").read_text())
+if PORTS.keys() & LIVE_PORTS.keys():
+    raise RuntimeError("Duplicate reviewed host paths")
+PORTS.update(LIVE_PORTS)
 
 
 def git_blob(data):

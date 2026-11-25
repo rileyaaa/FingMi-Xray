@@ -1,0 +1,64 @@
+{
+  "app/src/main/java/com/fongmi/android/tv/playback/live/LivePlaybackController.java": {
+    "from": "target",
+    "base": "f2c114f8dd8caf17d8d9d8943508e4a367ca54c7",
+    "resolved": "c7f79c6e44f664b138ff19d20133d884e116cad0",
+    "edits": [
+      [
+        "    public void selectGroup(Group group) {",
+        "    // Retire a held automatic START when the TV playback owner is replaced.\n    public void retirePendingPlayback() {\n        state.clearPlayback();\n        dataSource.cancelUrl();\n    }\n\n    public void selectGroup(Group group) {"
+      ],
+      [
+        "    public void selectChannel(Channel channel) {\n        if (channel == null) return;",
+        "    public void selectChannel(Channel channel) {\n        selectChannel(channel, true);\n    }\n\n    public void selectChannel(Channel channel, boolean resetXray) {\n        if (channel == null) return;"
+      ],
+      [
+        "        host.renderChannelSelection(channel);\n        if (restore) restorePlaybackIfNeeded();\n        else requestLive();",
+        "        host.renderChannelSelection(channel, !restore && resetXray);\n        if (restore) restorePlaybackIfNeeded();\n        else {\n            if (host.usesXrayLiveDeliveryGuard()) state.clearPlayback();\n            requestLive(resetXray);\n        }"
+      ],
+      [
+        "    public boolean selectEpg(EpgData data) {",
+        "    // A manual START re-resolves with a fresh request without resetting its Core.\n    public void resumeChannelAfterXrayStart() {\n        Channel channel = state.getChannel();\n        if (channel == null) return;\n        LivePlayRequest request = state.getActiveRequest();\n        if (request == null || !request.matches(channel)) request = LivePlayRequest.live(channel, C.TIME_UNSET);\n        else request = request.isCatchup()\n                ? LivePlayRequest.catchup(channel, request.getCatchupData(), request.getPosition())\n                : LivePlayRequest.live(channel, request.getPosition());\n        requestPlayback(request, true, false);\n    }\n\n    public boolean selectEpg(EpgData data) {"
+      ],
+      [
+        "        state.clearPlayback();\n        host.stopPlaybackForRefresh();\n        if (target.isEmpty())",
+        "        state.clearPlayback();\n        host.resetXrayForPlaybackChange();\n        host.stopPlaybackForRefresh();\n        if (target.isEmpty())"
+      ],
+      [
+        "        refresh();\n        return true;\n    }\n\n    public void prevChannel()",
+        "        // A resolved TV request can still be waiting for its own automatic Core.\n        if (!host.isPlaybackStartPending()) refresh();\n        return true;\n    }\n\n    public void prevChannel()"
+      ],
+      [
+        "    private void requestLive() {\n        Channel channel",
+        "    private void requestLive() {\n        requestLive(true);\n    }\n\n    private void requestLive(boolean resetXray) {\n        Channel channel"
+      ],
+      [
+        "        requestPlayback(LivePlayRequest.live(channel, C.TIME_UNSET), true);",
+        "        requestPlayback(LivePlayRequest.live(channel, C.TIME_UNSET), true, resetXray);"
+      ],
+      [
+        "    private void requestPlayback(LivePlayRequest request, boolean showProgress) {\n        if (!host.isPlaybackServiceReady()) return;\n        state.setPendingRequest(request);\n        host.preparePlaybackForRefresh();",
+        "    private void requestPlayback(LivePlayRequest request, boolean showProgress) {\n        requestPlayback(request, showProgress, true);\n    }\n\n    private void requestPlayback(LivePlayRequest request, boolean showProgress, boolean resetXray) {\n        if (!host.isPlaybackServiceReady()) return;\n        // A TV proxy generation must not restore the previous station's key.\n        // Ordinary upstream hosts retain the playing request during replacement.\n        if (host.usesXrayLiveDeliveryGuard()) state.clearPlayback();\n        state.setPendingRequest(request);\n        if (resetXray) host.prepareXrayForPlaybackChange(request);\n        // A synchronous owner/proxy callback may have retired this request.\n        if (state.getPendingRequest() != request) return;\n        host.preparePlaybackForRefresh();\n        if (state.getPendingRequest() != request) return;"
+      ]
+    ]
+  },
+  "app/src/main/java/com/fongmi/android/tv/playback/live/LivePlaybackHost.java": {
+    "from": "target",
+    "base": "27324f628850fbd43403955ca4a7879ae9dc7942",
+    "resolved": "b8774f566e9ad4f430ccac68e3b7e48feadab6ad",
+    "edits": [
+      [
+        "    boolean hasPlaybackSession();",
+        "    boolean hasPlaybackSession();\n\n    // Only an integrated TV Xray owner retires the previous playback identity.\n    default boolean usesXrayLiveDeliveryGuard() { return false; }\n\n    default boolean isPlaybackStartPending() { return false; }"
+      ],
+      [
+        "    void preparePlaybackForRefresh();",
+        "    void preparePlaybackForRefresh();\n\n    default void resetXrayForPlaybackChange() { }\n\n    default void prepareXrayForPlaybackChange(LivePlayRequest request) {\n        resetXrayForPlaybackChange();\n    }"
+      ],
+      [
+        "    void renderChannelSelection(Channel channel);",
+        "    void renderChannelSelection(Channel channel);\n\n    default void renderChannelSelection(Channel channel, boolean newPlayback) {\n        renderChannelSelection(channel);\n    }"
+      ]
+    ]
+  }
+}

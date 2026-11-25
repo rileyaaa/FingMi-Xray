@@ -53,11 +53,11 @@ def main():
         glide = "app/src/main/java/com/fongmi/android/tv/utils/OkGlideModule.java"
         loader = "app/src/main/java/com/fongmi/android/tv/api/loader/BaseLoader.java"
         required = {home,vm,runner,http,dns,img,glide,loader}
-        required.update(row["path"] for row in LOCK["fork_scope"] if row["strategy"] == "reviewed-recovery-host")
+        required.update(row["path"] for row in LOCK["fork_scope"] if row["strategy"] in ("reviewed-recovery-host", "reviewed-live-host"))
         if required.intersection(conflicts + manual):
             raise AssertionError("Recovery host still has a scope conflict: " + str(required.intersection(conflicts + manual)))
         for row in LOCK["fork_scope"]:
-            if row["strategy"] in ("reviewed-recovery-host", "recovery-loader-590"):
+            if row["strategy"] in ("reviewed-recovery-host", "reviewed-live-host", "recovery-loader-590"):
                 assert blob(candidate/row["path"]) == row["resolved"]
         def text(path):
             return (candidate/path).read_text()
@@ -85,6 +85,7 @@ def main():
         assert "requestEpoch != networkFailureEpoch.get()" in text(img)
         print("PASS exact host recovery port; upstream Intent, request runner, auth/redirect, player client and image-load contracts retained", flush=True)
         run(sys.executable,ROOT/"tests/test-upstream-host-recovery.py","--candidate",candidate)
+        run(sys.executable,ROOT/"tests/test-upstream-live-host.py","--candidate",candidate)
         run(sys.executable,ROOT/"tests/test-upstream-recovery-loader.py","--base-loader",tv/loader)
         # Exercise the actual transferred Xray core/session/normalizer sources.
         # Use only these module-level tests; old Live/PlayerManager host tests
