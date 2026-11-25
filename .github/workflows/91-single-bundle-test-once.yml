@@ -1,0 +1,286 @@
+name: "Single signing bundle - disposable Android dual ABI test ONLY"
+on:
+  push:
+    branches: [dev/fongmi-upstream-adaptation]
+    paths: [.github/workflows/91-single-bundle-test-once.yml]
+permissions:
+  contents: read
+  actions: read
+jobs:
+  test:
+    if: github.repository == 'rileyaaa/FingMi-Xray' && github.event.head_commit.message == 'ci: validate disposable single bundle on frozen dual ABI test fixtures'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/setup-java@v6
+        with:
+          distribution: jetbrains
+          java-version: "21"
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+      - name: Install real Android verifier and test generator dependency
+        shell: bash
+        run: |
+          set -euo pipefail
+          sdk="$ANDROID_HOME"
+          yes | "$sdk/cmdline-tools/latest/bin/sdkmanager" --licenses >/dev/null 2>&1 || true
+          "$sdk/cmdline-tools/latest/bin/sdkmanager" --channel=3 --install 'build-tools;37.0.0'
+          python -m pip install --disable-pip-version-check cryptography==46.0.4
+      - name: Download immutable unsigned TEST fixture only (not a release candidate)
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          umask 077
+          work="$RUNNER_TEMP/fingmi-bundle-test-$GITHUB_RUN_ID"
+          mkdir "$work"
+          curl --fail --silent --show-error --location --retry 2 \
+            -H "Authorization: Bearer $GH_TOKEN" -H 'Accept: application/vnd.github+json' \
+            'https://api.github.com/repos/rileyaaa/FingMi-Xray/actions/artifacts/15001953802/zip' -o "$work/fixture.zip"
+          printf '%s  %s\n' '35fbda2824f2770a5b63bba6134be62f7a95e15ded2e868c5e504c728a5a41d0' "$work/fixture.zip" | sha256sum -c -
+          echo 'PASS immutable artifact 15001953802 from successful run 45570721364'
+      - name: Real test-only single bundle, keytool, apksigner, dual ABI and independent verification
+        shell: bash
+        run: |
+          set -euo pipefail
+          umask 077
+          python - <<'PY'
+          import base64, binascii, datetime as dt, hashlib, json, os, re, secrets, shutil, subprocess, tempfile, xml.etree.ElementTree as ET
+          from pathlib import Path, PurePosixPath
+          from zipfile import ZipFile
+          from cryptography import x509
+          from cryptography.hazmat.primitives import hashes, serialization
+          from cryptography.hazmat.primitives.asymmetric import rsa
+          from cryptography.hazmat.primitives.serialization import pkcs12
+          from cryptography.x509.oid import NameOID
+
+          # Independent test-only entry. No checkout, production credential,
+          # repository secret, publication, or upload. Format identical to Windows.
+          SECRET_NAME = "ANDROID_RELEASE_SIGNING_BUNDLE"
+          ALIAS = "fingmi-release"
+          MAX_BYTES = 48 * 1024
+          SOURCE = "97a23d8fc2163c2c2b277e6c0e86a595a4638fa2"
+          OLD_CERT = "3cd86f4fdf6044e7e60307624bf0d8c892dfd83b81ce21748504fcbba28763c2"
+          ABIS = {
+              "arm64-v8a": ("leanback-arm64_v8a.apk", 133296011, "b9078a2c0a1f3d8f2660134c0e5d1dc4005d3dd640dcf0be20e71792cf3bffb4"),
+              "armeabi-v7a": ("leanback-armeabi_v7a.apk", 117813443, "5ba80da9a2482590370f2f4d0ab94f1f0b93b72fe23ef6b879895210b9f4eae9"),
+          }
+          SIG = re.compile(r"META-INF/(?:MANIFEST\.MF|[^/]+\.(?:SF|RSA|DSA|EC)|SIG-[^/]+)$", re.I)
+          A = "{http://schemas.android.com/apk/res/android}"
+          REV = "META-INF/version-control-info.textproto"
+          PASS_NAME = "FINGMI_SIGNING_CHILD_PASSWORD"
+          class BundleError(ValueError):
+              pass
+          def require(condition, message):
+              if not condition:
+                  raise RuntimeError(message)
+          def _unique(pairs):
+              result = {}
+              for name, value in pairs:
+                  if name in result:
+                      raise BundleError("Duplicate signing bundle field")
+                  result[name] = value
+              return result
+          def parse_bundle(value):
+              if not isinstance(value, str) or not value:
+                  raise BundleError("Missing signing bundle")
+              try:
+                  if len(value.encode("ascii")) > MAX_BYTES or "\r" in value or "\n" in value:
+                      raise BundleError("Signing bundle must be one ASCII line within the Secret size limit")
+                  d = json.loads(value, object_pairs_hook=_unique)
+                  if not isinstance(d, dict) or set(d) != {"v", "alias", "password", "pkcs12_b64"}:
+                      raise BundleError("Unexpected signing bundle fields")
+                  if type(d["v"]) is not int or d["v"] != 1 or d["alias"] != ALIAS:
+                      raise BundleError("Unsupported bundle version or alias")
+                  password = d["password"]
+                  if not isinstance(password, str) or not re.fullmatch(r"[A-Za-z0-9_-]{43}", password):
+                      raise BundleError("Invalid generated password format")
+                  if base64.urlsafe_b64encode(base64.urlsafe_b64decode(password + "=")).decode().rstrip("=") != password:
+                      raise BundleError("Noncanonical password encoding")
+                  encoded = d["pkcs12_b64"]
+                  if not isinstance(encoded, str):
+                      raise BundleError("Invalid store field")
+                  store = base64.b64decode(encoded, validate=True)
+                  if not store or base64.b64encode(store).decode("ascii") != encoded:
+                      raise BundleError("Empty or noncanonical signing store")
+                  return store, password, ALIAS
+              except (UnicodeError, json.JSONDecodeError, binascii.Error, TypeError, RecursionError):
+                  raise BundleError("Invalid signing bundle encoding") from None
+          def pack_bundle(store, password):
+              value = json.dumps({"v": 1, "alias": ALIAS, "password": password,
+                                  "pkcs12_b64": base64.b64encode(store).decode("ascii")},
+                                 ensure_ascii=True, separators=(",", ":"))
+              parse_bundle(value)
+              return value
+          def generate_test_bundle():
+              # Same RSA/PKCS12/alias/password/JSON construction as Windows generator;
+              # intentionally TEST subject and two-day expiry instead of production.
+              key = rsa.generate_private_key(public_exponent=65537, key_size=4096)
+              name = x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, "FingMi-Xray DISPOSABLE TEST ONLY")])
+              now = dt.datetime.now(dt.timezone.utc)
+              cert = (x509.CertificateBuilder().subject_name(name).issuer_name(name)
+                      .public_key(key.public_key()).serial_number(x509.random_serial_number())
+                      .not_valid_before(now - dt.timedelta(days=1))
+                      .not_valid_after(now + dt.timedelta(days=2))
+                      .add_extension(x509.BasicConstraints(ca=False, path_length=None), critical=True)
+                      .add_extension(x509.KeyUsage(digital_signature=True, content_commitment=False,
+                                                   key_encipherment=False, data_encipherment=False,
+                                                   key_agreement=False, key_cert_sign=False, crl_sign=False,
+                                                   encipher_only=False, decipher_only=False), critical=True)
+                      .sign(key, hashes.SHA256()))
+              password = secrets.token_urlsafe(32)
+              store = pkcs12.serialize_key_and_certificates(ALIAS.encode("ascii"), key, cert, None,
+                          serialization.BestAvailableEncryption(password.encode("ascii")))
+              bundle = pack_bundle(store, password)
+              raw, pwd, alias = parse_bundle(bundle)
+              restored = pkcs12.load_pkcs12(raw, pwd.encode("ascii"))
+              expected = cert.fingerprint(hashes.SHA256()).hex()
+              require(restored.key is not None and restored.cert is not None
+                      and restored.cert.friendly_name == alias.encode("ascii")
+                      and restored.cert.certificate.fingerprint(hashes.SHA256()).hex() == expected
+                      and restored.key.public_key().public_numbers() == key.public_key().public_numbers(), "Generator roundtrip failed")
+              return bundle, expected
+          def clean_env():
+              allow = {"PATH","HOME","USER","LOGNAME","TMPDIR","TMP","TEMP","JAVA_HOME","ANDROID_HOME","ANDROID_SDK_ROOT","SYSTEMROOT","LANG","LC_ALL"}
+              env = {k:v for k,v in os.environ.items() if k in allow}
+              env.update(LANG="C.UTF-8", LC_ALL="C.UTF-8")
+              return env
+          def capture(command, env=None, allow_failure=False):
+              p = subprocess.run([str(s) for s in command], env=env or clean_env(),
+                                 stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                                 check=False, timeout=300)
+              if allow_failure:
+                  return p.returncode, p.stdout
+              require(p.returncode == 0, Path(command[0]).name + " failed")
+              return p.stdout
+          def sha(path):
+              with Path(path).open("rb") as f:
+                  return hashlib.file_digest(f, "sha256").hexdigest()
+          def payload(path, abi, unsigned):
+              result = {}
+              native = set()
+              seen = set()
+              with ZipFile(path) as z:
+                  if unsigned:
+                      with path.open("rb") as f:
+                          f.seek(z.start_dir - 16)
+                          require(f.read(16) != b"APK Sig Block 42", "Unexpected signing block")
+                  for info in z.infolist():
+                      n = info.filename
+                      parts = PurePosixPath(n).parts
+                      require(n not in seen and bool(parts) and not n.startswith("/") and "\\" not in n and ".." not in parts, "Unsafe or duplicate ZIP path")
+                      seen.add(n)
+                      if info.is_dir():
+                          continue
+                      if SIG.fullmatch(n):
+                          require(not unsigned, "Unexpected JAR signature")
+                          continue
+                      if len(parts) >= 3 and parts[0] == "lib" and n.endswith(".so"):
+                          native.add(parts[1])
+                      with z.open(info) as f:
+                          result[n] = (info.file_size, info.compress_type, hashlib.file_digest(f, "sha256").hexdigest())
+                  require(native == {abi}, "Native ABI mismatch")
+                  require({"AndroidManifest.xml","classes.dex",REV} <= set(result), "Missing APK entries")
+                  require(re.findall(r'\brevision:\s*"([0-9a-f]{40})"', z.read(REV).decode()) == [SOURCE], "Embedded source mismatch")
+              return result
+          def check_store(store, password, alias, expected):
+              env = clean_env()
+              env[PASS_NAME] = password
+              opts = ["-keystore", store, "-storetype", "PKCS12", "-alias", alias, "-storepass:env", PASS_NAME]
+              cert = capture(["keytool","-exportcert",*opts], env=env)
+              require(hashlib.sha256(cert).hexdigest() == expected, "Certificate pin mismatch")
+              info = capture(["keytool","-J-Duser.language=en","-J-Duser.country=US","-list","-v",*opts], env=env)
+              require(b"PrivateKeyEntry" in info, "Not a private key entry")
+          def check_apk(path, abi, sdk, expected=None):
+              t = sdk/"build-tools/37.0.0"
+              capture([t/"zipalign","-c","-P","16","-v","4",path])
+              root = ET.fromstring(capture([sdk/"cmdline-tools/latest/bin/apkanalyzer","manifest","print",path]))
+              app = root.find("application")
+              require((root.get("package"),root.get(A+"versionName"),root.get(A+"versionCode")) == ("com.fongmi.android.tv","v5.6.3-xray.2","563002"), "Fixed TEST fixture version mismatch")
+              require(app is not None and app.get(A+"debuggable","false") == "false" and app.get(A+"testOnly","false") == "false", "Non-release manifest")
+              require(not any(n.get(A+"name") == "android.permission.REQUEST_INSTALL_PACKAGES" for n in root.findall("uses-permission")), "Forbidden permission")
+              if expected is None:
+                  rc, _ = capture([t/"apksigner","verify",path], allow_failure=True)
+                  require(rc != 0, "Input already signed")
+              else:
+                  out = capture([t/"apksigner","verify","--verbose","--print-certs",path]).decode()
+                  certs = re.findall(r"(?mi)^(?:Signer #\d+:?|V\d+(?:\.\d+)? Signer:) certificate SHA-256 digest: ([0-9a-f]{64})\s*$",out)
+                  require(set(s.lower() for s in certs) == {expected} and re.search(r"(?m)^Number of signers: 1\s*$",out), "Signer count or independent pin mismatch")
+                  require(re.search(r"(?mi)^Verified using v2 scheme[^\n]*:\s*true\s*$",out), "No verified v2 signing")
+              return payload(path, abi, expected is None)
+          def main():
+              require(os.environ.get("GITHUB_REPOSITORY") == "rileyaaa/FingMi-Xray" and os.environ.get("GITHUB_REF") == "refs/heads/dev/fongmi-upstream-adaptation", "Wrong repository or branch")
+              require(SECRET_NAME not in os.environ, "No production secret may be supplied")
+              tmp = Path(os.environ["RUNNER_TEMP"]).resolve()
+              work = tmp/("fingmi-bundle-test-"+os.environ["GITHUB_RUN_ID"])
+              sdk = Path(os.environ["ANDROID_HOME"])
+              signer = sdk/"build-tools/37.0.0/apksigner"
+              with tempfile.TemporaryDirectory(prefix="disposable-test-",dir=work) as td:
+                  d = Path(td)
+                  before = {}
+                  inputs = {}
+                  with ZipFile(work/"fixture.zip") as z:
+                      require(len(set(z.namelist())) == len(z.namelist()), "Duplicate fixture ZIP names")
+                      for abi,(name,size,digest) in ABIS.items():
+                          path = d/name
+                          with z.open("unsigned/"+name) as src, path.open("wb") as dst:
+                              shutil.copyfileobj(src,dst)
+                          require(path.stat().st_size == size and sha(path) == digest, "Fixed APK hash/size mismatch")
+                          inputs[abi] = path
+                          before[abi] = check_apk(path,abi,sdk)
+                          print("PASS unsigned fixed fixture", abi, digest, flush=True)
+                  bundle, expected = generate_test_bundle()
+                  require(expected != OLD_CERT, "Unexpected old certificate")
+                  # Simulate the one-secret input locally in the process, never GitHub Secrets.
+                  os.environ[SECRET_NAME] = bundle
+                  del bundle
+                  raw,password,alias = parse_bundle(os.environ.pop(SECRET_NAME))
+                  store = d/"test-only.p12"
+                  with os.fdopen(os.open(store,os.O_WRONLY|os.O_CREAT|os.O_EXCL,0o600),"wb") as f:
+                      f.write(raw)
+                  del raw
+                  check_store(store,password,alias,expected)
+                  try:
+                      check_store(store,password,alias,"0"*64)
+                  except RuntimeError as e:
+                      require(str(e) == "Certificate pin mismatch","Unexpected negative-case failure")
+                  else:
+                      raise RuntimeError("Incorrect pin accepted")
+                  print("PASS one-line bundle format / Java private key entry / independent pin rejection; test fingerprint",expected,flush=True)
+                  env = clean_env()
+                  env[PASS_NAME] = password
+                  signed = {}
+                  for abi,path in inputs.items():
+                      out = d/("TEST-ONLY-"+path.name)
+                      capture([signer,"sign","--ks",store,"--ks-type","PKCS12","--ks-key-alias",alias,
+                               "--ks-pass","env:"+PASS_NAME,"--key-pass","env:"+PASS_NAME,
+                               "--v4-signing-enabled","false","--out",out,path],env=env)
+                      signed[abi] = out
+                  store.unlink()
+                  del env,password
+                  # Public-only verification after disposing of the key.
+                  rows = []
+                  for abi,out in signed.items():
+                      require(check_apk(out,abi,sdk,expected) == before[abi],"Signed payload differs")
+                      digest = sha(out)
+                      rows.append({"abi":abi,"signed_sha256":digest,"bytes":out.stat().st_size})
+                      print("PASS actual apksigner + single certificate + original payload + ABI + manifest + 16KB",abi,digest,flush=True)
+                  summary = {"result":"PASS TEST ONLY - NO RELEASE","fixture_run":45570721364,"fixture_artifact":15001953802,"source":SOURCE,"package":"com.fongmi.android.tv","version":"v5.6.3-xray.2","versionCode":563002,"test_certificate_sha256":expected,"apks":rows,"windows_format":"same generator format, Linux execution; clipboard not exercised","production_1_build":False,"device_install_test":False}
+                  with open(os.environ["GITHUB_STEP_SUMMARY"],"a",encoding="utf-8") as f:
+                      f.write("## Disposable signing test (not a release)\n\n"+"    "+json.dumps(summary,sort_keys=True)+"\n")
+                  print(json.dumps(summary,sort_keys=True),flush=True)
+          try:
+              main()
+          except (BundleError,RuntimeError) as e:
+              raise SystemExit("STOP: "+str(e)) from None
+          except Exception:
+              raise SystemExit("STOP: unexpected test error (no credential output)") from None
+          PY
+      - name: Remove all test inputs, keys and signed APKs
+        if: always()
+        shell: bash
+        run: |
+          rm -rf "$RUNNER_TEMP/fingmi-bundle-test-$GITHUB_RUN_ID"
+          echo 'TEST ONLY: no repository secret, no checkout, no uploaded APK, no release, no tag changes.'
