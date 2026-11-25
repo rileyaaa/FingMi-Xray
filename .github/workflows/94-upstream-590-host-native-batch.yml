@@ -1,4 +1,4 @@
-name: "5.9.0 playback host and public dual ABI native check (no APK)"
+name: "5.9.0 MPEG-H alignment retry (no APK)"
 on:
   push:
     branches: [dev/fongmi-upstream-adaptation]
@@ -9,52 +9,9 @@ concurrency:
   group: fingmi-upstream-590-host-native
   cancel-in-progress: false
 jobs:
-  player-host:
-    if: >-
-      github.repository == 'rileyaaa/FingMi-Xray' && github.ref == 'refs/heads/dev/fongmi-upstream-adaptation' && github.event.head_commit.message == 'ci: verify 5.9 playback host and MPEG-H once'
-    name: Reviewed playback host and actual subtitle download transport
-    runs-on: ubuntu-latest
-    timeout-minutes: 40
-    steps:
-      - uses: actions/checkout@v7
-        with:
-          path: fork
-          fetch-depth: 1
-          persist-credentials: false
-      - uses: actions/checkout@v7
-        with:
-          repository: FongMi/TV
-          ref: c616c0aa3613e87529791587a9f71b78c278c991
-          path: inputs/old-tv
-          fetch-depth: 1
-          persist-credentials: false
-      - uses: actions/checkout@v7
-        with:
-          repository: FongMi/TV
-          ref: d3a0b84b24cf6628d72a4dbc2be453875b005536
-          path: inputs/tv
-          fetch-depth: 1
-          persist-credentials: false
-      - uses: actions/setup-java@v6
-        with:
-          distribution: jetbrains
-          java-version: '21'
-      - uses: actions/setup-python@v7
-        with:
-          python-version: '3.10'
-      - name: Prepare public Android SDK
-        shell: bash
-        run: |
-          set -euo pipefail
-          test ! -e fork/signing
-          sdkmanager="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
-          yes | "$sdkmanager" --licenses >/dev/null 2>&1 || true
-          "$sdkmanager" --channel=3 --install 'platforms;android-37.0' 'build-tools;37.0.0'
-      - name: Verify actual candidate host and Android downloader
-        run: python3 fork/scripts/upstream-adaptation/verify_player_host_batch.py --old-tv inputs/old-tv --tv inputs/tv --android
   mpegh-native:
     if: >-
-      github.repository == 'rileyaaa/FingMi-Xray' && github.ref == 'refs/heads/dev/fongmi-upstream-adaptation' && github.event.head_commit.message == 'ci: verify 5.9 playback host and MPEG-H once'
+      github.repository == 'rileyaaa/FingMi-Xray' && github.ref == 'refs/heads/dev/fongmi-upstream-adaptation' && github.event.head_commit.message == 'ci: verify MPEG-H explicit 16KB alignment once'
     name: Compile pinned public MPEG-H JNI for ARMv7 and ARM64
     runs-on: ubuntu-latest
     timeout-minutes: 40

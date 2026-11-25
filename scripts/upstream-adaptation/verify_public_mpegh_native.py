@@ -94,6 +94,7 @@ def main():
                 "-DANDROID_ABI="+abi,"-DANDROID_PLATFORM=android-"+str(lock["android_platform"]),
                 "-DANDROID_STL=c++_static","-DCMAKE_BUILD_TYPE=Release",
                 "-DANDROID_SUPPORT_FLEXIBLE_PAGE_SIZES=ON",
+                "-DCMAKE_SHARED_LINKER_FLAGS=-Wl,-z,max-page-size=16384 -Wl,-z,common-page-size=16384",
                 "-DCMAKE_POSITION_INDEPENDENT_CODE=ON","-DBUILD_SHARED_LIBS=OFF",
                 "-Dmpeghdec_BUILD_DECODER=ON","-Dmpeghdec_BUILD_UIMANAGER=ON",
                 "-Dmpeghdec_BUILD_BINARIES=OFF","-Dmpeghdec_BUILD_DOC=OFF",

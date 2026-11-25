@@ -1100,7 +1100,11 @@
           "tree": "56bbc33d516f6f4b83427459e1579249e5fad22c"
         }
       ],
-      "status": "public JNI/source compile-link verification candidate only; demos disabled as in consumer; no redistribution or patent clearance"
+      "status": "public JNI/source compile-link verification candidate only; demos disabled as in consumer; no redistribution or patent clearance",
+      "linker_flags": [
+        "-Wl,-z,max-page-size=16384",
+        "-Wl,-z,common-page-size=16384"
+      ]
     },
     "ffmpeg_public_consumer": {
       "manifest_blob": "ec9f8c76c66cdf5b50bdf4bf031cfab51f336551",

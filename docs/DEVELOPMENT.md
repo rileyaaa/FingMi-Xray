@@ -1133,6 +1133,11 @@ Media3 固定 3c2cbe8 的 decoder_mpegh tree 522078ee，README 明确 Fraunhofer
 
 FFmpeg 公开 consumer manifest ec9f8c76 锁定历史 producer FongMi/mpv-android 99a60ad2/tree 7d76eff8/run 31346106984，FFmpeg 04482c8d、dav1d 54706fc6、libplacebo 04b3a091，NDK 29.0.14206865 和两个 ABI 的各 .so/renderer SDK SHA-256。GitHub producer commit 可读取，run 与 artifacts API 均 404；不是可用制品，不将其他 FFmpeg 版本混入。该 manifest 只证明公开 media 分支的历史合同，不证明 TV 5.9.0 私有定制接口（FfmpegMotionInterpolationController/MPV/ISO/CMG 等）已经齐备。本轮结果待实际 AC。
 
+### 12. 本批宿主与 MPEG-H 首轮实测（2026-11-25）
+
+- Actions `45608824619` / job `139186671589` (`9db760c`)：69 transferred/clean merge、31 unresolved、5 old-media-review；23 个真实候选宿主方法断言、5 个负向控制、17 个侧请求生命周期场景通过；Android catvod assembleDebug 与 3 个 Download/真实文件/Range 测试通过（合成 HTTP 回应）。不是完整 App/播放器链接或真机播放证据。
+- job `139186672005`：ARMv7 解码库与 JNI 真正完成 CMake 编译/链接，ELF 首个 LOAD 对齐只有 `0x1000`，16 KB 门禁失败，ARM64 未执行。保持所有验收断言，构建显式加入 max/common-page-size 16384 链接参数；只重验 MPEG-H，不重跑通过的宿主及先前 14 个公开 AAR。专利/分发许可和播放器实际解码仍是独立门禁。
+
 ## 13. 冻结 5.6.3-xray.2 无正式密钥构建与离线签名交接
 
 本节只适用于用户明确授权的单一开发测试分支 `dev/fongmi-upstream-adaptation`。默认 `main` 固定为 `4a52de1daa465d81df7ac06e886a1f184053253c`，仓库实际为 public；正式版本基线、两项业务维护边界及历史黄金证据不变。5.9.0 适配和候选 Core 均未通过完整兼容门禁，不得将其输入用于本次冻结版。三条线的固定 Git 归档引用分别为 `archive/frozen-public-validation-97a23d8`、`archive/fongmi-upstream-adaptation-e3fec17`、`archive/xray-core-stable-eb03202`。归档 tag 不是正式 Release。正式签名及发布必须独立验收。
