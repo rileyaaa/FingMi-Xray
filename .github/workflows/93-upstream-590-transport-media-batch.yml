@@ -10,7 +10,8 @@ concurrency:
   cancel-in-progress: false
 jobs:
   transport:
-    if: github.repository == 'rileyaaa/FingMi-Xray' && github.ref == 'refs/heads/dev/fongmi-upstream-adaptation' && github.event.head_commit.message == 'ci: verify 5.9 transport and additional public Media3 once'
+    if: >-
+      github.repository == 'rileyaaa/FingMi-Xray' && github.ref == 'refs/heads/dev/fongmi-upstream-adaptation' && github.event.head_commit.message == 'ci: verify 5.9 transport and additional public Media3 once'
     name: Reviewed 5.9 Live and transport contracts and Android catvod
     runs-on: ubuntu-latest
     timeout-minutes: 40
@@ -52,7 +53,8 @@ jobs:
       - name: Verify actual staged source and isolated Android catvod
         run: python3 fork/scripts/upstream-adaptation/verify_transport_batch.py --old-tv inputs/old-tv --tv inputs/tv --android
   media:
-    if: github.repository == 'rileyaaa/FingMi-Xray' && github.ref == 'refs/heads/dev/fongmi-upstream-adaptation' && github.event.head_commit.message == 'ci: verify 5.9 transport and additional public Media3 once'
+    if: >-
+      github.repository == 'rileyaaa/FingMi-Xray' && github.ref == 'refs/heads/dev/fongmi-upstream-adaptation' && github.event.head_commit.message == 'ci: verify 5.9 transport and additional public Media3 once'
     name: Rebuild ten additional public Media3 Java modules
     runs-on: ubuntu-latest
     timeout-minutes: 50
