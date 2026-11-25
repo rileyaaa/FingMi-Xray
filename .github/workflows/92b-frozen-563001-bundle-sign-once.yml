@@ -1,0 +1,696 @@
+name: "Frozen 563001 new bundle signing and independent verification (no publication)"
+on:
+  push:
+    branches: [dev/fongmi-upstream-adaptation]
+    paths: [.github/workflows/92b-frozen-563001-bundle-sign-once.yml]
+permissions:
+  contents: read
+  actions: read
+jobs:
+  sign:
+    if: >-
+      github.repository == 'rileyaaa/FingMi-Xray' && github.ref == 'refs/heads/dev/fongmi-upstream-adaptation' && github.event.head_commit.message == 'ci: validate frozen 563001 with the new pinned repository signing bundle'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    outputs:
+      artifact_id: ${{ steps.candidate.outputs['artifact-id'] }}
+      artifact_digest: ${{ steps.candidate.outputs['artifact-digest'] }}
+    steps:
+      - uses: actions/setup-java@d1374f8ac74474200d16ef8ecee22c7ae7a51880
+        with:
+          distribution: jetbrains
+          java-version: "21"
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0
+        with:
+          python-version: "3.11.18"
+      - name: "Install fixed Android signing and verification tools"
+        shell: bash
+        run: |
+          set -euo pipefail
+          sdk="$ANDROID_HOME"
+          yes | "$sdk/cmdline-tools/latest/bin/sdkmanager" --licenses >/dev/null 2>&1 || true
+          "$sdk/cmdline-tools/latest/bin/sdkmanager" --channel=3 --install 'build-tools;37.0.0'
+      - name: "Download exact accepted unsigned artifact"
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          umask 077
+          work="$RUNNER_TEMP/fingmi-563001-sign-$GITHUB_RUN_ID"
+          mkdir "$work"
+          curl --fail --silent --show-error --location --retry 2 -H "Authorization: Bearer $GH_TOKEN" -H 'Accept: application/vnd.github+json' 'https://api.github.com/repos/rileyaaa/FingMi-Xray/actions/artifacts/15014380363/zip' -o "$work/unsigned.zip"
+          printf '%s  %s\n' '323b2c9b11e36f14ed4e3fb7703d3d0022a0d7c9fee1d2fcbd4e760fadede1b9' "$work/unsigned.zip" | sha256sum -c -
+          test "$(stat -c %s "$work/unsigned.zip")" = 126797959
+      - name: "Sign accepted dual ABI APKs using the pinned new identity"
+        shell: bash
+        env:
+          ANDROID_RELEASE_SIGNING_BUNDLE: ${{ secrets.ANDROID_RELEASE_SIGNING_BUNDLE }}
+        run: |
+          set -euo pipefail
+          umask 077
+          python - <<'PY'
+          import base64, binascii, hashlib, json, os, re, shutil, subprocess, tempfile, xml.etree.ElementTree as ET
+          from pathlib import Path, PurePosixPath
+          from zipfile import ZipFile
+          SECRET_NAME = "ANDROID_RELEASE_SIGNING_BUNDLE"
+          ALIAS = "fingmi-release"
+          MAX_BYTES = 48 * 1024
+          SOURCE = "cdad29923f78e7a389af6d6f40df6d49db848fe5"
+          OLD_CERT = "3cd86f4fdf6044e7e60307624bf0d8c892dfd83b81ce21748504fcbba28763c2"
+          ABIS = {
+              "arm64-v8a": ("leanback-arm64_v8a.apk", 133296011, "78ff1b7ab7ad39102d4058bbf279a118065f93815a5e638ca27fec519f2038ca"),
+              "armeabi-v7a": ("leanback-armeabi_v7a.apk", 117813443, "b8fbf58d620725cc6689fbf1ee8c65d14ae50b516aa6e840f4e7f99bf5db0e95"),
+          }
+          SIG = re.compile(r"META-INF/(?:MANIFEST\.MF|[^/]+\.(?:SF|RSA|DSA|EC)|SIG-[^/]+)$", re.I)
+          A = "{http://schemas.android.com/apk/res/android}"
+          REV = "META-INF/version-control-info.textproto"
+          PASS_NAME = "FINGMI_SIGNING_CHILD_PASSWORD"
+          class BundleError(ValueError):
+              pass
+          def require(condition, message):
+              if not condition:
+                  raise RuntimeError(message)
+          def _unique(pairs):
+              result = {}
+              for name, value in pairs:
+                  if name in result:
+                      raise BundleError("Duplicate signing bundle field")
+                  result[name] = value
+              return result
+          def parse_bundle(value):
+              if not isinstance(value, str) or not value:
+                  raise BundleError("Missing signing bundle")
+              try:
+                  if len(value.encode("ascii")) > MAX_BYTES or "\r" in value or "\n" in value:
+                      raise BundleError("Signing bundle must be one ASCII line within the Secret size limit")
+                  d = json.loads(value, object_pairs_hook=_unique)
+                  if not isinstance(d, dict) or set(d) != {"v", "alias", "password", "pkcs12_b64"}:
+                      raise BundleError("Unexpected signing bundle fields")
+                  if type(d["v"]) is not int or d["v"] != 1 or d["alias"] != ALIAS:
+                      raise BundleError("Unsupported bundle version or alias")
+                  password = d["password"]
+                  if not isinstance(password, str) or not re.fullmatch(r"[A-Za-z0-9_-]{43}", password):
+                      raise BundleError("Invalid generated password format")
+                  if base64.urlsafe_b64encode(base64.urlsafe_b64decode(password + "=")).decode().rstrip("=") != password:
+                      raise BundleError("Noncanonical password encoding")
+                  encoded = d["pkcs12_b64"]
+                  if not isinstance(encoded, str):
+                      raise BundleError("Invalid store field")
+                  store = base64.b64decode(encoded, validate=True)
+                  if not store or base64.b64encode(store).decode("ascii") != encoded:
+                      raise BundleError("Empty or noncanonical signing store")
+                  return store, password, ALIAS
+              except (UnicodeError, json.JSONDecodeError, binascii.Error, TypeError, RecursionError):
+                  raise BundleError("Invalid signing bundle encoding") from None
+          def clean_env():
+              allow = {"PATH","HOME","USER","LOGNAME","TMPDIR","TMP","TEMP","JAVA_HOME","ANDROID_HOME","ANDROID_SDK_ROOT","SYSTEMROOT","LANG","LC_ALL"}
+              env = {k:v for k,v in os.environ.items() if k in allow}
+              env.update(LANG="C.UTF-8", LC_ALL="C.UTF-8")
+              return env
+          def capture(command, env=None, allow_failure=False):
+              p = subprocess.run([str(s) for s in command], env=env or clean_env(),
+                                 stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                                 check=False, timeout=300)
+              if allow_failure:
+                  return p.returncode, p.stdout
+              require(p.returncode == 0, Path(command[0]).name + " failed")
+              return p.stdout
+          def sha(path):
+              with Path(path).open("rb") as f:
+                  return hashlib.file_digest(f, "sha256").hexdigest()
+          def payload(path, abi, unsigned):
+              result = {}
+              native = set()
+              seen = set()
+              with ZipFile(path) as z:
+                  if unsigned:
+                      with path.open("rb") as f:
+                          f.seek(z.start_dir - 16)
+                          require(f.read(16) != b"APK Sig Block 42", "Unexpected signing block")
+                  for info in z.infolist():
+                      n = info.filename
+                      parts = PurePosixPath(n).parts
+                      require(n not in seen and bool(parts) and not n.startswith("/") and "\\" not in n and ".." not in parts, "Unsafe or duplicate ZIP path")
+                      seen.add(n)
+                      if info.is_dir():
+                          continue
+                      if SIG.fullmatch(n):
+                          require(not unsigned, "Unexpected JAR signature")
+                          continue
+                      if len(parts) >= 3 and parts[0] == "lib" and n.endswith(".so"):
+                          native.add(parts[1])
+                      with z.open(info) as f:
+                          result[n] = (info.file_size, info.compress_type, hashlib.file_digest(f, "sha256").hexdigest())
+                  require(native == {abi}, "Native ABI mismatch")
+                  require({"AndroidManifest.xml","classes.dex",REV} <= set(result), "Missing APK entries")
+                  require(re.findall(r'\brevision:\s*"([0-9a-f]{40})"', z.read(REV).decode()) == [SOURCE], "Embedded source mismatch")
+              return result
+          def check_store(store, password, alias, expected):
+              env = clean_env()
+              env[PASS_NAME] = password
+              opts = ["-keystore", store, "-storetype", "PKCS12", "-alias", alias, "-storepass:env", PASS_NAME]
+              cert = capture(["keytool","-exportcert",*opts], env=env)
+              require(hashlib.sha256(cert).hexdigest() == expected, "Certificate pin mismatch")
+              info = capture(["keytool","-J-Duser.language=en","-J-Duser.country=US","-list","-v",*opts], env=env)
+              require(b"PrivateKeyEntry" in info, "Not a private key entry")
+          def check_apk(path, abi, sdk, expected=None):
+              t = sdk/"build-tools/37.0.0"
+              capture([t/"zipalign","-c","-P","16","-v","4",path])
+              root = ET.fromstring(capture([sdk/"cmdline-tools/latest/bin/apkanalyzer","manifest","print",path]))
+              app = root.find("application")
+              require((root.get("package"),root.get(A+"versionName"),root.get(A+"versionCode")) == ("com.fongmi.android.tv","v5.6.3-xray.1","563001"), "Frozen release candidate version mismatch")
+              require(app is not None and app.get(A+"debuggable","false") == "false" and app.get(A+"testOnly","false") == "false", "Non-release manifest")
+              require(not any(n.get(A+"name") == "android.permission.REQUEST_INSTALL_PACKAGES" for n in root.findall("uses-permission")), "Forbidden permission")
+              if expected is None:
+                  rc, _ = capture([t/"apksigner","verify",path], allow_failure=True)
+                  require(rc != 0, "Input already signed")
+              else:
+                  out = capture([t/"apksigner","verify","--verbose","--print-certs",path]).decode()
+                  certs = re.findall(r"(?mi)^(?:Signer #\d+:?|V\d+(?:\.\d+)? Signer:) certificate SHA-256 digest: ([0-9a-f]{64})\s*$",out)
+                  require(set(s.lower() for s in certs) == {expected} and re.search(r"(?m)^Number of signers: 1\s*$",out), "Signer count or independent pin mismatch")
+                  require(re.search(r"(?mi)^Verified using v2 scheme[^\n]*:\s*true\s*$",out), "No verified v2 signing")
+              return payload(path, abi, expected is None)
+          
+          PIN = "6fb9e81cb24e84802475d74c3d46b92bfd4ea7da2b8cbdfa96003baba52225ac"
+          TREE = "33194d0827a1f4f2cccb79524de2dceb7b2718c4"
+          UNSIGNED_DIGEST = "323b2c9b11e36f14ed4e3fb7703d3d0022a0d7c9fee1d2fcbd4e760fadede1b9"
+          PAYLOAD_REPORT_DIGEST = "250131450bcfe60488068dd641650e3929d8454bf323744c9f2f3d35fcd14b65"
+          def context():
+              require(os.environ.get("GITHUB_REPOSITORY") == "rileyaaa/FingMi-Xray" and os.environ.get("GITHUB_REF") == "refs/heads/dev/fongmi-upstream-adaptation", "Wrong repository or branch")
+              require(PIN != OLD_CERT, "Pin must not be the retired certificate")
+              return Path(os.environ["RUNNER_TEMP"]).resolve()/("fingmi-563001-sign-"+os.environ["GITHUB_RUN_ID"]), Path(os.environ["ANDROID_HOME"])
+          def final_name(abi):
+              return "FongMi-Xray-TV-v5.6.3-xray.1-"+abi+".apk"
+          def load_unsigned(work,d,sdk):
+              zpath=work/"unsigned.zip"
+              require(zpath.stat().st_size == 126797959 and sha(zpath) == UNSIGNED_DIGEST,"Fixed unsigned artifact size or digest mismatch")
+              inputs={}
+              before={}
+              with ZipFile(zpath) as z:
+                  require(len(set(z.namelist())) == len(z.namelist()),"Duplicate artifact ZIP names")
+                  recorded=z.read("PAYLOAD_SHA256.json")
+                  require(hashlib.sha256(recorded).hexdigest()==PAYLOAD_REPORT_DIGEST,"Unsigned evidence digest mismatch")
+                  report=json.loads(recorded)
+                  require(report["source"]==SOURCE and report["tree"]==TREE and report["expected_certificate_sha256"]==PIN and str(report["run_id"])=="45594863690" and set(report["apks"])==set(ABIS),"Unsigned evidence provenance mismatch")
+                  for abi,(name,size,digest) in ABIS.items():
+                      p=d/name
+                      with z.open("unsigned/"+name) as src,p.open("wb") as dst:
+                          shutil.copyfileobj(src,dst)
+                      require(p.stat().st_size==size and sha(p)==digest and report["apks"][abi]["sha256"]==digest and report["apks"][abi]["size"]==size,"Fixed APK digest or size mismatch")
+                      inputs[abi]=p
+                      before[abi]=check_apk(p,abi,sdk)
+                      print("PASS fixed unsigned source and identity",abi,digest,flush=True)
+              return inputs,before
+          def evidence():
+              return {"source":SOURCE,"tree":TREE,"package":"com.fongmi.android.tv","version":"v5.6.3-xray.1","versionCode":563001,"certificate_sha256":PIN,"unsigned_run":45594863690,"unsigned_artifact":15014380363,"unsigned_artifact_sha256":UNSIGNED_DIGEST,"signing_run":int(os.environ["GITHUB_RUN_ID"]),"signing_workflow_commit":os.environ["GITHUB_SHA"],"device_install_test":False}
+          
+          def main():
+              work,sdk=context()
+              # Consume only the explicitly authorized repository Secret inside this step.
+              # No old signing files, checkout, secret logging, or network operations.
+              raw,password,alias=parse_bundle(os.environ.pop(SECRET_NAME,""))
+              with tempfile.TemporaryDirectory(prefix="signing-private-",dir=work) as td:
+                  d=Path(td)
+                  store=d/"release.p12"
+                  with os.fdopen(os.open(store,os.O_WRONLY|os.O_CREAT|os.O_EXCL,0o600),"wb") as f:
+                      f.write(raw)
+                  del raw
+                  check_store(store,password,alias,PIN)
+                  print("PASS stored private key entry and independent new certificate pin",PIN,flush=True)
+                  inputs,before=load_unsigned(work,d,sdk)
+                  signer=sdk/"build-tools/37.0.0/apksigner"
+                  env=clean_env()
+                  env[PASS_NAME]=password
+                  signed={}
+                  for abi,p in inputs.items():
+                      out=d/final_name(abi)
+                      capture([signer,"sign","--ks",store,"--ks-type","PKCS12","--ks-key-alias",alias,
+                               "--ks-pass","env:"+PASS_NAME,"--key-pass","env:"+PASS_NAME,
+                               "--v4-signing-enabled","false","--out",out,p],env=env)
+                      signed[abi]=out
+                  store.unlink()
+                  env.clear()
+                  del password
+                  rows={}
+                  for abi,p in signed.items():
+                      require(check_apk(p,abi,sdk,PIN)==before[abi],"Signed non-signature payload mismatch")
+                      rows[abi]={"name":p.name,"size":p.stat().st_size,"sha256":sha(p)}
+                      print("PASS real release signing and unchanged payload",abi,rows[abi]["sha256"],flush=True)
+                  result=evidence()
+                  result["apks"]=rows
+                  result["result"]="SIGNED CANDIDATE - NOT PUBLISHED"
+                  output=work/"verified"
+                  output.mkdir(mode=0o700)
+                  for p in signed.values():
+                      shutil.copyfile(p,output/p.name)
+                  (output/"SIGNING_RESULT.json").write_text(json.dumps(result,sort_keys=True,indent=2)+"\n")
+                  require({p.name for p in output.iterdir()}=={"SIGNING_RESULT.json",*(final_name(a) for a in ABIS)},"Candidate output allowlist failed")
+                  print(json.dumps(result,sort_keys=True),flush=True)
+          
+          try:
+              main()
+          except (BundleError,RuntimeError) as e:
+              raise SystemExit("STOP: "+str(e)) from None
+          except Exception:
+              raise SystemExit("STOP: unexpected signing/verification failure (no credential output)") from None
+          PY
+      - name: "Retain only verified signed candidate APKs and public evidence"
+        id: candidate
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: signed-frozen-563001-${{ github.run_id }}
+          path: ${{ runner.temp }}/fingmi-563001-sign-${{ github.run_id }}/verified/
+          if-no-files-found: error
+          retention-days: 14
+      - name: "Delete only this runner temporary signing workspace"
+        if: always()
+        shell: bash
+        run: |
+          rm -rf "$RUNNER_TEMP/fingmi-563001-sign-$GITHUB_RUN_ID"
+          echo "Temporary signing workspace removed. No release or tag mutation."
+  verify:
+    needs: sign
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/setup-java@d1374f8ac74474200d16ef8ecee22c7ae7a51880
+        with:
+          distribution: jetbrains
+          java-version: "21"
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0
+        with:
+          python-version: "3.11.18"
+      - name: "Install fixed Android signing and verification tools"
+        shell: bash
+        run: |
+          set -euo pipefail
+          sdk="$ANDROID_HOME"
+          yes | "$sdk/cmdline-tools/latest/bin/sdkmanager" --licenses >/dev/null 2>&1 || true
+          "$sdk/cmdline-tools/latest/bin/sdkmanager" --channel=3 --install 'build-tools;37.0.0'
+      - name: "Download exact accepted unsigned artifact"
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          umask 077
+          work="$RUNNER_TEMP/fingmi-563001-sign-$GITHUB_RUN_ID"
+          mkdir "$work"
+          curl --fail --silent --show-error --location --retry 2 -H "Authorization: Bearer $GH_TOKEN" -H 'Accept: application/vnd.github+json' 'https://api.github.com/repos/rileyaaa/FingMi-Xray/actions/artifacts/15014380363/zip' -o "$work/unsigned.zip"
+          printf '%s  %s\n' '323b2c9b11e36f14ed4e3fb7703d3d0022a0d7c9fee1d2fcbd4e760fadede1b9' "$work/unsigned.zip" | sha256sum -c -
+          test "$(stat -c %s "$work/unsigned.zip")" = 126797959
+      - name: "Download exact signed candidate by artifact identity"
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CANDIDATE_ID: ${{ needs.sign.outputs.artifact_id }}
+          CANDIDATE_DIGEST: ${{ needs.sign.outputs.artifact_digest }}
+        run: |
+          set -euo pipefail
+          umask 077
+          [[ "$CANDIDATE_ID" =~ ^[0-9]+$ ]]
+          digest="${CANDIDATE_DIGEST#sha256:}"
+          [[ "$digest" =~ ^[0-9a-f]{64}$ ]]
+          work="$RUNNER_TEMP/fingmi-563001-sign-$GITHUB_RUN_ID"
+          curl --fail --silent --show-error --location --retry 2 -H "Authorization: Bearer $GH_TOKEN" -H 'Accept: application/vnd.github+json' "https://api.github.com/repos/rileyaaa/FingMi-Xray/actions/artifacts/$CANDIDATE_ID/zip" -o "$work/signed.zip"
+          printf '%s  %s\n' "$digest" "$work/signed.zip" | sha256sum -c -
+      - name: "Independently verify downloaded APK signatures, provenance and contents without secrets"
+        shell: bash
+        run: |
+          set -euo pipefail
+          umask 077
+          python - <<'PY'
+          import base64, binascii, hashlib, json, os, re, shutil, subprocess, tempfile, xml.etree.ElementTree as ET
+          from pathlib import Path, PurePosixPath
+          from zipfile import ZipFile
+          SECRET_NAME = "ANDROID_RELEASE_SIGNING_BUNDLE"
+          ALIAS = "fingmi-release"
+          MAX_BYTES = 48 * 1024
+          SOURCE = "cdad29923f78e7a389af6d6f40df6d49db848fe5"
+          OLD_CERT = "3cd86f4fdf6044e7e60307624bf0d8c892dfd83b81ce21748504fcbba28763c2"
+          ABIS = {
+              "arm64-v8a": ("leanback-arm64_v8a.apk", 133296011, "78ff1b7ab7ad39102d4058bbf279a118065f93815a5e638ca27fec519f2038ca"),
+              "armeabi-v7a": ("leanback-armeabi_v7a.apk", 117813443, "b8fbf58d620725cc6689fbf1ee8c65d14ae50b516aa6e840f4e7f99bf5db0e95"),
+          }
+          SIG = re.compile(r"META-INF/(?:MANIFEST\.MF|[^/]+\.(?:SF|RSA|DSA|EC)|SIG-[^/]+)$", re.I)
+          A = "{http://schemas.android.com/apk/res/android}"
+          REV = "META-INF/version-control-info.textproto"
+          PASS_NAME = "FINGMI_SIGNING_CHILD_PASSWORD"
+          class BundleError(ValueError):
+              pass
+          def require(condition, message):
+              if not condition:
+                  raise RuntimeError(message)
+          def _unique(pairs):
+              result = {}
+              for name, value in pairs:
+                  if name in result:
+                      raise BundleError("Duplicate signing bundle field")
+                  result[name] = value
+              return result
+          def parse_bundle(value):
+              if not isinstance(value, str) or not value:
+                  raise BundleError("Missing signing bundle")
+              try:
+                  if len(value.encode("ascii")) > MAX_BYTES or "\r" in value or "\n" in value:
+                      raise BundleError("Signing bundle must be one ASCII line within the Secret size limit")
+                  d = json.loads(value, object_pairs_hook=_unique)
+                  if not isinstance(d, dict) or set(d) != {"v", "alias", "password", "pkcs12_b64"}:
+                      raise BundleError("Unexpected signing bundle fields")
+                  if type(d["v"]) is not int or d["v"] != 1 or d["alias"] != ALIAS:
+                      raise BundleError("Unsupported bundle version or alias")
+                  password = d["password"]
+                  if not isinstance(password, str) or not re.fullmatch(r"[A-Za-z0-9_-]{43}", password):
+                      raise BundleError("Invalid generated password format")
+                  if base64.urlsafe_b64encode(base64.urlsafe_b64decode(password + "=")).decode().rstrip("=") != password:
+                      raise BundleError("Noncanonical password encoding")
+                  encoded = d["pkcs12_b64"]
+                  if not isinstance(encoded, str):
+                      raise BundleError("Invalid store field")
+                  store = base64.b64decode(encoded, validate=True)
+                  if not store or base64.b64encode(store).decode("ascii") != encoded:
+                      raise BundleError("Empty or noncanonical signing store")
+                  return store, password, ALIAS
+              except (UnicodeError, json.JSONDecodeError, binascii.Error, TypeError, RecursionError):
+                  raise BundleError("Invalid signing bundle encoding") from None
+          def clean_env():
+              allow = {"PATH","HOME","USER","LOGNAME","TMPDIR","TMP","TEMP","JAVA_HOME","ANDROID_HOME","ANDROID_SDK_ROOT","SYSTEMROOT","LANG","LC_ALL"}
+              env = {k:v for k,v in os.environ.items() if k in allow}
+              env.update(LANG="C.UTF-8", LC_ALL="C.UTF-8")
+              return env
+          def capture(command, env=None, allow_failure=False):
+              p = subprocess.run([str(s) for s in command], env=env or clean_env(),
+                                 stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                                 check=False, timeout=300)
+              if allow_failure:
+                  return p.returncode, p.stdout
+              require(p.returncode == 0, Path(command[0]).name + " failed")
+              return p.stdout
+          def sha(path):
+              with Path(path).open("rb") as f:
+                  return hashlib.file_digest(f, "sha256").hexdigest()
+          def payload(path, abi, unsigned):
+              result = {}
+              native = set()
+              seen = set()
+              with ZipFile(path) as z:
+                  if unsigned:
+                      with path.open("rb") as f:
+                          f.seek(z.start_dir - 16)
+                          require(f.read(16) != b"APK Sig Block 42", "Unexpected signing block")
+                  for info in z.infolist():
+                      n = info.filename
+                      parts = PurePosixPath(n).parts
+                      require(n not in seen and bool(parts) and not n.startswith("/") and "\\" not in n and ".." not in parts, "Unsafe or duplicate ZIP path")
+                      seen.add(n)
+                      if info.is_dir():
+                          continue
+                      if SIG.fullmatch(n):
+                          require(not unsigned, "Unexpected JAR signature")
+                          continue
+                      if len(parts) >= 3 and parts[0] == "lib" and n.endswith(".so"):
+                          native.add(parts[1])
+                      with z.open(info) as f:
+                          result[n] = (info.file_size, info.compress_type, hashlib.file_digest(f, "sha256").hexdigest())
+                  require(native == {abi}, "Native ABI mismatch")
+                  require({"AndroidManifest.xml","classes.dex",REV} <= set(result), "Missing APK entries")
+                  require(re.findall(r'\brevision:\s*"([0-9a-f]{40})"', z.read(REV).decode()) == [SOURCE], "Embedded source mismatch")
+              return result
+          def check_store(store, password, alias, expected):
+              env = clean_env()
+              env[PASS_NAME] = password
+              opts = ["-keystore", store, "-storetype", "PKCS12", "-alias", alias, "-storepass:env", PASS_NAME]
+              cert = capture(["keytool","-exportcert",*opts], env=env)
+              require(hashlib.sha256(cert).hexdigest() == expected, "Certificate pin mismatch")
+              info = capture(["keytool","-J-Duser.language=en","-J-Duser.country=US","-list","-v",*opts], env=env)
+              require(b"PrivateKeyEntry" in info, "Not a private key entry")
+          def check_apk(path, abi, sdk, expected=None):
+              t = sdk/"build-tools/37.0.0"
+              capture([t/"zipalign","-c","-P","16","-v","4",path])
+              root = ET.fromstring(capture([sdk/"cmdline-tools/latest/bin/apkanalyzer","manifest","print",path]))
+              app = root.find("application")
+              require((root.get("package"),root.get(A+"versionName"),root.get(A+"versionCode")) == ("com.fongmi.android.tv","v5.6.3-xray.1","563001"), "Frozen release candidate version mismatch")
+              require(app is not None and app.get(A+"debuggable","false") == "false" and app.get(A+"testOnly","false") == "false", "Non-release manifest")
+              require(not any(n.get(A+"name") == "android.permission.REQUEST_INSTALL_PACKAGES" for n in root.findall("uses-permission")), "Forbidden permission")
+              if expected is None:
+                  rc, _ = capture([t/"apksigner","verify",path], allow_failure=True)
+                  require(rc != 0, "Input already signed")
+              else:
+                  out = capture([t/"apksigner","verify","--verbose","--print-certs",path]).decode()
+                  certs = re.findall(r"(?mi)^(?:Signer #\d+:?|V\d+(?:\.\d+)? Signer:) certificate SHA-256 digest: ([0-9a-f]{64})\s*$",out)
+                  require(set(s.lower() for s in certs) == {expected} and re.search(r"(?m)^Number of signers: 1\s*$",out), "Signer count or independent pin mismatch")
+                  require(re.search(r"(?mi)^Verified using v2 scheme[^\n]*:\s*true\s*$",out), "No verified v2 signing")
+              return payload(path, abi, expected is None)
+          
+          PIN = "6fb9e81cb24e84802475d74c3d46b92bfd4ea7da2b8cbdfa96003baba52225ac"
+          TREE = "33194d0827a1f4f2cccb79524de2dceb7b2718c4"
+          UNSIGNED_DIGEST = "323b2c9b11e36f14ed4e3fb7703d3d0022a0d7c9fee1d2fcbd4e760fadede1b9"
+          PAYLOAD_REPORT_DIGEST = "250131450bcfe60488068dd641650e3929d8454bf323744c9f2f3d35fcd14b65"
+          def context():
+              require(os.environ.get("GITHUB_REPOSITORY") == "rileyaaa/FingMi-Xray" and os.environ.get("GITHUB_REF") == "refs/heads/dev/fongmi-upstream-adaptation", "Wrong repository or branch")
+              require(PIN != OLD_CERT, "Pin must not be the retired certificate")
+              return Path(os.environ["RUNNER_TEMP"]).resolve()/("fingmi-563001-sign-"+os.environ["GITHUB_RUN_ID"]), Path(os.environ["ANDROID_HOME"])
+          def final_name(abi):
+              return "FongMi-Xray-TV-v5.6.3-xray.1-"+abi+".apk"
+          def load_unsigned(work,d,sdk):
+              zpath=work/"unsigned.zip"
+              require(zpath.stat().st_size == 126797959 and sha(zpath) == UNSIGNED_DIGEST,"Fixed unsigned artifact size or digest mismatch")
+              inputs={}
+              before={}
+              with ZipFile(zpath) as z:
+                  require(len(set(z.namelist())) == len(z.namelist()),"Duplicate artifact ZIP names")
+                  recorded=z.read("PAYLOAD_SHA256.json")
+                  require(hashlib.sha256(recorded).hexdigest()==PAYLOAD_REPORT_DIGEST,"Unsigned evidence digest mismatch")
+                  report=json.loads(recorded)
+                  require(report["source"]==SOURCE and report["tree"]==TREE and report["expected_certificate_sha256"]==PIN and str(report["run_id"])=="45594863690" and set(report["apks"])==set(ABIS),"Unsigned evidence provenance mismatch")
+                  for abi,(name,size,digest) in ABIS.items():
+                      p=d/name
+                      with z.open("unsigned/"+name) as src,p.open("wb") as dst:
+                          shutil.copyfileobj(src,dst)
+                      require(p.stat().st_size==size and sha(p)==digest and report["apks"][abi]["sha256"]==digest and report["apks"][abi]["size"]==size,"Fixed APK digest or size mismatch")
+                      inputs[abi]=p
+                      before[abi]=check_apk(p,abi,sdk)
+                      print("PASS fixed unsigned source and identity",abi,digest,flush=True)
+              return inputs,before
+          def evidence():
+              return {"source":SOURCE,"tree":TREE,"package":"com.fongmi.android.tv","version":"v5.6.3-xray.1","versionCode":563001,"certificate_sha256":PIN,"unsigned_run":45594863690,"unsigned_artifact":15014380363,"unsigned_artifact_sha256":UNSIGNED_DIGEST,"signing_run":int(os.environ["GITHUB_RUN_ID"]),"signing_workflow_commit":os.environ["GITHUB_SHA"],"device_install_test":False}
+          
+          def main():
+              work,sdk=context()
+              require(SECRET_NAME not in os.environ,"Public verification must not receive signing credentials")
+              with tempfile.TemporaryDirectory(prefix="verify-public-",dir=work) as td:
+                  d=Path(td)
+                  inputs,before=load_unsigned(work,d,sdk)
+                  with ZipFile(work/"signed.zip") as z:
+                      names={"SIGNING_RESULT.json",*(final_name(a) for a in ABIS)}
+                      require(len(z.namelist())==3 and set(z.namelist())==names,"Signed artifact contains unexpected entries")
+                      summary=json.loads(z.read("SIGNING_RESULT.json"))
+                      require(all(summary.get(k)==v for k,v in evidence().items()) and set(summary["apks"])==set(ABIS),"Signed artifact evidence mismatch")
+                      for abi in ABIS:
+                          name=final_name(abi)
+                          out=d/name
+                          with z.open(name) as src,out.open("wb") as dst:
+                              shutil.copyfileobj(src,dst)
+                          require(summary["apks"][abi]=={"name":name,"size":out.stat().st_size,"sha256":sha(out)},"Signed APK readback digest mismatch")
+                          require(check_apk(out,abi,sdk,PIN)==before[abi],"Readback payload differs from frozen unsigned APK")
+                          print("PASS independently downloaded signed APK",abi,sha(out),flush=True)
+                  with open(os.environ["GITHUB_STEP_SUMMARY"],"a",encoding="utf-8") as f:
+                      f.write("## Independently verified frozen signed .1 candidate (not released)\n\n    "+json.dumps(summary,sort_keys=True)+"\n")
+          
+          try:
+              main()
+          except (BundleError,RuntimeError) as e:
+              raise SystemExit("STOP: "+str(e)) from None
+          except Exception:
+              raise SystemExit("STOP: unexpected signing/verification failure (no credential output)") from None
+          PY
+      - name: "Confirm the same persisted signing identity in a separate runner"
+        shell: bash
+        env:
+          ANDROID_RELEASE_SIGNING_BUNDLE: ${{ secrets.ANDROID_RELEASE_SIGNING_BUNDLE }}
+        run: |
+          set -euo pipefail
+          umask 077
+          python - <<'PY'
+          import base64, binascii, hashlib, json, os, re, shutil, subprocess, tempfile, xml.etree.ElementTree as ET
+          from pathlib import Path, PurePosixPath
+          from zipfile import ZipFile
+          SECRET_NAME = "ANDROID_RELEASE_SIGNING_BUNDLE"
+          ALIAS = "fingmi-release"
+          MAX_BYTES = 48 * 1024
+          SOURCE = "cdad29923f78e7a389af6d6f40df6d49db848fe5"
+          OLD_CERT = "3cd86f4fdf6044e7e60307624bf0d8c892dfd83b81ce21748504fcbba28763c2"
+          ABIS = {
+              "arm64-v8a": ("leanback-arm64_v8a.apk", 133296011, "78ff1b7ab7ad39102d4058bbf279a118065f93815a5e638ca27fec519f2038ca"),
+              "armeabi-v7a": ("leanback-armeabi_v7a.apk", 117813443, "b8fbf58d620725cc6689fbf1ee8c65d14ae50b516aa6e840f4e7f99bf5db0e95"),
+          }
+          SIG = re.compile(r"META-INF/(?:MANIFEST\.MF|[^/]+\.(?:SF|RSA|DSA|EC)|SIG-[^/]+)$", re.I)
+          A = "{http://schemas.android.com/apk/res/android}"
+          REV = "META-INF/version-control-info.textproto"
+          PASS_NAME = "FINGMI_SIGNING_CHILD_PASSWORD"
+          class BundleError(ValueError):
+              pass
+          def require(condition, message):
+              if not condition:
+                  raise RuntimeError(message)
+          def _unique(pairs):
+              result = {}
+              for name, value in pairs:
+                  if name in result:
+                      raise BundleError("Duplicate signing bundle field")
+                  result[name] = value
+              return result
+          def parse_bundle(value):
+              if not isinstance(value, str) or not value:
+                  raise BundleError("Missing signing bundle")
+              try:
+                  if len(value.encode("ascii")) > MAX_BYTES or "\r" in value or "\n" in value:
+                      raise BundleError("Signing bundle must be one ASCII line within the Secret size limit")
+                  d = json.loads(value, object_pairs_hook=_unique)
+                  if not isinstance(d, dict) or set(d) != {"v", "alias", "password", "pkcs12_b64"}:
+                      raise BundleError("Unexpected signing bundle fields")
+                  if type(d["v"]) is not int or d["v"] != 1 or d["alias"] != ALIAS:
+                      raise BundleError("Unsupported bundle version or alias")
+                  password = d["password"]
+                  if not isinstance(password, str) or not re.fullmatch(r"[A-Za-z0-9_-]{43}", password):
+                      raise BundleError("Invalid generated password format")
+                  if base64.urlsafe_b64encode(base64.urlsafe_b64decode(password + "=")).decode().rstrip("=") != password:
+                      raise BundleError("Noncanonical password encoding")
+                  encoded = d["pkcs12_b64"]
+                  if not isinstance(encoded, str):
+                      raise BundleError("Invalid store field")
+                  store = base64.b64decode(encoded, validate=True)
+                  if not store or base64.b64encode(store).decode("ascii") != encoded:
+                      raise BundleError("Empty or noncanonical signing store")
+                  return store, password, ALIAS
+              except (UnicodeError, json.JSONDecodeError, binascii.Error, TypeError, RecursionError):
+                  raise BundleError("Invalid signing bundle encoding") from None
+          def clean_env():
+              allow = {"PATH","HOME","USER","LOGNAME","TMPDIR","TMP","TEMP","JAVA_HOME","ANDROID_HOME","ANDROID_SDK_ROOT","SYSTEMROOT","LANG","LC_ALL"}
+              env = {k:v for k,v in os.environ.items() if k in allow}
+              env.update(LANG="C.UTF-8", LC_ALL="C.UTF-8")
+              return env
+          def capture(command, env=None, allow_failure=False):
+              p = subprocess.run([str(s) for s in command], env=env or clean_env(),
+                                 stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                                 check=False, timeout=300)
+              if allow_failure:
+                  return p.returncode, p.stdout
+              require(p.returncode == 0, Path(command[0]).name + " failed")
+              return p.stdout
+          def sha(path):
+              with Path(path).open("rb") as f:
+                  return hashlib.file_digest(f, "sha256").hexdigest()
+          def payload(path, abi, unsigned):
+              result = {}
+              native = set()
+              seen = set()
+              with ZipFile(path) as z:
+                  if unsigned:
+                      with path.open("rb") as f:
+                          f.seek(z.start_dir - 16)
+                          require(f.read(16) != b"APK Sig Block 42", "Unexpected signing block")
+                  for info in z.infolist():
+                      n = info.filename
+                      parts = PurePosixPath(n).parts
+                      require(n not in seen and bool(parts) and not n.startswith("/") and "\\" not in n and ".." not in parts, "Unsafe or duplicate ZIP path")
+                      seen.add(n)
+                      if info.is_dir():
+                          continue
+                      if SIG.fullmatch(n):
+                          require(not unsigned, "Unexpected JAR signature")
+                          continue
+                      if len(parts) >= 3 and parts[0] == "lib" and n.endswith(".so"):
+                          native.add(parts[1])
+                      with z.open(info) as f:
+                          result[n] = (info.file_size, info.compress_type, hashlib.file_digest(f, "sha256").hexdigest())
+                  require(native == {abi}, "Native ABI mismatch")
+                  require({"AndroidManifest.xml","classes.dex",REV} <= set(result), "Missing APK entries")
+                  require(re.findall(r'\brevision:\s*"([0-9a-f]{40})"', z.read(REV).decode()) == [SOURCE], "Embedded source mismatch")
+              return result
+          def check_store(store, password, alias, expected):
+              env = clean_env()
+              env[PASS_NAME] = password
+              opts = ["-keystore", store, "-storetype", "PKCS12", "-alias", alias, "-storepass:env", PASS_NAME]
+              cert = capture(["keytool","-exportcert",*opts], env=env)
+              require(hashlib.sha256(cert).hexdigest() == expected, "Certificate pin mismatch")
+              info = capture(["keytool","-J-Duser.language=en","-J-Duser.country=US","-list","-v",*opts], env=env)
+              require(b"PrivateKeyEntry" in info, "Not a private key entry")
+          def check_apk(path, abi, sdk, expected=None):
+              t = sdk/"build-tools/37.0.0"
+              capture([t/"zipalign","-c","-P","16","-v","4",path])
+              root = ET.fromstring(capture([sdk/"cmdline-tools/latest/bin/apkanalyzer","manifest","print",path]))
+              app = root.find("application")
+              require((root.get("package"),root.get(A+"versionName"),root.get(A+"versionCode")) == ("com.fongmi.android.tv","v5.6.3-xray.1","563001"), "Frozen release candidate version mismatch")
+              require(app is not None and app.get(A+"debuggable","false") == "false" and app.get(A+"testOnly","false") == "false", "Non-release manifest")
+              require(not any(n.get(A+"name") == "android.permission.REQUEST_INSTALL_PACKAGES" for n in root.findall("uses-permission")), "Forbidden permission")
+              if expected is None:
+                  rc, _ = capture([t/"apksigner","verify",path], allow_failure=True)
+                  require(rc != 0, "Input already signed")
+              else:
+                  out = capture([t/"apksigner","verify","--verbose","--print-certs",path]).decode()
+                  certs = re.findall(r"(?mi)^(?:Signer #\d+:?|V\d+(?:\.\d+)? Signer:) certificate SHA-256 digest: ([0-9a-f]{64})\s*$",out)
+                  require(set(s.lower() for s in certs) == {expected} and re.search(r"(?m)^Number of signers: 1\s*$",out), "Signer count or independent pin mismatch")
+                  require(re.search(r"(?mi)^Verified using v2 scheme[^\n]*:\s*true\s*$",out), "No verified v2 signing")
+              return payload(path, abi, expected is None)
+          
+          PIN = "6fb9e81cb24e84802475d74c3d46b92bfd4ea7da2b8cbdfa96003baba52225ac"
+          TREE = "33194d0827a1f4f2cccb79524de2dceb7b2718c4"
+          UNSIGNED_DIGEST = "323b2c9b11e36f14ed4e3fb7703d3d0022a0d7c9fee1d2fcbd4e760fadede1b9"
+          PAYLOAD_REPORT_DIGEST = "250131450bcfe60488068dd641650e3929d8454bf323744c9f2f3d35fcd14b65"
+          def context():
+              require(os.environ.get("GITHUB_REPOSITORY") == "rileyaaa/FingMi-Xray" and os.environ.get("GITHUB_REF") == "refs/heads/dev/fongmi-upstream-adaptation", "Wrong repository or branch")
+              require(PIN != OLD_CERT, "Pin must not be the retired certificate")
+              return Path(os.environ["RUNNER_TEMP"]).resolve()/("fingmi-563001-sign-"+os.environ["GITHUB_RUN_ID"]), Path(os.environ["ANDROID_HOME"])
+          def final_name(abi):
+              return "FongMi-Xray-TV-v5.6.3-xray.1-"+abi+".apk"
+          def load_unsigned(work,d,sdk):
+              zpath=work/"unsigned.zip"
+              require(zpath.stat().st_size == 126797959 and sha(zpath) == UNSIGNED_DIGEST,"Fixed unsigned artifact size or digest mismatch")
+              inputs={}
+              before={}
+              with ZipFile(zpath) as z:
+                  require(len(set(z.namelist())) == len(z.namelist()),"Duplicate artifact ZIP names")
+                  recorded=z.read("PAYLOAD_SHA256.json")
+                  require(hashlib.sha256(recorded).hexdigest()==PAYLOAD_REPORT_DIGEST,"Unsigned evidence digest mismatch")
+                  report=json.loads(recorded)
+                  require(report["source"]==SOURCE and report["tree"]==TREE and report["expected_certificate_sha256"]==PIN and str(report["run_id"])=="45594863690" and set(report["apks"])==set(ABIS),"Unsigned evidence provenance mismatch")
+                  for abi,(name,size,digest) in ABIS.items():
+                      p=d/name
+                      with z.open("unsigned/"+name) as src,p.open("wb") as dst:
+                          shutil.copyfileobj(src,dst)
+                      require(p.stat().st_size==size and sha(p)==digest and report["apks"][abi]["sha256"]==digest and report["apks"][abi]["size"]==size,"Fixed APK digest or size mismatch")
+                      inputs[abi]=p
+                      before[abi]=check_apk(p,abi,sdk)
+                      print("PASS fixed unsigned source and identity",abi,digest,flush=True)
+              return inputs,before
+          def evidence():
+              return {"source":SOURCE,"tree":TREE,"package":"com.fongmi.android.tv","version":"v5.6.3-xray.1","versionCode":563001,"certificate_sha256":PIN,"unsigned_run":45594863690,"unsigned_artifact":15014380363,"unsigned_artifact_sha256":UNSIGNED_DIGEST,"signing_run":int(os.environ["GITHUB_RUN_ID"]),"signing_workflow_commit":os.environ["GITHUB_SHA"],"device_install_test":False}
+          
+          def main():
+              work,sdk=context()
+              raw,password,alias=parse_bundle(os.environ.pop(SECRET_NAME,""))
+              with tempfile.TemporaryDirectory(prefix="independent-key-check-",dir=work) as td:
+                  store=Path(td)/"release.p12"
+                  with os.fdopen(os.open(store,os.O_WRONLY|os.O_CREAT|os.O_EXCL,0o600),"wb") as f:
+                      f.write(raw)
+                  del raw
+                  check_store(store,password,alias,PIN)
+                  store.unlink()
+                  del password
+              print("PASS independent runner reopened the same pinned repository signing identity",PIN,flush=True)
+          
+          try:
+              main()
+          except (BundleError,RuntimeError) as e:
+              raise SystemExit("STOP: "+str(e)) from None
+          except Exception:
+              raise SystemExit("STOP: unexpected signing/verification failure (no credential output)") from None
+          PY
+      - name: "Delete only this runner temporary signing workspace"
+        if: always()
+        shell: bash
+        run: |
+          rm -rf "$RUNNER_TEMP/fingmi-563001-sign-$GITHUB_RUN_ID"
+          echo "Temporary signing workspace removed. No release or tag mutation."
