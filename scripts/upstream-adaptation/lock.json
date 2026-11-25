@@ -30,6 +30,13 @@
       "tree": "246fb170134edf5a7b5f8a2ca6f4f8bc81903383",
       "license": "Apache-2.0",
       "branch": "release"
+    },
+    "mpegh": {
+      "repo": "Fraunhofer-IIS/mpeghdec",
+      "ref": "335a2587fed4d769f8a21ae8816afd0aaa226b4f",
+      "tree": "7c17bcf3ad7b8bab644c33fab84f841ca9f6ef09",
+      "tag": "r3.0.2",
+      "license": "Fraunhofer FDK MPEG-H software license; patent license not granted"
     }
   },
   "fork_scope": [
@@ -1066,5 +1073,45 @@
         "sha256": "da5b513a10aa6400703cb2d692ddb8b1c5a970aa31a47278fe8a38b6497dfae9"
       }
     }
-  ]
+  ],
+  "public_native_build": {
+    "mpegh": {
+      "module": "libraries/decoder_mpegh",
+      "tree": "522078ee09f6d7697760ec18e3caa58bc1f5912a",
+      "cmake": "3.22.1",
+      "ndk": "29.0.14206865",
+      "android_platform": 24,
+      "abis": [
+        "armeabi-v7a",
+        "arm64-v8a"
+      ],
+      "license_blob": "2948ac666cae4aedd195e87e98e7b837a28ce092",
+      "demo_dependencies": [
+        {
+          "repo": "Fraunhofer-IIS/ilo",
+          "tag": "r2.0.0",
+          "ref": "53e9c6623a30aa337ba9b4c1b05f7633787ea09b",
+          "tree": "6561baaa4d5bbc79733bb9b92bbdc538fefffc81"
+        },
+        {
+          "repo": "Fraunhofer-IIS/mmtisobmff",
+          "tag": "r1.0.2",
+          "ref": "a1662869dbcec6851a35b7d34222f3cd23aff9fd",
+          "tree": "56bbc33d516f6f4b83427459e1579249e5fad22c"
+        }
+      ],
+      "status": "public JNI/source compile-link verification candidate only; demos disabled as in consumer; no redistribution or patent clearance"
+    },
+    "ffmpeg_public_consumer": {
+      "manifest_blob": "ec9f8c76c66cdf5b50bdf4bf031cfab51f336551",
+      "producer_repo": "FongMi/mpv-android",
+      "producer_commit": "99a60ad2141d5ace94453590903c2c6b9a0a2443",
+      "producer_tree": "7d76eff8d86bb4c5ebf2e7c95d92603b20277a1b",
+      "producer_run": 31346106984,
+      "ffmpeg_commit": "04482c8d13ac27b2a9fe93f5d388929eef8af5f4",
+      "dav1d_commit": "54706fc6bc0cdecab7e9593974a4039cc038fca7",
+      "libplacebo_commit": "04b3a0918fb32b8f374193aaead8b509274aae97",
+      "status": "exact historical public consumer manifest available; producer run and artifacts HTTP 404; no supplied binary or complete TV 5.9 contract"
+    }
+  }
 }

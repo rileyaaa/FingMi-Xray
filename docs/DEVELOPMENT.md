@@ -1125,6 +1125,14 @@ transport job 139144342781：候选实际输出 65 项移植/干净合并，33 �
 
 5.9.0 新增 TimeshiftPlayback 原构造长期捕获 OkHttp.client()，普通 API 待机恢复后会持有已退役 client；改为每次请求按当前播放 owner 选择 client，Xray error 挂起时拒绝回看解析，切换取消旧 pending Future/Call，不清除原有回看时间轴。PlaybackService 保留新版 browse、进度和 SessionPlayer 逻辑，只补 side request/封面取消、URL 通知和旧代理 owner 在远程 browse 新媒体准备前退役；普通 browse 不改变原顺序。保留新版 public 播放器行为，不冒称定制媒体内部取流和 Activity/真实设备已验；当前先待本批独立测试。
 
+### 12.14 播放宿主局部验收与公开 MPEG-H native 独立验证
+
+新增 verify_player_host_batch.py，只执行本轮真实宿主方法（固定 PlayerManager/TimeshiftPlayback/PlaybackService blob，engine/Media3/服务为确定性边界替身）、上一轮未跑的实际 SubtitleApi/DanmakuApi side-request lifecycle，以及新 catvod Download 的 Android 编译与真实文件/Range worker 测试（HTTP 终端交换为合成响应）；不重复上轮 transport auth 或 14 个公开 AAR 构建。失败按首个实际断言/编译错误修正，不为通过而减弱门禁。
+
+Media3 固定 3c2cbe8 的 decoder_mpegh tree 522078ee，README 明确 Fraunhofer-IIS/mpeghdec r3.0.2；已解析 tag 到 commit 335a2587/tree 7c17bcf3，LICENSE.txt blob 2948ac66。保留完整 decoder 与 UI manager，demo 依赖 ilo r2.0.0/mmtisobmff r1.0.2 已解析固定 commit，消费模块默认不构建 demos，离线 FetchContent。verify_public_mpegh_native.py 使用 Android SDK CMake 3.22.1、NDK 29.0.14206865、API24，分别编译真实 armv7/arm64 JNI，验证 ELF machine、PT_LOAD 16KB、Java native 导出全集与依赖，不上传或部署任何 native 制品。Fraunhofer 版权许可附带条件、不授予专利许可；本轮仅 compile/link，不能据此宣称已获分发/专利授权或真实解码验收。
+
+FFmpeg 公开 consumer manifest ec9f8c76 锁定历史 producer FongMi/mpv-android 99a60ad2/tree 7d76eff8/run 31346106984，FFmpeg 04482c8d、dav1d 54706fc6、libplacebo 04b3a091，NDK 29.0.14206865 和两个 ABI 的各 .so/renderer SDK SHA-256。GitHub producer commit 可读取，run 与 artifacts API 均 404；不是可用制品，不将其他 FFmpeg 版本混入。该 manifest 只证明公开 media 分支的历史合同，不证明 TV 5.9.0 私有定制接口（FfmpegMotionInterpolationController/MPV/ISO/CMG 等）已经齐备。本轮结果待实际 AC。
+
 ## 13. 冻结 5.6.3-xray.2 无正式密钥构建与离线签名交接
 
 本节只适用于用户明确授权的单一开发测试分支 `dev/fongmi-upstream-adaptation`。默认 `main` 固定为 `4a52de1daa465d81df7ac06e886a1f184053253c`，仓库实际为 public；正式版本基线、两项业务维护边界及历史黄金证据不变。5.9.0 适配和候选 Core 均未通过完整兼容门禁，不得将其输入用于本次冻结版。三条线的固定 Git 归档引用分别为 `archive/frozen-public-validation-97a23d8`、`archive/fongmi-upstream-adaptation-e3fec17`、`archive/xray-core-stable-eb03202`。归档 tag 不是正式 Release。正式签名及发布必须独立验收。
