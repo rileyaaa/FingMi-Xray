@@ -381,7 +381,7 @@
       "fork": "cc14b7368456a59b6b2a5ec4fef54bbd7b1e2038",
       "target": "4f14e475047cb7761722905507f81489731fe5d4",
       "strategy": "reviewed-media-host",
-      "resolved": "759d9ce69408f26a4bd4975f343eb02cf68b8a2d"
+      "resolved": "833f774470b9ffc41991303abeca4ba7db659f51"
     },
     {
       "path": "app/src/main/java/com/fongmi/android/tv/player/PlayerManager.java",

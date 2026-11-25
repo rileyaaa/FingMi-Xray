@@ -608,7 +608,7 @@
   "app/src/main/java/com/fongmi/android/tv/playback/vod/VodPlaybackMedia.java": {
     "from": "target",
     "base": "4f14e475047cb7761722905507f81489731fe5d4",
-    "resolved": "759d9ce69408f26a4bd4975f343eb02cf68b8a2d",
+    "resolved": "833f774470b9ffc41991303abeca4ba7db659f51",
     "edits": [
       [
         "import com.fongmi.android.tv.setting.DanmakuSetting;",
@@ -616,7 +616,7 @@
       ],
       [
         "    public static void searchDanmaku(Result result, History history, Episode episode, BooleanSupplier isCurrent, Consumer<Danmaku> set, Consumer<Danmaku> add) {",
-        "    public static int searchDanmaku(OkHttpClient client, Result result, History history, Episode episode, BooleanSupplier isCurrent, Consumer<Danmaku> set, Consumer<Danmaku> add) {\n        DanmakuApi.cancel();\n        if (!isCurrent.getAsBoolean() || !DanmakuApi.canSearch()) return -1;\n        if (VodConfig.get().getSite(result.getKey()).getDanmaku() == 0) return -1;\n        return DanmakuApi.search(client, history.getVodName(), episode.getName(), items -> {\n            if (!isCurrent.getAsBoolean()) return;\n            items.stream().findFirst().ifPresent(danmaku -> {\n                if (DanmakuSetting.isSpiderFirst() && !result.getDanmaku().isEmpty()) add.accept(danmaku);\n                else set.accept(danmaku);\n            });\n        }, error -> { }, null);\n    }\n\n    public static void searchDanmaku(Result result, History history, Episode episode, BooleanSupplier isCurrent, Consumer<Danmaku> set, Consumer<Danmaku> add) {"
+        "    public static int searchDanmaku(OkHttpClient client, Result result, History history, Episode episode, BooleanSupplier isCurrent, Consumer<Danmaku> set, Consumer<Danmaku> add) {\n        if (!isCurrent.getAsBoolean()) return -1;\n        DanmakuApi.cancel();\n        if (!DanmakuApi.canSearch()) return -1;\n        if (VodConfig.get().getSite(result.getKey()).getDanmaku() == 0) return -1;\n        return DanmakuApi.search(client, history.getVodName(), episode.getName(), items -> {\n            if (!isCurrent.getAsBoolean()) return;\n            items.stream().findFirst().ifPresent(danmaku -> {\n                if (DanmakuSetting.isSpiderFirst() && !result.getDanmaku().isEmpty()) add.accept(danmaku);\n                else set.accept(danmaku);\n            });\n        }, error -> { }, null);\n    }\n\n    public static void searchDanmaku(Result result, History history, Episode episode, BooleanSupplier isCurrent, Consumer<Danmaku> set, Consumer<Danmaku> add) {"
       ]
     ]
   }
