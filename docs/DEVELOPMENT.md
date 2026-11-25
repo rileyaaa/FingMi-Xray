@@ -1025,3 +1025,50 @@ REVIEW_OLD_MEDIA app/src/main/java/com/fongmi/android/tv/player/mpv/MpvUtil.java
 ```
 
 **结论**：依赖与宿主边界仍阻断完整 5.9.0 Leanback 双 ABI APK，未完成 Android ART、真实网络、直播切换或待机真机回归。继续的必要前提是合法、可追溯且匹配上述缺口的媒体源码/依赖；不把本次独立 library build 说成整套软件通过。main 不改、不合并、不发行。
+
+## 13. 冻结 5.6.3-xray.2 无正式密钥构建与离线签名交接
+
+本节只适用于用户明确授权的单一开发测试分支 `dev/fongmi-upstream-adaptation`。默认 `main` 固定为 `4a52de1daa465d81df7ac06e886a1f184053253c`，仓库实际为 public；正式版本基线、两项业务维护边界及历史黄金证据不变。5.9.0 适配和候选 Core 均未通过完整兼容门禁，不得将其输入用于本次冻结版。三条线的固定 Git 归档引用分别为 `archive/frozen-public-validation-97a23d8`、`archive/fongmi-upstream-adaptation-e3fec17`、`archive/xray-core-stable-eb03202`。归档 tag 不是正式 Release。正式签名及发布必须独立验收。
+
+### 手动验证入口与可复现性
+
+在已有的 01 workflow 入口选择开发分支与 `task=frozen-signing-handoff`；它独立调用 `.github/workflows/04-frozen-signing-handoff.yml`（仅 `workflow_call`，无 push、marker 或定时触发），默认 task=none 不构建。上游验证仅在显式选择 `upstream-adaptation` 时运行。02/03 的开发分支 job 强制禁用。可使用 GitHub Actions 的 Run workflow，或在已授权的本地 GitHub CLI 中执行：
+
+```sh
+gh workflow run '01-当前源码编译与APK验证.yml' \
+  --repo rileyaaa/FingMi-Xray --ref dev/fongmi-upstream-adaptation \
+  -f task=frozen-signing-handoff
+```
+
+只有交接产物已失效或确有新的验收需求才启动，不为确认旧证据重复运行。入口只检出固定源码 `97a23d8fc2163c2c2b277e6c0e86a595a4638fa2`、tree `9a166475155cb5a897627fef6838f965e74afd5f`，回读归档 tag，检查 1522 个锁定 blob；不依赖冻结分支名存在。既有测试签名构建 [45547887003](https://github.com/rileyaaa/FingMi-Xray/actions/runs/45547887003) 和无签名交接构建 [45570721364](https://github.com/rileyaaa/FingMi-Xray/actions/runs/45570721364) 均通过；后者实际 workflow commit 为 `4b3fa6fc481c8bf84b02026276abeb9f627813ff`。手动分发入口的调整不等于重新构建或验证新的 APK。
+
+### 已验交接产物（2026-11-25）
+
+Artifact [15001953802](https://github.com/rileyaaa/FingMi-Xray/actions/runs/45570721364/artifacts/15001953802) 名称 `unsigned-frozen-563002-45570721364`，126799059 字节，外层 ZIP SHA-256 `35fbda2824f2770a5b63bba6134be62f7a95e15ded2e868c5e504c728a5a41d0`，有效期截至 2026-12-09 07:57:23 UTC。它是待离线签名的短期交接区，不是 Release 或长期备份；签名前下载并核对，不因清理临时分支而删除。
+
+| 文件 | 字节 | SHA-256 |
+| --- | ---: | --- |
+| unsigned/leanback-arm64_v8a.apk | 133296011 | b9078a2c0a1f3d8f2660134c0e5d1dc4005d3dd640dcf0be20e71792cf3bffb4 |
+| unsigned/leanback-armeabi_v7a.apk | 117813443 | 5ba80da9a2482590370f2f4d0ab94f1f0b93b72fe23ef6b879895210b9f4eae9 |
+| PAYLOAD_SHA256.json | — | 1a8922b7058dc400456a1c7ff6771498cfce93585955194aadb9736b33b68986 |
+| verify_handoff.py | — | b4ea23f224a0321337b987bdbb96a49db8a8d491116a7782979d43a4358ddaee |
+| BUILD_RESULT.txt | — | c8b9ae74856d1e8ca24e0eb9b0d2ee383ab215d0de9bc3d7769b271ec137bd38 |
+| media3-linkage.json | — | c59bb357e1e0b9ced36af91df15693f3928bcecd2d04873765db0353df264f29 |
+| README.md | — | 0908d2c58fd03f7cdf88079ad62387beb41e66a5cc2797787ff4922b65e51420 |
+
+上述摘要来自真实构建日志的 SHA256SUMS 清单，外层 ZIP digest 来自 GitHub Artifact 元数据；下载后还需核验实际字节。包内共八个文件（含 SHA256SUMS）。双 ABI 包名、v5.6.3-xray.2/563002、内嵌 revision、单 ABI、16 KB 对齐、非签名 ZIP 条目内容和压缩方式、无 v1/Signing Block、Xray/FFmpeg/MPEG-H/Libass PT_LOAD、三份 DEX 中 46 个 Media3 类型、XrayService exported=false/process=:xray 和 14 项 Manifest 权限检查全部通过。测试签名 APK 与一次性测试 key 已在 runner 清理；无签名候选不可安装。未完成真实正式签名、真机覆盖安装与实际播放/TV 待机恢复验收。冻结版本的历史输入不等于全源码、逐字节可重复构建。
+
+### 正式签名与 Release 门禁
+
+旧 .1 双 ABI 实际公开证书 SHA-256：`3cd86f4fdf6044e7e60307624bf0d8c892dfd83b81ce21748504fcbba28763c2`，包名 com.fongmi.android.tv，versionCode 563001。用户指定使用原签名而非新证书。受控离线执行入口尚未确认；不得将原私钥或密码交给公开 AC、聊天、日志或 Artifact，也不得把 public 仓库称为私有。若原签名材料曾公开，不能因转为本地副本就宣称从未泄露。
+
+在用户控制的离线环境解压交接 ZIP，安装 Android SDK build-tools 37.0.0、cmdline-tools/latest、Python 3。按包内 README 以交互方式检查原 keystore 的 DER 公开证书 SHA-256，严格匹配 .1 后才签两个无签名候选。先后运行：
+
+```sh
+sha256sum -c SHA256SUMS
+python3 verify_handoff.py --handoff . --sdk "$ANDROID_HOME"
+# 依交接 README 离线使用原签名，产物置于 signed/，不修改签名后的 APK。
+python3 verify_handoff.py --handoff . --signed-dir signed --sdk "$ANDROID_HOME"
+```
+
+验收只需正式签名 APK、最终文件 SHA-256、公开签名与校验记录；禁止返回签名凭证。用对应 ABI 真机在保留 .1 数据的条件下 `adb install -r`，不卸载旧版冒充覆盖；实际测试范围必须如实记录。正式 .2 仅在通过验收后按用户授权发布 GitHub Releases 一次（非 draft、非 prerelease），tag 与版本名一致、仅 APK，原 .1 不同名覆盖，旧资产按用户最新保留要求处理；不自动清理旧 Release，不发布试签或无签名包，不改 main。待签名交接仍需保留远端 Artifact，但原冻结分支可通过归档 tag 与固定 commit 完整复现，不是继续保留第三分支的理由。

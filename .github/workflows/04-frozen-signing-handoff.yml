@@ -1,12 +1,9 @@
 name: "Frozen 563002 unsigned signing handoff (no publication)"
 
+# Called only by the explicitly selected manual task in workflow 01.
 on:
-  workflow_dispatch:
-  push:
-    branches: [dev/fongmi-upstream-adaptation]
-    paths:
-      - '.github/workflows/04-frozen-signing-handoff.yml'
-      - 'scripts/maintenance/request-frozen-signing-handoff.txt'
+  workflow_call:
+
 permissions:
   contents: read
 

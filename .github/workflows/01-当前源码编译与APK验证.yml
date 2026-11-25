@@ -1,20 +1,28 @@
-name: "FongMi 5.9.0 public source adaptation (no release)"
+name: "01｜独立开发验证（手动，不发布）"
+
 on:
-  push:
-    branches: [dev/fongmi-upstream-adaptation]
-    paths:
-      - '.github/workflows/01-当前源码编译与APK验证.yml'
-      - 'scripts/upstream-adaptation/**'
-      - 'xray/**'
-      - 'libxray/**'
-      - 'tv-recovery/**'
-      - 'app/src/**'
-      - 'catvod/src/**'
-      - 'tests/**'
+  workflow_dispatch:
+    inputs:
+      task:
+        description: "明确选择单独验证任务；默认不构建"
+        type: choice
+        required: true
+        default: none
+        options:
+          - none
+          - frozen-signing-handoff
+          - upstream-adaptation
+
 permissions:
   contents: read
 jobs:
+  frozen-signing-handoff:
+    if: github.repository == 'rileyaaa/FingMi-Xray' && github.ref == 'refs/heads/dev/fongmi-upstream-adaptation' && inputs.task == 'frozen-signing-handoff'
+    permissions:
+      contents: read
+    uses: ./.github/workflows/04-frozen-signing-handoff.yml
   source-stage:
+    if: github.repository == 'rileyaaa/FingMi-Xray' && github.ref == 'refs/heads/dev/fongmi-upstream-adaptation' && inputs.task == 'upstream-adaptation'
     name: "Actual upstream candidate overlay and dependency gate"
     runs-on: ubuntu-latest
     timeout-minutes: 20
@@ -63,6 +71,7 @@ jobs:
           test ! -e fork/signing
           python3 fork/scripts/upstream-adaptation/prepare_candidate.py --old-tv inputs/old-tv --tv inputs/tv --media inputs/media --media-default inputs/media-default
   independent-libraries:
+    if: github.repository == 'rileyaaa/FingMi-Xray' && github.ref == 'refs/heads/dev/fongmi-upstream-adaptation' && inputs.task == 'upstream-adaptation'
     name: "Rebuild official Java wrappers and recovery library"
     runs-on: ubuntu-latest
     timeout-minutes: 45

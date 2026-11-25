@@ -19,17 +19,16 @@
 - 向用户报告 Actions 状态前，先刷新仓库最新 runs 列表，再定位目标 run。
 - 之前读取的单个 run、jobs 或日志结果只能代表当时状态，不能直接当成当前状态。
 - 最新 runs 列表确认 run 已完成后，才读取该 run 的 jobs / logs 核对实际成功步骤或失败原因。
-- 所有现存和新增 Actions workflow 只能使用 `workflow_dispatch` 手动触发；不再允许临时 push trigger、marker 文件、定时器或自动串联。**当前仅保留三个手动入口**：APK 构建验证、正式构建与发布、已验证 APK 失败续发。上游升级 Actions 已停用并从 main 删除。具体见 [DEVELOPMENT.md](DEVELOPMENT.md#7-构建)。
+- 长期 Actions 只使用 `workflow_dispatch` 手动触发，不允许 push trigger、marker、定时或自动串联。冻结 main 的三个手动入口保持原状；用户指定的单一开发分支通过既有 01 手动入口明确选择单个任务，默认 none 不构建，独立的 04 workflow 仅受该手动任务调用；02/03 在开发分支强制禁用。上游自动升级仍禁用，5.9.0 仅限隔离实验。见 [DEVELOPMENT.md](DEVELOPMENT.md#13-冻结-563-xray2-无正式密钥构建与离线签名交接)。
 - 如果当前自动化环境既没有 `workflow_dispatch` 调用能力，又明确阻止修改 workflow trigger，则不得通过强制移动 `main`、回退默认分支、复用旧自动 trigger commit 或其他方式绕过平台安全限制。保持仓库 pure manual-only，由用户在 GitHub Actions 页面使用 `Run workflow` 触发；AI 继续完成不依赖该触发动作的审计、文档、存储清理和后续结果核验。
-- GitHub Releases 只发布 APK，长期保留 `v5.6.0-xray.5` 黄金参考和一个当前正式版。**今后不生成、上传或暂存项目源码 ZIP / `source-backup-*` Release**；源码和固定签名继续由私有 Git 仓库管理。
+- GitHub Releases 只发布 APK，长期保留 `v5.6.0-xray.5` 黄金参考和一个当前正式版。**今后不生成、上传或暂存项目源码 ZIP / `source-backup-*` Release**；当前仓库实际为 public；正式签名凭证不得进入公开 AC、日志、聊天或 Artifact，原签名仅限用户授权的受控离线环境。
 
 
-## 3. 正常开发只保留 `main` 一个分支
+## 3. 冻结 main 与单一开发测试分支
 
-- 仓库正常开发状态只保留默认分支 `main`；普通开发、审计、验证和文档维护都直接在 `main` 上进行。
-- 未经用户明确要求，不得为了普通工作长期创建第二条开发分支，也不得把临时分支留成并行开发线。
-- 如果受平台能力限制确实必须临时创建额外分支，只允许作为短期机制使用；相关工作合回 `main` 后必须立即删除。
-- 交接、发布和工作阶段收尾前检查仓库 branches；正常状态应只剩 `main`。发现已完全并入 `main` 的遗留分支时应优先清理，不得继续搁置。
+- 用户最新明确要求：main 固定为 `4a52de1daa465d81df7ac06e886a1f184053253c`，不改、不合并、不切可见性；仅长期保留 `dev/fongmi-upstream-adaptation` 作为开发／测试分支。
+- 不再为普通维护创建额外分支。旧实验使用固定 commit/tree 和归档 tag 保存证据，未通过的候选 Core 或缺件依赖不并入开发基线。
+- 清理已用完的临时分支前，回读归档引用、原 AC 结论、仍需交接的 Artifact 和当前分支 HEAD；只执行用户授权的精确清理，不删除 main、开发分支、Release、原始 run 或仍在使用的产物。收尾核实仅两个分支。
 
 ## 4. 会话接近平台时限时立即交接
 
