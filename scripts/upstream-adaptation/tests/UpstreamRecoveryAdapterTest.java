@@ -33,6 +33,9 @@ import org.robolectric.shadow.api.Shadow;
 public class UpstreamRecoveryAdapterTest {
     @Test public void actualAdapterWakesAndRetiresStaleOwner() {
         Application app=RuntimeEnvironment.getApplication();
+        // Read-only fixture guard: do not reset or change the product singleton.
+        assertNull("fresh Application test worker must not inherit a lifecycle owner",
+                org.robolectric.util.ReflectionHelpers.getStaticField(TvNetworkLifecycle.class,"instance"));
         AtomicInteger cancel=new AtomicInteger(),progress=new AtomicInteger(),refresh=new AtomicInteger();
         boolean[] alive={true};
         FongMiNetworkRecovery recovery=new FongMiNetworkRecovery(app,cancel::incrementAndGet,progress::incrementAndGet,()->alive[0],refresh::incrementAndGet);

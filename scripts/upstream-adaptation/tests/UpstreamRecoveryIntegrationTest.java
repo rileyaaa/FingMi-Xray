@@ -27,6 +27,9 @@ import org.robolectric.shadow.api.Shadow;
 public class UpstreamRecoveryIntegrationTest {
     @Test public void standbyGenerationReplacesApiButNotPlayerOrBoundTransport() {
         Application app=RuntimeEnvironment.getApplication();
+        // Read-only fixture guard: do not reset or change the product singleton.
+        assertNull("fresh Application test worker must not inherit a lifecycle owner",
+                org.robolectric.util.ReflectionHelpers.getStaticField(TvNetworkLifecycle.class,"instance"));
         AtomicInteger starts=new AtomicInteger(),stops=new AtomicInteger();
         TvNetworkLifecycle lifecycle=TvNetworkLifecycle.get(app,new TvNetworkLifecycle.Renderer(){
             public void start(){starts.incrementAndGet();}

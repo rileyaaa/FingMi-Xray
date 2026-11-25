@@ -30,7 +30,19 @@ def main():
         for n in ("gradlew","gradle.properties","build.gradle"):shutil.copyfile(tv/n,project/n)
         settings=re.sub(r"(?m)^include .*$","",(tv/"settings.gradle").read_text())
         (project/"settings.gradle").write_text(settings+"\ninclude ':catvod'\ninclude ':tv-recovery'\n")
-        with (project/"catvod/build.gradle").open("a") as f:f.write("\ndependencies { testImplementation project(':tv-recovery') }\n")
+        # Robolectric can reuse a sandbox/classloader across tests with the same
+        # SDK and instrumentation settings. The app's process singleton must not
+        # be reused across independent simulated Application lifetimes.
+        with (project/"catvod/build.gradle").open("a") as f:
+            f.write("""
+dependencies { testImplementation project(':tv-recovery') }
+tasks.withType(org.gradle.api.tasks.testing.Test).configureEach {
+    if (name == 'testDebugUnitTest') {
+        forkEvery = 1
+        testLogging { events 'failed'; exceptionFormat = 'full' }
+    }
+}
+""")
         tests=project/"catvod/src/test/java"
         for n in ("XrayHttpClient.java","XrayProxySocketFactory.java","PublicPlaybackDestinationInterceptor.java"):
             rel="xray/src/main/java/com/fingmi/xray/network/"+n
@@ -51,10 +63,10 @@ def main():
         cmd=["bash",str(project/"gradlew"),"--no-daemon","-Porg.gradle.java.installations.auto-download=false",":catvod:assembleDebug",":tv-recovery:assembleDebug",":catvod:testDebugUnitTest"]
         for c in classes:cmd+=["--tests",c]
         subprocess.run(cmd,cwd=project,check=True)
-        for c in classes:
+        for c,expected in zip(classes,(16,1,1,1),strict=True):
             reports=list((project/"catvod/build/test-results").rglob("TEST-"+c+".xml"));assert len(reports)==1,reports
             suite=ET.parse(reports[0]).getroot();count=int(suite.get("tests","0"))
-            assert count>0 and all(suite.get(x)=="0" for x in ("failures","errors","skipped")),suite.attrib
+            assert count==expected and all(suite.get(x)=="0" for x in ("failures","errors","skipped")),suite.attrib
             print("VERIFIED_ANDROID_INTEGRATION",c,count,flush=True)
         for n in ("catvod","tv-recovery"):
             aar=list((project/n/"build/outputs/aar").glob("*-debug.aar"));assert len(aar)==1,aar

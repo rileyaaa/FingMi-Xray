@@ -1,14 +1,14 @@
-name: "5.9.0 Android recovery integration (no APK)"
+name: "5.9.0 isolated Android recovery integration (no APK)"
 on:
   push:
     branches: [dev/fongmi-upstream-adaptation]
-    paths: ['.github/workflows/103-upstream-590-recovery-integration.yml']
+    paths: ['.github/workflows/104-upstream-590-recovery-isolation.yml']
 permissions:
   contents: read
 jobs:
   recovery-integration:
     if: >-
-      github.repository == 'rileyaaa/FingMi-Xray' && github.ref == 'refs/heads/dev/fongmi-upstream-adaptation' && github.event.head_commit.message == 'ci: verify recovery integration with typed looper shadow'
+      github.repository == 'rileyaaa/FingMi-Xray' && github.ref == 'refs/heads/dev/fongmi-upstream-adaptation' && github.event.head_commit.message == 'ci: isolate recovery test application lifetimes'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
