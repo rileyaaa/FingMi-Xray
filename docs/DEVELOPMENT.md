@@ -1026,6 +1026,35 @@ REVIEW_OLD_MEDIA app/src/main/java/com/fongmi/android/tv/player/mpv/MpvUtil.java
 
 **结论**：依赖与宿主边界仍阻断完整 5.9.0 Leanback 双 ABI APK，未完成 Android ART、真实网络、直播切换或待机真机回归。继续的必要前提是合法、可追溯且匹配上述缺口的媒体源码/依赖；不把本次独立 library build 说成整套软件通过。main 不改、不合并、不发行。
 
+### 12.5 5.9.0 的独立依赖来源与 TV 恢复接线推进
+
+本轮只变更候选生成器、固定来源清单和局部回归，不改冻结 5.6.3 运行源码、Core、播放器、签名或正式工作流。12.1–12.4 的数字是 `8819ccf8` / AC 45545472828 的历史实际结果，不冒充新的整包构建结果。
+
+**依赖定位**：TV `d3a0b84b` 的 app/build.gradle 第 102 行以 `implementation fileTree(dir: "libs", include: ["*.aar"])` 载入播放器，不通过 TV 的版本目录声明 Media3 Maven 坐标；定制源仓库 `3c2cbe8` 的 `build-logic-settings/src/main/kotlin/androidx/media3/buildlogic/Media3Modules.kt` 才列出模块 artifactId。以下坐标中的 group 为 androidx.media3；1.11.0 只表示可核对的标准基线，不代表已取得与 5.9.0 匹配的定制 AAR。
+
+| 模块 artifactId / 输入 | 真实缺口与 TV 调用点 | 来源状态 |
+| --- | --- | --- |
+| media3-common | DecoderMode / DiscMenuController / SubtitleOffsets / AudioEffectParameters；PlayerManager、PlayerEngine、音效控制器 | 两个固定 media 树均缺定制接口 |
+| media3-exoplayer | DecoderManager、LibassPlaybackSession、ISO / 字幕；ExoPlayerSession、ExoMediaSourceFactory | 公开标准模块不能替代定制 API |
+| media3-exoplayer-hls | CmgConfiguration；PlayerEngineFactory | 缺定制 HLS 合同 |
+| media3-datasource | IsoUri、ProgressiveIsoCache；MediaItemFactory、MpvUtil | 缺定制 ISO 支持 |
+| media3-effect | ColorToneAdjustEffect、DetailAdjustEffect、VideoAdjustment；ExoVideoEffectController | 缺定制效果实现 |
+| media3-ui / media3-ui-danmaku | PlayerView.setBackendPlayer、LibassPlayerViewController、DanmakuPlayerViewController；PlaybackActivity、ExoSubtitleController | 缺宿主适配接口 |
+| media3-decoder-ffmpeg / lib-decoder-ffmpeg-release.aar | FfmpegMotionInterpolationController / FfmpegMotionRenderersFactory；ExoUtil、ExoPlayerSession | Java/JNI 和对应 native 制品未获；不能仅因 Gradle 有 module 定义就声称可用 |
+| media3-mpvplayer / lib-mpvplayer-release.aar | MpvConfigFileInspector、MpvSubtitleContentLoader、MpvPlayer.getSubtitleOffsets；MpvConfigFile、SubtitleFileContent、MpvPlayerEngine | 缺配套实现、native ABI |
+| media3-database | lib-exoplayer、lib-datasource 传递依赖；自身 api(lib-common) | 已确定完整官方同树源码，待实际编译/链接 |
+
+**已确定一项独立来源**：FongMi/media `3c2cbe8ac742c2fe15eff52f03eeb3b1b648848d` 的 libraries/database 与 AndroidX 官方 [1.11.0 tag](https://github.com/androidx/media/tree/1.11.0/libraries/database)（实际 commit `2bc207851df311340767e913931ca7b28cab1794`，亦为原 media_default pin）整模块 tree 均为 `4b17bde909283355be9b2258dae8faf3ffe425e8`。清单新增 `shared_media_source` 并在下次候选 staging 检查两个 tree。标准坐标 `androidx.media3:media3-database:1.11.0` 有官方源码对应；本轮未下载验证 Google Maven AAR/POM（直接读取未成功），不引入制品、不宣称完整编译或跨定制 common ABI 已通过。其余 50 个历史 import 缺口及 native 缺件没有凭空减少。
+
+**已实际移植的独立接线**：5.6.3 的 FongMiNetworkRecovery.clearSpiders 调用 BaseLoader.get().clear(after)，而 5.9.0 BaseLoader 仅有无参 clear 与 destroy，原三方合并冲突。新版按代际换 Node/Jar/JS/Python loader，异步清理 previous，并仅在退出时 destroy retired；保留该机制及原异常聚合，不恢复旧 loader 类。仅在锁定的新版 BaseLoader blob `a4129fc79a16c2920907d184c8e264dd49435cb3` 上增加 clear(Runnable)、普通 worker 上专用 FIFO、同一换代锁内提交清理任务、finally App.post 完成回调。保持普通 clear 无回调、destroy 不变更退出语义；不改任何 Config/UI/播放器或 runtime loader。候选结果 blob `9c2f598f91431cccf7de200c05f8473b8fc7e58f`，原冻结文件仍用原 blob 校验。该路径从历史 three-way conflict 改为显式锁定移植；下一次 staging 才能报告新冲突计数。
+
+**实际轻量验收**：JDK 21.0.12.1，javac --release 17；使用逐字节匹配 GitHub blob 的 5.9.0 BaseLoader 和未改的 NetworkRecoveryCoordinator（`6d335d87264379b037ee682d38fc1c4d85825af7`）执行 `tests/test-upstream-recovery-loader.py`。通过普通 worker FIFO、旧 Home 退出、新 Home 接手、两次稳定样本后刷新、异常时逐 loader 尝试和 finally 回调、退出 destroy/retired 清理；未移植源缺少 clear(Runnable) 而编译拒绝，去掉 FIFO 与提前回调两个变体被测试拒绝。Android/Task/Guava 与具体 loader 是确定性替身，不冒称真实 Spider runtime、线程压力、Android ART 或真机通过。可单独运行，不需重跑旧候选：
+```sh
+python3 tests/test-upstream-recovery-loader.py --base-loader /path/to/pinned-tv/app/src/main/java/com/fongmi/android/tv/api/loader/BaseLoader.java
+```
+
+**Xray 接线尚未改动**：5.9.0 PlayerEngineFactory.create 已去掉旧 decode 入参；PlayerManager 的 replaceEngine/ensureEngine 及 ExoMediaSourceFactory 新增 Auth.Context、独立 SubtitleTranscriptSession、LibassPlaybackSession，默认 OkHttp.player(auth) 与共享缓存。旧 fork 的 playbackProxy、切换时保留播放状态/清理 side requests、RTSP socket factory、DRM 同代理和禁止复用普通直连缓存必须重新按新宿主合同接线，不能以旧 5.6.3 factory/engine 整体覆盖。继续优先审 Home 的生命周期与普通 API/DNS reset 的新入口；播放器适配等待对应公开 media 接口。无新的全量 Android AC：完整 native/media gate 仍阻塞，且本轮局部证据不需要再跑已失败的候选。
+
 ## 13. 冻结 5.6.3-xray.2 无正式密钥构建与离线签名交接
 
 本节只适用于用户明确授权的单一开发测试分支 `dev/fongmi-upstream-adaptation`。默认 `main` 固定为 `4a52de1daa465d81df7ac06e886a1f184053253c`，仓库实际为 public；正式版本基线、两项业务维护边界及历史黄金证据不变。5.9.0 适配和候选 Core 均未通过完整兼容门禁，不得将其输入用于本次冻结版。三条线的固定 Git 归档引用分别为 `archive/frozen-public-validation-97a23d8`、`archive/fongmi-upstream-adaptation-e3fec17`、`archive/xray-core-stable-eb03202`。归档 tag 不是正式 Release。正式签名及发布必须独立验收。

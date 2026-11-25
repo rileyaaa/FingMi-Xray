@@ -10,6 +10,7 @@ import argparse
 import hashlib
 import json
 from pathlib import Path
+from recovery_loader import adapt_base_loader
 import re
 import shutil
 import subprocess
@@ -74,6 +75,15 @@ def overlay(old, target, dest):
         if strategy == "old-media-compat-review":
             manual.append(p)
             print("REVIEW_OLD_MEDIA", p)
+            continue
+        if strategy == "recovery-loader-590":
+            # Resolve only the reviewed TV recovery callback/queue contract on
+            # the exact 5.9.0 host. Keep the frozen fork file unchanged.
+            output.write_bytes(adapt_base_loader(c.read_bytes()))
+            if blob(output) != row["resolved"]:
+                raise RuntimeError("Reviewed recovery loader port drift: " + p)
+            merged.append(p)
+            print("RESOLVED_RECOVERY_LOADER", p, row["resolved"], flush=True)
             continue
         if strategy in ("module", "fork-addition"):
             if row["target"] is not None:
@@ -190,6 +200,19 @@ def media_contract(tv, media, label):
     return missing
 
 
+def verified_shared_media(media, media_default):
+    # Source equivalence only: do not substitute a standard Maven AAR for the
+    # customized player or claim its cross-module binary contract is verified.
+    for row in LOCK["shared_media_source"]:
+        if git(media_default, "rev-parse", "HEAD") != row["official_ref"]:
+            raise RuntimeError("Official Media3 source commit drift")
+        for root in (media, media_default):
+            if git(root, "rev-parse", "HEAD:" + row["path"]) != row["tree"]:
+                raise RuntimeError("Shared Media3 module tree drift: " + row["path"])
+        print("SHARED_MEDIA_SOURCE", row["coordinate"], row["tree"],
+              "same official source; compiled AAR and custom common linkage pending", flush=True)
+
+
 def public_inputs(tv):
     # Inventory exact tracked public AAR/SO/JAR inputs without executing any.
     for rel in git(tv, "ls-files").splitlines():
@@ -211,6 +234,7 @@ def main():
     for name, path in (("old_tv", args.old_tv), ("tv", args.tv),
                        ("media", args.media), ("media_default", args.media_default)):
         verified_checkout(path, name)
+    verified_shared_media(args.media, args.media_default)
     public_inputs(args.tv)
     primary = media_contract(args.tv, args.media, "release-1.11.0-fongmi")
     alternate = media_contract(args.tv, args.media_default, "release")

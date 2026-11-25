@@ -255,7 +255,8 @@
       "old": "42ff0b0ce66fd7cea042e3f7ae7eb222a618009d",
       "fork": "773ace0d53d99d88ce99568e8b75c5f198301dbf",
       "target": "a4129fc79a16c2920907d184c8e264dd49435cb3",
-      "strategy": "three-way"
+      "strategy": "recovery-loader-590",
+      "resolved": "9c2f598f91431cccf7de200c05f8473b8fc7e58f"
     },
     {
       "path": "app/src/main/java/com/fongmi/android/tv/api/loader/JarLoader.java",
@@ -760,6 +761,17 @@
       "fork": "f9e20e5f53f5178d9008cba2e5649fb8adf2f37d",
       "target": null,
       "strategy": "module"
+    }
+  ],
+  "shared_media_source": [
+    {
+      "path": "libraries/database",
+      "coordinate": "androidx.media3:media3-database:1.11.0",
+      "official_repository": "androidx/media",
+      "official_tag": "1.11.0",
+      "official_ref": "2bc207851df311340767e913931ca7b28cab1794",
+      "tree": "4b17bde909283355be9b2258dae8faf3ffe425e8",
+      "status": "identical complete module source; api lib-common; no binary substitution or full linkage claim"
     }
   ],
   "public_native_candidates": [
