@@ -1084,6 +1084,10 @@ AC [45588016507](https://github.com/rileyaaa/FingMi-Xray/actions/runs/4558801650
 
 Google Maven 正式 media3-database:1.11.0 POM 1723 字节、SHA-256 951d795778085be496046b11743865f8c4f9e7c385ed163c38bcacb185177e5e；AAR 7197 字节与本次源码构建完整 SHA-256 一致，public API 对比通过。datasource-okhttp 的 Call.Factory 与 RTSP 的 setSocketFactory(javax.net.SocketFactory) 在真实重建 classes.jar 上通过 javap 检查。以上是一次已完成构建的实际摘要、不是第二次重建的一致性证明；未来验证必须对照固定来源、依赖及记录的 digest，发现不同则先调查，不静默换件。没有保留或上传 AAR、没有部署到 app/libs、没有完成完整播放器/JNI/native 或双 ABI APK。临时 workflow 已结束，移除本次一次性 push 文件，不删除 run；复现入口为固定 18e099f 的 workflow 内容和当前脚本，Live 新移植需下次独立批量验收，不冒称在该 AC 内已测试。
 
+### 12.9 Xray 播放 transport 与 5.9.0 Exo 宿主候选
+
+固定 5.9.0 的 OkHttp、ExoMediaSourceFactory、ExoPlayerSession、ExoPlayerEngine、PlayerEngineFactory 与新版 SubtitleFileContent 输入 blob，逐锚点生成候选（reviewed_media_host.json）。保留现有 TV 普通 API/DNS 资源换代，以及新版 Auth.Context / redirect 语义；新增显式 client 的 Auth.Context 绑定，不能退回全局 player client。代理媒体 HTTP 使用同一 session client（包括 DRM、ISO 导航传入的 data source 和字幕转录入口），复用既有 scheme guard 和 RTSP TCP socket factory，不使用直连磁盘缓存、不在代理 engine 中跨媒体预加载。普通路径仍调用原有 factory、cache、metadata、decoder、navigation 和 preload 行为。新版字幕读取仅对传入代理资源的 session 使用代理，不修改 MPV 普通字幕读取。所有输出 blob 已记录；仍须验证真实候选与可用媒体制品。由于新版定制 ContentTypeResolvingMediaSource/ISO/CMG 内部取流、播放器服务与 PlayerManager 所有权未完成验收，本批仅提供未启用的代理 engine 构造及匹配接线，不将其提前接入 PlayerManager，不宣称真实播放已可用。Core、主线及发版文件不变。
+
 ## 13. 冻结 5.6.3-xray.2 无正式密钥构建与离线签名交接
 
 本节只适用于用户明确授权的单一开发测试分支 `dev/fongmi-upstream-adaptation`。默认 `main` 固定为 `4a52de1daa465d81df7ac06e886a1f184053253c`，仓库实际为 public；正式版本基线、两项业务维护边界及历史黄金证据不变。5.9.0 适配和候选 Core 均未通过完整兼容门禁，不得将其输入用于本次冻结版。三条线的固定 Git 归档引用分别为 `archive/frozen-public-validation-97a23d8`、`archive/fongmi-upstream-adaptation-e3fec17`、`archive/xray-core-stable-eb03202`。归档 tag 不是正式 Release。正式签名及发布必须独立验收。

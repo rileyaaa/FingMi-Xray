@@ -82,14 +82,14 @@ def overlay(old, target, dest):
             # additionally guards main-thread result delivery on cancelAll.
             print("KEEP_UPSTREAM_EQUIVALENT", p, row["target"], flush=True)
             continue
-        if strategy in ("reviewed-recovery-host", "reviewed-live-host"):
+        if strategy in ("reviewed-recovery-host", "reviewed-live-host", "reviewed-media-host"):
             data = adapt_reviewed_host(row, b, c)
             output.parent.mkdir(parents=True, exist_ok=True)
             output.write_bytes(data)
             if blob(output) != row["resolved"]:
                 raise RuntimeError("Reviewed host port drift: " + p)
             merged.append(p)
-            print("RESOLVED_LIVE_HOST" if strategy == "reviewed-live-host" else "RESOLVED_RECOVERY_HOST", p, row["resolved"], flush=True)
+            print({"reviewed-live-host": "RESOLVED_LIVE_HOST", "reviewed-media-host": "RESOLVED_MEDIA_HOST", "reviewed-recovery-host": "RESOLVED_RECOVERY_HOST"}[strategy], p, row["resolved"], flush=True)
             continue
         if strategy == "recovery-loader-590":
             # Resolve only the reviewed TV recovery callback/queue contract on

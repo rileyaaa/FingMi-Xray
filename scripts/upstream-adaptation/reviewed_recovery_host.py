@@ -9,6 +9,10 @@ LIVE_PORTS = json.loads(Path(__file__).with_name("reviewed_live_host.json").read
 if PORTS.keys() & LIVE_PORTS.keys():
     raise RuntimeError("Duplicate reviewed host paths")
 PORTS.update(LIVE_PORTS)
+MEDIA_PORTS = json.loads(Path(__file__).with_name("reviewed_media_host.json").read_text())
+if PORTS.keys() & MEDIA_PORTS.keys():
+    raise RuntimeError("Duplicate reviewed media host paths")
+PORTS.update(MEDIA_PORTS)
 
 
 def git_blob(data):

@@ -381,28 +381,32 @@
       "old": "22eae76a3bd712091b8c2a28c67cf4b9baf8d821",
       "fork": "dd0f4b4df2c2f97f3176e773c6fad1f4328b2e48",
       "target": "64637ef91407ed6fe095959c33cfcef2b41258cf",
-      "strategy": "three-way"
+      "strategy": "reviewed-media-host",
+      "resolved": "d01769375e7da9c488d23278fb59979e43f53424"
     },
     {
       "path": "app/src/main/java/com/fongmi/android/tv/player/exo/ExoMediaSourceFactory.java",
       "old": "8cb687f9b4abb488f43ffcf5ca8716febac30099",
       "fork": "368a3bb442d57ee21781647f4d4d99b589c7dffa",
       "target": "d2fdb8706c3261feb5687d676278c676e12289c1",
-      "strategy": "three-way"
+      "strategy": "reviewed-media-host",
+      "resolved": "591bac5944a2e1b95b3ac73a25dfa1eb678b4830"
     },
     {
       "path": "app/src/main/java/com/fongmi/android/tv/player/exo/ExoPlayerEngine.java",
       "old": "362123af3d09917b3352b9089a190d0609ec0e00",
       "fork": "250c7c6246cea994c65a3ecfdc05e2a3080148b8",
       "target": "0cc4391d238316a77b6a1d655e5f7574dfd2f398",
-      "strategy": "three-way"
+      "strategy": "reviewed-media-host",
+      "resolved": "968e64bc90344a0053b2b1783ac5d42d5ac06489"
     },
     {
       "path": "app/src/main/java/com/fongmi/android/tv/player/exo/ExoPlayerSession.java",
       "old": "e10b7cb7cc4821a351f62498023f8ad5a8202449",
       "fork": "e04a868993e918388c15acbc7e3de93053649999",
       "target": "dfde10b51a6605c6656126847b9c582a032e8c82",
-      "strategy": "three-way"
+      "strategy": "reviewed-media-host",
+      "resolved": "1361170eb1591ddccdca79251fd6cd6d0b17da9c"
     },
     {
       "path": "app/src/main/java/com/fongmi/android/tv/player/mpv/MpvPlayerEngine.java",
@@ -500,7 +504,8 @@
       "old": "834dcbdffeeaab4bc2ba2f7f652f600627ef46cb",
       "fork": "f4f175c5497f217d9f19322f9b0c14c061011157",
       "target": "a18050020acee6f0a854499e6390b30ec1c39f28",
-      "strategy": "three-way"
+      "strategy": "reviewed-media-host",
+      "resolved": "ae6f304fd73cae2941c58c5ad4f80b49e6c71456"
     },
     {
       "path": "catvod/src/main/java/com/github/catvod/net/OkProxySelector.java",
@@ -768,6 +773,14 @@
       "fork": "f9e20e5f53f5178d9008cba2e5649fb8adf2f37d",
       "target": null,
       "strategy": "module"
+    },
+    {
+      "path": "app/src/main/java/com/fongmi/android/tv/player/subtitle/SubtitleFileContent.java",
+      "old": null,
+      "fork": null,
+      "target": "17e3f025e4bf1304bc61b9b3ddf69f99a8ef2cf9",
+      "strategy": "reviewed-media-host",
+      "resolved": "6c1f7cc8de7fae9f5e7156ae8a55905573b8a6ad"
     }
   ],
   "shared_media_source": [
