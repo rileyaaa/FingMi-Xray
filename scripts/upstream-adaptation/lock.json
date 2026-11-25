@@ -1102,11 +1102,33 @@
           "tree": "56bbc33d516f6f4b83427459e1579249e5fad22c"
         }
       ],
-      "status": "public JNI/source compile-link verification candidate only; demos disabled as in consumer; no redistribution or patent clearance",
+      "status": "public source native JNI compile/link and ELF/JNI/16KB audit passed both ABIs; no AAR/APK/runtime or redistribution or patent clearance",
       "linker_flags": [
         "-Wl,-z,max-page-size=16384",
         "-Wl,-z,common-page-size=16384"
-      ]
+      ],
+      "verification": {
+        "run": 45609274767,
+        "job": 139188254192,
+        "commit": "1feed2df5c567cd67646f53db2017e1d6bdec606",
+        "kind": "standalone source compile/link + ELF/JNI audit; no AAR/APK/runtime or redistribution",
+        "outputs": {
+          "armeabi-v7a": {
+            "bytes": 4847928,
+            "sha256": "e9fcbbb89307ba99bbccd56e28d353ebf02f34ca9d66689e5dd18b1c8fd33b5a",
+            "jni": 16,
+            "load_segments": 3,
+            "page_alignment": 16384
+          },
+          "arm64-v8a": {
+            "bytes": 6152872,
+            "sha256": "581451b75ce718d4aae0239fbca21379bb47e1384cd29474f0cc88ef50f5c23d",
+            "jni": 16,
+            "load_segments": 3,
+            "page_alignment": 16384
+          }
+        }
+      }
     },
     "ffmpeg_public_consumer": {
       "manifest_blob": "ec9f8c76c66cdf5b50bdf4bf031cfab51f336551",

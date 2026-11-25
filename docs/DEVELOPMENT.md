@@ -1142,6 +1142,10 @@ FFmpeg 公开 consumer manifest ec9f8c76 锁定历史 producer FongMi/mpv-androi
 
 在 5.9.0 原 `PlaybackDialog.observe`、保存状态与搜索分页基础上移植两个搜索窗口的 Xray client 路由、请求 ID 与取消回调代次。窗口替换/关闭/返回仅取消自己的 requestId；旧取消回调不能重置新请求界面；持当前 PlayerManager 锁核验 owner 与 suspended 后才发起请求，沿用 fork 字幕 API client / 弹幕 player client 的非代理回退选择。此处为源锚点移植，仍需独立窗口边界测试与完整 Android UI 链接，不能记为上一轮已经通过的宿主测试。
 
+### 12. MPEG-H 双 ABI 复验通过
+
+Actions `45609274767` / job `139188254192` (`1feed2d`) 仅执行 native 重验；ARMv7 4,847,928 bytes SHA-256 `e9fcbbb89307ba99bbccd56e28d353ebf02f34ca9d66689e5dd18b1c8fd33b5a`，ARM64 6,152,872 bytes SHA-256 `581451b75ce718d4aae0239fbca21379bb47e1384cd29474f0cc88ef50f5c23d`。两个 ABI 都通过 16 个 JNI 方法、JNI_OnLoad、3 个 PT_LOAD 段与 16 KB 对齐、动态依赖及无 RPATH/RUNPATH/TEXTREL 检查。结果写入来源锁；没有归档或发布二进制，没有宣称完整 AAR 或 5.9.0 播放器/应用可用。
+
 ## 13. 冻结 5.6.3-xray.2 无正式密钥构建与离线签名交接
 
 本节只适用于用户明确授权的单一开发测试分支 `dev/fongmi-upstream-adaptation`。默认 `main` 固定为 `4a52de1daa465d81df7ac06e886a1f184053253c`，仓库实际为 public；正式版本基线、两项业务维护边界及历史黄金证据不变。5.9.0 适配和候选 Core 均未通过完整兼容门禁，不得将其输入用于本次冻结版。三条线的固定 Git 归档引用分别为 `archive/frozen-public-validation-97a23d8`、`archive/fongmi-upstream-adaptation-e3fec17`、`archive/xray-core-stable-eb03202`。归档 tag 不是正式 Release。正式签名及发布必须独立验收。

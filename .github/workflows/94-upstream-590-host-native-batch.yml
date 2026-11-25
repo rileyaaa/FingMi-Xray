@@ -1,20 +1,16 @@
-name: "5.9.0 MPEG-H alignment retry (no APK)"
+name: "5.9.0 side dialog owner check (no APK)"
 on:
   push:
     branches: [dev/fongmi-upstream-adaptation]
     paths: ['.github/workflows/94-upstream-590-host-native-batch.yml']
 permissions:
   contents: read
-concurrency:
-  group: fingmi-upstream-590-host-native
-  cancel-in-progress: false
 jobs:
-  mpegh-native:
+  side-dialogs:
     if: >-
-      github.repository == 'rileyaaa/FingMi-Xray' && github.ref == 'refs/heads/dev/fongmi-upstream-adaptation' && github.event.head_commit.message == 'ci: verify MPEG-H explicit 16KB alignment once'
-    name: Compile pinned public MPEG-H JNI for ARMv7 and ARM64
+      github.repository == 'rileyaaa/FingMi-Xray' && github.ref == 'refs/heads/dev/fongmi-upstream-adaptation' && github.event.head_commit.message == 'ci: verify new 5.9 side dialog owner methods once'
     runs-on: ubuntu-latest
-    timeout-minutes: 40
+    timeout-minutes: 12
     steps:
       - uses: actions/checkout@v7
         with:
@@ -23,28 +19,21 @@ jobs:
           persist-credentials: false
       - uses: actions/checkout@v7
         with:
-          repository: FongMi/media
-          ref: 3c2cbe8ac742c2fe15eff52f03eeb3b1b648848d
-          path: inputs/media
+          repository: FongMi/TV
+          ref: c616c0aa3613e87529791587a9f71b78c278c991
+          path: inputs/old-tv
           fetch-depth: 1
           persist-credentials: false
       - uses: actions/checkout@v7
         with:
-          repository: Fraunhofer-IIS/mpeghdec
-          ref: 335a2587fed4d769f8a21ae8816afd0aaa226b4f
-          path: inputs/mpegh
+          repository: FongMi/TV
+          ref: d3a0b84b24cf6628d72a4dbc2be453875b005536
+          path: inputs/tv
           fetch-depth: 1
           persist-credentials: false
-      - uses: actions/setup-python@v7
+      - uses: actions/setup-java@v6
         with:
-          python-version: '3.10'
-      - name: Prepare fixed native toolchain
-        shell: bash
-        run: |
-          set -euo pipefail
-          test ! -e fork/signing
-          sdkmanager="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
-          yes | "$sdkmanager" --licenses >/dev/null 2>&1 || true
-          "$sdkmanager" --install 'ndk;29.0.14206865' 'cmake;3.22.1'
-      - name: Compile and audit both JNI libraries (no redistribution)
-        run: python3 fork/scripts/upstream-adaptation/verify_public_mpegh_native.py --media inputs/media --mpegh inputs/mpegh
+          distribution: jetbrains
+          java-version: '21'
+      - name: Check actual new dialog owner methods
+        run: python3 fork/tests/test-upstream-side-dialogs.py --old-tv inputs/old-tv --tv inputs/tv
