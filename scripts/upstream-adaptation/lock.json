@@ -114,7 +114,8 @@
       "old": "ffd5fc1f1bc0321f1806ae9915a616c4a7f3b9b4",
       "fork": "4702edfc8d57774bc7617cb36c039424127449ed",
       "target": "b4f84d51ef41c0e630795f8f25858fa2c067cab0",
-      "strategy": "three-way"
+      "strategy": "reviewed-media-host",
+      "resolved": "66b48af56219dbf8d1ace9eed7e765afe29f15ba"
     },
     {
       "path": "app/src/leanback/java/com/fongmi/android/tv/ui/adapter/ChannelAdapter.java",
@@ -152,7 +153,8 @@
       "old": "fbe8b31844703fd1e7e84922f56becabf069c527",
       "fork": "bcd895bd03a051246866e56e7ddba43a21de99fb",
       "target": "dd3a5b4c9a15be5427d1844f3beb6edfe4cfcfc6",
-      "strategy": "three-way"
+      "strategy": "reviewed-media-host",
+      "resolved": "a2c3aca12d10c85c2902566e12ee30f968c0dbfd"
     },
     {
       "path": "app/src/leanback/res/values-zh-rCN/strings.xml",
@@ -472,7 +474,7 @@
       "fork": "4ad6a78e27362fc7a90036b4f384e67736a30cc0",
       "target": "3ed88dcf1bb9e06b86b09e07bff1065768ba996b",
       "strategy": "reviewed-media-host",
-      "resolved": "2e505691ab43c0076b904d4e8f6ca8026f8c94b4"
+      "resolved": "c7a3a03290da7f28bf65cdb6ef7aae9bcbabe850"
     },
     {
       "path": "app/src/main/java/com/fongmi/android/tv/ui/dialog/DanmakuSearchDialog.java",
@@ -487,7 +489,8 @@
       "old": "179311fdb1e73bdf030f55b474de295e91959e5a",
       "fork": "8d595c60598f100494e88b6df543338db17f0116",
       "target": "569517ee6871f3b7e431701f4b8a602bd9e36845",
-      "strategy": "three-way"
+      "strategy": "reviewed-media-host",
+      "resolved": "259eb43feb868e30a6d264962d72a040ada62576"
     },
     {
       "path": "app/src/main/java/com/fongmi/android/tv/ui/dialog/SubtitleSearchDialog.java",
@@ -1185,7 +1188,7 @@
         ],
         "cmake": "3.22.1",
         "ndk": "29.0.14206865",
-        "status": "source-only Gradle AAR gate; exclude locked tracked jniLibs and require packaged PT_LOAD equality to fresh CMake outputs; result pending",
+        "status": "verified source-only actual Gradle AAR both ABIs; no deployment or redistribution",
         "prebuilt_jni_tree": "0ea6ecf982454bf444d33e608513941ce57c3c4e",
         "prebuilt_jni_blobs": {
           "arm64-v8a/libmpeghJNI.so": "9fc2d8bc2769d59f5a85c4110df37276b2ab19a5",
@@ -1199,6 +1202,20 @@
           "commit": "d43819193aa1d1490ce4871852038eb4350304ad",
           "task": ":lib-decoder-mpegh:mergeReleaseNativeLibs",
           "reason": "tracked jniLibs and rebuilt CMake both supply arm64-v8a/libmpeghJNI.so"
+        },
+        "verification": {
+          "run": 45653208817,
+          "job": 139342903885,
+          "commit": "b2076728a69ceb82db80c774ef3b0d822a08182a",
+          "size": 791681,
+          "sha256": "80883a31661ec8c84a09e7a85a0a4fcf6441b95aba6c82d5fc2f306d8f3da995",
+          "java_classes": 7,
+          "jni_methods": 16,
+          "runtime_PT_LOAD_equal": true,
+          "abis": [
+            "armeabi-v7a",
+            "arm64-v8a"
+          ]
         }
       }
     },

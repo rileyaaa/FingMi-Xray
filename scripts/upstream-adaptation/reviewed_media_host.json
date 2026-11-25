@@ -623,7 +623,7 @@
   "app/src/main/java/com/fongmi/android/tv/ui/activity/PlaybackActivity.java": {
     "from": "target",
     "base": "3ed88dcf1bb9e06b86b09e07bff1065768ba996b",
-    "resolved": "2e505691ab43c0076b904d4e8f6ca8026f8c94b4",
+    "resolved": "c7a3a03290da7f28bf65cdb6ef7aae9bcbabe850",
     "edits": [
       [
         "    protected void onTracksChanged() {",
@@ -652,6 +652,10 @@
       [
         "        @Override\n        public void onPlayerRebuild(Player player) {",
         "        @Override\n        public void onPlaybackUrlChanged(String url) {\n            if (isNativePlaybackOwner()) PlaybackActivity.this.onPlaybackUrlChanged(url);\n        }\n\n        @Override\n        public void onPlayerRebuild(Player player) {"
+      ],
+      [
+        "    protected void onXrayBindingReplaced() { }",
+        "    protected void onXrayBindingReplaced() { }\n\n    /** TV hosts may retire their Xray identity before a user changes engine. */\n    public void onPlaybackEngineChanging() { }"
       ]
     ]
   },
@@ -920,6 +924,107 @@
       [
         ".md-nav-item.active .md-nav-indicator {",
         ".md-nav-bar.xray-nav .md-nav-indicator { max-width: 100%; }\n\n.md-nav-item.active .md-nav-indicator {"
+      ]
+    ]
+  },
+  "app/src/leanback/java/com/fongmi/android/tv/ui/activity/VideoActivity.java": {
+    "from": "target",
+    "base": "b4f84d51ef41c0e630795f8f25858fa2c067cab0",
+    "resolved": "66b48af56219dbf8d1ace9eed7e765afe29f15ba",
+    "edits": [
+      [
+        "import com.fongmi.android.tv.App;",
+        "import com.fingmi.xray.network.XrayHttpClient;\nimport com.fingmi.xray.session.XrayPlaybackSession;\nimport com.fingmi.xray.session.XraySessionListener;\nimport com.fongmi.android.tv.App;\nimport com.fongmi.android.tv.player.extractor.Source;\nimport com.github.catvod.net.OkHttp;\n\nimport okhttp3.OkHttpClient;\nimport java.util.function.BooleanSupplier;"
+      ],
+      [
+        "    private boolean useParse;",
+        "    private boolean useParse;\n    private XrayPlaybackSession mXray;\n    private long mPlaybackEpoch;\n    private int mDanmakuRequestId = -1;\n    private boolean xrayPlaybackReady;\n    private boolean mXrayProxyFailed;"
+      ],
+      [
+        "        super.initView(savedInstanceState);\n",
+        "        super.initView(savedInstanceState);\n        mXray = new XrayPlaybackSession(this, OkHttp.player(), new XrayPlaybackSession.Listener() {\n            @Override public void onProxyChanged(XrayHttpClient resources, boolean preserve) {\n                if (resources != null && !isNativePlaybackCurrent()) {\n                    mXray.stop(false);\n                    return;\n                }\n                if (!isBindingOwner()) return;\n                if (resources != null) {\n                    if (mViewModel != null) mViewModel.cancelXrayTransitionRequests();\n                    Source.get().stop();\n                    OkHttp.cancelAll();\n                    if (mVod != null) mVod.clearPreloadForXray();\n                    clearArtworkTarget();\n                }\n                if (isBindingOwner()) {\n                    clearPlaybackDanmakuSource();\n                    player().setPlaybackProxy(resources, preserve);\n                    updatePlaybackDanmakuClient();\n                }\n            }\n\n            @Override public void onProxyError() {\n                if (!isBindingOwner()) return;\n                mXrayProxyFailed = player().hasXraySession();\n                if (!mXrayProxyFailed) return;\n                clearPlaybackDanmakuSource();\n                player().clearPlaybackProxyPreservingState();\n                updatePlaybackDanmakuClient();\n            }\n\n            @Override public void onStateChanged(int state, String message) {\n                if (isFinishing() || isDestroyed()) return;\n                mBinding.control.action.xray.setSelected(state == XraySessionListener.RUNNING);\n                mBinding.control.action.xray.setText(state == XraySessionListener.RUNNING\n                        ? R.string.xray_on : state == XraySessionListener.STARTING\n                        ? R.string.xray_starting : state == XraySessionListener.ERROR\n                        ? R.string.xray_error : R.string.xray_off);\n                if (state == XraySessionListener.ERROR) {\n                    if (mXrayProxyFailed) showError(message);\n                    mXrayProxyFailed = false;\n                    if (!message.isEmpty()) Notify.show(message);\n                } else if (state == XraySessionListener.IDLE && !message.isEmpty()) {\n                    Notify.show(message);\n                }\n            }\n        });\n        mXray.begin(\"vod:\" + ++mPlaybackEpoch);\n"
+      ],
+      [
+        "        saveHistory(true);\n        mVod.reset();",
+        "        saveHistory(true);\n        resetXrayForPlaybackChange();\n        mVod.reset();"
+      ],
+      [
+        "        mBinding.control.action.player.setOnClickListener(view -> onPlayer());",
+        "        mBinding.control.action.player.setOnClickListener(view -> onPlayer());\n        mBinding.control.action.xray.setOnClickListener(view -> onXray());"
+      ],
+      [
+        "public boolean canPreloadNext() {\n        return isPlaybackCurrent() && !ExternalPlayback.returnsResult(getIntent()) && player().canPreloadNext();\n    }",
+        "public boolean canPreloadNext() {\n        return !isXrayStarting() && isPlaybackCurrent() && !ExternalPlayback.returnsResult(getIntent()) && player().canPreloadNext();\n    }"
+      ],
+      [
+        "public void resetPlaybackForError(String msg) {\n        PlaybackReset.afterError(player(), () -> mClock.setCallback(null));\n        showError(msg);\n    }",
+        "public void resetPlaybackForError(String msg) {\n        xrayPlaybackReady = false;\n        if (mXray != null) mXray.stop(false);\n        PlaybackReset.afterError(player(), () -> mClock.setCallback(null));\n        showError(msg);\n    }"
+      ],
+      [
+        "public void startPlayback(Result result, boolean useParse, long startPositionMs, MediaMetadata metadata) {\n        mInput.cancelSeek();\n        ExternalPlayback.apply(result, getIntent());\n        startPositionMs = ExternalPlayback.takePosition(getIntent(), startPositionMs);\n        if (startWebPlayback(mBinding.video, result)) return;\n        startPlayer(getHistoryKey(), result, useParse, getSite().getTimeout(), startPositionMs, metadata);\n    }",
+        "public void startPlayback(Result result, boolean useParse, long startPositionMs, MediaMetadata metadata) {\n        mInput.cancelSeek();\n        ExternalPlayback.apply(result, getIntent());\n        startPositionMs = ExternalPlayback.takePosition(getIntent(), startPositionMs);\n        if (isWebPlayback(result) && !result.hasMsg()) resetXrayForPlaybackChange();\n        if (startWebPlayback(mBinding.video, result)) return;\n        if (mXray != null) mXray.mediaUrlChanged(result.getRealUrl());\n        startPlayer(getHistoryKey(), result, useParse, getSite().getTimeout(), startPositionMs, metadata);\n    }"
+      ],
+      [
+        "public boolean preloadPlayback(Result result, long startPositionMs, MediaMetadata metadata, VodPlayRequest request) {\n        return !isWebPlayback(result) && player().preload(PlaySpec.from(result, getHistoryKey(), metadata).setEnding(endingDurationMs()), startPositionMs, request);\n    }",
+        "public boolean preloadPlayback(Result result, long startPositionMs, MediaMetadata metadata, VodPlayRequest request) {\n        return !isXrayStarting() && !isWebPlayback(result) && player().preload(PlaySpec.from(result, getHistoryKey(), metadata).setEnding(endingDurationMs()), startPositionMs, request);\n    }"
+      ],
+      [
+        "public boolean seekToPreloaded(VodPlayRequest request) {\n        return isBindingOwner() && player().seekToPreloaded(request);\n    }",
+        "public boolean seekToPreloaded(VodPlayRequest request) {\n        return !isXrayStarting() && isBindingOwner() && player().seekToPreloaded(request);\n    }"
+      ],
+      [
+        "public void loadDanmaku(Result result, History history, Episode episode) {\n        VodPlaybackMedia.searchDanmaku(result, history, episode, () -> isNativePlaybackCurrent() && mVod.isCurrentResult(result), player()::setDanmaku, player()::addDanmaku);\n    }",
+        "public void loadDanmaku(Result result, History history, Episode episode) {\n        BooleanSupplier current = () -> isNativePlaybackCurrent() && mVod.isCurrentResult(result);\n        if (!isBindingOwner() || isXrayStarting() || player().isXrayPlaybackSuspended()) return;\n        if (player().hasXraySession() && !current.getAsBoolean()) return;\n        DanmakuApi.cancel(mDanmakuRequestId);\n        mDanmakuRequestId = -1;\n        if (player().hasXraySession()) {\n            OkHttpClient fallback = OkHttp.player();\n            OkHttpClient client = player().getPlaybackHttpClient(fallback);\n            if (client == fallback) return;\n            mDanmakuRequestId = VodPlaybackMedia.searchDanmaku(client, result, history, episode, current, player()::setDanmaku, player()::addDanmaku);\n        } else {\n            VodPlaybackMedia.searchDanmaku(result, history, episode, current, player()::setDanmaku, player()::addDanmaku);\n        }\n    }"
+      ],
+      [
+        "public void renderArtwork(String url) {\n        ImgUtil.load(this, url, mArtworkTarget);\n    }",
+        "public void renderArtwork(String url) {\n        if (isFinishing() || isDestroyed()) return;\n        if (isXrayStarting() || (isBindingOwner() && player().hasXraySession())) {\n            clearArtworkTarget();\n            return;\n        }\n        ImgUtil.load(this, url, mArtworkTarget);\n    }"
+      ],
+      [
+        "    private void onPlayer() {",
+        "    @Override\n    protected void onPlaybackUrlChanged(String url) {\n        if (mXray != null) mXray.mediaUrlChanged(url);\n    }\n\n    @Override\n    protected void onXrayBindingReplaced() {\n        resetXrayForPlaybackChange();\n    }\n\n    @Override\n    public void onPlaybackEngineChanging() {\n        resetXrayForPlaybackChange();\n    }\n\n    @Override\n    public void resetXrayForPlaybackChange() {\n        xrayPlaybackReady = false;\n        DanmakuApi.cancel(mDanmakuRequestId);\n        mDanmakuRequestId = -1;\n        if (mXray != null) mXray.begin(\"vod:\" + ++mPlaybackEpoch);\n    }\n\n    private boolean isXrayStarting() {\n        return mXray != null && mXray.state() == XraySessionListener.STARTING;\n    }\n\n    private void onXray() {\n        if (!isNativePlaybackCurrent()) return;\n        if (mXray.state() == XraySessionListener.RUNNING || mXray.state() == XraySessionListener.STARTING) {\n            mXray.stop(true);\n            return;\n        }\n        if (!xrayPlaybackReady || !hasPlaybackSession() || !player().hasPlaySpec()) {\n            Notify.show(R.string.xray_vod_required);\n            return;\n        }\n        mXray.mediaUrlChanged(player().getUrl());\n        if (!mXray.enable()) { Notify.show(R.string.xray_vod_public_http_required); return; }\n        if (mVod != null) mVod.clearPreloadForXray();\n        player().clearPreload();\n    }\n\n    private void clearArtworkTarget() {\n        com.bumptech.glide.Glide.with(App.get()).clear(mArtworkTarget);\n    }\n\n    private void onPlayer() {"
+      ],
+      [
+        "protected void onStateChanged(int state) {\n        switch (state) {\n            case Player.STATE_BUFFERING:\n                if (isDiscMenuTransition()) hideProgress();\n                else showProgress();\n                mClock.setCallback(null);\n                break;\n            case Player.STATE_READY:\n                hideProgress();\n                player().reset();\n                mClock.setCallback(this);\n                break;\n            case Player.STATE_ENDED:\n                hideProgress();\n                if (isDiscMenuActive()) hideInfo();\n                mClock.setCallback(null);\n                if (isWebPlaybackActive()) onPlaybackEnded();\n                break;\n        }\n    }",
+        "protected void onStateChanged(int state) {\n        switch (state) {\n            case Player.STATE_BUFFERING:\n                if (isDiscMenuTransition()) hideProgress();\n                else showProgress();\n                mClock.setCallback(null);\n                break;\n            case Player.STATE_READY:\n                xrayPlaybackReady = isNativePlaybackCurrent();\n                hideProgress();\n                player().reset();\n                mClock.setCallback(this);\n                break;\n            case Player.STATE_ENDED:\n                xrayPlaybackReady = false;\n                hideProgress();\n                if (isDiscMenuActive()) hideInfo();\n                mClock.setCallback(null);\n                if (isWebPlaybackActive()) onPlaybackEnded();\n                break;\n        }\n    }"
+      ],
+      [
+        "protected void onPlaybackEnded() {\n        if (ExternalPlayback.returnsResult(getIntent())) {\n            externalPlaybackCompleted = true;\n            finish();\n            return;\n        }\n        mVod.playbackEnded();\n    }",
+        "protected void onPlaybackEnded() {\n        xrayPlaybackReady = false;\n        if (mXray != null) mXray.stop(false);\n        if (ExternalPlayback.returnsResult(getIntent())) {\n            externalPlaybackCompleted = true;\n            finish();\n            return;\n        }\n        mVod.playbackEnded();\n    }"
+      ],
+      [
+        "    protected void onWebPlaybackChanged(boolean active) {",
+        "    protected void onWebPlaybackChanged(boolean active) {\n        mBinding.control.action.xray.setVisibility(active ? View.GONE : View.VISIBLE);"
+      ],
+      [
+        "protected void onStop() {\n        mInput.cancelSeek();\n        super.onStop();\n        saveHistory(false);\n        if (PlayerSetting.isBackgroundOff()) mClock.stop();\n    }",
+        "protected void onStop() {\n        mInput.cancelSeek();\n        boolean preservePlayback = !isFinishing()\n                && !PlayerSetting.isBackgroundOff()\n                && isNativePlaybackCurrent()\n                && player().hasPlaySpec();\n        if (mXray != null) mXray.stop(preservePlayback);\n        super.onStop();\n        saveHistory(false);\n        if (PlayerSetting.isBackgroundOff()) mClock.stop();\n    }"
+      ],
+      [
+        "protected void onDestroy() {\n        mInput.cancelSeek();\n        mClock.release();\n        saveHistory(true);\n        if (isBindingOwner()) DanmakuApi.cancel();\n        RefreshEvent.keep();\n        App.removeCallbacks(mR1, mR2, mR3, mR4);\n        super.onDestroy();\n    }",
+        "protected void onDestroy() {\n        mInput.cancelSeek();\n        clearArtworkTarget();\n        if (mXray != null) mXray.close();\n        mClock.release();\n        saveHistory(true);\n        DanmakuApi.cancel(mDanmakuRequestId);\n        mDanmakuRequestId = -1;\n        if (isBindingOwner()) DanmakuApi.cancel();\n        RefreshEvent.keep();\n        App.removeCallbacks(mR1, mR2, mR3, mR4);\n        super.onDestroy();\n    }"
+      ]
+    ]
+  },
+  "app/src/main/java/com/fongmi/android/tv/ui/dialog/PlayerEngineDialog.java": {
+    "from": "target",
+    "base": "569517ee6871f3b7e431701f4b8a602bd9e36845",
+    "resolved": "259eb43feb868e30a6d264962d72a040ada62576",
+    "edits": [
+      [
+        "private void selectEngine(int engine) {\n        if (!PlaybackDialog.isCurrentPlayer(this, player)) return;\n        player.setEngine(engine);\n        dismiss();\n    }",
+        "private void selectEngine(int engine) {\n        if (!PlaybackDialog.isCurrentPlayer(this, player)) return;\n        PlaybackActivity activity = getPlaybackActivity();\n        if (activity != null && engine != PlaybackAction.getEngine(player)\n                && (engine != PlayerSetting.ENGINE_MPV || RuntimeModule.MPV.isInstalled())) {\n            activity.onPlaybackEngineChanging();\n        }\n        player.setEngine(engine);\n        dismiss();\n    }"
+      ]
+    ]
+  },
+  "app/src/leanback/res/layout/view_control_vod_action.xml": {
+    "from": "target",
+    "base": "dd3a5b4c9a15be5427d1844f3beb6edfe4cfcfc6",
+    "resolved": "a2c3aca12d10c85c2902566e12ee30f968c0dbfd",
+    "edits": [
+      [
+        "        <com.google.android.material.textview.MaterialTextView\n            android:id=\"@+id/prev\"",
+        "        <com.google.android.material.textview.MaterialTextView\n            android:id=\"@+id/xray\"\n            style=\"@style/Control\"\n            android:layout_marginEnd=\"8dp\"\n            android:text=\"@string/xray_off\" />\n\n        <com.google.android.material.textview.MaterialTextView\n            android:id=\"@+id/prev\""
       ]
     ]
   }
