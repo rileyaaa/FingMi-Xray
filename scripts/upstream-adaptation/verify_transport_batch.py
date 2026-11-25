@@ -64,6 +64,7 @@ def main():
         print("PASS exact candidate transport source; direct Auth/cache/selector/decoder unchanged; no player activation",flush=True)
         run(sys.executable,ROOT/"tests/test-upstream-live-host.py","--candidate",candidate)
         run(sys.executable,ROOT/"tests/test-upstream-transport-host.py","--candidate",candidate)
+        run(sys.executable,ROOT/"tests/test-upstream-side-requests.py","--candidate",candidate)
         if a.android:
             project=root/"catvod-project"
             project.mkdir()

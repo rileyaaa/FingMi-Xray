@@ -1096,6 +1096,29 @@ Google Maven 正式 media3-database:1.11.0 POM 1723 字节、SHA-256 951d7957780
 
 在上一批 AC 45596644795 已运行时继续独立代码。5.9.0 Download 移至 catvod，旧 app Download 的 client/tag 写法不能直接迁移。保留新版下载器的文件大小、Range/续传/分段、取消、校验和回调实现，仅新增每实例非空 Call.Factory 绑定，download() 首次请求及 request(client) 保存的 continuation factory 一致，不选显式 factory 时仍使用原 OkHttp.client()。SubtitleApi 保留新版搜索/详情解析、归档和 Task/Download 包路径，移植既有 request id、Call/Download 所有权、异步 UI 投递/ZIP 解压、旧 owner 取消及 Xray transition completion；旧 request id 不能取消新任务。固定输入输出 Download c01a7f3a -> 0ef776e8、SubtitleApi d16c1d82 -> 290690f3。新增 test-upstream-side-requests.py 复用原 16 项回归和一项下载 client/旧 owner 验证，实际 Download 只做源码 transport handoff 门禁，IO/真实服务接管仍需验证；本提交未进入正在跑的 AC，不宣称已通过。
 
+### 12.12 transport 与第二组公开媒体实际验收
+
+AC [45596644795](https://github.com/rileyaaa/FingMi-Xray/actions/runs/45596644795) 的两个 job 均 success，固定 workflow commit `1d03287908435db37a4387a295b5a1e64641e319`。首次触发 45596534600 未生成 job，原因是临时 workflow 的未加引号 if 标量含提交消息中的冒号及空格；修正 YAML 后才执行本批构建，不是重跑已成功任务。
+
+transport job 139144342781：候选实际输出 65 项移植/干净合并，33 项未解决宿主冲突，5 项旧媒体待审；6 份 media host 及 2 份 Live host 输出 blob 一致。Live 16 断言、4 个负向变体；实际 PlayerEngineFactory 15 断言，候选抽取 scheme guard 42 断言，4 个负向变体均被拒绝。Android catvod assembleDebug 与实际 OkHttp/Auth/Xray 3 项 Robolectric 测试通过，构建 1m39s；HTTP 终端交换、engine 与 Android/Media3 相关 JDK 边界是确定性替身，不是实机播放或实际代理网络验证。普通 API reset 不销毁 player 与 Xray client，Auth.Context 同源/跨源重定向边界通过。仍不启用 PlayerManager 代理接管。
+
+公开 Media3 job 139144342951 在 3m25s 构建成功。固定 FongMi/media 3c2cbe8 / tree b7a4d78a，Apache-2.0 许可证摘要与上轮一致。新增十个 AAR 的实际摘要如下，并记录于 lock.json 的 public_media_next_build.verified_build：
+
+| 模块 | bytes | SHA-256 |
+| --- | ---: | --- |
+| lib-container | 67910 | 980e5bbb08359fa8103aa2c082b71ef739e161c8d6e018ead6fc78b703f61d23 |
+| lib-decoder | 19842 | 3aba35e2bb7cbb930fbdaa22bc1c8d42b45ce5002d7a6a0901af9bfacbd44a6c |
+| lib-datasource | 182361 | 01ca3ee28ec995eb143c740f3672413b5b3ec429be71565388bf7e265420c15b |
+| lib-extractor | 1099488 | 9f5d306cabf3118ae26417c02870200dd245da853f980cdc8d51b27db34accd9 |
+| lib-exoplayer | 1792164 | 6527da13a137bb02beda0b06fd913d44a2ec48faea69e301ebf2edef5183e388 |
+| lib-exoplayer-hls | 272832 | b15159474508fff57d26426e0c86bf33f0ddafe42a32b2706d9154884956996e |
+| lib-exoplayer-dash | 150318 | 107a799baf20951ae85144b3857d03cfd2cea47477df7e759b7289ba797f5464 |
+| lib-exoplayer-smoothstreaming | 53726 | c3f9d0375a08bfe0ba6491d958f96a572cb6a4a10bb8113449cd8ee78ff75883 |
+| lib-session | 956900 | 5cc3711f21bfd98ebb9bc498d20e221bbb15edeaa9ac0b161334f0a337d17536 |
+| lib-ui | 369310 | da5b513a10aa6400703cb2d692ddb8b1c5a970aa31a47278fe8a38b6497dfae9 |
+
+第二组完整 staging 与来源清单生成成功，累计 14 个公开 Media3 AAR 有实际构建证据。每个新增摘要是首次构建记录，不声称已经二次重建字节一致；后续按锁校验。未上传 AAR、未覆盖 app/libs、未补足定制媒体/JNI/native 全部合同、无 5.9 APK 或双 ABI 运行验收。0ccae97 的 Download/SubtitleApi 是该 run 启动后新增候选，侧请求回归尚未执行，本次只接入下一批 transport 验收入口，不将先前结果归给它。保持现有定制 Core 与旧导入合同。已结束的本批一次性 workflow 93 删除，其他会话的发版文件、签名、main 及历史 run 不动。
+
 ## 13. 冻结 5.6.3-xray.2 无正式密钥构建与离线签名交接
 
 本节只适用于用户明确授权的单一开发测试分支 `dev/fongmi-upstream-adaptation`。默认 `main` 固定为 `4a52de1daa465d81df7ac06e886a1f184053253c`，仓库实际为 public；正式版本基线、两项业务维护边界及历史黄金证据不变。5.9.0 适配和候选 Core 均未通过完整兼容门禁，不得将其输入用于本次冻结版。三条线的固定 Git 归档引用分别为 `archive/frozen-public-validation-97a23d8`、`archive/fongmi-upstream-adaptation-e3fec17`、`archive/xray-core-stable-eb03202`。归档 tag 不是正式 Release。正式签名及发布必须独立验收。

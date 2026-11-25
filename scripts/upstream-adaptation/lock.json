@@ -912,7 +912,14 @@
       "tree": "14a42d7cd105243519462e4a42079c54a86a30cf",
       "coordinate": "androidx.media3:media3-container:1.11.0",
       "class": "androidx/media3/container/Mp4Box.class",
-      "status": "public source build candidate; not complete customized TV implementation"
+      "status": "public source AAR built; not complete customized TV implementation",
+      "verified_build": {
+        "run": 45596644795,
+        "job": 139144342951,
+        "workflow_commit": "1d03287908435db37a4387a295b5a1e64641e319",
+        "size": 67910,
+        "sha256": "980e5bbb08359fa8103aa2c082b71ef739e161c8d6e018ead6fc78b703f61d23"
+      }
     },
     {
       "module": "lib-decoder",
@@ -920,7 +927,14 @@
       "tree": "293972bc677ae7196e2fb3eb07a56a426983a610",
       "coordinate": "androidx.media3:media3-decoder:1.11.0",
       "class": "androidx/media3/decoder/Decoder.class",
-      "status": "public source build candidate; not complete customized TV implementation"
+      "status": "public source AAR built; not complete customized TV implementation",
+      "verified_build": {
+        "run": 45596644795,
+        "job": 139144342951,
+        "workflow_commit": "1d03287908435db37a4387a295b5a1e64641e319",
+        "size": 19842,
+        "sha256": "3aba35e2bb7cbb930fbdaa22bc1c8d42b45ce5002d7a6a0901af9bfacbd44a6c"
+      }
     },
     {
       "module": "lib-datasource",
@@ -928,7 +942,14 @@
       "tree": "34348ead45039173b329fdab28816838655c0b7f",
       "coordinate": "androidx.media3:media3-datasource:1.11.0",
       "class": "androidx/media3/datasource/DefaultDataSource.class",
-      "status": "public source build candidate; not complete customized TV implementation"
+      "status": "public source AAR built; not complete customized TV implementation",
+      "verified_build": {
+        "run": 45596644795,
+        "job": 139144342951,
+        "workflow_commit": "1d03287908435db37a4387a295b5a1e64641e319",
+        "size": 182361,
+        "sha256": "01ca3ee28ec995eb143c740f3672413b5b3ec429be71565388bf7e265420c15b"
+      }
     },
     {
       "module": "lib-extractor",
@@ -936,7 +957,14 @@
       "tree": "fec75bcae193c68c9b57a91f99cbf8c6568ec50e",
       "coordinate": "androidx.media3:media3-extractor:1.11.0",
       "class": "androidx/media3/extractor/DefaultExtractorsFactory.class",
-      "status": "public source build candidate; not complete customized TV implementation"
+      "status": "public source AAR built; not complete customized TV implementation",
+      "verified_build": {
+        "run": 45596644795,
+        "job": 139144342951,
+        "workflow_commit": "1d03287908435db37a4387a295b5a1e64641e319",
+        "size": 1099488,
+        "sha256": "9f5d306cabf3118ae26417c02870200dd245da853f980cdc8d51b27db34accd9"
+      }
     },
     {
       "module": "lib-exoplayer",
@@ -944,7 +972,14 @@
       "tree": "022186917db1b0c4af5600495aa17c0eb912762e",
       "coordinate": "androidx.media3:media3-exoplayer:1.11.0",
       "class": "androidx/media3/exoplayer/ExoPlayer.class",
-      "status": "public source build candidate; not complete customized TV implementation"
+      "status": "public source AAR built; not complete customized TV implementation",
+      "verified_build": {
+        "run": 45596644795,
+        "job": 139144342951,
+        "workflow_commit": "1d03287908435db37a4387a295b5a1e64641e319",
+        "size": 1792164,
+        "sha256": "6527da13a137bb02beda0b06fd913d44a2ec48faea69e301ebf2edef5183e388"
+      }
     },
     {
       "module": "lib-exoplayer-hls",
@@ -952,7 +987,14 @@
       "tree": "3272a287bc78b37a1ae8844aeeb686ca980ed734",
       "coordinate": "androidx.media3:media3-exoplayer-hls:1.11.0",
       "class": "androidx/media3/exoplayer/hls/HlsMediaSource.class",
-      "status": "public source build candidate; not complete customized TV implementation"
+      "status": "public source AAR built; not complete customized TV implementation",
+      "verified_build": {
+        "run": 45596644795,
+        "job": 139144342951,
+        "workflow_commit": "1d03287908435db37a4387a295b5a1e64641e319",
+        "size": 272832,
+        "sha256": "b15159474508fff57d26426e0c86bf33f0ddafe42a32b2706d9154884956996e"
+      }
     },
     {
       "module": "lib-exoplayer-dash",
@@ -960,7 +1002,14 @@
       "tree": "aaae9d588921a6dcd6eab652d8885417eb42f913",
       "coordinate": "androidx.media3:media3-exoplayer-dash:1.11.0",
       "class": "androidx/media3/exoplayer/dash/DashMediaSource.class",
-      "status": "public source build candidate; not complete customized TV implementation"
+      "status": "public source AAR built; not complete customized TV implementation",
+      "verified_build": {
+        "run": 45596644795,
+        "job": 139144342951,
+        "workflow_commit": "1d03287908435db37a4387a295b5a1e64641e319",
+        "size": 150318,
+        "sha256": "107a799baf20951ae85144b3857d03cfd2cea47477df7e759b7289ba797f5464"
+      }
     },
     {
       "module": "lib-exoplayer-smoothstreaming",
@@ -968,7 +1017,14 @@
       "tree": "3eb6e17fc47befa5d7f05947a2bd509fa0c148b9",
       "coordinate": "androidx.media3:media3-exoplayer-smoothstreaming:1.11.0",
       "class": "androidx/media3/exoplayer/smoothstreaming/SsMediaSource.class",
-      "status": "public source build candidate; not complete customized TV implementation"
+      "status": "public source AAR built; not complete customized TV implementation",
+      "verified_build": {
+        "run": 45596644795,
+        "job": 139144342951,
+        "workflow_commit": "1d03287908435db37a4387a295b5a1e64641e319",
+        "size": 53726,
+        "sha256": "c3f9d0375a08bfe0ba6491d958f96a572cb6a4a10bb8113449cd8ee78ff75883"
+      }
     },
     {
       "module": "lib-session",
@@ -976,7 +1032,14 @@
       "tree": "e259a6c1546ca7493b50a8cbb01b968e40636f0c",
       "coordinate": "androidx.media3:media3-session:1.11.0",
       "class": "androidx/media3/session/MediaSession.class",
-      "status": "public source build candidate; not complete customized TV implementation"
+      "status": "public source AAR built; not complete customized TV implementation",
+      "verified_build": {
+        "run": 45596644795,
+        "job": 139144342951,
+        "workflow_commit": "1d03287908435db37a4387a295b5a1e64641e319",
+        "size": 956900,
+        "sha256": "5cc3711f21bfd98ebb9bc498d20e221bbb15edeaa9ac0b161334f0a337d17536"
+      }
     },
     {
       "module": "lib-ui",
@@ -984,7 +1047,14 @@
       "tree": "6605e7f6d590061a66ae51044173c244661d78da",
       "coordinate": "androidx.media3:media3-ui:1.11.0",
       "class": "androidx/media3/ui/PlayerView.class",
-      "status": "public source build candidate; not complete customized TV implementation"
+      "status": "public source AAR built; not complete customized TV implementation",
+      "verified_build": {
+        "run": 45596644795,
+        "job": 139144342951,
+        "workflow_commit": "1d03287908435db37a4387a295b5a1e64641e319",
+        "size": 369310,
+        "sha256": "da5b513a10aa6400703cb2d692ddb8b1c5a970aa31a47278fe8a38b6497dfae9"
+      }
     }
   ]
 }
