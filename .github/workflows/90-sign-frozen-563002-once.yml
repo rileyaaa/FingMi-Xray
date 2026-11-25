@@ -1,0 +1,190 @@
+name: Frozen 563002 original signing (one time)
+on:
+  push:
+    branches: [dev/fongmi-upstream-adaptation]
+    paths: ['.github/workflows/90-sign-frozen-563002-once.yml']
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: fingmi-frozen-563002-signing
+  cancel-in-progress: false
+jobs:
+  sign:
+    if: github.repository == 'rileyaaa/FingMi-Xray' && github.ref == 'refs/heads/dev/fongmi-upstream-adaptation'
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      BUILD_SOURCE_SHA: 97a23d8fc2163c2c2b277e6c0e86a595a4638fa2
+      RELEASE_TAG: v5.6.3-xray.2
+      EXPECTED_CERT: 3cd86f4fdf6044e7e60307624bf0d8c892dfd83b81ce21748504fcbba28763c2
+      ALLOW_EXISTING_RELEASE: 'false'
+      PRUNE_SUPERSEDED: 'false'
+    steps:
+      - name: Download and verify exact unsigned handoff
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          repo="repos/$GITHUB_REPOSITORY"
+          test "$(gh api "$repo" --jq .visibility)" = public
+          gh api "$repo/actions/runs/45570721364" > "$RUNNER_TEMP/run.json"
+          gh api "$repo/actions/artifacts/15001953802" > "$RUNNER_TEMP/artifact.json"
+          gh api "$repo/releases/tags/v5.6.3-xray.1" > "$RUNNER_TEMP/old.json"
+          python3 - <<'PY'
+          import json, os
+          from pathlib import Path
+          t = Path(os.environ["RUNNER_TEMP"])
+          run = json.loads((t/"run.json").read_text())
+          a = json.loads((t/"artifact.json").read_text())
+          old = json.loads((t/"old.json").read_text())
+          assert (run["id"], run["status"], run["conclusion"], run["head_sha"]) == (45570721364,"completed","success","4b3fa6fc481c8bf84b02026276abeb9f627813ff")
+          assert (a["id"], a["name"], a["expired"], a["size_in_bytes"], a["digest"]) == (15001953802,"unsigned-frozen-563002-45570721364",False,126799059,"sha256:35fbda2824f2770a5b63bba6134be62f7a95e15ded2e868c5e504c728a5a41d0")
+          assert a["workflow_run"]["id"] == run["id"]
+          assert old["tag_name"] == "v5.6.3-xray.1" and not old["draft"] and not old["prerelease"]
+          assert {x["name"]: x["digest"] for x in old["assets"]} == {
+              "FongMi-Xray-TV-v5.6.3-xray.1-arm64-v8a.apk": "sha256:004cd5e003a644a7e421a859cd7a7187e98e729bea94af157127dd3d20609bd5",
+              "FongMi-Xray-TV-v5.6.3-xray.1-armeabi-v7a.apk": "sha256:64fdc38928f96185e924444e9c4ca33c582021e732df4b7e041daa4321615424",
+          }
+          print("PASS frozen run, unsigned artifact and original .1 release metadata")
+          PY
+          gh api "$repo/actions/artifacts/15001953802/zip" > "$RUNNER_TEMP/handoff.zip"
+          echo "35fbda2824f2770a5b63bba6134be62f7a95e15ded2e868c5e504c728a5a41d0  $RUNNER_TEMP/handoff.zip" | sha256sum -c -
+          python3 - <<'PY'
+          import hashlib, os, shutil
+          from pathlib import Path
+          from zipfile import ZipFile
+          t = Path(os.environ["RUNNER_TEMP"])
+          expected = {
+              "unsigned/leanback-arm64_v8a.apk": "b9078a2c0a1f3d8f2660134c0e5d1dc4005d3dd640dcf0be20e71792cf3bffb4",
+              "unsigned/leanback-armeabi_v7a.apk": "5ba80da9a2482590370f2f4d0ab94f1f0b93b72fe23ef6b879895210b9f4eae9",
+              "PAYLOAD_SHA256.json": "1a8922b7058dc400456a1c7ff6771498cfce93585955194aadb9736b33b68986",
+              "verify_handoff.py": "b4ea23f224a0321337b987bdbb96a49db8a8d491116a7782979d43a4358ddaee",
+              "BUILD_RESULT.txt": "c8b9ae74856d1e8ca24e0eb9b0d2ee383ab215d0de9bc3d7769b271ec137bd38",
+              "media3-linkage.json": "c59bb357e1e0b9ced36af91df15693f3928bcecd2d04873765db0353df264f29",
+              "README.md": "0908d2c58fd03f7cdf88079ad62387beb41e66a5cc2797787ff4922b65e51420",
+          }
+          allowed = set(expected) | {"SHA256SUMS"}
+          with ZipFile(t/"handoff.zip") as z:
+              files = [i.filename for i in z.infolist() if not i.is_dir()]
+              assert len(files) == 8 and set(files) == allowed
+              for name in files:
+                  dst = t/"handoff"/name
+                  dst.parent.mkdir(parents=True, exist_ok=True)
+                  with z.open(name) as src, dst.open("wb") as out:
+                      shutil.copyfileobj(src,out)
+                  if name in expected:
+                      assert hashlib.sha256(dst.read_bytes()).hexdigest() == expected[name]
+          print("PASS exact eight handoff files and independently pinned hashes")
+          PY
+          (cd "$RUNNER_TEMP/handoff" && sha256sum -c SHA256SUMS)
+
+      - uses: actions/setup-java@v6
+        with:
+          distribution: jetbrains
+          java-version: '21'
+
+      - name: Prepare signing tools and reverify unsigned candidates
+        shell: bash
+        run: |
+          set -euo pipefail
+          sdkmanager="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
+          yes | "$sdkmanager" --licenses >/dev/null 2>&1 || true
+          "$sdkmanager" --channel=3 --install 'build-tools;37.0.0'
+          python3 "$RUNNER_TEMP/handoff/verify_handoff.py" --handoff "$RUNNER_TEMP/handoff" --sdk "$ANDROID_HOME"
+
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ env.BUILD_SOURCE_SHA }}
+          path: frozen
+          fetch-depth: 1
+          persist-credentials: false
+          sparse-checkout-cone: false
+          sparse-checkout: |
+            /app/build.gradle
+            /scripts/build/publish-current-release.py
+
+      - uses: actions/checkout@v7
+        with:
+          ref: 4a52de1daa465d81df7ac06e886a1f184053253c
+          path: key-root
+          fetch-depth: 1
+          persist-credentials: false
+          sparse-checkout-cone: false
+          sparse-checkout: |
+            /signing/
+            /scripts/build/check-release-signing.py
+
+      - name: Sign only verified candidates with original identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          trap 'rm -rf "$GITHUB_WORKSPACE/key-root"' EXIT
+          test "$(git -C frozen rev-parse HEAD)" = "$BUILD_SOURCE_SHA"
+          test "$(git -C frozen rev-parse 'HEAD^{tree}')" = 9a166475155cb5a897627fef6838f965e74afd5f
+          test "$(git -C key-root rev-parse HEAD)" = 4a52de1daa465d81df7ac06e886a1f184053253c
+          test "$(cat key-root/signing/release-certificate.sha256)" = "$EXPECTED_CERT"
+          chmod 600 key-root/signing/fingmi-xray-release.p12 key-root/signing/release-signing.properties
+          python3 key-root/scripts/build/check-release-signing.py
+          mkdir -p key-root/app "$RUNNER_TEMP/signed" "$RUNNER_TEMP/formal-apks"
+          cp frozen/app/build.gradle key-root/app/build.gradle
+          python3 - <<'PY'
+          import os, subprocess
+          from pathlib import Path
+          root = Path("key-root").resolve()
+          t = Path(os.environ["RUNNER_TEMP"])
+          p = dict(line.split("=",1) for line in
+              (root/"signing/release-signing.properties").read_text().splitlines()
+              if line and not line.startswith("#"))
+          ks = (root/p["storeFile"]).resolve()
+          assert ks == root/"signing/fingmi-xray-release.p12"
+          env = dict(os.environ)
+          env["FINGMI_LOCAL_SIGN_PASS"] = p["storePassword"]
+          signer = Path(os.environ["ANDROID_HOME"])/"build-tools/37.0.0/apksigner"
+          for name in ("leanback-arm64_v8a.apk","leanback-armeabi_v7a.apk"):
+              r = subprocess.run([
+                  str(signer),"sign","--ks",str(ks),"--ks-type","PKCS12",
+                  "--ks-key-alias",p["keyAlias"],
+                  "--ks-pass","env:FINGMI_LOCAL_SIGN_PASS",
+                  "--key-pass","env:FINGMI_LOCAL_SIGN_PASS",
+                  "--v1-signing-enabled","true","--v2-signing-enabled","true",
+                  "--v4-signing-enabled","false",
+                  "--out",str(t/"signed"/name),str(t/"handoff/unsigned"/name),
+              ],env=env,stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)
+              if r.returncode:
+                  raise SystemExit(f"apksigner failed for {name} (exit {r.returncode}); sensitive output suppressed")
+              print("PASS signing",name)
+          PY
+          python3 "$RUNNER_TEMP/handoff/verify_handoff.py" --handoff "$RUNNER_TEMP/handoff" --signed-dir "$RUNNER_TEMP/signed" --sdk "$ANDROID_HOME"
+          for abi in arm64-v8a armeabi-v7a; do
+            apk="$RUNNER_TEMP/signed/leanback-${abi//-/_}.apk"
+            python3 key-root/scripts/build/check-release-signing.py --apk "$apk" --sdk "$ANDROID_HOME" --source-sha "$BUILD_SOURCE_SHA"
+            cp "$apk" "$RUNNER_TEMP/formal-apks/FongMi-Xray-TV-$RELEASE_TAG-$abi.apk"
+          done
+          (cd "$RUNNER_TEMP/formal-apks" && sha256sum *.apk > SHA256SUMS && cat SHA256SUMS)
+          test "$(find "$RUNNER_TEMP/formal-apks" -type f | wc -l)" -eq 3
+
+      - name: Clean original signing checkout
+        if: always()
+        run: rm -rf "$GITHUB_WORKSPACE/key-root"
+
+      - name: Retain verified signed APKs only
+        uses: actions/upload-artifact@v7
+        with:
+          name: verified-original-signed-563002
+          path: ${{ runner.temp }}/formal-apks/
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Invoke unchanged formal publisher with read-only permissions
+        working-directory: frozen
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          test "$(gh api "repos/$GITHUB_REPOSITORY" --jq .private)" = false
+          mkdir -p release
+          cp "$RUNNER_TEMP/formal-apks/"*.apk release/
+          python3 scripts/build/publish-current-release.py
