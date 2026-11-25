@@ -5,10 +5,9 @@ plugins {
     alias libs.plugins.android.application
 }
 
-def releaseSigning = new Properties()
-rootProject.file('signing/release-signing.properties').withInputStream {
-    releaseSigning.load(it)
-}
+// Test-only branch; no production signing source is accepted.
+def testKeystorePath = System.getenv('FINGMI_TEST_KEYSTORE')
+if (!testKeystorePath || !file(testKeystorePath).isFile()) throw new GradleException('CI-only test keystore required')
 
 android {
     namespace = 'com.fongmi.android.tv'
@@ -20,8 +19,8 @@ android {
         minSdk libs.versions.minSdk.get().toInteger()
         targetSdk libs.versions.targetSdk.get().toInteger()
         // Public upstream versionCode * 1000 + fork revision (1..999).
-        versionCode 563001
-        versionName "v5.6.3-xray.1"
+        versionCode 563002
+        versionName "v5.6.3-xray.2"
         javaCompileOptions {
             annotationProcessorOptions {
                 arguments = ["room.schemaLocation": "$projectDir/schemas".toString(), "eventBusIndex": "com.fongmi.android.tv.event.EventIndex"]
@@ -46,22 +45,23 @@ android {
     }
 
     signingConfigs {
-        release {
-            storeFile rootProject.file(releaseSigning['storeFile'])
-            keyAlias releaseSigning['keyAlias']
-            keyPassword releaseSigning['storePassword']
-            storePassword releaseSigning['storePassword']
+        debug {
+            storeFile file(testKeystorePath)
+            storeType 'JKS'
+            keyAlias 'androiddebugkey'
+            keyPassword 'android'
+            storePassword 'android'
         }
     }
 
     buildTypes {
         debug {
-            signingConfig = signingConfigs.release
+            signingConfig = signingConfigs.debug
         }
         release {
             minifyEnabled = true
             shrinkResources = true
-            signingConfig = signingConfigs.release
+            signingConfig = signingConfigs.debug
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro', 'proguard-rules-media.pro'
         }
     }

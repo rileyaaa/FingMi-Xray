@@ -1,3 +1,4 @@
+# Original continuation preserved but disabled on this branch.
 name: "03｜发布恢复：已验证 APK 续传"
 
 on:
@@ -25,13 +26,13 @@ concurrency:
   cancel-in-progress: false
 
 permissions:
-  contents: write
+  contents: read
   actions: read
 
 jobs:
   resume:
     name: "原产物验证与发布续传"
-    if: github.ref == 'refs/heads/main'
+    if: ${{ false }} # Public validation only: production publication disabled
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:

@@ -1,11 +1,15 @@
-name: "01｜当前源码编译与 APK 验证"
+name: "Frozen 5.6.3-xray.2 public test build (no publication)"
 
 on:
   workflow_dispatch:
-
+  push:
+    branches: [dev/frozen-public-validation]
+    paths:
+      - '.github/workflows/01-当前源码编译与APK验证.yml'
+      - 'scripts/public-validation/**'
+      - 'app/build.gradle'
 permissions:
   contents: read
-  actions: write
 
 jobs:
   build:
@@ -26,6 +30,8 @@ jobs:
       - uses: actions/checkout@v7
         with:
           ref: ${{ env.BUILD_SOURCE_SHA }}
+          fetch-depth: 1
+          persist-credentials: false
 
       - uses: actions/setup-java@v6
         with:
@@ -35,6 +41,19 @@ jobs:
       - uses: actions/setup-python@v7
         with:
           python-version: "3.10"
+
+      - name: Check exact frozen scope and generate test-only key
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 scripts/public-validation/verify.py scope
+          key="$RUNNER_TEMP/fingmi-public-test.jks"
+          test ! -e "$key"
+          keytool -genkeypair -storetype JKS -keystore "$key" -alias androiddebugkey -storepass android -keypass android -keyalg RSA -keysize 2048 -validity 2 -dname 'CN=FingMi test only' -noprompt
+          chmod 600 "$key"
+          echo "FINGMI_TEST_KEYSTORE=$key" >> "$GITHUB_ENV"
+          cert="$(keytool -exportcert -keystore "$key" -alias androiddebugkey -storepass android | sha256sum | cut -d ' ' -f1)"
+          echo "FINGMI_TEST_CERT_SHA=$cert" >> "$GITHUB_ENV"
 
       - name: 运行项目源码检查
         shell: bash
@@ -53,7 +72,7 @@ jobs:
           python3 scripts/build/check-elf-runtime.py --self-test
           python3 scripts/build/check-final-apk-native.py --self-test
           python3 scripts/build/check-final-apk-manifest.py --self-test
-          python3 tests/test-build-hygiene.py
+          # Private release hygiene is replaced only on this branch by the exact-tree public guard.
           python3 tests/test-resolve-release-tag.py
           python3 tests/test-release-publication.py
           python3 tests/test-resume-verified-release.py
@@ -85,35 +104,32 @@ jobs:
           bash gradlew --no-daemon -Porg.gradle.java.installations.auto-download=false \
             help --stacktrace --warning-mode all
 
-      - name: 检查项目固定签名配置
+      - name: Verify disposable signing boundary
         shell: bash
         run: |
           set -euo pipefail
-          python3 scripts/build/check-release-signing.py
+          test ! -e signing
+          test -s "$FINGMI_TEST_KEYSTORE"
+          test -n "$FINGMI_TEST_CERT_SHA"
 
       - name: 重建并校验固定播放器及原生依赖
         shell: bash
-        env:
-          GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
           mkdir -p build/work/current-main/input build/work/current-main/restored
 
-          # Keep a published fork APK as a native container until replacement is verified.
-          # Snapshot the newest eligible version, independent of Latest/prerelease labels; verify both SO pins.
-          python3 scripts/build/libass_native_input.py \
-            --fetch-retained "$GITHUB_REPOSITORY" \
-            --output-dir build/work/current-main/input \
-            --report build/work/current-main/libass-native-input.json
+          curl -fL --retry 3 'https://github.com/rileyaaa/FingMi-Xray/releases/download/v5.6.3-xray.1/FongMi-Xray-TV-v5.6.3-xray.1-armeabi-v7a.apk' -o build/work/current-main/input/libass-source-v7.apk
+          curl -fL --retry 3 'https://github.com/rileyaaa/FingMi-Xray/releases/download/v5.6.3-xray.1/FongMi-Xray-TV-v5.6.3-xray.1-arm64-v8a.apk' -o build/work/current-main/input/libass-source-v8.apk
+          printf '%s  %s\n' '64fdc38928f96185e924444e9c4ca33c582021e732df4b7e041daa4321615424' build/work/current-main/input/libass-source-v7.apk '004cd5e003a644a7e421a859cd7a7187e98e729bea94af157127dd3d20609bd5' build/work/current-main/input/libass-source-v8.apk | sha256sum -c -
+          python3 scripts/public-validation/verify.py reference build/work/current-main/input/libass-source-v7.apk build/work/current-main/input/libass-source-v8.apk
+          python3 scripts/build/libass_native_input.py --native-source retained-release --v7-apk build/work/current-main/input/libass-source-v7.apk --v8-apk build/work/current-main/input/libass-source-v8.apk --report build/work/current-main/libass-native-input.json
 
           bash scripts/build/build-player-aar-candidate.sh \
             --workdir build/work/current-main/player-source \
             --output build/work/current-main/input/player-candidate.zip
 
-          gh release download v5.6.0-xray.5             --repo rileyaaa/FingMi-Xray             --pattern 'FongMi-Xray-TV-v5.6.0-xray.5-armeabi-v7a.apk'             --pattern 'FongMi-Xray-TV-v5.6.0-xray.5-arm64-v8a.apk'             --dir build/work/current-main/input
-          mv build/work/current-main/input/FongMi-Xray-TV-v5.6.0-xray.5-armeabi-v7a.apk             build/work/current-main/input/published-v560-v7.apk
-          mv build/work/current-main/input/FongMi-Xray-TV-v5.6.0-xray.5-arm64-v8a.apk             build/work/current-main/input/published-v560-v8.apk
-
+          curl -fL --retry 3 'https://github.com/rileyaaa/FingMi-Xray/releases/download/v5.6.0-xray.5/FongMi-Xray-TV-v5.6.0-xray.5-armeabi-v7a.apk' -o build/work/current-main/input/published-v560-v7.apk
+          curl -fL --retry 3 'https://github.com/rileyaaa/FingMi-Xray/releases/download/v5.6.0-xray.5/FongMi-Xray-TV-v5.6.0-xray.5-arm64-v8a.apk' -o build/work/current-main/input/published-v560-v8.apk
 
           curl -fL --retry 3             'https://dl.google.com/dl/android/maven2/androidx/media3/media3-container/1.11.0/media3-container-1.11.0.aar'             -o build/work/current-main/input/media3-container-1.11.0.aar
 
@@ -137,55 +153,8 @@ jobs:
 
           cp build/work/current-main/restored/libXray.aar libxray/libs/libXray.aar
 
-      - name: 对照已发布 v7 与 arm64 原生库验证 Xray
-        shell: bash
-        run: |
-          set -euo pipefail
-          work="build/work/current-main/xray-native-chain"
-          mkdir -p "$work"
-
-          unzip -p build/work/current-main/input/published-v560-v7.apk \
-            lib/armeabi-v7a/libgojni.so > "$work/published-v7-libgojni.so"
-          unzip -p build/work/current-main/input/published-v560-v8.apk \
-            lib/arm64-v8a/libgojni.so > "$work/published-arm64-libgojni.so"
-          printf '%s  %s\n%s  %s\n' \
-            "6f01f219fe4087790cd8e647394de9dbefc61e0d750d927924b93f120b06fb7e" "$work/published-v7-libgojni.so" \
-            "40b08a399871973ba6ad5898ca7097961337d7aeddb4b3378b153a66679eeece" "$work/published-arm64-libgojni.so" \
-            | sha256sum -c -
-
-          python3 scripts/recovery/prepare-native-converter-harness.py \
-            --workdir "$work/v7-harness" \
-            --jni "$work/published-v7-libgojni.so"
-
-          python3 tests/test-current-native-share-chain.py \
-            --abi armeabi-v7a \
-            --workdir "$work/test" \
-            --jni "$work/published-v7-libgojni.so" \
-            --bridge "$work/v7-harness/invoke-bridge" \
-            --qemu "$work/v7-harness/qemu/usr/bin/qemu-arm-static" \
-            --android-root "$work/v7-harness/android/root"
-
-          # The verified v7 runtime is no longer needed by the arm64 test.
-          du -sh "$work/v7-harness"
-          rm -rf "$work/v7-harness"
-          df -h .
-
-          python3 scripts/recovery/prepare-native-converter-harness.py \
-            --abi arm64-v8a \
-            --workdir "$work/arm64-harness" \
-            --jni "$work/published-arm64-libgojni.so"
-
-          python3 tests/test-current-native-share-chain.py \
-            --abi arm64-v8a \
-            --workdir "$work/test" \
-            --jni "$work/published-arm64-libgojni.so" \
-            --bridge "$work/arm64-harness/invoke-bridge" \
-            --qemu "$work/arm64-harness/qemu/usr/bin/qemu-aarch64-static" \
-            --android-root "$work/arm64-harness/android/root"
-
-          du -sh "$work/arm64-harness"
-          rm -rf "$work/arm64-harness"
-          df -h .
+      - name: Record existing frozen native parity evidence
+        run: echo 'Unchanged production blobs and golden native pins; prior AC 45412392420 covers native regression.'
 
       - name: Libass 前清理已验证的 Xray 临时文件
         shell: bash
@@ -328,7 +297,7 @@ jobs:
             python3 scripts/build/check-final-apk-manifest.py \
               --apkanalyzer "$apkanalyzer" \
               --apk "$apk"
-            python3 scripts/build/check-release-signing.py --sdk "$sdk_root" --apk "$apk"
+            python3 scripts/public-validation/verify.py test-apk "$apk"
           done
       - name: 记录构建输入与输出
         if: success()
@@ -343,53 +312,10 @@ jobs:
             find app/build/outputs/apk/leanback -type f -name '*.apk' -print0 | sort -z | xargs -0 sha256sum
           } | tee build/work/current-main/BUILD_RESULT.txt
 
-      - name: 上传当前源码构建的 APK
-        if: success()
-        uses: actions/upload-artifact@v7
-        with:
-          name: fingmi-xray-current-main-release
-          path: |
-            app/build/outputs/apk/leanback/release/**/*.apk
-            build/work/current-main/BUILD_RESULT.txt
-            build/reports/problems/problems-report.html
-          if-no-files-found: error
-          retention-days: 2
-          compression-level: 0
-
-      - name: 清理过期的同名构建产物
-        if: success()
+      - name: Clean test key and local APK outputs
+        if: always()
         shell: bash
-        env:
-          GH_TOKEN: ${{ github.token }}
         run: |
-          set -euo pipefail
-          mapfile -t stale_ids < <(
-            gh api "repos/${GITHUB_REPOSITORY}/actions/artifacts?per_page=100"               --jq '.artifacts
-                    | map(select(.name == "fingmi-xray-current-main-release"))
-                    | sort_by(.id)
-                    | reverse
-                    | .[1:][]
-                    | .id'
-          )
-          for id in "${stale_ids[@]}"; do
-            gh api --method DELETE "repos/${GITHUB_REPOSITORY}/actions/artifacts/$id"
-            echo "DELETE superseded release artifact $id"
-          done
-
-      - name: 失败时上传构建报告
-        if: failure()
-        uses: actions/upload-artifact@v7
-        with:
-          name: fingmi-xray-build-failure-reports
-          path: |
-            app/build/reports/
-            **/build/reports/
-            build/work/current-main/extractor/target/surefire-reports/
-            build/work/current-main/libass-native-input.json
-            build/work/current-main/media3-linkage.json
-            build/work/current-main/player-startup/target/surefire-reports/
-            build/work/current-main/artwork-lifecycle/target/surefire-reports/
-            build/work/current-main/artwork-lifecycle/input-sha256.json
-            catvod/build/test-results/
-          if-no-files-found: ignore
-          retention-days: 1
+          rm -f "$RUNNER_TEMP/fingmi-public-test.jks"
+          rm -rf app/build/outputs/apk build/work/current-main
+          echo 'TEST ONLY; no Release, no tag, no uploaded artifacts.'

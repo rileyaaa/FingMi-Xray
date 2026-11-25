@@ -1,3 +1,4 @@
+# Original formal workflow preserved but disabled on this branch.
 name: "02｜正式 APK 构建与发布"
 
 on:
@@ -21,11 +22,12 @@ concurrency:
   cancel-in-progress: false
 
 permissions:
-  contents: write
+  contents: read
   actions: read
 
 jobs:
   build:
+    if: ${{ false }} # Public validation only: production publication disabled
     name: "编译、签名、验证和正式发布"
     runs-on: ubuntu-latest
     timeout-minutes: 110
