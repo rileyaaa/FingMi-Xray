@@ -1,0 +1,179 @@
+name: "Frozen 563001 verified release staging ONLY (no cutover)"
+on:
+  push:
+    branches: [dev/fongmi-upstream-adaptation]
+    paths: [.github/workflows/92c-frozen-563001-stage-once.yml]
+permissions:
+  contents: write
+  actions: read
+concurrency:
+  group: fingmi-formal-release
+  cancel-in-progress: false
+jobs:
+  stage:
+    if: >-
+      github.repository == 'rileyaaa/FingMi-Xray' && github.ref == 'refs/heads/dev/fongmi-upstream-adaptation' && github.event.head_commit.message == 'ci: stage exact verified 563001 release assets without cutover'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: "Stage only the verified APKs; retain the old release and tag"
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          umask 077
+          python3 - <<'PY'
+          import hashlib, json, os, re, shutil, subprocess, tempfile
+          from pathlib import Path
+          from zipfile import ZipFile
+          
+          REPO = 'rileyaaa/FingMi-Xray'
+          TAG = 'v5.6.3-xray.1'
+          STAGE = 'stage-v5.6.3-xray.1-45598129403'
+          SOURCE = 'cdad29923f78e7a389af6d6f40df6d49db848fe5'
+          TREE = '33194d0827a1f4f2cccb79524de2dceb7b2718c4'
+          OLD_SOURCE = '4bea3a54ece68fbb439374e7d7944ec94fe28683'
+          PIN = '6fb9e81cb24e84802475d74c3d46b92bfd4ea7da2b8cbdfa96003baba52225ac'
+          ARTIFACT = 15013319374
+          ZIP_SHA = '896c09a666889afaae6d39a96efe1515ad14d055a43ea357d016b7876fc1e431'
+          OLD_ID = 423776816
+          GOLD_ID = 378882577
+          ABIS = ('arm64-v8a', 'armeabi-v7a')
+          NEW = {
+              'arm64-v8a': (133414902,'f0947628bd6bfae449816d44f0a1b5d734f4c4ca5e24e73155c73b20ff97b6ab'),
+              'armeabi-v7a': (117932334,'ab63d36fdbebc351c921e1cce98921addd7468d8bddf5fc8204bec2428f0d6f0'),
+          }
+          OLD = {
+              'arm64-v8a': (676638524,133283631,'004cd5e003a644a7e421a859cd7a7187e98e729bea94af157127dd3d20609bd5'),
+              'armeabi-v7a': (676638525,117801063,'64fdc38928f96185e924444e9c4ca33c582021e732df4b7e041daa4321615424'),
+          }
+          def require(ok, reason):
+              if not ok:
+                  raise RuntimeError(reason)
+          def name(abi):
+              return 'FongMi-Xray-TV-'+TAG+'-'+abi+'.apk'
+          def digest(path):
+              h=hashlib.sha256()
+              with path.open('rb') as f:
+                  for block in iter(lambda:f.read(1024*1024),b''):
+                      h.update(block)
+              return h.hexdigest()
+          def check_file(path, size, sha):
+              require(path.stat().st_size==size and digest(path)==sha,'Byte verification failed: '+path.name)
+          def api(path, method='GET', data=None, optional=False):
+              cmd=['gh','api','repos/'+REPO+'/'+path,'--method',method]
+              body=None
+              if data is not None:
+                  cmd+=['--input','-']
+                  body=json.dumps(data).encode()
+              r=subprocess.run(cmd,input=body,stdout=subprocess.PIPE,stderr=subprocess.PIPE,check=False,timeout=90)
+              if r.returncode:
+                  status=re.search(rb'HTTP ([0-9]{3})',r.stderr)
+                  code=status.group(1).decode() if status else 'unknown'
+                  if optional and code=='404': return None
+                  raise RuntimeError('GitHub '+method+' '+path+' failed: HTTP '+code)
+              return json.loads(r.stdout)
+          def download(path, dest, asset=False):
+              cmd=['gh','api','repos/'+REPO+'/'+path,'--method','GET']
+              if asset: cmd+=['-H','Accept: application/octet-stream']
+              with dest.open('wb') as f:
+                  r=subprocess.run(cmd,stdout=f,stderr=subprocess.PIPE,check=False,timeout=300)
+              require(r.returncode==0,'Download failed: '+path)
+          def ref(tag):
+              r=api('git/ref/tags/'+tag,optional=True)
+              if r is None: return None
+              require(r['object']['type']=='commit','Unexpected non-commit tag: '+tag)
+              return r['object']['sha']
+          def fingerprint(release):
+              return (release['id'],release['tag_name'],release['target_commitish'],release['draft'],release['prerelease'],release.get('immutable'),release.get('name'),release.get('body'),sorted((a['id'],a['name'],a['size'],a.get('digest'),a['state']) for a in release['assets']))
+          def check_old():
+              old=api('releases/'+str(OLD_ID))
+              require(old['tag_name']==TAG and not old['draft'] and not old['prerelease'] and not old.get('immutable') and ref(TAG)==OLD_SOURCE,'Old formal publication or source changed')
+              require(old['target_commitish']==OLD_SOURCE,'Old release target changed')
+              rows={a['name']:a for a in old['assets']}
+              require(len(old['assets'])==2 and set(rows)=={name(a) for a in ABIS},'Old asset set changed')
+              for abi,(aid,size,sha) in OLD.items():
+                  a=rows[name(abi)]
+                  require((a['id'],a['size'],a.get('digest'),a['state'])==(aid,size,'sha256:'+sha,'uploaded'),'Old asset identity changed')
+              require(api('releases/latest')['id']==OLD_ID,'Old formal release is not Latest')
+              return old
+          def main():
+              require(os.environ.get('GITHUB_REPOSITORY')==REPO and os.environ.get('GITHUB_REF')=='refs/heads/dev/fongmi-upstream-adaptation','Unexpected repo or ref')
+              require('ANDROID_RELEASE_SIGNING_BUNDLE' not in os.environ,'Staging must not receive the signing bundle')
+              require(api('git/commits/'+SOURCE)['tree']['sha']==TREE,'Exact source tree unavailable')
+              for run,commit in ((45594863690,'9c080591ceaf907761f0df585a7c87e548056147'),(45598129403,'24477be83cb6b808a3609a5f44a14991d1591431')):
+                  r=api('actions/runs/'+str(run))
+                  require(r['status']=='completed' and r['conclusion']=='success' and r['head_sha']==commit,'Required accepted run unavailable')
+              before=check_old()
+              gold=api('releases/'+str(GOLD_ID))
+              require(gold['tag_name']=='v5.6.0-xray.5' and not gold['draft'],'Golden release unavailable')
+              rows=api('releases?per_page=100')
+              require(len(rows)<100 and {r['id'] for r in rows}=={OLD_ID,GOLD_ID},'Unexpected release/draft; stop before writing')
+              require(ref(STAGE) is None,'Stage ref already exists; inspect it instead of retrying')
+              with tempfile.TemporaryDirectory(prefix='fingmi-stage-',dir=os.environ['RUNNER_TEMP']) as td:
+                  work=Path(td)
+                  zpath=work/'signed.zip'
+                  download('actions/artifacts/'+str(ARTIFACT)+'/zip',zpath)
+                  check_file(zpath,126894595,ZIP_SHA)
+                  candidate=work/'candidate'
+                  candidate.mkdir()
+                  with ZipFile(zpath) as z:
+                      expected_names={'SIGNING_RESULT.json',*(name(a) for a in ABIS)}
+                      require(len(z.namelist())==3 and set(z.namelist())==expected_names,'Unexpected signed artifact entries')
+                      report=json.loads(z.read('SIGNING_RESULT.json'))
+                      expected={'source':SOURCE,'tree':TREE,'certificate_sha256':PIN,'package':'com.fongmi.android.tv','version':TAG,'versionCode':563001,'signing_run':45598129403,'signing_workflow_commit':'24477be83cb6b808a3609a5f44a14991d1591431','unsigned_run':45594863690,'unsigned_artifact':15014380363,'unsigned_artifact_sha256':'323b2c9b11e36f14ed4e3fb7703d3d0022a0d7c9fee1d2fcbd4e760fadede1b9'}
+                      require(all(report.get(k)==v for k,v in expected.items()),'Signing evidence mismatch')
+                      require(set(report['apks'])==set(ABIS),'Signing ABI set mismatch')
+                      for abi,(size,sha) in NEW.items():
+                          require(report['apks'][abi]=={'name':name(abi),'size':size,'sha256':sha},'Signing asset evidence mismatch')
+                          p=candidate/name(abi)
+                          with z.open(name(abi)) as src,p.open('wb') as dst:
+                              shutil.copyfileobj(src,dst)
+                          check_file(p,size,sha)
+                  for abi,(aid,size,sha) in OLD.items():
+                      p=work/('old-'+abi+'.apk')
+                      download('releases/assets/'+str(aid),p,asset=True)
+                      check_file(p,size,sha)
+                      p.unlink()
+                      print('PASS old retained rollback asset',aid,abi,sha,flush=True)
+                  require(fingerprint(check_old())==fingerprint(before),'Old release changed during readback')
+                  require(fingerprint(api('releases/'+str(GOLD_ID)))==fingerprint(gold),'Golden release changed')
+                  print('PASS accepted signed artifact and original release bytes; old release retained',flush=True)
+                  # Only a new staging tag and draft may be created. Never move/delete
+                  # the formal tag or demote/delete the old release in this workflow.
+                  api('git/refs','POST',{'ref':'refs/tags/'+STAGE,'sha':SOURCE})
+                  require(ref(STAGE)==SOURCE,'Stage source tag readback mismatch')
+                  notes='Staged verified '+TAG+' APKs. NOT YET FORMAL.\nSource: '+SOURCE+'\nSigning run: 45598129403\nSigned artifact: '+str(ARTIFACT)+'\nNew certificate SHA-256: '+PIN+'\nOld-key installations cannot update in place. TV device install not verified.\n'
+                  stage=api('releases','POST',{'tag_name':STAGE,'target_commitish':SOURCE,'name':STAGE,'body':notes,'draft':True,'prerelease':False,'make_latest':'false'})
+                  sid=stage['id']
+                  print('STAGE_DRAFT_ID',sid,'STAGE_TAG',STAGE,flush=True)
+                  require(sid not in {OLD_ID,GOLD_ID} and stage['tag_name']==STAGE and stage['draft'],'Unexpected stage response')
+                  r=subprocess.run(['gh','release','upload',STAGE,'--repo',REPO,*(str(candidate/name(a)) for a in ABIS)],stdout=subprocess.PIPE,stderr=subprocess.PIPE,check=False,timeout=300)
+                  require(r.returncode==0,'Draft upload failed; preserve draft and inspect')
+                  stage=api('releases/'+str(sid))
+                  require(stage['draft'] and not stage['prerelease'] and stage['tag_name']==STAGE and stage['target_commitish']==SOURCE and ref(STAGE)==SOURCE,'Stage state mismatch')
+                  assets={a['name']:a for a in stage['assets']}
+                  require(len(stage['assets'])==2 and set(assets)==expected_names-{'SIGNING_RESULT.json'},'Stage asset set mismatch')
+                  result={}
+                  for abi,(size,sha) in NEW.items():
+                      a=assets[name(abi)]
+                      require((a['size'],a.get('digest'),a['state'])==(size,'sha256:'+sha,'uploaded'),'Stage asset metadata mismatch')
+                      p=work/('readback-'+abi+'.apk')
+                      download('releases/assets/'+str(a['id']),p,asset=True)
+                      check_file(p,size,sha)
+                      result[abi]={'id':a['id'],'name':name(abi),'size':size,'sha256':sha}
+                      print('PASS staged asset independently downloaded',a['id'],abi,sha,flush=True)
+                  require(fingerprint(check_old())==fingerprint(before),'Old formal release changed')
+                  require(fingerprint(api('releases/'+str(GOLD_ID)))==fingerprint(gold),'Golden release changed')
+                  report={'result':'STAGED AND BYTE-VERIFIED; NO CUTOVER','stage_release_id':sid,'stage_tag':STAGE,'source':SOURCE,'tree':TREE,'certificate_sha256':PIN,'signing_run':45598129403,'artifact_id':ARTIFACT,'artifact_sha256':ZIP_SHA,'assets':result,'old_release_id':OLD_ID,'old_source':OLD_SOURCE,'old_assets_readback':True,'old_release_unchanged':True,'golden_unchanged':True}
+                  print(json.dumps(report,sort_keys=True),flush=True)
+                  with open(os.environ['GITHUB_STEP_SUMMARY'],'a',encoding='utf-8') as f:
+                      f.write('## Verified draft staging; old formal release retained\n\n    '+json.dumps(report,sort_keys=True)+'\n')
+          try:
+              main()
+          except RuntimeError as e:
+              raise SystemExit('STOP: '+str(e)) from None
+          except Exception:
+              raise SystemExit('STOP: unexpected staging error; inspect stage and retain old release') from None
+          PY
