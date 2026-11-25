@@ -1,0 +1,88 @@
+name: "5.9.0 transport contracts and additional public Media3 (no APK)"
+on:
+  push:
+    branches: [dev/fongmi-upstream-adaptation]
+    paths: ['.github/workflows/93-upstream-590-transport-media-batch.yml']
+permissions:
+  contents: read
+concurrency:
+  group: fingmi-upstream-590-transport-media
+  cancel-in-progress: false
+jobs:
+  transport:
+    if: github.repository == 'rileyaaa/FingMi-Xray' && github.ref == 'refs/heads/dev/fongmi-upstream-adaptation' && github.event.head_commit.message == 'ci: verify 5.9 transport and additional public Media3 once'
+    name: Reviewed 5.9 Live and transport contracts and Android catvod
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          path: fork
+          fetch-depth: 1
+          persist-credentials: false
+      - uses: actions/checkout@v7
+        with:
+          repository: FongMi/TV
+          ref: c616c0aa3613e87529791587a9f71b78c278c991
+          path: inputs/old-tv
+          fetch-depth: 1
+          persist-credentials: false
+      - uses: actions/checkout@v7
+        with:
+          repository: FongMi/TV
+          ref: d3a0b84b24cf6628d72a4dbc2be453875b005536
+          path: inputs/tv
+          fetch-depth: 1
+          persist-credentials: false
+      - uses: actions/setup-java@v6
+        with:
+          distribution: jetbrains
+          java-version: '21'
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.10'
+      - name: Prepare public Android SDK
+        shell: bash
+        run: |
+          set -euo pipefail
+          test ! -e fork/signing
+          sdkmanager="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
+          yes | "$sdkmanager" --licenses >/dev/null 2>&1 || true
+          "$sdkmanager" --channel=3 --install 'platforms;android-37.0' 'build-tools;37.0.0'
+      - name: Verify actual staged source and isolated Android catvod
+        run: python3 fork/scripts/upstream-adaptation/verify_transport_batch.py --old-tv inputs/old-tv --tv inputs/tv --android
+  media:
+    if: github.repository == 'rileyaaa/FingMi-Xray' && github.ref == 'refs/heads/dev/fongmi-upstream-adaptation' && github.event.head_commit.message == 'ci: verify 5.9 transport and additional public Media3 once'
+    name: Rebuild ten additional public Media3 Java modules
+    runs-on: ubuntu-latest
+    timeout-minutes: 50
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          path: fork
+          fetch-depth: 1
+          persist-credentials: false
+      - uses: actions/checkout@v7
+        with:
+          repository: FongMi/media
+          ref: 3c2cbe8ac742c2fe15eff52f03eeb3b1b648848d
+          path: inputs/media
+          fetch-depth: 1
+          persist-credentials: false
+      - uses: actions/setup-java@v6
+        with:
+          distribution: jetbrains
+          java-version: '21'
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.10'
+      - name: Prepare exact public Media3 SDK
+        shell: bash
+        run: |
+          set -euo pipefail
+          test ! -e fork/signing
+          sdkmanager="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
+          yes | "$sdkmanager" --licenses >/dev/null 2>&1 || true
+          "$sdkmanager" --install 'platforms;android-36' 'build-tools;36.0.0'
+      - name: Build and verify independent staged AAR set
+        run: python3 fork/scripts/upstream-adaptation/rebuild_public_media.py inputs/media --group additional --stage-dir outputs/public-media-additional
