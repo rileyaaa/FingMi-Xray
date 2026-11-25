@@ -375,7 +375,8 @@
       "old": "7010b21159ff26410eb6c738a4e19826cd9364c5",
       "fork": "1686d9df87b16e8ec23e3e2618683fec3a481a3c",
       "target": "f7cb9dbbcaefafd41b4a2f23767d46d8fe6c9863",
-      "strategy": "three-way"
+      "strategy": "reviewed-media-host",
+      "resolved": "6d7d4ef2082e04dfc1b7b3e1719792a14d62e3fa"
     },
     {
       "path": "app/src/main/java/com/fongmi/android/tv/player/engine/PlayerEngineFactory.java",
@@ -435,7 +436,8 @@
       "old": "0a3aba93823379bf7f23fc2999c91e24f1501fc1",
       "fork": "a4b9d8f242a4ed3a993542fd699e69604a644f9d",
       "target": "3a8504dabe6f2906f431a43ca7c19bfa22387723",
-      "strategy": "three-way"
+      "strategy": "reviewed-media-host",
+      "resolved": "f996af637298e95ef4dc19b36a392b1e0aa71a61"
     },
     {
       "path": "app/src/main/java/com/fongmi/android/tv/ui/activity/PlaybackActivity.java",
@@ -790,6 +792,14 @@
       "target": "c01a7f3aa9df9d6f1063454c96ed901a910caba1",
       "strategy": "reviewed-media-host",
       "resolved": "0ef776e8eda553b40fbc6eccff9df84dd99620aa"
+    },
+    {
+      "path": "app/src/main/java/com/fongmi/android/tv/player/TimeshiftPlayback.java",
+      "old": null,
+      "fork": null,
+      "target": "23d6cd38b096b7682cff22921e1f7d7985e9fa7d",
+      "strategy": "reviewed-media-host",
+      "resolved": "d027dbda1472058c732753cfeb6c5e3c6f53b0a8"
     }
   ],
   "shared_media_source": [

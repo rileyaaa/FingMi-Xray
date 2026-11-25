@@ -1119,6 +1119,12 @@ transport job 139144342781：候选实际输出 65 项移植/干净合并，33 �
 
 第二组完整 staging 与来源清单生成成功，累计 14 个公开 Media3 AAR 有实际构建证据。每个新增摘要是首次构建记录，不声称已经二次重建字节一致；后续按锁校验。未上传 AAR、未覆盖 app/libs、未补足定制媒体/JNI/native 全部合同、无 5.9 APK 或双 ABI 运行验收。0ccae97 的 Download/SubtitleApi 是该 run 启动后新增候选，侧请求回归尚未执行，本次只接入下一批 transport 验收入口，不将先前结果归给它。保持现有定制 Core 与旧导入合同。已结束的本批一次性 workflow 93 删除，其他会话的发版文件、签名、main 及历史 run 不动。
 
+### 12.13 5.9.0 PlayerManager、Timeshift 与 PlaybackService 宿主接线
+
+固定公开 5.9.0 PlayerManager f7cb9dbb -> 6d7d4ef2、TimeshiftPlayback 23d6cd38 -> d027dbda、PlaybackService 3a8504da -> f996af63。逐锚点移植，不修改当前 5.6.3 app 文件。Xray engine 以资源对象身份匹配；MPV DRM fallback 只在无代理时走上游直连分支；保留新版 ISO edition/字幕偏移/音量/速度/回看及 MediaSession SessionPlayer 结构。切换时先取消旧 side requests、回看解析、预加载和 timeout，退役旧 engine；ERROR 记录当前 PlaySpec/快照而不直连重启，后续 START 可恢复。通过宿主 transition + PlaySpec 身份检查拒绝同步回调期间已换代的旧操作。新媒体 start/parse 清除旧恢复快照，但不无条件清除已获授权的 pending Live proxy。
+
+5.9.0 新增 TimeshiftPlayback 原构造长期捕获 OkHttp.client()，普通 API 待机恢复后会持有已退役 client；改为每次请求按当前播放 owner 选择 client，Xray error 挂起时拒绝回看解析，切换取消旧 pending Future/Call，不清除原有回看时间轴。PlaybackService 保留新版 browse、进度和 SessionPlayer 逻辑，只补 side request/封面取消、URL 通知和旧代理 owner 在远程 browse 新媒体准备前退役；普通 browse 不改变原顺序。保留新版 public 播放器行为，不冒称定制媒体内部取流和 Activity/真实设备已验；当前先待本批独立测试。
+
 ## 13. 冻结 5.6.3-xray.2 无正式密钥构建与离线签名交接
 
 本节只适用于用户明确授权的单一开发测试分支 `dev/fongmi-upstream-adaptation`。默认 `main` 固定为 `4a52de1daa465d81df7ac06e886a1f184053253c`，仓库实际为 public；正式版本基线、两项业务维护边界及历史黄金证据不变。5.9.0 适配和候选 Core 均未通过完整兼容门禁，不得将其输入用于本次冻结版。三条线的固定 Git 归档引用分别为 `archive/frozen-public-validation-97a23d8`、`archive/fongmi-upstream-adaptation-e3fec17`、`archive/xray-core-stable-eb03202`。归档 tag 不是正式 Release。正式签名及发布必须独立验收。

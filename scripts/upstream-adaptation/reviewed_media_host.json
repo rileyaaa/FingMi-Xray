@@ -222,5 +222,154 @@
         "    private record SubtitleDownloadCallback(\n            Download task,\n            int requestId,\n            SubtitleSearchItem item,\n            Consumer<List<SubtitleSearchItem>> success,\n            Consumer<Exception> error) implements Download.Callback {\n\n        @Override\n        public void error(String msg) {\n            if (!finishDownload(task)) return;\n            postResult(\n                    requestId,\n                    () -> error.accept(new IOException(msg)));\n        }\n\n        @Override\n        public void success(File file) {\n            if (!finishDownload(task)) return;\n            if (item.isZip()) Task.execute(() -> unzip(requestId, item, file, success));\n            else completeDownload(requestId, item, file, success);\n        }\n    }\n\n    @FunctionalInterface\n    private interface Parser<T> {\n        T parse(Response response) throws Exception;\n    }\n"
       ]
     ]
+  },
+  "app/src/main/java/com/fongmi/android/tv/player/PlayerManager.java": {
+    "from": "target",
+    "base": "f7cb9dbbcaefafd41b4a2f23767d46d8fe6c9863",
+    "resolved": "6d7d4ef2082e04dfc1b7b3e1719792a14d62e3fa",
+    "edits": [
+      [
+        "import com.fongmi.android.tv.App;",
+        "import com.fingmi.xray.network.XrayHttpClient;\nimport com.fongmi.android.tv.App;"
+      ],
+      [
+        "import java.util.UUID;",
+        "import java.util.UUID;\n\nimport okhttp3.OkHttpClient;"
+      ],
+      [
+        "    private PlaySpec spec;",
+        "    private PlaySpec spec;\n    private XrayHttpClient playbackProxy;\n    private XrayRestore xrayRestore;\n    private long xrayTransition;"
+      ],
+      [
+        "    public void release() {\n        timeshift.clear();",
+        "    public synchronized void release() {\n        ++xrayTransition;\n        if (hasXraySession()) callback.onXrayTransitionStarted();\n        playbackProxy = null;\n        xrayRestore = null;\n        timeshift.clear();"
+      ],
+      [
+        "return PreloadSetting.shouldPreloadNextEpisode() && engine != null",
+        "return !hasXraySession() && !isXrayPlaybackSuspended() && PreloadSetting.shouldPreloadNextEpisode() && engine != null"
+      ],
+      [
+        "if (isEmpty() || PlayerEngineFactory.matches(engine, spec)) return;",
+        "if (isEmpty() || isXrayPlaybackSuspended() || PlayerEngineFactory.matches(engine, spec, playbackProxy)) return;"
+      ],
+      [
+        "    private void changeDecoder(Runnable change) {\n        boolean recover = player.getPlayerError() != null;",
+        "    private void changeDecoder(Runnable change) {\n        boolean recover = !isXrayPlaybackSuspended() && player.getPlayerError() != null;"
+      ],
+      [
+        "    public void clear() {\n        spec = null;",
+        "    public void clear() {\n        ++xrayTransition;\n        xrayRestore = null;\n        spec = null;"
+      ],
+      [
+        "    private void ensureEngine(PlaySpec spec) {\n        if (mpvDrmExoFallback) {",
+        "    private void ensureEngine(PlaySpec spec) {\n        if (playbackProxy != null) {\n            if (!PlayerEngineFactory.matches(engine, spec, playbackProxy))\n                replaceEngine(PlayerEngineFactory.create(spec, playbackProxy, listener));\n            return;\n        }\n        if (mpvDrmExoFallback) {"
+      ],
+      [
+        "if (engine.getType() != PlayerEngine.Type.EXO || engine.needsRebuild()) replaceEngine(PlayerEngineFactory.create(PlayerEngine.Type.EXO, listener));",
+        "if (engine.getType() != PlayerEngine.Type.EXO || engine.needsRebuild() || engineHasProxy()) replaceEngine(PlayerEngineFactory.create(PlayerEngine.Type.EXO, listener));"
+      ],
+      [
+        "        if (PlayerEngineFactory.matches(engine, spec)) return;\n        replaceEngine(PlayerEngineFactory.create(spec, listener));",
+        "        if (PlayerEngineFactory.matches(engine, spec, null)) return;\n        replaceEngine(PlayerEngineFactory.create(spec, listener));"
+      ],
+      [
+        "        setPlayer(engine.getPlayer());\n        old.release();",
+        "        try {\n            setPlayer(engine.getPlayer());\n        } finally {\n            old.release();\n        }"
+      ],
+      [
+        "    public boolean browse(Result result, String key, MediaMetadata metadata, long startPositionMs) {",
+        "    private boolean engineHasProxy() {\n        return engine instanceof ExoPlayerEngine exo && exo.proxy() != null;\n    }\n\n    private void reconcileProxyEngine() {\n        if (!isEmpty()) ensureEngine(spec.checkUa());\n        else if (engineHasProxy() && ((ExoPlayerEngine) engine).proxy() != playbackProxy)\n            replaceEngine(PlayerEngineFactory.create(listener));\n    }\n\n    private XrayRestore captureXrayRestore() {\n        if (spec == null || player == null) return null;\n        if (isEmpty()) return new XrayRestore(spec, null, pendingStartPositionMs, C.TIME_UNSET, false, engine.getType());\n        boolean replaying = timeshift.isReplaying();\n        boolean live = player.isCurrentMediaItemLive() && player.isCurrentMediaItemDynamic() && !replaying;\n        return new XrayRestore(spec, PlaybackSnapshot.capture(this), C.TIME_UNSET,\n                replaying ? player.getCurrentPosition() : C.TIME_UNSET, live, engine.getType());\n    }\n\n    private boolean ownsXrayTransition(long transition, PlaySpec expected) {\n        return !isReleased() && xrayTransition == transition && spec == expected;\n    }\n\n    /** Install a session transport; only an explicit preserve request can restart its media. */\n    public synchronized void setPlaybackProxy(XrayHttpClient next, boolean preservePlayback) {\n        if (isReleased() || playbackProxy == next && (next != null || !hasXraySession())) return;\n        PlaySpec expected = spec;\n        XrayRestore saved = xrayRestore;\n        XrayRestore resume = preservePlayback\n                ? next != null && saved != null && saved.spec() == spec ? saved : captureXrayRestore()\n                : null;\n        long transition = ++xrayTransition;\n        if (next != null || hasXraySession()) callback.onXrayTransitionStarted();\n        if (!ownsXrayTransition(transition, expected)) return;\n        timeshift.cancelForPlaybackTransition();\n        App.removeCallbacks(runnable);\n        xrayRestore = null;\n        playbackProxy = next;\n        clearPreload();\n        if (!ownsXrayTransition(transition, expected)) return;\n        if (resume != null && resume.snapshot() != null) spec.setIsoEditionIndex(resume.snapshot().selectedIsoEditionIndex());\n        reconcileProxyEngine();\n        if (!ownsXrayTransition(transition, expected) || resume == null || isEmpty()) return;\n        PlaybackSnapshot snapshot = resume.snapshot();\n        if (snapshot == null) {\n            setMediaItem(Constant.TIMEOUT_PLAY, resume.pendingPositionMs(), true);\n        } else {\n            boolean typeChanged = resume.engineType() != engine.getType();\n            long position = resume.dynamicLive() && typeChanged ? C.TIME_UNSET : snapshot.positionMs();\n            restartMedia(typeChanged, position, resume.timeshiftMediaPositionMs());\n            if (ownsXrayTransition(transition, expected)) snapshot.restorePlayerState(this);\n        }\n    }\n\n    /** ERROR retires the old engine but never starts the saved media directly. */\n    public synchronized void clearPlaybackProxyPreservingState() {\n        if (isReleased() || !hasXraySession()) return;\n        PlaySpec expected = spec;\n        XrayRestore saved = captureXrayRestore();\n        long transition = ++xrayTransition;\n        callback.onXrayTransitionStarted();\n        if (!ownsXrayTransition(transition, expected)) return;\n        timeshift.cancelForPlaybackTransition();\n        App.removeCallbacks(runnable);\n        xrayRestore = saved;\n        playbackProxy = null;\n        clearPreload();\n        if (ownsXrayTransition(transition, expected)) reconcileProxyEngine();\n    }\n\n    public synchronized boolean hasXraySession() {\n        return playbackProxy != null || engineHasProxy();\n    }\n\n    public synchronized boolean isXrayPlaybackSuspended() {\n        return xrayRestore != null;\n    }\n\n    public synchronized OkHttpClient getPlaybackHttpClient(OkHttpClient fallback) {\n        if (engine instanceof ExoPlayerEngine exo && exo.proxy() != null) return exo.proxy().client();\n        return playbackProxy == null ? fallback : playbackProxy.client();\n    }\n\n    public boolean browse(Result result, String key, MediaMetadata metadata, long startPositionMs) {"
+      ],
+      [
+        "        spec = PlaySpec.from(result, key, metadata);\n        boolean needsParse",
+        "        spec = PlaySpec.from(result, key, metadata);\n        browseItemReady = false;\n        boolean needsParse"
+      ],
+      [
+        "    public void prepareBrowse() {\n        Result result",
+        "    public void prepareBrowse() {\n        if (isXrayPlaybackSuspended()) return;\n        Result result"
+      ],
+      [
+        "    public void start(PlaySpec spec, long timeout, long startPositionMs) {\n        stopParse();",
+        "    public void start(PlaySpec spec, long timeout, long startPositionMs) {\n        ++xrayTransition;\n        xrayRestore = null;\n        stopParse();"
+      ],
+      [
+        "    public void parse(PlaySpec spec, Result result, boolean useParse, long startPositionMs) {\n        stopParse();",
+        "    public void parse(PlaySpec spec, Result result, boolean useParse, long startPositionMs) {\n        ++xrayTransition;\n        xrayRestore = null;\n        stopParse();"
+      ],
+      [
+        "    private void setMediaItem(long timeout, long startPositionMs, boolean newMedia) {\n        if (spec == null || spec.getUrl() == null) return;",
+        "    private void setMediaItem(long timeout, long startPositionMs, boolean newMedia) {\n        if (isXrayPlaybackSuspended() || spec == null || spec.getUrl() == null) return;"
+      ],
+      [
+        "    private void startMediaItem(long timeout, long startPositionMs, boolean newMedia, boolean prepare) {\n        endSpeedPress();",
+        "    private void startMediaItem(long timeout, long startPositionMs, boolean newMedia, boolean prepare) {\n        if (isXrayPlaybackSuspended() || isReleased()) return;\n        PlaySpec expected = spec;\n        long transition = xrayTransition;\n        callback.onPlaybackUrlChanged(spec.getUrl());\n        if (!ownsXrayTransition(transition, expected) || isXrayPlaybackSuspended()) return;\n        endSpeedPress();"
+      ],
+      [
+        "        ensureEngine(spec.checkUa());\n        if (newMedia) timeshift.start(spec);",
+        "        ensureEngine(spec.checkUa());\n        if (!ownsXrayTransition(transition, expected)) return;\n        if (newMedia) timeshift.start(spec);"
+      ],
+      [
+        "    private record PendingPreload(PlaySpec spec, long startPositionMs, Object tag) {",
+        "    private record XrayRestore(PlaySpec spec, PlaybackSnapshot snapshot, long pendingPositionMs,\n                               long timeshiftMediaPositionMs, boolean dynamicLive, PlayerEngine.Type engineType) { }\n\n    private record PendingPreload(PlaySpec spec, long startPositionMs, Object tag) {"
+      ],
+      [
+        "        void onPlayerRebuild(Player newPlayer);\n",
+        "        void onPlayerRebuild(Player newPlayer);\n\n        default void onPlaybackUrlChanged(String url) { }\n\n        default void onXrayTransitionStarted() { }\n"
+      ]
+    ]
+  },
+  "app/src/main/java/com/fongmi/android/tv/player/TimeshiftPlayback.java": {
+    "from": "target",
+    "base": "23d6cd38b096b7682cff22921e1f7d7985e9fa7d",
+    "resolved": "d027dbda1472058c732753cfeb6c5e3c6f53b0a8",
+    "edits": [
+      [
+        "        this(owner, OkHttp.client(), Clock.DEFAULT);",
+        "        this(owner, request -> owner.getPlaybackHttpClient(OkHttp.client()).newCall(request), Clock.DEFAULT);"
+      ],
+      [
+        "    private void cancel() {",
+        "    void cancelForPlaybackTransition() { cancel(); }\n\n    private void cancel() {"
+      ],
+      [
+        "    public ListenableFuture<?> seekTo(long position) {\n        cancel();",
+        "    public ListenableFuture<?> seekTo(long position) {\n        if (owner.isXrayPlaybackSuspended()) return com.google.common.util.concurrent.Futures.immediateFailedFuture(new IOException(\"Playback transport unavailable\"));\n        cancel();"
+      ]
+    ]
+  },
+  "app/src/main/java/com/fongmi/android/tv/service/PlaybackService.java": {
+    "from": "target",
+    "base": "3a8504dabe6f2906f431a43ca7c19bfa22387723",
+    "resolved": "f996af637298e95ef4dc19b36a392b1e0aa71a61",
+    "edits": [
+      [
+        "import com.fongmi.android.tv.player.media.ArtworkBitmapLoader;",
+        "import com.fingmi.integration.xray.XrayArtworkBitmapLoader;\nimport com.fongmi.android.tv.api.DanmakuApi;\nimport com.fongmi.android.tv.api.SubtitleApi;\nimport com.fongmi.android.tv.player.media.ArtworkBitmapLoader;"
+      ],
+      [
+        "    private PlayerManager player;",
+        "    private PlayerManager player;\n    private XrayArtworkBitmapLoader xrayBitmapLoader;"
+      ],
+      [
+        "        session = new MediaLibrarySession.Builder(this, sessionPlayer, this).setBitmapLoader(new ArtworkBitmapLoader(this)).build();",
+        "        xrayBitmapLoader = new XrayArtworkBitmapLoader(player, new ArtworkBitmapLoader(this));\n        session = new MediaLibrarySession.Builder(this, sessionPlayer, this).setBitmapLoader(xrayBitmapLoader).build();"
+      ],
+      [
+        "        running = false;\n        liveMetadata.cancel();\n        cancelNavigation();\n        library.release();",
+        "        running = false;\n        onXrayTransitionStarted();\n        if (xrayBitmapLoader != null) xrayBitmapLoader.close();\n        liveMetadata.cancel();\n        cancelNavigation();\n        library.release();"
+      ],
+      [
+        "            if (!player.browse(result, item.mediaId, item.mediaMetadata, startPositionMs)) return false;\n            if (binding != null) binding.onReplaced().run();",
+        "            // The old Xray owner must retire before the new browse media is prepared.\n            boolean retireProxy = player.hasXraySession() || player.isXrayPlaybackSuspended();\n            if (retireProxy) {\n                ActivityBinding previous = binding;\n                if (previous != null) previous.onReplaced().run();\n                if (binding != previous) return false;\n                player.setPlaybackProxy(null, false);\n            }\n            if (!player.browse(result, item.mediaId, item.mediaMetadata, startPositionMs)) return false;\n            if (!retireProxy && binding != null) binding.onReplaced().run();"
+      ],
+      [
+        "    @Override\n    public void onPlayerRebuild(Player newPlayer) {",
+        "    @Override\n    public void onXrayTransitionStarted() {\n        DanmakuApi.cancelForXrayTransition();\n        SubtitleApi.cancelForXrayTransition();\n        if (xrayBitmapLoader != null) xrayBitmapLoader.cancelRemoteLoads();\n    }\n\n    @Override\n    public void onPlaybackUrlChanged(String url) {\n        playerCallbacks.forEach(callback -> callback.onPlaybackUrlChanged(url));\n    }\n\n    @Override\n    public void onPlayerRebuild(Player newPlayer) {"
+      ],
+      [
+        "        default void onPlayerRebuild(Player player) {\n        }",
+        "        default void onPlaybackUrlChanged(String url) { }\n\n        default void onPlayerRebuild(Player player) {\n        }"
+      ]
+    ]
   }
 }
