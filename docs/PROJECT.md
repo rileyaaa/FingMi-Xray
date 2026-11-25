@@ -214,8 +214,8 @@ Android 安装顺序使用 `versionCode = 公开上游 versionCode × 1000 + for
 
 ## 9. 固定稳定基线与维护原则
 
-- 当前唯一维护分支为 `main`，固定公开 FongMi/TV 5.6.3（`c616c0aa3613e87529791587a9f71b78c278c991`）。
-- 不再维护上游自动/一键升级 workflow、源码适配生成器或新版 Media3 实验构建链。
+- `main` 为冻结的 `v5.6.3-xray.2` 稳定线，固定公开 FongMi/TV 5.6.3（`c616c0aa3613e87529791587a9f71b78c278c991`）；唯一独立开发测试分支为 `dev/fongmi-upstream-adaptation`，冻结限制以 [AI_COLLABORATION.md](AI_COLLABORATION.md#3-冻结-main仅保留一条独立开发线) 为准。
+- `main` 不保留上游自动/一键升级 workflow、源码适配生成器或新版 Media3 实验构建链。上游适配仅在独立 dev 上按公开来源与实际兼容证据推进。
 - 只对 Xray、Android TV 待机网络恢复及已证实影响使用的最小缺陷进行修补，不主动重写普通上游业务。
 - 保留当前可重建的播放器 AAR、Libass/native 兼容、历史黄金 APK 取证和正式签名发布流程；在验证前不替换任何固定依赖。
 - 任何涉及 Xray、Service、播放器或 Home 生命周期的修复，必须执行对应离线回归及必要的双 ABI APK 构建验证；不能以局部 JVM 成功冒充真机验证。

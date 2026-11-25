@@ -19,17 +19,16 @@
 - 向用户报告 Actions 状态前，先刷新仓库最新 runs 列表，再定位目标 run。
 - 之前读取的单个 run、jobs 或日志结果只能代表当时状态，不能直接当成当前状态。
 - 最新 runs 列表确认 run 已完成后，才读取该 run 的 jobs / logs 核对实际成功步骤或失败原因。
-- 所有现存和新增 Actions workflow 只能使用 `workflow_dispatch` 手动触发；不再允许临时 push trigger、marker 文件、定时器或自动串联。**当前仅保留三个手动入口**：APK 构建验证、正式构建与发布、已验证 APK 失败续发。上游升级 Actions 已停用并从 main 删除。具体见 [DEVELOPMENT.md](DEVELOPMENT.md#7-构建)。
+- 冻结 `main` 仅保留三个 `workflow_dispatch` 手动入口：APK 构建验证、正式构建与发布、已验证 APK 失败续发；不保留 push trigger、marker、定时器或自动串联。独立 dev 上仅可按用户明确授权执行有必要的专项验收，已完成的一次性入口及时清理，不得转入 `main`。上游升级 Actions 已从 `main` 删除。具体见 [DEVELOPMENT.md](DEVELOPMENT.md#7-构建)。
 - 如果当前自动化环境既没有 `workflow_dispatch` 调用能力，又明确阻止修改 workflow trigger，则不得通过强制移动 `main`、回退默认分支、复用旧自动 trigger commit 或其他方式绕过平台安全限制。保持仓库 pure manual-only，由用户在 GitHub Actions 页面使用 `Run workflow` 触发；AI 继续完成不依赖该触发动作的审计、文档、存储清理和后续结果核验。
-- GitHub Releases 只发布 APK，长期保留 `v5.6.0-xray.5` 黄金参考和一个当前正式版。**今后不生成、上传或暂存项目源码 ZIP / `source-backup-*` Release**；源码和固定签名继续由私有 Git 仓库管理。
+- GitHub Releases 只发布 APK。当前依用户要求同时保留 `v5.6.0-xray.5` 黄金参考、上一正式版 `v5.6.3-xray.1` 和当前正式版 `v5.6.3-xray.2`；未经新授权不删除、替换或移动这三个版本的 Release/tag，不启用 `prune_superseded`。**今后不生成、上传或暂存项目源码 ZIP / `source-backup-*` Release**。
 
 
-## 3. 正常开发只保留 `main` 一个分支
+## 3. 冻结 `main`，仅保留一条独立开发线
 
-- 仓库正常开发状态只保留默认分支 `main`；普通开发、审计、验证和文档维护都直接在 `main` 上进行。
-- 未经用户明确要求，不得为了普通工作长期创建第二条开发分支，也不得把临时分支留成并行开发线。
-- 如果受平台能力限制确实必须临时创建额外分支，只允许作为短期机制使用；相关工作合回 `main` 后必须立即删除。
-- 交接、发布和工作阶段收尾前检查仓库 branches；正常状态应只剩 `main`。发现已完全并入 `main` 的遗留分支时应优先清理，不得继续搁置。
+- 2026-11-26 用户明确要求：`main` 以已验收正式版 `v5.6.3-xray.2` 为稳定基线，在本次无用文件清理及文档同步后冻结。除非用户明确解除冻结，不修改 `main` 的源码、依赖、签名、构建入口或文档，不合并 dev，不重新触发完整构建或发布，不移动已发布 tag。
+- `dev/fongmi-upstream-adaptation` 为唯一独立开发测试分支；5.9.0 上游适配及候选 Core 的验证只在此分支执行，不将未完成适配并入 `main`。未经用户明确要求不新增、删除或强制移动其他分支。
+- 稳定版的真实 APK 来源由正式 tag 和对应 Actions 记录确定；冻结清理提交不是重新编译过的 APK 来源。后续交接先核对远端分支、tag 与本条冻结规则，不把旧的一分支规则用于删除当前开发线。
 
 ## 4. 会话接近平台时限时立即交接
 
@@ -87,7 +86,7 @@
 ## 7. CI 产物必须区分长期存留与临时使用
 
 - 在创建、上传或保留较大的 APK、AAR、ZIP、构建报告或测试证据前，先判断它是发布产物、可重建输入、不可重建的黄金证据，还是一次性临时产物。
-- GitHub Releases 只保留黄金 APK 与当前正式 APK，不再承载完整项目备份、player AAR、recovery ZIP 或 build input。发布失败所需最小 JSON 报告仍可使用短期 Actions artifact，提取完成后清理。
+- GitHub Releases 保留版本范围以本文件第 2 节为准，只承载正式 APK 和黄金 APK，不再承载完整项目备份、player AAR、recovery ZIP 或 build input。发布失败所需最小 JSON 报告仍可使用短期 Actions artifact，提取完成后清理。
 - 可重建的长期输入应保存固定 source commit、构建脚本、最小 fixture / patch 和校验规则；构建时现场重建并验证。不可重建且确属黄金发布来源的二进制只能从保留的黄金 Release 按固定 digest 取证。
 - 适合 Git 长期保存的证据应是最小、可复核的文本、源码、patch、fixture 与 hash；不要把大型 APK / AAR / SO 直接塞入普通 Git 历史。
 - Actions artifacts 是一次性提取区，不是备份仓库。用户已授权清理本项目全部已完成用途的 Actions 产物；AI 保存必要排错日志、确认重要发布产物已在 Releases 后，应主动删除这些 artifacts，无需每次重新请求确认。缓存同样不作为备份，失效或无用缓存可清理；不能把 runner 本地磁盘、远端 artifact 配额和下载失败混为一谈。

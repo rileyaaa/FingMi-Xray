@@ -320,13 +320,13 @@ on:
 6. 只编译 Android TV / Leanback Java；
 7. 只 assemble Android TV / Leanback 两个 ABI 的 Release APK；
 8. 对最终 APK执行 Media3 DEX 类定义/引用闭合、MPEG-H class/native、Xray/FFmpeg/MPEG-H/Libass runtime PT_LOAD provenance 与 merged Manifest security contract；
-9. 上传短期、固定签名的 TV release artifact（保留 2 天）供临时验证；上传成功后自动删除同名旧 release，只保留最新一份。失败报告只保留 1 天。历史 recovery 工作流入口已移除，底层取证脚本和 fixture 保留在 Git；长期可重建输入只保留源码 commit、脚本、fixture 与 hash，不再占用 Release。Gradle 命令继续使用 `--warning-mode all`；当前剩余会在 Gradle 10 失败的 deprecation 已确认全部来自固定上游同样使用的 Chaquopy Gradle plugin 17.0.0（multi-string dependency notation 与 execution-time `Task.project`），不是本仓库 Gradle 脚本。当前保持 FongMi/TV 5.6.3 的 17.0.0 pin，并让 `com.fongmi.chaquo.Platform` 继续跟随固定上游实现，不在本 fork 中为一般兼容或 warning 主动改写 Python ABI 选择逻辑。
+9. 上传短期、固定签名的 TV release artifact（保留 2 天）供临时验证；上传成功后自动删除同名旧 Actions artifact，只保留最新一份。失败报告只保留 1 天。历史 recovery 工作流入口已移除，底层取证脚本和 fixture 保留在 Git；长期可重建输入只保留源码 commit、脚本、fixture 与 hash，不再占用 Release。Gradle 命令继续使用 `--warning-mode all`；当前剩余会在 Gradle 10 失败的 deprecation 已确认全部来自固定上游同样使用的 Chaquopy Gradle plugin 17.0.0（multi-string dependency notation 与 execution-time `Task.project`），不是本仓库 Gradle 脚本。当前保持 FongMi/TV 5.6.3 的 17.0.0 pin，并让 `com.fongmi.chaquo.Platform` 继续跟随固定上游实现，不在本 fork 中为一般兼容或 warning 主动改写 Python ABI 选择逻辑。
 
 正式发布器（文件名保留以兼容既有手动入口）：
 
 `.github/workflows/02-正式APK构建与发布.yml`
 
-Release 只保留 `v5.6.0-xray.5` 黄金参考和一个当前正式版，均只上传双 ABI APK。按用户最新要求，发布和续发都不再生成、上传或临时创建项目源码 ZIP、`source-backup-*` Release/tag；源码、签名及历史取证材料由私有 Git 仓库管理。
+Release 保留范围按 [AI_COLLABORATION.md](AI_COLLABORATION.md) 执行，均只上传双 ABI APK。目前 `.2` 正式版、上一 `.1` 及黄金版均保留。发布和续发不再生成、上传或临时创建项目源码 ZIP、`source-backup-*` Release/tag。正式发布器保留私有仓库门禁，不因仓库公开而放宽。
 
 `test.7` 构建源码为 `439cea8d7a9d3cdb1a17b4ed962c6d68ed164508`，缺少后续 Hysteria2 备注查询边界修复；正式版替换旧测试发布。构建源码、资产 hash 与当前验收结果记录在对应 GitHub Release，历史 test.7 证据保留在本文维护记录，不能当作正式版的验证。
 
@@ -346,9 +346,9 @@ GitHub 的按 tag 获取已发布 Release 接口不会返回草稿；草稿创�
 
 版本命名、修订号递增、versionCode 公式和覆盖升级约定以 [PROJECT.md](PROJECT.md#版本命名与覆盖升级) 为准；后续 AI 的强制发布要求见 [AI_COLLABORATION.md](AI_COLLABORATION.md#11-ai-开发与发布的版本约束)。本节维护签名恢复、构建配置与产物验证方法。
 
-- 新固定签名为 RSA-4096 / SHA256withRSA，有效期 100 年，自此用于本地与手动 workflow 的正常发布。PKCS12 文件 `signing/fingmi-xray-release.p12`、恢复配置 `signing/release-signing.properties` 和证书 fingerprint 文件按用户授权存入**私有仓库**；配置包含密钥密码，不能输出到日志或复制到公开项目。源码备份也包含它们，应同时保存到用户离线备份。
+- 新固定签名为 RSA-4096 / SHA256withRSA，有效期 100 年，自此用于本地与手动 workflow 的正常发布。固定签名文件、恢复配置及公开证书 fingerprint 按用户授权保留在同仓既有 `signing/` 路径。原设计要求私有仓库；本仓库现已重新公开，既有 Git 历史中的签名材料不能再视为保密。保持本次签名身份不变，不读取、输出、另行复制或分发密钥内容；关闭公开可见性也不能撤销既往暴露。
 - `app/build.gradle` 直接读取此固定配置，Debug 也复用同一签名；缺少文件时构建失败，不回退到临时开发证书。两个 current-main workflow 不再生成签名，正式包使用 Release variant。历史 `recovery-*.yml` 工作流已删除，相关取证脚本与证据仍保留在仓库中，不属于当前正式发布入口。
-- 当前 GitHub 连接无 Actions Secrets 管理权限，因此本轮采用用户授权的私有仓库恢复配置。签名证书 SHA-256：`3cd86f4fdf6044e7e60307624bf0d8c892dfd83b81ce21748504fcbba28763c2`，见 `signing/release-certificate.sha256`；每次发布用 `scripts/build/check-release-signing.py` 核对，不得重新生成或覆盖此 key。
+- 现有构建入口继续使用固定签名配置，不依赖已删除的临时 Actions Secret。签名证书 SHA-256：`3cd86f4fdf6044e7e60307624bf0d8c892dfd83b81ce21748504fcbba28763c2`，见 `signing/release-certificate.sha256`；每次发布用 `scripts/build/check-release-signing.py` 核对，不得重新生成或覆盖此 key。
 - 旧签名遗失，无法用新 key 覆盖黄金版或过去临时签名测试包；首次需备份配置并卸载旧安装。同一包名 `com.fongmi.android.tv`、同签名、递增 versionCode 是后续覆盖升级的必要条件；本轮没有电视安装实测。armeabi-v7a 和 arm64-v8a 使用同一证书和 versionCode，选择设备匹配的 ABI。
 
 本地构建与校验：
@@ -401,7 +401,7 @@ FingMi-Xray 当前**不使用 FongMi/Release 的应用内自更新**。原因是
 - Manifest 不申请 `REQUEST_INSTALL_PACKAGES`；
 - 测试包 / 正式包只通过本仓库明确发布并由用户主动安装。
 
-现存四个入口为 `01-当前源码编译与APK验证.yml`（构建验证）、`02-正式APK构建与发布.yml`（正式发布）、`03-已验证APK发布续传.yml`（原产物复验续发）、`04-上游一键升级.yml`（上游升级），全部仅通过 `workflow_dispatch` 手动触发。五个历史 `recovery-*` 工作流已删除，其取证源码、脚本和 fixture 仍保留；详见 [RECOVERY.md](RECOVERY.md#9-归档-faithful-构建工具非-main-构建链)。
+冻结 `main` 现存三个入口为 `01-当前源码编译与APK验证.yml`（构建验证）、`02-正式APK构建与发布.yml`（正式发布）、`03-已验证APK发布续传.yml`（原产物复验续发），全部仅通过 `workflow_dispatch` 手动触发。五个历史 `recovery-*` 工作流已删除，其取证源码、脚本和 fixture 仍保留；详见 [RECOVERY.md](RECOVERY.md#9-归档-faithful-构建工具非-main-构建链)。
 
 ### 本地
 
@@ -420,7 +420,9 @@ bash gradlew --no-daemon :app:assembleLeanbackDebug
 
 ## 8. 固定 FongMi/TV 5.6.3 维护基线
 
-本仓库只维护 `main`，采用固定 FongMi/TV 5.6.3 源码（`c616c0aa3613e87529791587a9f71b78c278c991`）与对应公开 FongMi/media 固定提交。普通业务、UI、播放器默认不主动跟随上游更新。
+`main` 冻结在 `v5.6.3-xray.2` 稳定代码基线，采用固定 FongMi/TV 5.6.3 源码（`c616c0aa3613e87529791587a9f71b78c278c991`）与对应公开 FongMi/media 固定提交。后续上游适配仅在 `dev/fongmi-upstream-adaptation` 独立进行，见 [AI_COLLABORATION.md](AI_COLLABORATION.md)。
+
+正式 `.2` 构建来源为 tag `v5.6.3-xray.2` 对应 commit `b4de568a614db061602e60821b1827405844c81b`；[Actions 45654771289](https://github.com/rileyaaa/FingMi-Xray/actions/runs/45654771289) 已完成源码回归、双 ABI 构建及固定原证书签名验证并正式发布。`versionCode=563002`，包名与 `.1` 相同。实际电视覆盖安装、播放与待机恢复尚未验收。冻结收尾只移除无构建用途的 `other/tools/` 历史仓库清理工具（原脚本含强制推送）及不被现有入口引用的 `other/image/` 旧图标，网站自己的 logo 和静态文档站仍保留；不修改 Gradle、应用、依赖、测试、签名和取证输入，不重写 Git 历史，不重新构建或发布。已发布 tag 保持原构建提交，不能把冻结后的清理提交当成 APK 构建来源。
 
 原有 `04-上游一键升级.yml` 和 `scripts/upstream/` 的升级生成、适配、实验测试均已退出日常维护。发布版本校验所需的不可变基线单独保留在 `scripts/build/source-baseline.json`。现行构建继续使用固定 18-AAR 播放器、Libass/native 校验、黄金 Xray 依赖恢复与三个手动工作流。
 
