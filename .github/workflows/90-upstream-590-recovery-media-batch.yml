@@ -1,0 +1,88 @@
+name: "5.9.0 host recovery and public Media3 batch (no APK)"
+on:
+  push:
+    branches: [dev/fongmi-upstream-adaptation]
+    paths: ['.github/workflows/90-upstream-590-recovery-media-batch.yml']
+permissions:
+  contents: read
+concurrency:
+  group: fingmi-upstream-590-recovery-media-batch
+  cancel-in-progress: false
+jobs:
+  recovery:
+    if: github.repository == 'rileyaaa/FingMi-Xray' && github.ref == 'refs/heads/dev/fongmi-upstream-adaptation'
+    name: Actual candidate recovery and Xray module regression
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          path: fork
+          fetch-depth: 1
+          persist-credentials: false
+      - uses: actions/checkout@v7
+        with:
+          repository: FongMi/TV
+          ref: c616c0aa3613e87529791587a9f71b78c278c991
+          path: inputs/old-tv
+          fetch-depth: 1
+          persist-credentials: false
+      - uses: actions/checkout@v7
+        with:
+          repository: FongMi/TV
+          ref: d3a0b84b24cf6628d72a4dbc2be453875b005536
+          path: inputs/tv
+          fetch-depth: 1
+          persist-credentials: false
+      - uses: actions/setup-java@v6
+        with:
+          distribution: jetbrains
+          java-version: '21'
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.10'
+      - name: Prepare Android SDK for isolated recovery library
+        shell: bash
+        run: |
+          set -euo pipefail
+          test ! -e fork/signing
+          sdkmanager="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
+          yes | "$sdkmanager" --licenses >/dev/null 2>&1 || true
+          "$sdkmanager" --channel=3 --install 'platforms;android-37.0' 'build-tools;37.0.0'
+      - name: Verify new source overlay, JVM contracts and actual Android recovery library
+        run: python3 fork/scripts/upstream-adaptation/verify_recovery_batch.py --old-tv inputs/old-tv --tv inputs/tv --android
+  media:
+    if: github.repository == 'rileyaaa/FingMi-Xray' && github.ref == 'refs/heads/dev/fongmi-upstream-adaptation'
+    name: Rebuild selected public Media3 modules and compare formal Maven API
+    runs-on: ubuntu-latest
+    timeout-minutes: 50
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          path: fork
+          fetch-depth: 1
+          persist-credentials: false
+      - uses: actions/checkout@v7
+        with:
+          repository: FongMi/media
+          ref: 3c2cbe8ac742c2fe15eff52f03eeb3b1b648848d
+          path: inputs/media
+          fetch-depth: 1
+          persist-credentials: false
+      - uses: actions/setup-java@v6
+        with:
+          distribution: jetbrains
+          java-version: '21'
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.10'
+      - name: Prepare exact public Media3 SDK
+        shell: bash
+        run: |
+          set -euo pipefail
+          test ! -e fork/signing
+          sdkmanager="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
+          yes | "$sdkmanager" --licenses >/dev/null 2>&1 || true
+          "$sdkmanager" --install 'platforms;android-36' 'build-tools;36.0.0'
+      - name: Build pinned public AARs and verify available transport APIs
+        run: python3 fork/scripts/upstream-adaptation/rebuild_public_media.py inputs/media
