@@ -7,7 +7,8 @@ permissions:
   contents: read
 jobs:
   probe:
-    if: github.repository == 'rileyaaa/FingMi-Xray' && github.ref == 'refs/heads/dev/fongmi-upstream-adaptation' && github.event.head_commit.message == 'test: run isolated Android Media3 MPV stream probe'
+    if: >-
+      github.repository == 'rileyaaa/FingMi-Xray' && github.ref == 'refs/heads/dev/fongmi-upstream-adaptation' && github.event.head_commit.message == 'ci: correct isolated Android probe YAML'
     runs-on: ubuntu-latest
     timeout-minutes: 40
     steps:
