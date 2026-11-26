@@ -1,0 +1,557 @@
+name: F3 - pinned Danmaku AAR after cooldown
+
+on:
+  push:
+    branches: [dev/fongmi-upstream-adaptation]
+    paths: [.github/workflows/107-danmaku-aar-once.yml]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: f3-danmaku-107
+  cancel-in-progress: false
+
+jobs:
+  danmaku:
+    if: >-
+      github.repository == 'rileyaaa/FingMi-Xray' &&
+      github.ref == 'refs/heads/dev/fongmi-upstream-adaptation' &&
+      github.event_name == 'push' &&
+      github.event.before == '4a37518e909fbb1cb17281cb3bdf57eb5b052222' &&
+      github.run_attempt == '1' &&
+      !github.event.deleted &&
+      !github.event.forced &&
+      github.event.head_commit.message == 'ci: verify pinned danmaku AAR with git diff guard'
+
+    runs-on: ubuntu-26.04
+    timeout-minutes: 12
+
+    env:
+      MEDIA_COMMIT: 3c2cbe8ac742c2fe15eff52f03eeb3b1b648848d
+      MEDIA_TREE: b7a4d78a2168bd5065034d37a242b7e51785ea4e
+      MODULE_TREE: 29836ee83fd4eaed28170e547141e71127284ea2
+      GRADLE_SHA256: b84e04fa845fecba48551f425957641074fcc00a88a84d2aae5808743b35fc85
+      JBR_TAG: jbr-release-21.0.11b1163.125
+      JBR_FILE: jbrsdk-21.0.11-linux-x64-b1163.125.tar.gz
+
+    steps:
+      - name: Read exact event commit and direct parent
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 2
+          persist-credentials: false
+          fetch-tags: false
+          lfs: false
+          submodules: false
+          path: f3-event
+          sparse-checkout: |
+            /.github/workflows/107-danmaku-aar-once.yml
+          sparse-checkout-cone-mode: false
+      - name: Verify, build and audit
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          export LC_ALL=C GIT_TERMINAL_PROMPT=0
+          export GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_NOSYSTEM=1
+          unset GH_TOKEN GITHUB_TOKEN
+
+          work=$(mktemp -d "$RUNNER_TEMP/f3-106-XXXXXX")
+          src="$work/media"
+          export F3_WORK="$work" F3_SRC="$src"
+          export GRADLE_USER_HOME="$work/gradle-home"
+          summary="$GITHUB_STEP_SUMMARY"
+          phase=trigger
+
+          finish() {
+            rc=$?
+            trap - EXIT
+            if [ "$rc" -ne 0 ] && [ "$phase" = build ] &&
+               [ -f "$work/build.log" ]; then
+              awk '/^FAILURE:|^\* What went wrong:|^Execution failed|^> Could not/{print substr($0,1,300); if (++n==6) exit}' \
+                "$work/build.log" >> "$summary"
+            fi
+            rm -rf -- "$work" || rc=1
+            if [ "$rc" = 0 ] && [ "$phase" = complete ]; then
+              echo 'RESULT=PASS_DANMAKU_STANDALONE_AAR' >> "$summary"
+            else
+              echo "FAILED_PHASE=$phase" >> "$summary"
+              echo 'RESULT=FAIL_OR_INCOMPLETE' >> "$summary"
+              rc=1
+            fi
+            exit "$rc"
+          }
+
+          trap finish EXIT
+          trap 'exit 130' INT
+          trap 'exit 143' TERM
+
+          printf 'FULL_14_AAR_HOST_CLOSURE=NOT_RUN\nHOST_DEX_UI_RUNTIME=NOT_RUN\nPHYSICAL_DEVICE=NOT_RUN\n' >> "$summary"
+
+          export F3_EXPECTED_PARENT=4a37518e909fbb1cb17281cb3bdf57eb5b052222
+          export F3_WORKFLOW_PATH=.github/workflows/107-danmaku-aar-once.yml
+          export F3_COMMIT_MESSAGE='ci: verify pinned danmaku AAR with git diff guard'
+          export F3_EVENT_REPO="$GITHUB_WORKSPACE/f3-event"
+          GIT_NO_LAZY_FETCH=1 python3 -I - <<'PY'
+          import json, os, re, subprocess
+          from pathlib import Path
+
+          def require(ok, message):
+              if not ok:
+                  raise RuntimeError(message)
+
+          def git(repo, *args):
+              return subprocess.check_output(
+                  ["git", "-C", str(repo), *args], timeout=20)
+
+          def verify(e, env, repo, parent, path, message):
+              require(env["GITHUB_EVENT_NAME"] == "push", "event")
+              require(env["GITHUB_REPOSITORY"] ==
+                      "rileyaaa/FingMi-Xray", "repository")
+              require(env["GITHUB_REF"] == e["ref"] ==
+                      "refs/heads/dev/fongmi-upstream-adaptation", "ref")
+              require(env["GITHUB_RUN_ATTEMPT"] == "1", "attempt")
+              require(e["forced"] is False and e["deleted"] is False,
+                      "force/delete")
+
+              before, after = e["before"], e["after"]
+              require(
+                  before == parent
+                  and bool(re.fullmatch(r"[0-9a-f]{40}", after))
+                  and after == env["GITHUB_SHA"],
+                  "event SHAs")
+
+              h = e["head_commit"]
+              require(h["id"] == after and h["message"] == message,
+                      "head event")
+              require(len(e["commits"]) == 1
+                      and e["commits"][0]["id"] == after,
+                      "event commit count")
+              require(git(repo, "rev-parse", "HEAD").decode().strip() == after,
+                      "checked-out commit")
+
+              raw = git(repo, "cat-file", "commit", after)
+              header, body = raw.split(b"\n\n", 1)
+              require(
+                  [l[7:].decode() for l in header.splitlines()
+                   if l.startswith(b"parent ")] == [before],
+                  "actual direct parent")
+              require(body.rstrip(b"\n") == message.encode(),
+                      "actual commit message")
+              require(git(repo, "cat-file", "-t", before) == b"commit\n",
+                      "parent available")
+
+              diff = git(
+                  repo, "diff-tree", "--no-commit-id",
+                  "--name-status", "-z", "-r", "--no-renames",
+                  "--ignore-submodules=none", before, after)
+              require(diff == b"A\0" + path.encode() + b"\0",
+                      "actual diff")
+
+              tree = git(repo, "ls-tree", "-z", after, "--", path)
+              require(bool(re.fullmatch(
+                  rb"100644 blob [0-9a-f]{40}\t"
+                  + re.escape(path.encode()) + rb"\0", tree)),
+                  "ordinary workflow blob")
+
+          verify(
+              json.load(open(os.environ["GITHUB_EVENT_PATH"])),
+              os.environ,
+              Path(os.environ["F3_EVENT_REPO"]),
+              os.environ["F3_EXPECTED_PARENT"],
+              os.environ["F3_WORKFLOW_PATH"],
+              os.environ["F3_COMMIT_MESSAGE"])
+
+          print("TRIGGER_GIT_DIFF=PASS")
+          PY
+
+          # Preinstalled SDK only.
+          phase=sdk
+          sdk="${ANDROID_HOME:?ANDROID_HOME missing}"
+          test -s "$sdk/platforms/android-36/android.jar"
+          test -x "$sdk/build-tools/36.0.0/aapt2"
+          test -x "$sdk/build-tools/36.0.0/d8"
+          grep -Eq '^AndroidVersion.ApiLevel[[:space:]]*=[[:space:]]*36$' \
+            "$sdk/platforms/android-36/source.properties"
+          grep -Eq '^Pkg.Revision[[:space:]]*=[[:space:]]*36\.0\.0$' \
+            "$sdk/build-tools/36.0.0/source.properties"
+          echo 'SDK_PREFLIGHT=PREINSTALLED_ONLY_PASS' >> "$summary"
+          echo "ANDROID_JAR_SHA256=$(sha256sum "$sdk/platforms/android-36/android.jar" | cut -d' ' -f1)" >> "$summary"
+
+          # Same official source, exactly one anonymous metadata request.
+          # Never proceed to binary download after a quota/access failure.
+          phase=jbr-release
+          jbr_url="https://cache-redirector.jetbrains.com/intellij-jbr/$JBR_FILE"
+          export JBR_URL="$jbr_url"
+
+          code=$(curl -q -sS --retry 0 --connect-timeout 10 --max-time 25 \
+            --proto '=https' \
+            -H 'Accept: application/vnd.github+json' \
+            -D "$work/jbr.headers" -o "$work/jbr.json" -w '%{http_code}' \
+            "https://api.github.com/repos/JetBrains/JetBrainsRuntime/releases/tags/$JBR_TAG")
+
+          echo "JBR_METADATA_HTTP=$code" >> "$summary"
+          test "$code" = 200
+
+          python3 -I - <<'PY' >> "$summary"
+          import json, os, re
+          from pathlib import Path
+          w = Path(os.environ["F3_WORK"])
+          headers = (w/"jbr.headers").read_text()
+          remaining = re.findall(
+              r"^x-ratelimit-remaining:\s*(\d+)", headers, re.I | re.M)
+          assert remaining and int(remaining[-1]) > 0, "rate limit exhausted"
+          r = json.loads((w/"jbr.json").read_text())
+          assert r["tag_name"] == os.environ["JBR_TAG"]
+          assert not r["draft"] and not r["prerelease"]
+          assert os.environ["JBR_URL"] in r["body"]
+          assert os.environ["JBR_URL"]+".checksum" in r["body"]
+          print("JBR_METADATA_VERIFIED=PASS")
+          print("JBR_RATE_REMAINING="+remaining[-1])
+          PY
+
+          phase=jbr-download
+          curl -q -fsSL --retry 0 --max-time 25 \
+            --proto '=https' --proto-redir '=https' \
+            "$jbr_url.checksum" -o "$work/jbr.checksum"
+
+          checksum=$(python3 -I - "$work/jbr.checksum" <<'PY'
+          import re, sys
+          s = open(sys.argv[1]).read().split()
+          assert s and re.fullmatch(r"[0-9a-fA-F]{128}", s[0])
+          print(s[0].lower())
+          PY
+          )
+
+          curl -q -fsSL --retry 0 --max-time 90 \
+            --proto '=https' --proto-redir '=https' \
+            "$jbr_url" -o "$work/$JBR_FILE"
+
+          printf '%s  %s\n' "$checksum" "$work/$JBR_FILE" | sha512sum -c -
+          mkdir "$work/jdk"
+          tar -xzf "$work/$JBR_FILE" -C "$work/jdk" --strip-components=1
+          export JAVA_HOME="$work/jdk"
+          export PATH="$JAVA_HOME/bin:$PATH"
+
+          test "$(javac -version 2>&1)" = 'javac 21.0.11'
+          java -XshowSettings:properties -version > "$work/java.version" 2>&1
+          grep -F '1163.125' "$work/java.version" >/dev/null
+          grep -E 'java.vendor = JetBrains' "$work/java.version" >/dev/null
+          echo "JBR_SHA512=$checksum" >> "$summary"
+          echo 'JBR=21.0.11+1163.125' >> "$summary"
+
+          # Immutable public source, no fork checkout.
+          phase=source
+          git init -q "$src"
+          timeout 60s git -C "$src" -c credential.helper= fetch \
+            --quiet --depth=1 --no-tags \
+            https://github.com/FongMi/media.git "$MEDIA_COMMIT"
+          git -C "$src" checkout -q --detach FETCH_HEAD
+          cd "$src"
+
+          test "$(git rev-parse HEAD)" = "$MEDIA_COMMIT"
+          test "$(git rev-parse HEAD^{tree})" = "$MEDIA_TREE"
+          test "$(git rev-parse HEAD:libraries/ui_danmaku)" = "$MODULE_TREE"
+          test "$(git hash-object LICENSE)" = d645695673349e3947e8e5ae42332d0ac3164cd7
+          test "$(git hash-object gradle/wrapper/gradle-wrapper.properties)" = 7b0b78c686dd7e9d549c696b6a3ce38a8d43779e
+          test "$(git hash-object gradle/libs.versions.toml)" = 7d0a7a49d49bce8f46c5a3007b24251c288b232b
+          test -z "$(git status --porcelain)"
+
+          printf 'SOURCE_COMMIT=%s\nSOURCE_TREE=%s\nMODULE_TREE=%s\n' \
+            "$MEDIA_COMMIT" "$MEDIA_TREE" "$MODULE_TREE" >> "$summary"
+          echo "LICENSE_SHA256=$(sha256sum LICENSE | cut -d' ' -f1)" >> "$summary"
+
+          wrapper="$work/wrapper"
+          mkdir -p "$wrapper/gradle/wrapper" "$GRADLE_USER_HOME"
+          cp gradlew "$wrapper/"
+          cp gradle/wrapper/gradle-wrapper.{jar,properties} "$wrapper/gradle/wrapper/"
+          printf '\ndistributionSha256Sum=%s\n' "$GRADLE_SHA256" \
+            >> "$wrapper/gradle/wrapper/gradle-wrapper.properties"
+
+          cat > "$GRADLE_USER_HOME/gradle.properties" <<'PROPS'
+          android.builder.sdkDownload=false
+          org.gradle.java.installations.auto-download=false
+          PROPS
+
+          cat > "$work/audit.gradle" <<'GROOVY'
+          import groovy.json.JsonOutput
+          import org.gradle.api.artifacts.component.*
+
+          gradle.projectsEvaluated {
+              def p = gradle.rootProject.project(':lib-ui-danmaku')
+              def a = p.extensions.getByName('android')
+              def ac = p.extensions.getByName('androidComponents')
+
+              assert gradle.gradleVersion == '9.1.0'
+              assert ac.pluginVersion.toString() == '9.0.1'
+              assert a.compileSdk == 36 && a.defaultConfig.minSdk == 23
+              assert a.buildToolsVersion == '36.0.0'
+              assert System.getProperty('java.vendor').contains('JetBrains')
+              assert System.getProperty('java.runtime.version').contains('1163.125')
+
+              def runtime = p.configurations.getByName('releaseRuntimeClasspath')
+              def component = { id ->
+                  if (id instanceof ProjectComponentIdentifier) return id.projectPath
+                  if (id instanceof ModuleComponentIdentifier)
+                      return "${id.group}:${id.module}:${id.version}".toString()
+                  throw new GradleException('Unknown component: ' + id.displayName)
+              }
+              p.tasks.register('auditDanmakuRuntime') {
+                  dependsOn p.tasks.named('assembleRelease')
+                  dependsOn runtime.buildDependencies
+                  doLast {
+                      new File(System.getenv('F3_WORK'), 'runtime.json').text =
+                          JsonOutput.toJson([
+                              output: p.layout.buildDirectory.get().asFile.absolutePath,
+                              components: runtime.incoming.resolutionResult.allComponents
+                                  .collect { component(it.id) }.sort(),
+                              artifacts: runtime.incoming.artifacts.artifacts.collect {
+                                  [component: component(it.id.componentIdentifier),
+                                   id: it.id.displayName, file: it.file.absolutePath]
+                              }
+                          ])
+                  }
+              }
+          }
+          GROOVY
+
+          phase=build
+          timeout --kill-after=10s 8m \
+            bash "$wrapper/gradlew" -p "$src" \
+            --no-daemon --no-build-cache --no-configuration-cache \
+            --console=plain --max-workers=2 \
+            -Pandroid.builder.sdkDownload=false \
+            -Porg.gradle.java.installations.auto-download=false \
+            "-Dorg.gradle.java.home=$JAVA_HOME" \
+            '-Dorg.gradle.jvmargs=-Xmx4g -XX:MaxMetaspaceSize=768m' \
+            --init-script "$work/audit.gradle" \
+            :lib-ui-danmaku:assembleRelease \
+            :lib-ui-danmaku:auditDanmakuRuntime \
+            > "$work/build.log" 2>&1
+
+          test -s "$work/runtime.json"
+          test -z "$(git status --porcelain --untracked-files=no)"
+          echo 'GRADLE=9.1.0 AGP=9.0.1 SDK=36 BUILD_TOOLS=36.0.0' >> "$summary"
+          echo "GRADLE_DIST_SHA256=$GRADLE_SHA256" >> "$summary"
+
+          phase=artifact-audit
+          python3 -I - <<'PY' >> "$summary"
+          import hashlib, io, json, os, re, subprocess
+          import xml.etree.ElementTree as ET
+          from collections import Counter, defaultdict
+          from pathlib import Path
+          from zipfile import ZipFile
+
+          work = Path(os.environ["F3_WORK"])
+          src = Path(os.environ["F3_SRC"])
+          graph = json.loads((work/"runtime.json").read_text())
+          owners = defaultdict(set)
+          stats = Counter()
+
+          def sha(b):
+              return hashlib.sha256(b).hexdigest()
+
+          def emit(k, v):
+              print(f"{k}={v}", flush=True)
+
+          def entries(z):
+              n = [e.filename for e in z.infolist() if not e.is_dir()]
+              assert len(n) == len(set(n)), "duplicate ZIP entry"
+              assert z.testzip() is None, "bad ZIP CRC"
+              return n
+
+          def native(n):
+              return n.startswith(("jni/", "prefab/")) or n.lower().endswith(
+                  (".so", ".a", ".dll", ".dylib", ".jnilib"))
+
+          def scan_jar(data, owner, target=False):
+              with ZipFile(io.BytesIO(data)) as z:
+                  n = entries(z)
+                  if target:
+                      assert not any(native(x) or x.endswith(".jar") for x in n)
+                  for x in n:
+                      if not x.endswith(".class"):
+                          continue
+                      key = re.sub(r"^META-INF/versions/[0-9]+/", "", x)
+                      if key == "module-info.class":
+                          stats["module_descriptors"] += 1
+                          continue
+                      if key != x:
+                          stats["multi_release_classes"] += 1
+                      owners[key].add(owner)
+                  stats["jars"] += 1
+                  return set(n)
+
+          def scan_aar(data, owner, target=False):
+              with ZipFile(io.BytesIO(data)) as z:
+                  n = entries(z)
+                  jars = [x for x in n if x == "classes.jar" or
+                          (x.startswith("libs/") and x.endswith(".jar"))]
+                  if target:
+                      assert not any(map(native, n))
+                      assert "classes.jar" in jars
+                      assert not any(x.endswith(".jar") and x not in jars for x in n)
+                  base = set()
+                  for j in jars:
+                      found = scan_jar(z.read(j), owner+"!"+j, target)
+                      if j == "classes.jar":
+                          base = found
+                  stats["aars"] += 1
+                  return base
+
+          def duplicates():
+              return sorted(k for k,v in owners.items() if len(v)>1)
+
+          out = Path(graph["output"]).resolve()
+          assert out.is_relative_to(work.resolve())
+          aars = list((out/"outputs/aar").glob("*.aar"))
+          assert len(aars) == 1 and aars[0].name == "lib-ui-danmaku-release.aar"
+
+          data = aars[0].read_bytes()
+          emit("AAR_BYTES", len(data))
+          emit("AAR_SHA256", sha(data))
+          base = scan_aar(data, "target", True)
+          emit("TARGET_DUPLICATE_CLASSES", len(duplicates()))
+          assert not duplicates()
+
+          with ZipFile(io.BytesIO(data)) as z:
+              root = ET.fromstring(z.read("AndroidManifest.xml"))
+              assert root.get("package") == "androidx.media3.ui.danmaku"
+              sdk = root.find("uses-sdk")
+              assert sdk is not None and sdk.get(
+                  "{http://schemas.android.com/apk/res/android}minSdkVersion") == "23"
+              props = dict(l.split("=",1) for l in z.read(
+                  "META-INF/com/android/build/gradle/aar-metadata.properties"
+              ).decode().splitlines() if "=" in l and not l.startswith("#"))
+              assert props.get("minCompileSdk") == "36"
+              jar = work/"classes.jar"
+              jar.write_bytes(z.read("classes.jar"))
+
+          prefix = "libraries/ui_danmaku/src/main/java/"
+          paths = subprocess.check_output(
+              ["git","ls-tree","-r","--name-only","HEAD","--",prefix],
+              cwd=src, text=True).splitlines()
+          expected = {p[len(prefix):-5]+".class" for p in paths if p.endswith(".java")}
+          assert len(expected) == 32 and expected <= base
+          assert "androidx/media3/ui/danmaku/DanmakuPlayerViewController.class" not in owners
+          emit("TRACKED_TOP_LEVEL_CLASSES", len(expected))
+          emit("TARGET_LOGICAL_CLASSES", len(owners))
+          emit("TARGET_CLASS_SET_SHA256", sha("\n".join(sorted(owners)).encode()))
+          emit("TARGET_NATIVE_PAYLOAD", 0)
+
+          p = "androidx.media3.ui.danmaku."
+          d = "Landroidx/media3/ui/danmaku/"
+          api = {
+              "DanmakuController": {
+                  "<init>": ["()V"],
+                  "setPlayer": ["(Landroidx/media3/common/Player;)V"],
+                  "setView": [f"({d}DanmakuView;)V"],
+                  "setOkHttpClient": ["(Lokhttp3/OkHttpClient;)V"],
+                  "setDataSource": ["(Landroid/net/Uri;)V",
+                      "(Landroid/net/Uri;Landroidx/media3/datasource/DataSource$Factory;)V"],
+                  "setConfig": [f"({d}DanmakuConfig;)V"],
+                  "getConfig": [f"(){d}DanmakuConfig;"],
+                  "setEnabled": ["(Z)V"],
+                  "setItems": ["(Ljava/util/List;)V"],
+                  "clearItems": ["()V"],
+                  "sendNow": ["(Ljava/lang/String;)V",f"({d}Danmaku;)V"],
+                  "release": ["()V"],
+              },
+              "DanmakuView": {
+                  "<init>": ["(Landroid/content/Context;)V",
+                      "(Landroid/content/Context;Landroid/util/AttributeSet;)V",
+                      "(Landroid/content/Context;Landroid/util/AttributeSet;I)V"],
+                  "setConfig": [f"({d}DanmakuConfig;)V"],
+                  "start": ["(J)V"], "pause": ["()V"],
+                  "resume": ["()V"], "seekTo": ["(J)V"], "release": ["()V"],
+              },
+              "Danmaku": {"<init>":["(Ljava/lang/String;J)V"]},
+              "DanmakuConfig": {"buildUpon":[f"(){d}DanmakuConfig$Builder;"]},
+              "DanmakuConfig$Builder": {
+                  "<init>":["()V"], "build":[f"(){d}DanmakuConfig;"]},
+          }
+
+          types = {
+              "J": "DurationMs FixedDurationMs TimeOffsetMs",
+              "F": "TextSizeSp TextScale Transparency ShadowTransparency ShadowRadiusMultiplier StrokeWidthMultiplier ProjectionOffsetXMultiplier ProjectionOffsetYMultiplier ProjectionTransparency ScrollAreaRatio LineSpacing ScrollSpeedFactor ScrollGapRatio",
+              "I": "StyleMode MaxOnScreen MaxScrollLines MaxTopLines MaxBottomLines ColorMode",
+              "Z": "TextBold ShowScroll ShowTop ShowBottom ShowReverse AllowOverlapping AllowScrollOverlap AllowTopOverlap AllowBottomOverlap AllowReverseOverlap ShowPositioned ShowSubtitle ShowSpecial",
+              "Landroid/graphics/Typeface;": "Typeface",
+          }
+          assert sum(len(s.split()) for s in types.values()) == 36
+          for t, setters in types.items():
+              for s in setters.split():
+                  api["DanmakuConfig$Builder"]["set"+s] = [f"({t}){d}DanmakuConfig$Builder;"]
+
+          receipts = []
+          for cls, methods in api.items():
+              fqcn = p+cls
+              ls = subprocess.check_output(
+                  ["javap","-public","-s","-classpath",str(jar),fqcn],
+                  text=True, timeout=20).splitlines()
+              actual = set()
+              for line, desc in zip(ls, ls[1:]):
+                  line, desc = line.strip(), desc.strip()
+                  if line.startswith("public ") and "(" in line and desc.startswith("descriptor:"):
+                      m = line.split("(",1)[0].split()[-1]
+                      actual.add(("<init>" if m==fqcn else m,desc.split(":",1)[1].strip()))
+              for method, descriptors in methods.items():
+                  for desc in descriptors:
+                      assert (method,desc) in actual, (fqcn,method,desc)
+                      receipts.append(f"{fqcn} {method} {desc}")
+
+          emit("API_DESCRIPTOR_CHECKS",len(receipts))
+          emit("API_SHA256",sha("\n".join(sorted(receipts)).encode()))
+          emit("STANDALONE_AAR_CONTENT","PASS")
+          emit("NEW_DANMAKU_PLAYER_VIEW_CONTROLLER","NOT_PRESENT")
+
+          rows = graph["artifacts"]
+          required = {
+              ":lib-common",":lib-database",":lib-datasource",":lib-datasource-okhttp",
+              "com.squareup.okhttp3:okhttp:4.12.0","org.brotli:dec:0.1.2",
+          }
+          assert rows and required <= {r["component"] for r in rows}
+
+          prior = {
+              ":lib-common":"f835fd9dca0dd562e56430dc0861b468888dbb85301cff314753f1dcdd1fc186",
+              ":lib-database":"520e6f814e42a7d428db187ac073b453c0fcba0f4f5f4edd1cf33fafd2cfb740",
+              ":lib-datasource":"01ca3ee28ec995eb143c740f3672413b5b3ec429be71565388bf7e265420c15b",
+              ":lib-datasource-okhttp":"67875d86e6339b75baf39c359b22da12ce1fce24f9d15b2144583c568bef742c",
+          }
+          matched, drift, seen = set(), set(), set()
+          manifest = []
+          for r in rows:
+              f = Path(r["file"]).resolve()
+              c = r["component"]
+              key = c+"|"+r["id"]
+              assert key not in seen
+              seen.add(key)
+              assert f.is_relative_to(work.resolve())
+              assert f.is_file() and f.suffix in (".aar",".jar"), key
+              b = f.read_bytes()
+              h = sha(b)
+              manifest.append(key+"|"+f.name+"|"+h)
+              if f.suffix == ".aar":
+                  scan_aar(b,key)
+                  if c in prior:
+                      (matched if prior[c]==h else drift).add(c)
+              else:
+                  scan_jar(b,key)
+              stats[("project" if c.startswith(":") else "external")+"_"+f.suffix[1:]] += 1
+
+          dup = duplicates()
+          emit("RUNTIME_ARTIFACT_COUNT",len(rows))
+          emit("RUNTIME_COMPONENT_SET_SHA256",sha("\n".join(sorted(graph["components"])).encode()))
+          emit("RUNTIME_ARTIFACT_SET_SHA256",sha("\n".join(sorted(manifest)).encode()))
+          emit("ARCHIVE_SCAN_COUNTS",json.dumps(stats,sort_keys=True))
+          emit("RUNTIME_DUPLICATE_CLASSES",len(dup))
+          emit("MATCHED_PRIOR_AARS",",".join(sorted(matched)) or "NONE")
+          emit("PRIOR_AARS_NOT_COMPARABLE",",".join(sorted(set(prior)-matched-drift)) or "NONE")
+          emit("PRIOR_AAR_SHA_DRIFT",",".join(sorted(drift)) or "NONE")
+          emit("DUPLICATE_SCOPE","target + actual releaseRuntimeClasspath; not full TV host")
+          assert not dup, dup[:8]
+          assert not drift, sorted(drift)
+          PY
+
+          phase=complete
