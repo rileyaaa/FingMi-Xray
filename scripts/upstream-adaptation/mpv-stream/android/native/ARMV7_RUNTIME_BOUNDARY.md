@@ -1,0 +1,28 @@
+# ARMv7 shared runtime: source and support boundary (2026-11-26)
+
+Do not repeat the same reduced ARM build. This is a targeted source/support audit, no new runtime binary, no device result and no change to acceptance.
+
+## Known actual result and fixed toolchain
+
+[45760464596 / 139708965183](https://github.com/rileyaaa/FingMi-Xray/actions/runs/45760464596/job/139708965183) at d0f7e9ea4fdb24bb0f1594ce56c971bd219b1f33: same fixed reduced source profile, arm-linux-androideabi API24, 9 SOs/24 JNI, 8/9 ELF PT_LOAD 0x4000, all 9 ZIP offsets and bytes correct. The only existing ELF gate failure is untouched NDK libc++_shared.so, all three LOAD 0x1000, 7567040 bytes, SHA256 2ee592c9ba3372da027384deb1070def5ae76f3ea2246bd447360faa73ac22f4. This is a project gate failure, not proof of Android incompatibility.
+
+Official [NDK r30 release](https://github.com/android/ndk/releases/tag/r30), released 2026-09-08: exact 30.0.16248370, clang-r574158c, Linux ZIP SHA1 5107f898313790e449e87eee2183d9a20602dee9. The release API lists r30 latest stable; r30 RC/beta older, r29/r27d/r28c older. Prior real runner compiler Android 16134705, clang 21.0.0, LLVM source commit 9f872551d3c681d06fd303b36f16ed5c274735eb. Do not conflate LLVM source commit with full Android toolchain manifest or NDK runtime ABI. Official r30 release links the [Build System Maintainers Guide](https://android.googlesource.com/platform/ndk/+/mirror-goog-main-ndk/docs/BuildSystemMaintainers.md#page-sizes): only 64-bit variable-page-size targets are planned, no page-size change planned for 32-bit ABIs. The separately guessed ndk-r30-release branch URL was not accessible in this audit; the release-linked guide is the source. This explains why the standard ARMv7 prebuilt does not meet our stricter gate; it is not a platform bug.
+
+## Options and why none closes this product gate now
+
+| Route | Verified boundary | Decision |
+| --- | --- | --- |
+| Newer supported matching shared runtime | Official stable list ends at same r30. No separately published official ARMv7 16KiB matching runtime established. Older/preview NDKs are not an automatic match. | Stop; no unchanged rerun or mixing runtime versions. |
+| Source-built replacement libc++ | Android/LLVM source and build scripts exist; an arbitrary upstream LLVM build is not equivalent to NDK r30 __ndk1 ABI, libc++abi, unwinder, compiler-rt, sysroot/API and Android patches. No supported distribution of r30 ARMv7 16KiB shared runtime or exact maintainable matching source build was established. | No custom runtime experiment absent full pinned toolchain recipe/ABI/license/device proof. Never edit ELF header. |
+| Statically link STL into several SOs | [NDK C++ support](https://developer.android.com/ndk/guides/cpp-support#important_considerations) recommends one shared runtime for app with multiple native libraries; duplicates can break ownership/exception/ODR. [Middleware guide](https://developer.android.com/ndk/guides/middleware-vendors#java_middleware_with_jni_libraries) supports one self-contained JNI SO with hidden ABI; [symbol visibility](https://developer.android.com/ndk/guides/symbol-visibility) explains version scripts, not just -fvisibility=hidden. | Supported isolated-library pattern, not automatically safe in current multi-SO MPV/FFmpeg graph. Do not change STL flags simply to remove one failing SO. |
+| One merged native SO | Requires preserving all original separate SONAMEs/loader/API/versioned public symbol contracts and licensed code plus actual cross-component ownership/regression. Changing aggregation to one SO does not satisfy current exact producer. | Not within current probe/maintenance scope; do not alter official loader. |
+| System STL | Not the NDK libc++; lacks standard library and C++ exception/RTTI contract. | Not a substitute. |
+
+Exact producer evidence at FongMi/mpv-android@1bf892e3271e73d8649f2d209027f1fb17515d15:
+- app/src/main/jni/Application.mk blob 0c26848ddd938352781fdf32e4e7301be356edf5 explicitly APP_STL=c++_shared and flexible page size setting, platform android-23.
+- Android.mk adb27cc7c030541adc70fca2de689ffa8a293612 requires separate ffmpeg/mpv shared libraries and libplayer; nine JNI units.
+- buildscripts/include/ffmpeg-shared.py bd849b950facc1b296d8e726b8c3bcd1295eb472 explicitly checks NEEDED libc++_shared.so and exact four-SO set (libffmpeg/libmpv/libplayer/libc++_shared).
+- request.cpp 56d0d1cef76b582f472e21557cfee8a3d600c60b actually uses std::vector/string/mutex/condition_variable/shared_ptr/unique_ptr and async mpv_command_node_async; stream.cpp a4ebe55984fa12de9b0a354da4a98cfcfa634d5d crosses actual callbacks/JNI buffers/cookie lifetimes. A C ABI at selected entry points alone does not prove every allocation/deallocation, exception, TLS/unwind, dlsym/public symbol or all other AAR consumers remain isolated. The previous reduced graph has both libmpv and libplayer directly NEEDED libc++_shared.so, exact unified FFmpeg also needs it. Complete 5.9 graph is still missing.
+- No final ELF inventory for full 5.9 consumer/MPV/FFmpeg/motion/ISO and no ARM/TV runtime: cannot prove safety of a different static runtime graph or measure regression.
+
+Recovery only on new evidence: an official or supported matching ARMv7 runtime with real PT_LOAD >=0x4000 and correct ABI/SONAME/license/exports/NEEDED, or fully evidenced supported isolated/merged C++ ownership approach preserving original producer/consumer capabilities and all gates (with separately approved integration design if topology changes). Both ARM builds, byte-identical ZIP packaging, actual ARM and TV regressions remain independent. No alternate SO fetched, no forced change to NDK, no ARM rerun this batch. Existing ARM64 pass and ARMv7 8/9 remain unchanged.
