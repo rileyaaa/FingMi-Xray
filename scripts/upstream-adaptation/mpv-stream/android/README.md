@@ -45,9 +45,38 @@ request ID, no native execution, no native attribution claim.
   3f3856ef: workflow syntax failure before a job was created (unquoted
   colon in a plain YAML if scalar); no build or runtime result.
 - [45750156365](https://github.com/rileyaaa/FingMi-Xray/actions/runs/45750156365),
-  7648c8b5: corrected folded scalar; job 139675715611. As of this record
-  source checkouts, SDK install and stage step completed successfully;
-  compile step in progress. Do not infer further results from this record.
+  7648c8b5: corrected folded scalar; job 139675715611 completed/failure.
+  Source checkout, SDK and staging passed, including fixed adapter blob
+  20566fc6c45e7edcd54aa9c3a391ad8371171393, owner blob
+  fbdd87af5d0e82b64742729a8ffc2341aefaac02, and generated bridge SHA256
+  d5e4c9249b88bbc8b562008c79bbf44e9e57b0fcbe789cc5c96fcb7594045f0b.
+  The actual :lib-datasource-okhttp:compileDebugJavaWithJavac,
+  :mpv-stream-probe:compileDebugJavaWithJavac and
+  :mpv-stream-probe:compileDebugAndroidTestJavaWithJavac executed.
+  Both Gradle invocations BUILD SUCCESSFUL (3m18s and 16s);
+  dependencyInsight resolved strictly OkHttp 4.12.0 and MockWebServer
+  4.12.0. PASS_ANDROID_ADAPTER_COMPILE is present. Debug APK SHA256:
+  23653106ce8913c00e3e8224ad085c7dfda06cd4fa6d58b2e50ab963fd7cab9b;
+  test APK SHA256:
+  c4c754e42ce9b7c523dfb3172c4148da9f41612d071f9ad0060cac7063376e14.
+  These are isolated Android compile results, not runtime or TV APK.
+  SDK root in original Gradle log: /usr/local/lib/android/sdk. SDK
+  platform-tools installation logged adb extraction. Boot step failed:
+  timeout exit 127 (bare adb missing), emulator 37.3.10.0 reported
+  Unknown AVD name mpv-probe and missing mpv-probe.ini; avdmanager
+  reported auto-selected x86_64, but no AVD file check was performed.
+  Instrumentation skipped. No native library executed. Original run
+  uploaded no artifact; a fresh runner must recreate the same isolated
+  probe APKs to run them. No other acceptance group repeated.
+- Narrow retry: explicit verified SDK/ADB/emulator paths, isolated
+  ANDROID_USER_HOME/ANDROID_EMULATOR_HOME/ANDROID_AVD_HOME shared across
+  steps, explicit AVD path and hardware profile, ini/config checks,
+  avdmanager and emulator list verification before compile/boot,
+  process/device/boot/API/ABI checks, absolute serial-specific ADB
+  throughout. KVM existing access only (software acceleration fallback
+  if unavailable); no chmod, group or host permission change.
+  Same adapter, owner, staging, and test blobs; no product changes.
+  Runtime result not yet established.
 
 ## Native/remaining dependency route, not a replacement build
 

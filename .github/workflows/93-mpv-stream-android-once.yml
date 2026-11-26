@@ -8,7 +8,7 @@ permissions:
 jobs:
   probe:
     if: >-
-      github.repository == 'rileyaaa/FingMi-Xray' && github.ref == 'refs/heads/dev/fongmi-upstream-adaptation' && github.event.head_commit.message == 'ci: correct isolated Android probe YAML'
+      github.repository == 'rileyaaa/FingMi-Xray' && github.ref == 'refs/heads/dev/fongmi-upstream-adaptation' && github.event.head_commit.message == 'ci: validate MPV emulator with explicit SDK and AVD paths'
     runs-on: ubuntu-latest
     timeout-minutes: 40
     steps:
@@ -37,10 +37,52 @@ jobs:
         run: |
           set -euo pipefail
           test "$GITHUB_REF" = refs/heads/dev/fongmi-upstream-adaptation
-          sdkmanager="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
-          yes | "$sdkmanager" --licenses >/dev/null 2>&1 || true
-          "$sdkmanager" --install 'platforms;android-36' 'build-tools;36.0.0' 'platform-tools'
+          sdk="$(realpath -e "${ANDROID_HOME:-/usr/local/lib/android/sdk}")"
+          sdkmanager="$sdk/cmdline-tools/latest/bin/sdkmanager"
+          test -x "$sdkmanager"
+          printf 'ANDROID_SDK=%s\n' "$sdk"
+          printf 'ANDROID_HOME=%s\nANDROID_SDK_ROOT=%s\n' "$sdk" "$sdk" >> "$GITHUB_ENV"
+          yes | "$sdkmanager" --sdk_root="$sdk" --licenses >/dev/null 2>&1 || true
+          "$sdkmanager" --sdk_root="$sdk" --install 'platforms;android-36' 'build-tools;36.0.0' 'platform-tools'
           python3 fork/scripts/upstream-adaptation/mpv-stream/android/stage_android_probe.py inputs/media inputs/mpv
+      - name: Validate SDK executables and create isolated AVD
+        shell: bash
+        run: |
+          set -euo pipefail
+          sdk="$(realpath -e "$ANDROID_HOME")"
+          sdkmanager="$sdk/cmdline-tools/latest/bin/sdkmanager"
+          avdmanager="$sdk/cmdline-tools/latest/bin/avdmanager"
+          adb_bin="$sdk/platform-tools/adb"
+          emu="$sdk/emulator/emulator"
+          test -x "$sdkmanager"
+          test -x "$avdmanager"
+          "$sdkmanager" --sdk_root="$sdk" --install emulator 'system-images;android-34;default;x86_64'
+          for bin in "$sdkmanager" "$avdmanager" "$adb_bin" "$emu"; do
+            test -x "$bin"
+            printf 'SDK_EXECUTABLE %s -> %s\n' "$bin" "$(realpath -e "$bin")"
+          done
+          "$adb_bin" version
+          "$emu" -version
+          test -s "$sdk/system-images/android-34/default/x86_64/source.properties"
+          cat "$sdk/system-images/android-34/default/x86_64/source.properties"
+          export ANDROID_USER_HOME="$RUNNER_TEMP/mpv-probe-android"
+          export ANDROID_EMULATOR_HOME="$ANDROID_USER_HOME"
+          export ANDROID_AVD_HOME="$RUNNER_TEMP/mpv-probe-avd"
+          mkdir -p "$ANDROID_USER_HOME" "$ANDROID_AVD_HOME"
+          avd_dir="$ANDROID_AVD_HOME/mpv-probe.avd"
+          printf 'ANDROID_USER_HOME=%s\nANDROID_EMULATOR_HOME=%s\nANDROID_AVD_HOME=%s\nMPV_PROBE_ADB=%s\nMPV_PROBE_EMULATOR=%s\n' \
+            "$ANDROID_USER_HOME" "$ANDROID_EMULATOR_HOME" "$ANDROID_AVD_HOME" "$adb_bin" "$emu" >> "$GITHUB_ENV"
+          printf 'AVD_HOME=%s AVD_PATH=%s\n' "$ANDROID_AVD_HOME" "$avd_dir"
+          printf 'no\n' | "$avdmanager" create avd --force --name mpv-probe --package 'system-images;android-34;default;x86_64' --path "$avd_dir" --device pixel_2
+          test -s "$ANDROID_AVD_HOME/mpv-probe.ini"
+          test -s "$avd_dir/config.ini"
+          grep -Fx "path=$avd_dir" "$ANDROID_AVD_HOME/mpv-probe.ini"
+          cat "$ANDROID_AVD_HOME/mpv-probe.ini"
+          grep -E '^(abi.type|image.sysdir.1|hw.device.name|tag.id)=' "$avd_dir/config.ini"
+          "$avdmanager" list avd
+          "$emu" -list-avds | tee "$RUNNER_TEMP/mpv-avd-list.txt"
+          grep -Fx mpv-probe "$RUNNER_TEMP/mpv-avd-list.txt"
+          echo PASS_ANDROID_AVD_CREATED_AND_DISCOVERABLE
       - name: Compile actual isolated Android module and test APK
         working-directory: inputs/media
         shell: bash
@@ -57,18 +99,44 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          test -e /dev/kvm
-          sudo chmod 666 /dev/kvm
-          sdkmanager="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
-          "$sdkmanager" --install emulator 'system-images;android-34;default;x86_64'
-          echo no | "$ANDROID_HOME/cmdline-tools/latest/bin/avdmanager" create avd --force -n mpv-probe -k 'system-images;android-34;default;x86_64'
-          "$ANDROID_HOME/emulator/emulator" -avd mpv-probe -no-window -no-audio -no-boot-anim -gpu swiftshader_indirect -no-snapshot -accel on -memory 2048 -no-metrics >"$RUNNER_TEMP/mpv-emulator.log" 2>&1 &
-          echo $! >"$RUNNER_TEMP/mpv-emulator.pid"
-          timeout 300 adb wait-for-device
-          timeout 300 bash -c 'until [ "$(adb shell getprop sys.boot_completed | tr -d "\r")" = 1 ]; do sleep 5; done'
-          adb shell getprop ro.build.version.sdk
-          adb shell getprop ro.product.cpu.abi
-          adb shell wm dismiss-keyguard
+          test -x "$MPV_PROBE_ADB"
+          test -x "$MPV_PROBE_EMULATOR"
+          test -s "$ANDROID_AVD_HOME/mpv-probe.ini"
+          test -s "$ANDROID_AVD_HOME/mpv-probe.avd/config.ini"
+          "$MPV_PROBE_EMULATOR" -list-avds | grep -Fx mpv-probe
+          # Never change /dev/kvm permissions or runner groups.
+          accel=off
+          if test -c /dev/kvm && test -r /dev/kvm && test -w /dev/kvm; then
+            if "$MPV_PROBE_EMULATOR" -accel-check; then accel=on; fi
+          fi
+          if test -e /dev/kvm; then stat -c 'KVM mode=%a owner=%U group=%G' /dev/kvm; fi
+          echo "EMULATOR_ACCEL=$accel (existing access only)"
+          "$MPV_PROBE_ADB" start-server
+          "$MPV_PROBE_EMULATOR" -avd mpv-probe -port 5554 -no-window -no-audio -no-boot-anim -gpu swiftshader_indirect -no-snapshot -accel "$accel" -memory 2048 -no-metrics >"$RUNNER_TEMP/mpv-emulator.log" 2>&1 &
+          pid=$!
+          printf '%s\n' "$pid" >"$RUNNER_TEMP/mpv-emulator.pid"
+          deadline=$((SECONDS+600))
+          while (( SECONDS < deadline )); do
+            if ! kill -0 "$pid" 2>/dev/null; then
+              echo "emulator exited before boot" >&2
+              tail -n 100 "$RUNNER_TEMP/mpv-emulator.log" >&2
+              exit 1
+            fi
+            state="$(timeout 8 "$MPV_PROBE_ADB" -s emulator-5554 get-state 2>/dev/null || true)"
+            if test "$state" = device; then
+              ready="$(timeout 8 "$MPV_PROBE_ADB" -s emulator-5554 shell getprop sys.boot_completed 2>/dev/null | tr -d '\r' || true)"
+              if test "$ready" = 1; then break; fi
+            fi
+            sleep 5
+          done
+          test "$(timeout 10 "$MPV_PROBE_ADB" -s emulator-5554 shell getprop sys.boot_completed | tr -d '\r')" = 1
+          sdk_api="$(timeout 10 "$MPV_PROBE_ADB" -s emulator-5554 shell getprop ro.build.version.sdk | tr -d '\r')"
+          abi="$(timeout 10 "$MPV_PROBE_ADB" -s emulator-5554 shell getprop ro.product.cpu.abi | tr -d '\r')"
+          echo "ANDROID_DEVICE sdk=$sdk_api abi=$abi serial=emulator-5554"
+          test "$sdk_api" = 34
+          test "$abi" = x86_64
+          timeout 30 "$MPV_PROBE_ADB" -s emulator-5554 shell wm dismiss-keyguard
+          echo PASS_ANDROID_EMULATOR_BOOT
       - name: Instrument real Media3 and OkHttp on Android
         shell: bash
         run: |
@@ -78,12 +146,12 @@ jobs:
           testfile="$(find "$dir/androidTest/debug" -name '*.apk')"
           test -f "$appfile"
           test -f "$testfile"
-          adb install -t "$appfile"
-          adb install -t "$testfile"
-          adb logcat -c
-          timeout 480 adb shell am instrument -w -r -e class org.fingmi.mpvprobe.Media3MpvInputAndroidTest \
+          "$MPV_PROBE_ADB" -s emulator-5554 install -t "$appfile"
+          "$MPV_PROBE_ADB" -s emulator-5554 install -t "$testfile"
+          "$MPV_PROBE_ADB" -s emulator-5554 logcat -c
+          timeout 480 "$MPV_PROBE_ADB" -s emulator-5554 shell am instrument -w -r -e class org.fingmi.mpvprobe.Media3MpvInputAndroidTest \
             org.fingmi.mpvprobe.test/androidx.test.runner.AndroidJUnitRunner | tee "$RUNNER_TEMP/mpv-instrumentation.txt"
-          adb logcat -d -s MpvProbe:I AndroidRuntime:E '*:S' | tee "$RUNNER_TEMP/mpv-runtime.txt"
+          "$MPV_PROBE_ADB" -s emulator-5554 logcat -d -s MpvProbe:I AndroidRuntime:E '*:S' | tee "$RUNNER_TEMP/mpv-runtime.txt"
           grep -F 'OK (5 tests)' "$RUNNER_TEMP/mpv-instrumentation.txt"
           ! grep -E 'FAILURES!!!|INSTRUMENTATION_FAILED|Process crashed' "$RUNNER_TEMP/mpv-instrumentation.txt"
           for marker in PASS_ANDROID_RANGE_SEEK_EOF_HEADERS PASS_ANDROID_AUTH_REDIRECT PASS_ANDROID_CANCEL_HEADERS PASS_ANDROID_CANCEL_BODY_OWNER_SWITCH PASS_ANDROID_STICKY_CANCEL_INVALID_RANGE_TRUNCATION; do
@@ -95,7 +163,9 @@ jobs:
         if: always()
         shell: bash
         run: |
-          adb logcat -d -s MpvProbe:I AndroidRuntime:E '*:S' 2>/dev/null || true
+          if test -n "${MPV_PROBE_ADB:-}" && test -x "$MPV_PROBE_ADB"; then
+            timeout 15 "$MPV_PROBE_ADB" -s emulator-5554 logcat -d -s MpvProbe:I AndroidRuntime:E '*:S' 2>/dev/null || true
+            timeout 15 "$MPV_PROBE_ADB" -s emulator-5554 emu kill || true
+          fi
           if test -f "$RUNNER_TEMP/mpv-emulator.log"; then tail -n 100 "$RUNNER_TEMP/mpv-emulator.log"; fi
-          adb emu kill || true
           if test -f "$RUNNER_TEMP/mpv-emulator.pid"; then kill "$(cat "$RUNNER_TEMP/mpv-emulator.pid")" 2>/dev/null || true; fi
