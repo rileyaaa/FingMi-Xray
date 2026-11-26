@@ -1,4 +1,4 @@
-name: Isolated native consumer source probes
+name: Isolated MPV native instrumentation source compile
 on:
   push:
     branches: [dev/fongmi-upstream-adaptation]
@@ -8,7 +8,7 @@ permissions:
 jobs:
   mpv-contract:
     if: >-
-      github.repository == 'rileyaaa/FingMi-Xray' && github.ref == 'refs/heads/dev/fongmi-upstream-adaptation' && github.event.head_commit.message == 'ci: verify real libass subset and official MPV source contracts'
+      github.repository == 'rileyaaa/FingMi-Xray' && github.ref == 'refs/heads/dev/fongmi-upstream-adaptation' && github.event.head_commit.message == 'ci: compile only new native stream Android probe sources'
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
@@ -28,36 +28,11 @@ jobs:
           ref: 1bf892e3271e73d8649f2d209027f1fb17515d15
           path: inputs/mpv
           persist-credentials: false
-      - uses: actions/checkout@v7
-        with:
-          repository: FongMi/mpv
-          ref: f964d1495355d5c6626df3de1d3eeb90ddee2aba
-          path: inputs/mpv-headers
-          sparse-checkout: include/mpv
-          persist-credentials: false
-      - uses: actions/checkout@v7
-        with:
-          repository: FongMi/FFmpeg
-          ref: 963c8cbbebb0250f747f0019516bda55bc638da9
-          path: inputs/ffmpeg-headers
-          sparse-checkout: |
-            /libavcodec/jni.h
-            /COPYING.LGPLv2.1
-          sparse-checkout-cone-mode: false
-          persist-credentials: false
       - uses: actions/setup-java@v6
         with:
           distribution: jetbrains
           java-version: '21'
-      - name: Verify tagged request gate on host without fake media source
-        shell: bash
-        run: |
-          set -euo pipefail
-          base=fork/scripts/upstream-adaptation/mpv-stream
-          mkdir "$RUNNER_TEMP/request-gate"
-          javac --release 8 -d "$RUNNER_TEMP/request-gate" "$base/MpvStreamOwner.java" "$base/android/native/MpvNativeRequestGate.java" "$base/android/native/NativeRequestGateHostTest.java"
-          java -cp "$RUNNER_TEMP/request-gate" NativeRequestGateHostTest
-      - name: Compile exact official JNI wrapper Android objects only
+      - name: Install official Android compile SDK
         shell: bash
         run: |
           set -euo pipefail
@@ -66,8 +41,7 @@ jobs:
           manager="$sdk/cmdline-tools/latest/bin/sdkmanager"
           test -x "$manager"
           yes | "$manager" --sdk_root="$sdk" --licenses >/dev/null 2>&1 || true
-          "$manager" --sdk_root="$sdk" --install 'ndk;30.0.16248370' 'platforms;android-36' 'build-tools;36.0.0'
-          python3 fork/scripts/upstream-adaptation/mpv-stream/android/native/compile_official_wrapper.py inputs/mpv inputs/mpv-headers inputs/ffmpeg-headers "$sdk/ndk/30.0.16248370" "$RUNNER_TEMP/mpv-objects"
+          "$manager" --sdk_root="$sdk" --install 'platforms;android-36' 'build-tools;36.0.0'
       - name: Compile new native instrumentation source against real Media3
         shell: bash
         run: |
@@ -77,78 +51,9 @@ jobs:
           mod=inputs/media/mpv-stream-probe
           cp "$base/native/MpvNativeRequestGate.java" "$mod/src/main/java/androidx/media3/mpvplayer/media/"
           cp "$base/native/NativeMpvStreamAndroidTest.java" "$mod/src/androidTest/java/org/fingmi/mpvprobe/"
+          git -C fork hash-object scripts/upstream-adaptation/mpv-stream/android/native/MpvNativeRequestGate.java scripts/upstream-adaptation/mpv-stream/android/native/NativeMpvStreamAndroidTest.java
+          test ! -d "$mod/src/main/jniLibs"
           cd inputs/media
           bash gradlew --no-daemon --max-workers=2 -Dorg.gradle.jvmargs=-Xmx4g -PexternalBuildDir="$RUNNER_TEMP/mpv-build" \
             :mpv-stream-probe:compileDebugAndroidTestJavaWithJavac
           echo PASS_NEW_NATIVE_PROBE_JAVA_COMPILE_ONLY
-  libass:
-    if: >-
-      github.repository == 'rileyaaa/FingMi-Xray' && github.ref == 'refs/heads/dev/fongmi-upstream-adaptation' && github.event.head_commit.message == 'ci: verify real libass subset and official MPV source contracts'
-    runs-on: ubuntu-24.04
-    timeout-minutes: 15
-    steps:
-      - uses: actions/checkout@v7
-        with:
-          path: fork
-          persist-credentials: false
-      - uses: actions/checkout@v7
-        with:
-          repository: libass/libass
-          ref: a6613d2554daff9e1b5ddf2dbfb3fc31b61b9448
-          path: inputs/libass
-          persist-credentials: false
-      - uses: actions/checkout@v7
-        with:
-          repository: FongMi/mpv-android
-          ref: 1bf892e3271e73d8649f2d209027f1fb17515d15
-          path: inputs/mpv
-          persist-credentials: false
-      - uses: actions/setup-java@v6
-        with:
-          distribution: jetbrains
-          java-version: '21'
-      - name: Build pinned libass source and author's actual font-size patch
-        shell: bash
-        run: |
-          set -euo pipefail
-          test "$(git -C inputs/libass rev-parse HEAD)" = a6613d2554daff9e1b5ddf2dbfb3fc31b61b9448
-          test "$(git -C inputs/mpv rev-parse HEAD)" = 1bf892e3271e73d8649f2d209027f1fb17515d15
-          test "$(git -C inputs/libass hash-object libass/ass.h)" = 851ca7cb9614f8d5d3175bbcc2925dfb6521bc27
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends autoconf automake libtool pkg-config nasm libfreetype6-dev libfontconfig1-dev libfribidi-dev libharfbuzz-dev libunibreak-dev fonts-dejavu-core
-          patch_file="$GITHUB_WORKSPACE/inputs/mpv/buildscripts/patches/libass-font-size-em.patch"
-          sha256sum "$patch_file"
-          if patch --batch --forward --fuzz=0 --dry-run -d inputs/libass -p1 <"$patch_file"; then
-            patch --batch --forward --fuzz=0 -d inputs/libass -p1 <"$patch_file"
-          elif ! patch --batch --reverse --fuzz=0 --dry-run -d inputs/libass -p1 <"$patch_file"; then
-            exit 1
-          fi
-          cd inputs/libass
-          git diff --stat
-          test -s COPYING
-          sha256sum COPYING
-          autoreconf -fi
-          ./configure --prefix="$RUNNER_TEMP/ass-prefix" --with-pic --enable-shared --disable-static --enable-asm --enable-fontconfig --enable-libunibreak
-          make -j2
-          make install
-          echo PASS_PINNED_LIBASS_HOST_BUILD
-      - name: Execute three real JNI methods and actual timed subtitle rendering
-        shell: bash
-        run: |
-          set -euo pipefail
-          base=fork/scripts/upstream-adaptation/libass-library-probe
-          export PKG_CONFIG_PATH="$RUNNER_TEMP/ass-prefix/lib/pkgconfig"
-          export LD_LIBRARY_PATH="$RUNNER_TEMP/ass-prefix/lib"
-          pkg-config --modversion libass
-          pkg-config --variable=libdir libass
-          test "$(pkg-config --variable=libdir libass)" = "$RUNNER_TEMP/ass-prefix/lib"
-          mkdir "$RUNNER_TEMP/ass-probe"
-          g++ -std=c++17 -Wall -Wextra -Werror -fPIC -shared -I"$JAVA_HOME/include" -I"$JAVA_HOME/include/linux" \
-            "$base/libass_library.cpp" $(pkg-config --cflags --libs libass) -o "$RUNNER_TEMP/ass-probe/libasslibraryprobe.so"
-          ldd "$RUNNER_TEMP/ass-probe/libasslibraryprobe.so"
-          ldd "$RUNNER_TEMP/ass-probe/libasslibraryprobe.so" | grep -F "$RUNNER_TEMP/ass-prefix/lib/libass"
-          sha256sum "$RUNNER_TEMP/ass-probe/libasslibraryprobe.so"
-          javac --release 8 -d "$RUNNER_TEMP/ass-probe" "$base/LibassNative.java" "$base/LibassLibraryProbe.java"
-          javap -s -classpath "$RUNNER_TEMP/ass-probe" androidx.media3.exoplayer.libass.LibassNative
-          java -Xcheck:jni -cp "$RUNNER_TEMP/ass-probe" androidx.media3.exoplayer.libass.LibassLibraryProbe "$RUNNER_TEMP/ass-probe/libasslibraryprobe.so" /usr/share/fonts/truetype/dejavu/DejaVuSans.ttf
-          echo PASS_LIBASS_HOST_JNI_ONLY
