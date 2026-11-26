@@ -7,6 +7,7 @@
 #include <cstring>
 #include <memory>
 #include <limits>
+#include <cmath>
 #include <mutex>
 #include <string>
 #include <unordered_map>
@@ -65,6 +66,10 @@ struct FixtureTrack {
     std::shared_ptr<Library> lib;
     ASS_Renderer *renderer=nullptr;
     ASS_Track *track=nullptr;
+    bool reference_frame_ready=false;
+    bool reference_frame_dirty=true;
+    int reference_storage_w=0, reference_storage_h=0;
+    int reference_frame_w=0, reference_frame_h=0;
     explicit FixtureTrack(std::shared_ptr<Library> l):lib(std::move(l)){}
     ~FixtureTrack() {
         std::lock_guard<std::mutex> lock(lib->mutex);
@@ -346,6 +351,8 @@ Java_androidx_media3_exoplayer_libass_LibassNative_nativeSetStorageSize(JNIEnv *
         }
         std::lock_guard<std::mutex> lock(t->lib->mutex);
         ass_set_storage_size(t->renderer,w,h);
+        t->reference_storage_w=w;t->reference_storage_h=h;
+        t->reference_frame_dirty=true;
     });
 }
 extern "C" JNIEXPORT void JNICALL
@@ -358,4 +365,107 @@ Java_androidx_media3_exoplayer_libass_LibassNative_nativeSetCacheLimits(JNIEnv *
         std::lock_guard<std::mutex> lock(t->lib->mutex);
         ass_set_cache_limits(t->renderer,glyphs,mb);
     });
+}
+
+/* Reference consumer subset: dlgt7/media@3382803f actual Java
+ * LibassTrackSession, LibassFrame, LibassImage, LibassGlImage.
+ * A full synchronous CPU frame is allowed when allowPartial is true.
+ * Only renderLast=true (the actual caller's value) is implemented here.
+ * No GPU texture creation or unknown fallback/partial semantics.
+ * Geometry restricted to same-size storage/display, in-frame viewport.
+ */
+extern "C" JNIEXPORT void JNICALL
+Java_androidx_media3_exoplayer_libass_LibassNative_nativeSetFrameSize(
+    JNIEnv *env,jclass,jlong id,jint w,jint h,jint left,jint top,jint right,jint bottom,jdouble par) {
+    jni_void(env,[&]{
+        auto t=fixture(env,id);if(!t)return;
+        if(w<=0||h<=0||w>std::numeric_limits<int>::max()/h||
+           right<=left||bottom<=top||!std::isfinite(par)||par<0){
+            fail(env,"java/lang/IllegalArgumentException","invalid reference frame geometry");return;
+        }
+        std::lock_guard<std::mutex> lock(t->lib->mutex);
+        // The reference playback caller may supply video dimensions but a
+        // separately sized render surface; do not guess that transformation.
+        if(w!=t->reference_storage_w||h!=t->reference_storage_h||
+           left<0||top<0||right>w||bottom>h){
+            fail(env,"java/lang/UnsupportedOperationException","same-size in-frame viewport probe only");return;
+        }
+        ass_set_frame_size(t->renderer,w,h);
+        ass_set_margins(t->renderer,top,h-bottom,left,w-right);
+        ass_set_use_margins(t->renderer,0);
+        ass_set_pixel_aspect(t->renderer,par);
+        t->reference_frame_w=w;t->reference_frame_h=h;
+        t->reference_frame_ready=true;t->reference_frame_dirty=true;
+    });
+}
+
+extern "C" JNIEXPORT jobject JNICALL
+Java_androidx_media3_exoplayer_libass_LibassNative_nativeRenderFrame(
+    JNIEnv *env,jclass,jlong id,jlong time,jboolean allow_partial,jboolean render_last) {
+    jobject result=nullptr;
+    jni_void(env,[&]{
+        auto t=fixture(env,id);if(!t)return;
+        if(!render_last){
+            fail(env,"java/lang/UnsupportedOperationException","reference renderLast=false contract not established");return;
+        }
+        (void)allow_partial; // Permission, not a requirement: synchronous full render only.
+        std::lock_guard<std::mutex> lock(t->lib->mutex);
+        if(!t->reference_frame_ready||
+           t->reference_frame_w!=t->reference_storage_w||
+           t->reference_frame_h!=t->reference_storage_h){
+            fail(env,"java/lang/IllegalStateException","reference geometry not ready");return;
+        }
+        // If copying/constructing fails after ass_render_frame changed its
+        // previous-image state, the next successful frame must refresh Java.
+        const bool force=t->reference_frame_dirty;
+        t->reference_frame_dirty=true;
+        int changed=0;
+        ASS_Image *first=ass_render_frame(t->renderer,t->track,time,&changed);
+        size_t total=0;jsize count=0;
+        for(auto *im=first;im;im=im->next){
+            if(im->w<=0||im->h<=0)continue;
+            if(!im->bitmap||im->stride<im->w||im->w>std::numeric_limits<jint>::max()/im->h||
+               count>=4096||static_cast<size_t>(im->w)*im->h>64U*1024*1024-total){
+                fail(env,"java/lang/IllegalStateException","invalid or excessive reference image");return;
+            }
+            total+=static_cast<size_t>(im->w)*im->h;++count;
+        }
+        // Use the actual reference Java classes, not the former fixture DTO.
+        jclass image_cls=env->FindClass("androidx/media3/exoplayer/libass/LibassImage");
+        if(!image_cls)return;
+        jmethodID image_ctor=env->GetMethodID(image_cls,"<init>","(IIIII[BI)V");
+        if(!image_ctor){env->DeleteLocalRef(image_cls);return;}
+        jobjectArray images=env->NewObjectArray(count,image_cls,nullptr);
+        if(!images){env->DeleteLocalRef(image_cls);return;}
+        jsize index=0;
+        for(auto *im=first;im;im=im->next){
+            if(im->w<=0||im->h<=0)continue;
+            jbyteArray data=env->NewByteArray(im->w*im->h);
+            if(!data)break;
+            for(int row=0;row<im->h;++row){
+                env->SetByteArrayRegion(data,row*im->w,im->w,
+                    reinterpret_cast<const jbyte*>(im->bitmap+static_cast<size_t>(row)*im->stride));
+                if(env->ExceptionCheck())break;
+            }
+            if(env->ExceptionCheck()){env->DeleteLocalRef(data);break;}
+            jobject image=env->NewObject(image_cls,image_ctor,im->dst_x,im->dst_y,im->w,im->h,
+                                          static_cast<jint>(im->color),data,0);
+            env->DeleteLocalRef(data);
+            if(!image)break;
+            env->SetObjectArrayElement(images,index++,image);
+            env->DeleteLocalRef(image);
+            if(env->ExceptionCheck())break;
+        }
+        env->DeleteLocalRef(image_cls);
+        if(index!=count||env->ExceptionCheck()){
+            env->DeleteLocalRef(images);fail(env,"java/lang/IllegalStateException","incomplete reference frame");return;
+        }
+        jclass frame_cls=env->FindClass("androidx/media3/exoplayer/libass/LibassFrame");
+        if(!frame_cls){env->DeleteLocalRef(images);return;}
+        jmethodID ctor=env->GetMethodID(frame_cls,"<init>","(I[Landroidx/media3/exoplayer/libass/LibassImage;)V");
+        if(ctor)result=env->NewObject(frame_cls,ctor,static_cast<jint>(force||changed!=0),images);
+        env->DeleteLocalRef(images);env->DeleteLocalRef(frame_cls);
+        if(result&&!env->ExceptionCheck())t->reference_frame_dirty=false;
+    });
+    return result;
 }
