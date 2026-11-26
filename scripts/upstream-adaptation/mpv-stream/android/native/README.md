@@ -161,3 +161,75 @@ No emulator, original five-test rerun, Libass rerun, eight-object rerun,
 SO linking, APK assembly or native runtime. Native instrumentation 0/3
 executed, all pending. Both historical runs and raw logs retained;
 remove only the temporary push trigger at the end of this batch.
+
+## Reduced FFmpeg diagnostic (terminal 2026-11-26)
+
+[45757353929 / 139698993565](https://github.com/rileyaaa/FingMi-Xray/actions/runs/45757353929/job/139698993565)
+success at 9a12f408a1eb84b11198901119adb8f9f448edea. Reproduce with the
+[one-time recipe](https://github.com/rileyaaa/FingMi-Xray/blob/9a12f408a1eb84b11198901119adb8f9f448edea/.github/workflows/95-reduced-native-track-once.yml)
+and reduced_ffmpeg_diagnostic.py (blob ae07efaff18b5f2b9ef07efc94f48e43a0124ef9).
+Only a reduced LGPL diagnostic, not the exact producer: fixed FFmpeg
+963c8cbbebb0250f747f0019516bda55bc638da9, NDK 30.0.16248370,
+x86_64 API24. Sparse working tree excludes dependency/ and filenames
+containing avs3/arcdav3a/av3a; verifies absence before configure, disables
+autodetection, GPL/nonfree/version3 and network, explicitly enables
+WAV/PCM_s16le/file/JNI. No unverified codec built, no product Gradle.
+Configure reports LGPL version 2.1 or later. LGPL COPYING SHA256
+246041b6ecf9bc32d718a62c57877c78b5eb397b6467e74ed7ae2626ab189c30.
+Actual generated avconfig.h SHA256
+6d78a911a2128e926262114c9904209209674e3bc1a18c208c850ecbfc3393ec.
+The original thumbnail.cpp blob ac5af164a68ed7d36b39e9732fd850beac5579ca
+compiles to an ELF64 x86_64 ET_REL, 17280 bytes, SHA256
+05a91139a6f8e141e0df866003be914af7cec76ff18044b436ab79835664878c,
+with Java_is_xyz_mpv_MPVLib_grabThumbnail and sws_getContext/sws_scale/
+sws_freeContext imports, all resolved by diagnostic swscale exports.
+This is the ninth source unit under a different diagnostic configuration;
+not a common 9/9 exact-producer link. The eight previous objects were not rerun.
+
+| Actual split SO | Bytes | SHA256 |
+| --- | ---: | --- |
+| libavutil.so | 2649008 | 125ca36f6015a8a12d7822b339fc866633d3da8ff06f8743aea285f0d7d693fc |
+| libavcodec.so | 1550112 | 5d097478396626767241685374a56433a96d94cec384e9336d1c48c7f6df925f |
+| libavformat.so | 1467832 | 682187c8e10fa4a079249b26fd8a35ab80f87cbd5637392436515194a53429b8 |
+| libswscale.so | 4709400 | 8140ab68a1331a34aeba814de59d9806fe19032f0ec46ca034597b756f272417 |
+
+All four are ELF64 ET_DYN x86_64, PT_LOAD alignment and address/offset
+congruence >=16KiB, NEEDED closure against the split set and actual NDK
+sysroot, no RPATH/RUNPATH/TEXTREL, real av_jni_set_java_vm exported.
+Raw markers PASS_NINTH_WRAPPER_OBJECT_REDUCED_HEADER and
+PASS_REDUCED_SPLIT_FFMPEG_DIAGNOSTIC. No libmpv/libplayer or emulator runtime.
+
+### Remaining diagnostic dependency closure (source inspection, not build)
+
+Fixed FongMi/mpv@f964d1495355d5c6626df3de1d3eeb90ddee2aba
+meson.build d0baed522c25485521b70cb88a44a9589ae4d8a5:23-44 requires
+avcodec,avfilter,avformat,avutil,swresample,swscale,libplacebo>=7.387.0,
+libass>=0.12.2; current split set lacks avfilter/swresample/libplacebo/
+libass. Exact producer mpv.sh d641ebb6526c471c3301793271e6667a5c3bbd and
+libplacebo.sh aefb98393edd3e2d94bfe9b2f66d0ef0b8c911af require additional
+features and dependencies; no full authorized exact producer yet.
+For a possible headless diagnostic only, pinned FongMi/libplacebo@
+dc98e2fceb82233b3bb75e9c6249e581c57f3f2d LICENSE blob
+20fb9c7da21cb5a29e10f614a03661a935181652 is LGPL2.1; src/meson.build
+01356e269307a6054f91ec9c4e68ce9226bf376c:176-187 allows no graphics
+backend with a warning. meson_options.txt 95a96c73fe90c29359df8cf3e6eb4d55acf9c5af
+permits disabling Vulkan/OpenGL/D3D11/shaderc/glslang. This is not
+evidence that the resulting core links or renders. Its pinned
+submodules (Vulkan-Headers 74d8a6cb930c68ef617b202c3ff3c59d919e086b,
+fast_float 97b54ca9e75f5303507699d27c6b4f4efe4641a1,
+glad 73db193f853e2ee079bf3ca8a64aa2eaf6459043,
+jinja 15206881c006c79667fe5154fe80c01c65410679,
+markupsafe 297fc8e356e6836a62087949245d09a28e9f1b13)
+need further used-source/license/build closure.
+libass configure.ac 27676b3e953c8ba5d18622b99df27b496ff9c66c
+requires FreeType/FriBidi/HarfBuzz; fontconfig and unibreak can be
+disabled in a strictly embedded-font diagnostic. Resolved author recipe
+versions to fixed source commits and inspected license blobs:
+FreeType 2.15.0 freetype/freetype@37515cf56ba3349656049edbed89ffc6f6466f2d
+(FTL b9e8cbd66ffff526113350953f4a2f4252a92f49, GPLv2 b2fe7b6af3535ebc1e018dd2fe6c993330c031fa);
+FriBidi 1.0.17 fribidi/fribidi@b93119f5fdc7ea47672cc304c1455ffa6dfe7536
+(COPYING f6683e74e0f0130f246dbf7054f4cacc88ca84b0);
+HarfBuzz 15.0.0 harfbuzz/harfbuzz@35f656a1a2bab548ea7f54a6dd3fba2b09680d14
+(COPYING 1dd917e9f2e72167de69e3b5dadbc4e7db417da1).
+These are candidate source/license pins, not verified Android rebuilds.
+Exact producer gate and ARM ELF/ZIP gates remain unchanged.
