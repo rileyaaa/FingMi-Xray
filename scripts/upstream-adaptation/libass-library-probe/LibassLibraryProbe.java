@@ -8,6 +8,7 @@ public final class LibassLibraryProbe {
     private static native long renderFixture(long track,long time);
     private static native void closeFixture(long track);
     private static native int liveLibraries();
+    static int liveLibraryCountForTrackProbe(){return liveLibraries();}
     private static void check(boolean value,String what){if(!value)throw new AssertionError(what);}
     public static void main(String[] args)throws Exception{
         System.load(Paths.get(args[0]).toAbsolutePath().toString());
