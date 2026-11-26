@@ -29,8 +29,18 @@ public final class NativeRequestGateHostTest {
             Future<Boolean> a=e.submit(c),b=e.submit(c);start.countDown();
             if(a.get()==b.get())throw new AssertionError("duplicate concurrent delivery");
         }finally{e.shutdownNow();}
+        // Recreating the gate must not assign an old process-global reply to
+        // a different context merely because the same ID sequence restarted.
+        long orphan=gate.reserve(next);
         owner.retire(next);gate.clear();
-        if(count.get()!=3)throw new AssertionError("count");
-        System.out.println("PASS_HOST_REQUEST_GATE 64-bit out-of-order duplicate concurrent stale discard; synthetic replies only");
+        MpvStreamOwner anotherOwner=new MpvStreamOwner();
+        MpvStreamOwner.Lease another=anotherOwner.replace(unused);
+        MpvNativeRequestGate replacement=new MpvNativeRequestGate();
+        long fresh=replacement.reserve(another);
+        if(fresh<=orphan||replacement.deliver(orphan,0,result,sink))throw new AssertionError("cross-context ID reuse");
+        if(!replacement.deliver(fresh,0,result,sink))throw new AssertionError("replacement reply");
+        anotherOwner.retire(another);replacement.clear();
+        if(count.get()!=4)throw new AssertionError("count");
+        System.out.println("PASS_HOST_REQUEST_GATE 64-bit out-of-order duplicate concurrent stale discard cross-context; synthetic replies only");
     }
 }

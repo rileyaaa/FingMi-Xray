@@ -7,7 +7,9 @@ import java.util.concurrent.atomic.AtomicLong;
 /** Only native replies with an explicit request ID may enter this gate.
  * Neither global property events nor END_FILE/FILE_LOADED are attributed here. */
 public final class MpvNativeRequestGate {
-    private final AtomicLong ids = new AtomicLong(1L << 40);
+    // Native callbacks are process-global. Do not restart the ID space when a
+    // new gate/context is created in the same class loader.
+    private static final AtomicLong IDS = new AtomicLong(1L << 40);
     private final ConcurrentHashMap<Long, MpvStreamOwner.Lease> pending = new ConcurrentHashMap<>();
 
     public interface Reply {
@@ -16,8 +18,10 @@ public final class MpvNativeRequestGate {
 
     public long reserve(MpvStreamOwner.Lease owner) {
         if (owner == null) throw new NullPointerException("owner");
-        long id = ids.incrementAndGet();
-        if (id <= 0) throw new IllegalStateException("request ID exhausted");
+        long id = IDS.updateAndGet(previous -> {
+            if (previous == Long.MAX_VALUE) throw new IllegalStateException("request ID exhausted");
+            return previous + 1;
+        });
         if (!owner.publish(() -> pending.put(id, owner))) {
             throw new IllegalStateException("retired owner");
         }
