@@ -1268,3 +1268,48 @@ recovery-integration job 139412493675 failure：SDK 37.0 安装成功；`:tv-rec
 恢复适配须同时满足：取得可追溯、合法、版本配套的定制 Media3/MPV/FFmpeg Java/JNI、native 依赖和构建/分发合同（含 libass、ISO/光盘、字幕与正常上游音视频能力，以及 12.3 所列 runtime 依赖）；解决主 Manifest 的 REQUEST_INSTALL_PACKAGES 与 fork 禁止上游自更新的权限边界且保全正常模块安装，不自行扩大权限；解决 MpvPlayerEngine 接线及五个旧媒体待审项；实际编译完整 Leanback ARMv7/ARM64 APK，检查 ABI、ELF/动态依赖、16 KB、Manifest、全部宿主链接，再在真实电视验证普通播放、直播/VOD 当前 owner、字幕/旁路、待机和网络恢复。Robolectric/边界 fixture 仅覆盖所列测试，不等于上述 APK 与真机门禁。禁止从旧/新 APK 回填未公开实现、空壳接口或删减正常功能。
 
 XTLS/libXray 与 Xray-core 当前正式 latest 仍是 v26.11.9，无新的 API 2/旧导入与分享、TOFU 及单一播放等价证据（旧 23/26 不是通过）；保留 v26.7.28。5.6.3-xray.2 仍是当前正式版，main f03faa5d 冻结；本次仅在 dev/fongmi-upstream-adaptation 留存测试与证据，不发布、不改签名或 Actions 历史。
+
+#### 5.9.0 扩大公开来源核验（2026-11-26，再开启）
+
+本节更新前述“暂无新的完整匹配来源”的具体证据；不是宣布 5.9.0 依赖已恢复。仍锁定 TV d3a0b84b、现有 fork 适配候选与原发布门禁。
+
+**定制 Java/consumer 搜索及排除：**
+
+- [Diaojiangjun/media](https://github.com/Diaojiangjun/media/tree/e9b5847ce6c16ec40536e0ec70cf7011391a4a9c) 与 [suxlsbz/media](https://github.com/suxlsbz/media/tree/e9b5847ce6c16ec40536e0ec70cf7011391a4a9c) 为相同 commit e9b5847ce6c16ec40536e0ec70cf7011391a4a9c，完整 tree 4369f8c21fc8c818096ef9b676194af40517890b / 9202 entries。65/66 个历史缺口 import 行可找到外层类型文件，仍无 androidx.media3.common.text.SubtitleFontFile；这不是 javac 或行为通过。11-19 的新增 commit 8d6bd33442c92d3d3bcff2dabe30a792c9fb91b3 引入大量 TV API 及 native prebuilts。实际 FfmpegMotionInterpolationController（blob 0f839574dd021320ef1d9d6eac081e517ce923f6）固定返回 unsupported/INACTIVE，IsoNavigationPlayerController（da7e1853ce88a6af1b55ab6c8ef35e8f15dc68a7）不建立 ISO 导航源、回报 RUNTIME_MISSING，LibassSubtitleController（6ec1618d3af0ef7fe77dfed80155252cd9243024）保留状态不足以证明实际副字幕输出。拒绝以这些空壳替代上游功能。Yuhaitao-920/fongmi-tv-589 的 from-source workflow 使用同一来源并有额外宿主/签名校验改动，不能作为本项目 5.9.0 等价证据。
+- [dlgt7/media](https://github.com/dlgt7/media/tree/3382803f11e129af8676a0a775f98293b079797f) 完整 tree 4cc0071aa7b7b30e7dd73a476c10d2b72a94b7f8 / 9201 entries，较官方基线 63 commits。60/66 历史 import 行找到外层类型文件；缺 SubtitleFontFile、TrackSelectionUtil、FfmpegMotionInterpolationController（含两个 nested imports）、FfmpegMotionRenderersFactory。ISO controller（96592e430334446991e883eb456d975eaa8d881f）确有 session/open/menu 流程，IsoNavigationSession（25aec0adb0ba060391d8630dfead44b5987ad9b6）要求 isoJNI；LibassSubtitleController（a4ada8bb791992e88c283659f2506203b82af858）调用选择器和副字幕格式，LibassLibrary（6ec82056ee170094557d4a31d606ef424be56159）加载 media3ass。完整树查无对应 isoJNI/libmedia3ass SO 或相关 C/C++ JNI producer。FFmpeg/MPV 原生输入仍属旧基线；新增源码大量经上传提交，根 Apache LICENSE 与文件头不独立证明全部新增实现来源、完整 native 授权或 5.9.0 合同。两个 fork 的 MPVLib.java blob 同为 36da8033843061ffbcbf560ed77566ffdca4dd98，native 声明不能替代新版 MPV Kotlin bridge 的完整 stream/回调及 Java consumer 联合检查。
+- 其他公开树交叉筛查：yangxw8820/fongmi_media、okcaptain/FongMi-Media、NextPlayerCloud/media-fm、webhtv/webhtv、chengxue2020/Fongmi-ExoPlayer 未发现上述 11 个关键新增类型的文件；其他同 tree 镜像不重复计为新实现。FongMi/FongMi、FongMi/Release 未提供缺失 consumer。kukuqi666/TVboxOSC 有其他产品的媒体 AAR 与 MPV 模块，但没有核实匹配源/授权/5.9.0 ABI 合同，未采用；15840213978a/fongmi-android6-main 的 scripts/recover_official_mpv.py（724e6967e13f5c5796e336bab8d2807f63a8bbd2）明确从 APK 读取 libmpv.so，排除该方式。旧 July fork 的媒体 AAR 和 xixu-me/fongmi-tv-actions-builder 亦不补足当前接口。
+- 已扩展到历史公开 refs、作者其他项目、公开 Maven/AAR 来源。公开 Maven NextLib (1.11.1-0.18.0 / 1.11.0-0.15.0) 与 io.put:media3-ffmpeg-decoder (1.11.1+1) 为独立 Media3 扩展/音频 decoder，并非已证明 FongMi 定制接口替代；未下载或执行它们。WebHTV 公开 README 及锁定构建说明为旧的 1.11.0-alpha01-fongmi + nextlib 1.10.0-0.12.1 定制体系，独立 native 命名/链接合同，不是新版统一 libffmpeg.so consumer。未确认其他可验证的匹配 AAR；搜索可见范围有限，不宣称互联网不存在相关源码。
+- FongMi/bdj-runtime@6b4bed40fc8c65480f4e1bedffbfa3be63dd99c0 README 记录独立 OpenJDK Zero 双 ABI、来源与许可证，但当前连接读取 zero-jdk8u482-r1 与 sources-v1 release tag 均 404、公开 run 列表空，不能据 README 宣称已取得运行时。此 producer 不等同 isoJNI。
+
+**官方 native producer 已实际取得并独立核验（不读取 APK）：**
+
+[FongMi/mpv-android run 44885769496](https://github.com/FongMi/mpv-android/actions/runs/44885769496)（job 136790596601 / success / 2026-11-21），实际 producer commit 1bf892e3271e73d8649f2d209027f1fb17515d15（不是当前 c92728c6）；日志锁定 FFmpeg 963c8cbbebb0250f747f0019516bda55bc638da9、MPV f964d1495355d5c6626df3de1d3eeb90ddee2aba、libplacebo dc98e2fceb82233b3bb75e9c6249e581c57f3f2d、NDK 30.0.16248370。实际 producer ffmpeg.sh blob 90e6de21643a374285a90fdde3a1369b32311451 明确启用 GPL/version3，并以聚合库作为 consumer 输入；MPVLib.kt blob 58656ed251ddec0d07ac416149428cbb22524fc8 有 stream registry 与 openStream、24 native 声明。公共源码和官方 artifact 可追溯，但 depinfo 仍有 dav1d/libass movable refs，尚未重建全套生产链、核定全部分发许可/对应源码。不可仅凭 artifact 来源认定完整许可。
+
+从官方 Actions 下载以下 5 个 ZIP，核对 GitHub API digest、文件长度、CRC（固定摘要写入审计脚本；不是 APK 提取或外部镜像）。前 3 个来自同一成功 run，API 到期时间 2027-02-19T08:37:42Z；后 2 个来自历史 run 44040032853、43415749605，仅作来源交叉比对，不宣称与新版 ABI 混用。
+
+| artifact ID | 内容 | bytes | SHA-256 |
+| --- | --- | ---: | --- |
+| 14699804350 | mpv-native | 43658512 | f07422157e0f18409084e1bf50352f142d56fca2a7cf71802b6e95621cb9d4f4 |
+| 14700635872 | renderer-sdk | 14360945 | d05798ac705e10172fd517b0d0ee718c9bb3e2a0073cd5f0d1baf807dbf8e010 |
+| 14699869160 | bdj | 2052197 | 3730c648dcf2e6bfa69e59dda68e33414b9201d1485337f685f8571d713888cd |
+| 14310565120 | 历史 mpv-native | 43575008 | eb7ebb001bcf7fd2f70f6e8e06d7a109fb64b7daeb5700e05fec1f8ce73fb782 |
+| 14032452811 | 历史 mpv-native | 43545891 | f573841e16ae8b15e3022008e5661ba2e149b3ab8354ca8b4f96f70b40b8c58c |
+
+新增独立只读证据入口 scripts/upstream-adaptation/audit_official_native_bundle.py，Python 3.9+、GNU readelf；将上述原始 ZIP 分别命名为 fongmi-mpv-native-14699804350.zip、fongmi-renderer-sdk-14700635872.zip、fongmi-bdj-14699869160.zip、fongmi-mpv-native-14310565120.zip、fongmi-mpv-native-14032452811.zip 后运行 python3 scripts/upstream-adaptation/audit_official_native_bundle.py <zip-directory>。实际本地运行退出 2（固定已核实阻塞，非验收成功）；摘要/结构不符会抛错。入口不安装/执行 native、不下载、不改依赖、不提取 APK、不被发布/AC 自动调用。
+
+| ABI | SO | bytes | SHA-256 | 16 KB |
+| --- | --- | ---: | --- | --- |
+| arm64-v8a | libffmpeg.so | 24708216 | 499d57009aab55341a3c55a1878f2bce487956003d964c856a346a911df533f8 | PASS |
+| arm64-v8a | libmpv.so | 18193632 | d4705cdb3eaa8094e70395bc03623003a9708b17e3ac56742a8fd13606a4941c | PASS |
+| arm64-v8a | libplayer.so | 56648 | a5483debe6d8629c11b863a9b5c5a9388882c6b76fbda08bd3109f5e383f82d8 | PASS |
+| arm64-v8a | libc++_shared.so | 9485032 | 7466ed097631a564ed6bff0b47768caa76bf03270d2047b5a65c03f497b824df | PASS |
+| armeabi-v7a | libffmpeg.so | 22151940 | c0a494b0e53971e3b79c5375b0d6e661bb6b4688a6fa50a577c6ae5cba960f1f | PASS |
+| armeabi-v7a | libmpv.so | 14960592 | 93e73e8d16f4549a6e8d8ab2499a95d876a90a20997ccc56c9a161574a78f642 | PASS |
+| armeabi-v7a | libplayer.so | 40972 | 9a1f5ba2556c15f312d63c2e6f0f90aae9b615c361b7e5dcb82ada405663334d | FAIL (0x1000) |
+| armeabi-v7a | libc++_shared.so | 7567040 | 2ee592c9ba3372da027384deb1070def5ae76f3ea2246bd447360faa73ac22f4 | FAIL (0x1000) |
+
+8/8 ELF ABI、DYN、SONAME、DT_NEEDED 文件集合检查通过，无 RPATH/RUNPATH/TEXTREL。每 ABI 1151 个版本化 FFmpeg 导出，libmpv 的 278 个 FFmpeg 版本化导入、libplayer 的 5 个 FFmpeg 版本化导入与 21 个 MPV 导入全部在对应导出集合内；24 个 Java_is_xyz_mpv_MPVLib_ JNI 导出名称（不等同 JNI 签名或运行时验证）。renderer SDK 的 87 项 SHA-256 全覆盖、每 ABI 36 headers、motion-build.properties/源 revision/manifest pin 一致，libplacebo API399、OpenGL/Vulkan，6 个静态库的 ELF member machine 正确（每 ABI motion 1、placebo 60、shaderc 239）；BD-J 2 JAR 内部 CRC/class 文件、4 个静态 archive 的 ABI 成员均通过（每 ABI libbluray 55、libfreetype 43）。未链接完整 consumer 或运行解码、ISO/BD-J、字幕、Xray。renderer 包中的 LICENSE 及 motion LICENSE/manifest 已核验；不宣称全部 GPL/LGPL 组件分发权与对应源码已齐。
+
+历史来源比对：Diaojiangjun/suxlsbz jniUnified2 的 libffmpeg.so blobs aa8847df15e9ff2203bbc6bb1823865c89ace511 (arm64) / 5521717a7ae75dad5a287e2a9c37ffec66eae073 (armv7) 与官方 11-13 artifact 14032452811 实际字节计算 Git blob 完全相同。其 libplayer.so blobs f7ea3497c0bc59148552d60c3cb9de8ae5e428b5 / 6b455800495f9ad6d2ea676348e55e3820fa2079 与三次官方 native artifact 均相同；其 libmpv.so 未与任一这三份 artifact 字节匹配，不能据此断言不合法或 APK 提取，只能说此比对未建立来源。第三方统一 FFmpeg producer 部分可追溯，不能为其其他 native 或 Java 空壳背书。
+
+**新的精确阻塞与恢复条件**：官方统一 FFmpeg/MPV/renderer producer 不再是完全未知，但 ARMv7 libplayer/libc++_shared 未通过既有 16KB 门禁；需要对固定 producer 源和 toolchain 修正/重建匹配的 ARMv7 输入，核定所有 native 来源和授权，不能直接用当前 ZIP 或不同日期/ABI 产物混装。缺少保全功能的 5.9.0 consumer Java/JNI（含定制 libffmpegJNI、libffmpegDoviJNI、isoJNI、media3ass、补帧、字幕、光盘），已找到的 producer motion 静态库不能替代 FFmpeg consumer renderer/controller。仍需解决 Manifest 安装权限边界、MpvPlayerEngine 及五项旧媒体待审，完整宿主编译/双 ABI APK/真实设备门禁不变。当前无满足全部条件的候选，不将审计脚本接入构建，不移植空壳、不删功能；没有重新执行 19 项已通过集成或其他 AC，没有触碰 main/Release/签名/历史，Core 保留 v26.7.28。仅将新的可复查证据及审计工具提交现有 dev 分支。官方 artifacts 仍留其原仓库，不复制入本仓库。
