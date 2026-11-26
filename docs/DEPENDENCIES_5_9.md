@@ -2,6 +2,14 @@
 
 仅用于 dev/fongmi-upstream-adaptation；正式 main / .2 不变。用户重新授权逐项用成熟、合法、可维护的源码替代，先完成隔离功能切片，确认等效后才接产品。以下“沿用”是 5.9 候选构建/探针实际沿用，不是已替换正式 APK。每个原始证据链接均为固定源码或历史 run；license header/NOTICE 不等同整个组合发行许可。回切统一要求：取得适用授权的匹配上游源码/工件、固定 hash/ABI/行为证据，经同一门禁及现有两模块回归再替换；不得自动切版本。
 
+## 2026-11-26：5.9 弹幕宿主 controller 合同与离线边界（起点 af6ea102）
+
+- 固定 TV PlaybackActivity blob 3ed88dcf1bb9e06b86b09e07bff1065768ba996b:81-82,237-239,857-913,1067-1094,1198-1217 实际需要无参构造及 bind(PlayerView)、setOkHttpClient(OkHttpClient)、setDataSource(Uri)、setConfig(DanmakuConfig)、setEnabled(boolean)、sendNow(String)、close()，另有 `Consumer<androidx.media3.ui.danmaku.Danmaku>` 兼容的 `::post` 与赋给 `List<Danmaku>` 的 getItems()。以原八条 reviewed edit 实际复算候选 blob c7a3a03290da7f28bf65cdb6ef7aae9bcbabe850，两个新调用仍存在，Xray client/owner guard 未改变。
+- 公共 PlayerView d9843985:576-579,741,794-809,1541-1577 持有 controller，提供旧 compat 的五个转发；公共 DanmakuController 7bf291c6:286-355,404-494 负责 Player/View、加载清理及 typed sendNow(Danmaku)，但类上 @MainThread，typed sendNow 直接交给 View，不是 post 的线程切换证明。LiveDanmaku 71aa83bc:23,35,58-92,126-131,190-201 从单线程 executor 建立订阅、generation/closed guard 后原样调用 emit；SiteApi 54f0d7b2:71-79 直接传给 Spider，不能保证回调在主线程。Danmaku 6debf76c:183-191 有带颜色数组的六参数构造。不得把 typed item 降为 String 或猜测异步队列/晚到回调语义。
+- getItems 不是装饰 API：PlaybackContentPanel eecf356b:201-219,255-274,345-348 每 500ms 更新，按 List 引用身份与 offset/context 跳过未变更新，列表交给 executor 读取 timeMs/text 后生成可定位内容。公共 controller 私有 timeline（0ec1319a:24-33,85-104,125-177）只提供包内分段合并/映射窗口等，无公共 item snapshot；不能用空列表、可变别名或当前渲染窗口冒充。上游精确 post 返回/队列及 item snapshot 的实现仍未知。
+- **本轮实测**：JDK 21.0.12.1 / javac --release 17 编译实际旧 compat，git hash-object 匹配 9c97e963e27aeb10d34cb4c9745d38790b118986。合成 PlayerView 边界使用固定公开五个转发方法体，底层 controller/Android/OkHttp 为 spy/doubles。43 lifecycle assertions 通过（配置预存与 client→config→enabled→source、同 View 幂等、旧 View 清理、换绑/解绑/重绑、空源清理、文字发送、close 后不复活）；三个故障注入（漏旧 View 清理、source 先于 client、close 后复活）均被 JVM AssertionError 拒绝。分别以实际宿主 `Consumer<Danmaku> ... = controller::post` 和 `List<Danmaku> ... = controller.getItems()` 编译，两个均为缺方法错误，2/2 负例。只验证七个共同方法及构造/旧 compat 转发，不是 Android/UI/网络/真实直播或新版 controller 等效证明。临时测试文件已清理，未提交测试替身、未生成 AAR/DEX/APK、未触发 CI。
+- 旧 compat 仍保留 old-media-compat-review；没有新实现或真实匹配 SDK，不能解除 post 的线程/owner/close 契约与 getItems 的快照/变化发布/分段内容契约。105 已终态失败（JDK 403，build/audit skipped，零 AAR）不重试。F1 结论保留，F2/F4 与完整 5.9 双 ABI 门槛不变；仅此证据记录，无 lock/播放器/工作流变更。
+
 ## 2026-11-26：lib-ui-danmaku 独立 AAR 包装缺口（起点 49536485）
 
 本轮只处理已登记的 ui→ui-danmaku 传递包装缺口；不重试 APK 下载、不重查 ISO/双字幕或 linker、不改变完整 5.9 目标。未获得本轮实际 AAR，故不修改 lock 的 verified_build、不增候选接线或 CI。此前原生合同结论全部保留。
