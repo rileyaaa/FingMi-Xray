@@ -1419,3 +1419,5 @@ python3 scripts/upstream-adaptation/stage_mpv_jni_bridge.py \
 #### 5.9.0 第八批：独立 fontconfig／定时字幕与缩放
 
 - 上一批 Android 12/18 局部终态已闭合。7ada150e 新增限定 fontconfig/family 与普通 ASS dialogue font scale 两个 probe-only JNI，保留旧嵌入字型 profile；[45763906436/139720100381](https://github.com/rileyaaa/FingMi-Xray/actions/runs/45763906436/job/139720100381) host native 已编译，实际两个外部字体选择日志通过，首个失败为 host 负向 fixture -1us 截断到 0ms，纠正为 -1000us。合批新增真实 TrackSession/LibassFontConfig Android 测项及固定 fontconfig/libxml2/libunibreak/Meson 源，host 新行为先过才跑 Android；不把执行中/局部日志当终态。详见 Libass README。
+
+- [45764161542/139720931749](https://github.com/rileyaaa/FingMi-Xray/actions/runs/45764161542/job/139720931749) corrected host success：真实外部 Sans/Serif、回切缓存、1234–1801ms 及重复/后退/0 duration、普通缩放169→239/85→恢复、显式ASS位置差140px、退役与最终library=0；同原始native字节，仅纠正fixture。累计14/18局部host证据，非Android全部方法，后续实际Android job独立。4项未实现（timedData/位置fraction/style/color）；GL/完整宿主/ARM/TV/授权门禁仍保留。无新 matching FFmpeg/Media3 consumer，见 [可停点](../scripts/upstream-adaptation/mpv-stream/android/native/CONSUMER_STOP_POINT.md)。
