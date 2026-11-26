@@ -225,6 +225,12 @@ public final class NativeMpvStreamAndroidTest {
         while(!condition.getAsBoolean()&&System.nanoTime()<deadline)Thread.sleep(50);
         assertTrue(what,condition.getAsBoolean());
     }
+    private static boolean seekSince(Trace t,int before,boolean forward){
+        // A snapshot avoids a live subList racing with native callback publication.
+        java.util.List<Long> snapshot=new java.util.ArrayList<>(t.seeks);
+        return snapshot.size()>before && snapshot.subList(before,snapshot.size()).stream()
+            .anyMatch(p->forward?p>1000000:p<1000000);
+    }
     private void verify(Trace t){
         assertEquals("native open",1,t.opens.get());assertTrue("native read",t.reads.get()>0);
         assertEquals("native close",1,t.closes.get());assertNull("native bytes",t.bad.get());
@@ -267,9 +273,9 @@ public final class NativeMpvStreamAndroidTest {
         Reply delayed=submit(old,true,"loadfile",old.uri,"replace");
         await(loaded,"single-file loaded (not owner-attributed)");
         int before=t.seeks.size();accept(submit(old,false,"seek","120","absolute+exact"));
-        until(()->t.seeks.size()>before&&t.seeks.subList(before,t.seeks.size()).stream().anyMatch(p->p>1000000),"forward native seek");
+        until(()->seekSince(t,before,true),"forward native seek");
         int after=t.seeks.size();accept(submit(old,false,"seek","4","absolute+exact"));
-        until(()->t.seeks.size()>after&&t.seeks.subList(after,t.seeks.size()).stream().anyMatch(p->p<1000000),"backward native seek");
+        until(()->seekSince(t,after,false),"backward native seek");
         assertTrue("actual HTTP range",requests.stream().anyMatch(q->q.getHeader("Range")!=null&&!q.getHeader("Range").equals("bytes=0-")));
         accept(submit(old,false,"stop"));await(t.closed,"old native close");verify(t);
         MpvStreamOwner.Lease next=register("/media","new",WAV);Trace n=trace;
