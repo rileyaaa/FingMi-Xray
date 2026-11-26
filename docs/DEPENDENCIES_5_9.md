@@ -2,6 +2,23 @@
 
 仅用于 dev/fongmi-upstream-adaptation；正式 main / .2 不变。用户重新授权逐项用成熟、合法、可维护的源码替代，先完成隔离功能切片，确认等效后才接产品。以下“沿用”是 5.9 候选构建/探针实际沿用，不是已替换正式 APK。每个原始证据链接均为固定源码或历史 run；license header/NOTICE 不等同整个组合发行许可。回切统一要求：取得适用授权的匹配上游源码/工件、固定 hash/ABI/行为证据，经同一门禁及现有两模块回归再替换；不得自动切版本。
 
+## 2026-11-27：官方外置 BD-J / MPV runtime 发布证据（起点 24da94be）
+
+**RELEASE_METADATA_VERIFIED / APK_BYTES_NOT_VERIFIED**。原作者 [module Release](https://github.com/FongMi/Release/releases/tag/module)（[展开资产](https://github.com/FongMi/Release/releases/expanded_assets/module)、[Release API](https://api.github.com/repos/FongMi/Release/releases/tags/module)，release ID 406516802，tag commit ca6641c0f9bb61a001f6c11c78debbd94e6403a9）已列 BD-J 1.0.1、MPV 1.1.3 双 ABI 外置 APK。以下大小及 SHA-256 为官方公布的整 APK 摘要，不是本地计算：
+
+| 官方资产（metadata） | ABI | Bytes | 公布 SHA-256 |
+|---|---|---:|---|
+| [runtime-bdj-1.0.1-arm64-v8a.apk / 634191650](https://api.github.com/repos/FongMi/Release/releases/assets/634191650) | arm64-v8a | 41296513 | ac2dc61e5912bd051c872ab5ac1dea920a608f1de2e98bf95da1e6254e861d51 |
+| [runtime-bdj-1.0.1-armeabi-v7a.apk / 634192071](https://api.github.com/repos/FongMi/Release/releases/assets/634192071) | armeabi-v7a | 40858241 | c84b4caba2b950c6de28330b3da2750524b8c85bc03225bc0d15c17a3737958b |
+| [runtime-mpv-1.1.3-arm64-v8a.apk / 778607408](https://api.github.com/repos/FongMi/Release/releases/assets/778607408) | arm64-v8a | 18284822 | a99e5e300473894451eb4891abbe017e44c2042b0e499279927c72f6e7a67040 |
+| [runtime-mpv-1.1.3-armeabi-v7a.apk / 778607409](https://api.github.com/repos/FongMi/Release/releases/assets/778607409) | armeabi-v7a | 15041504 | d26766d1fe0057c4bcc11c6e3eed4f742d16cb9e9115ddfc322c67858c7d9146 |
+
+官方 [catalog.json 资产 metadata / 790146949](https://api.github.com/repos/FongMi/Release/releases/assets/790146949)：5844 bytes，2026-11-25T05:07:49Z 更新，SHA-256 69b57265bb814bdabb2c03ae6ec63e9cbd0e845d1e9f9cdc00a793af34b4f86b。Release 资产可独立于 tag 更新；本轮未取得 JSON 正文，不推定 catalog 的实际 versionCode、minSdk、compatibilityId 或内含工件字段。
+
+固定 TV [d3a0b84b 的 app/build.gradle:18-24](https://github.com/FongMi/TV/blob/d3a0b84b24cf6628d72a4dbc2be453875b005536/app/build.gradle#L18-L24)（5.9.0/590）默认使用同一 catalog URL，未硬编码两模块版本。[RuntimeInstaller:106-146](https://github.com/FongMi/TV/blob/d3a0b84b24cf6628d72a4dbc2be453875b005536/app/src/main/java/com/fongmi/android/tv/utils/RuntimeInstaller.java#L106-L146) 按 schema、id、包名、compatibilityId、ABI、minSdk 与 versionCode 选择，并校验外层大小/digest；[RuntimeModule:441-511](https://github.com/FongMi/TV/blob/d3a0b84b24cf6628d72a4dbc2be453875b005536/catvod/src/main/java/com/github/catvod/utils/RuntimeModule.java#L441-L511) 要求包名、版本、ABI、metadata、payload 与宿主同签署者集合，MPV 还必须满足 `hostLibraries.libc++_shared.so` 与实际宿主对应 ABI 的库 SHA-256 精确一致。宿主要求 BD-J 为 `com.fongmi.runtime.bdj` / `libbluray-1.4.1-openjdk8-zero-v1` / `assets/bdj/runtime.zip`；MPV 为 `com.fongmi.runtime.mpv` / `mpv-jni-ffmpeg-shared-v1` / `lib/{abi}/libplayer.so` 及 `libmpv.so`。这些是固定源码合同，非 APK Manifest、签章或 payload 实测。
+
+发布 APK 不等于原始 JRE ZIP，不能证明其内层与 zero-jdk8u482-r1 候选同字节；亦不等于 F2 的两个构建 AAR。[runtime/build.gradle:140-154](https://github.com/FongMi/TV/blob/d3a0b84b24cf6628d72a4dbc2be453875b005536/runtime/build.gradle#L140-L154) 和 [AbiApkPackaging:46-54](https://github.com/FongMi/TV/blob/d3a0b84b24cf6628d72a4dbc2be453875b005536/buildSrc/src/main/groovy/com/fongmi/gradle/AbiApkPackaging.groovy#L46-L54) 仍要求原始匹配输入与 VerifyMpvNativeTask。保留 F2 配套 producer/renderer SDK、JNI/ABI 等门禁及 BD-J 原始 payload、libbluray/Media3、物理 ARM 双 ABI 与完整宿主验收缺口；不更新 verified_build、不下载/提取二进制、不重打包、不改签章、不触发 CI。
+
 ## 2026-11-26：5.9 弹幕宿主 controller 合同与离线边界（起点 af6ea102）
 
 - 固定 TV PlaybackActivity blob 3ed88dcf1bb9e06b86b09e07bff1065768ba996b:81-82,237-239,857-913,1067-1094,1198-1217 实际需要无参构造及 bind(PlayerView)、setOkHttpClient(OkHttpClient)、setDataSource(Uri)、setConfig(DanmakuConfig)、setEnabled(boolean)、sendNow(String)、close()，另有 `Consumer<androidx.media3.ui.danmaku.Danmaku>` 兼容的 `::post` 与赋给 `List<Danmaku>` 的 getItems()。以原八条 reviewed edit 实际复算候选 blob c7a3a03290da7f28bf65cdb6ef7aae9bcbabe850，两个新调用仍存在，Xray client/owner guard 未改变。
