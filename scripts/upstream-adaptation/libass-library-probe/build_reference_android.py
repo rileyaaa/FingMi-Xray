@@ -10,6 +10,12 @@ from headless_native_diagnostic import PINS,ASS,ASS_LICENSE,PATCH,ABI,mark,env_r
 
 REFERENCE="3382803f11e129af8676a0a775f98293b079797f"
 MEDIA="3c2cbe8ac742c2fe15eff52f03eeb3b1b648848d"
+FONT_PINS={
+ "fontconfig":("0f236723a3c26bd9745e32ba2b3ee21e5f809295","COPYING","cd5fca1a03b03a815bfb8c4e8ea40a022b38507d"),
+ "libxml2":("96498992efa48d52b0e8b83058bd88dbdaf153c1","Copyright","8c0b7c15dd9b66501511f5971ec9cae971997a0d"),
+ "unibreak":("28a2756b864c343f438cd22537d49d394d4666a5","LICENCE","6b4137ca2158ffb57a112d54726dd11b6a2a06db"),
+ "meson":("6ac66b9cbe36e861a4b10cf62d75ec181dfb291a","COPYING","d645695673349e3947e8e5ae42332d0ac3164cd7"),
+}
 JAVA={
  "LibassNative.java":"a08a6b94b48f2582048dda07ae6ffebf8c801dc2",
  "LibassTrackSession.java":"bfbbdf79cfd83951c5ba7298308678f6ac1bf654",
@@ -33,12 +39,19 @@ def check_inputs(src,ndk):
     need(git(src/"reference","rev-parse","HEAD")==REFERENCE and not git(src/"reference","status","--porcelain"),"reference source")
     need(git(src/"media","rev-parse","HEAD")==MEDIA and not git(src/"media","status","--porcelain"),"media source")
     need("30.0.16248370" in (ndk/"source.properties").read_text(),"NDK revision")
-def build(src, ndk, work, abi="x86_64"):
+def build(src, ndk, work, abi="x86_64", font_profile=False):
     triple, sys_triple, ffarch, ffcpu, family, cpu, elfclass, machine = ABI[abi]
     arm_build = abi != "x86_64"
     need(abi=="x86_64","only official emulator ABI for this consumer probe")
     mark("ASS_ANDROID_TARGET",abi,"API24")
     check_inputs(src, ndk)
+    if font_profile:
+        for name,(commit,notice,blob) in FONT_PINS.items():
+            root=src/name
+            need(git(root,"rev-parse","HEAD")==commit and not git(root,"status","--porcelain"),"source "+name)
+            need(git(root,"hash-object",notice)==blob,"notice "+name)
+            mark("ASS_FONT_PROFILE_SOURCE",name,commit,blob,sha(root/notice))
+        need(out("meson","--version")=="1.11.0","fixed Meson 1.11.0")
     work.mkdir(parents=True, exist_ok=False)
     prefix=work/"prefix"; prefix.mkdir()
     tc=ndk/"toolchains/llvm/prebuilt/linux-x86_64"
@@ -87,6 +100,32 @@ def build(src, ndk, work, abi="x86_64"):
         "-Draster=disabled","-Dvector=disabled","-Dgpu=disabled","-Dsubset=disabled",
         "-Dtests=disabled","-Ddocs=disabled","-Dutilities=disabled",
         "-Dglib=disabled","-Dgobject=disabled","-Dcairo=disabled","-Dicu=disabled","-Dgraphite2=disabled")
+    if font_profile:
+        # Exact official producer XML backend/profile; only xml2 and xmllint
+        # are built, not the unrelated testdso target.
+        x=work/"build-libxml2"
+        env_run(env,"meson","setup",x,src/"libxml2","--cross-file",cross,"--prefix",prefix,
+            "--libdir","lib","--wrap-mode=nodownload","--buildtype=release",
+            "--default-library=static","-Dauto_features=disabled","-Db_lundef=true",
+            "-Dminimum=true",*[f"-D{k}=enabled" for k in ("push","reader","sax1","iso8859x","pattern","output")])
+        env_run(env,"meson","compile","-C",x,"-j",jobs,"xml2","xmllint")
+        env_run(env,"meson","install","-C",x,"--no-rebuild")
+        mark("PASS_ASS_FONT_PROFILE_BUILD","libxml2")
+        meson("fontconfig",src/"fontconfig","static","-Dxml-backend=libxml2",
+            "-Dtests=disabled","-Ddoc=disabled","-Dtools=disabled","-Dnls=disabled",
+            "-Dcache-build=disabled","-Dtests-external-fonts=disabled",
+            "-Dadditional-fonts-dirs=no","-Dfontations=disabled")
+        ub=src/"unibreak"
+        env_run(env,"autoreconf","-fi",cwd=ub)
+        u=work/"build-unibreak";u.mkdir()
+        uenv=dict(env,CC=str(cc),CXX=str(cxx),AR=str(ar),NM=str(nm),RANLIB=str(ranlib),STRIP=str(strip),
+            CFLAGS="-O2 -fPIC",LDFLAGS="-Wl,-z,max-page-size=16384 -Wl,--no-undefined",PKG_CONFIG="/usr/bin/pkg-config")
+        env_run(uenv,ub/"configure","--build=x86_64-linux-gnu","--host="+sys_triple,
+            "--prefix="+str(prefix),"--libdir="+str(prefix/"lib"),"--with-pic","--enable-static","--disable-shared",cwd=u)
+        env_run(uenv,"make","-j"+jobs,cwd=u)
+        env_run(uenv,"make","install",cwd=u)
+        mark("PASS_ASS_FONT_PROFILE_BUILD","libunibreak")
+
     mark("HEADLESS_STAGE","libass")
     patch=src/"producer/buildscripts/patches/libass-font-size-em.patch"
     need(sha(patch)==PATCH,"author patch hash")
@@ -98,18 +137,20 @@ def build(src, ndk, work, abi="x86_64"):
         CFLAGS="-O2 -fPIC",CXXFLAGS="-O2 -fPIC",LDFLAGS="-lc++_shared",PKG_CONFIG="/usr/bin/pkg-config")
     env_run(assenv,ass/"configure","--build=x86_64-linux-gnu","--host="+sys_triple,
         "--prefix="+str(prefix),"--libdir="+str(prefix/"lib"),"--with-pic","--enable-static","--disable-shared",
-        "--disable-asm","--disable-fontconfig","--disable-libunibreak","--disable-require-system-font-provider",cwd=a)
+        "--disable-asm",*(["--enable-fontconfig","--enable-libunibreak"] if font_profile else ["--disable-fontconfig","--disable-libunibreak"]),
+        "--disable-require-system-font-provider",cwd=a)
     env_run(assenv,"make","-j"+jobs,cwd=a)
     env_run(assenv,"make","install",cwd=a)
     mark("PASS_HEADLESS_BUILD","libass")
 
-    for dep in ("libass","harfbuzz","freetype2","fribidi"):
+    for dep in ("libass","harfbuzz","freetype2","fribidi")+(("fontconfig","libxml-2.0","libunibreak") if font_profile else ()):
         value=subprocess.check_output(["pkg-config","--variable=prefix",dep],text=True,env=env).strip()
         need(Path(value).resolve()==prefix,"unexpected dependency origin "+dep)
-    flags=subprocess.check_output(["pkg-config","--static","--cflags","--libs","libass"],text=True,env=env).split()
+        mark("ASS_PKG_ORIGIN",dep,value,subprocess.check_output(["pkg-config","--modversion",dep],text=True,env=env).strip())
+    flags=subprocess.check_output(["pkg-config","--static","--cflags","--libs","libass"]+(["fontconfig"] if font_profile else []),text=True,env=env).split()
     native=work/"libmedia3ass.so"
     env_run(env,cxx,"-std=c++17","-Wall","-Wextra","-Werror","-fPIC","-shared",
-        HERE/"libass_library.cpp",*flags,"-lc++_shared","-Wl,--no-undefined","-Wl,-z,max-page-size=16384",
+        *(["-DLIBASS_REFERENCE_FONT_PROFILE"] if font_profile else []),HERE/"libass_library.cpp",*flags,"-lc++_shared","-Wl,--no-undefined","-Wl,-z,max-page-size=16384",
         "-Wl,-soname,libmedia3ass.so","-o",native)
     files={native.name:native,"libc++_shared.so":sysroot/"usr/lib"/sys_triple/"libc++_shared.so"}
     for name,path in sorted(files.items()):
@@ -128,13 +169,16 @@ def build(src, ndk, work, abi="x86_64"):
     expected={"nativeCreateLibrary","nativeReleaseLibrary","nativeAddFont","nativeCreate","nativeRelease",
         "nativeProcessCodecPrivate","nativeProcessChunk","nativeProcessData","nativeSetStorageSize","nativeSetCacheLimits",
         "nativeSetFrameSize","nativeRenderFrame"}
+    if font_profile: expected|={"nativeSetFonts","nativeSetFontScale"}
     actual={s.removeprefix("Java_androidx_media3_exoplayer_libass_LibassNative_") for s in exports
         if s.startswith("Java_androidx_media3_exoplayer_libass_LibassNative_")}
     need(actual==expected,"JNI export set "+str(actual^expected))
     media=src/"media"; module=media/"libass-reference-probe";module.mkdir()
     package=module/"src/main/java/androidx/media3/exoplayer/libass";package.mkdir(parents=True)
     refpath=src/"reference/libraries/exoplayer/src/main/java/androidx/media3/exoplayer/libass"
-    for name,blob in JAVA.items():
+    java=dict(JAVA)
+    if font_profile: java["LibassFontConfig.java"]="a65938f9a4627678f7aa1bfe6292b4a8db52d3e0"
+    for name,blob in java.items():
         p=refpath/name
         need(git(src/"reference","hash-object",p)==blob,"reference blob "+name)
         need("Licensed under the Apache License, Version 2.0" in p.read_text(),"reference license "+name)
@@ -152,9 +196,16 @@ def build(src, ndk, work, abi="x86_64"):
     notice=Path("/usr/share/doc/fonts-dejavu-core/copyright")
     need(font.is_file() and notice.is_file(),"fixture font and license")
     shutil.copyfile(font,assets/font.name);shutil.copyfile(notice,assets/"DejaVu-LICENSE.txt")
+    if font_profile:
+        serif=font.with_name("DejaVuSerif.ttf")
+        need(serif.is_file(),"second fixture font")
+        shutil.copyfile(serif,assets/serif.name)
+        mark("ASS_FONT_SECOND_FIXTURE",sha(serif),sha(notice))
+        # Actual sources/notices remain independently pinned; test only, not a release bundle.
     mark("ASS_FONT_FIXTURE",sha(font),sha(notice))
     tests=module/"src/androidTest/java/androidx/media3/exoplayer/libass";tests.mkdir(parents=True)
-    shutil.copyfile(HERE/"LibassReferenceAndroidTest.java",tests/"LibassReferenceAndroidTest.java")
+    for name in (("LibassFontTimingAndroidTest.java","LibassFontTimingChecks.java","LibassLibraryProbe.java") if font_profile else ("LibassReferenceAndroidTest.java",)):
+        shutil.copyfile(HERE/name,tests/name)
     (module/"src/main/AndroidManifest.xml").write_text('<manifest xmlns:android="http://schemas.android.com/apk/res/android"><application android:label="Isolated Libass consumer" android:allowBackup="false"/></manifest>\n')
     (module/"build.gradle.kts").write_text('''plugins { id("media3.android-application") }
 android {
@@ -181,5 +232,6 @@ dependencies {
     mark("PASS_REFERENCE_ANDROID_ELF_STAGE",len(files),"SO",len(actual),"JNI",len(declarations),"declarations")
 
 if __name__=="__main__":
-    if len(sys.argv)!=4:raise SystemExit("usage: build_reference_android.py inputs ndk work")
-    build(*(Path(x).resolve() for x in sys.argv[1:]))
+    if len(sys.argv) not in (4,5) or (len(sys.argv)==5 and sys.argv[4]!="--font-profile"):
+        raise SystemExit("usage: build_reference_android.py inputs ndk work [--font-profile]")
+    build(*(Path(x).resolve() for x in sys.argv[1:4]),font_profile=len(sys.argv)==5)

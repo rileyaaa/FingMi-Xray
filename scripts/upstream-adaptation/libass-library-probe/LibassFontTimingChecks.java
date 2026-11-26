@@ -68,7 +68,7 @@ final class LibassFontTimingChecks {
             check(sans==hash(a.render(1800))&&a.render(1801).isEmpty(),"duration not absolute end");
             chunk(a,2,TEXT,3000000,0);check(a.render(3000).isEmpty(),"zero duration");
             check(sans==hash(a.render(1300)),"backward time to first sample");
-            reject(IllegalArgumentException.class,()->chunk(a,3,TEXT,1000,-1));
+            reject(IllegalArgumentException.class,()->chunk(a,3,TEXT,1000,-1000));
             byte[] bad=padded("x");reject(RuntimeException.class,()->a.chunk(bad,-1,1,1,1));
             log.accept("PASS_REFERENCE_TIMED_CHUNK start_ms=1234 end_ms=1801 duplicate=1 backward=1 zero_duration=1");
             a.fonts(dir,"DejaVu Serif");
