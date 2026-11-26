@@ -76,7 +76,45 @@ request ID, no native execution, no native attribution claim.
   throughout. KVM existing access only (software acceleration fallback
   if unavailable); no chmod, group or host permission change.
   Same adapter, owner, staging, and test blobs; no product changes.
-  Runtime result not yet established.
+  [Retry workflow at 160ef071](https://github.com/rileyaaa/FingMi-Xray/blob/160ef071a35fdbb44d85328a1dab33767766a2ae/.github/workflows/93-mpv-stream-android-once.yml).
+- [45750906336](https://github.com/rileyaaa/FingMi-Xray/actions/runs/45750906336),
+  [job 139678176496](https://github.com/rileyaaa/FingMi-Xray/actions/runs/45750906336/job/139678176496),
+  head 160ef071a35fdbb44d85328a1dab33767766a2ae, completed/failure.
+  Fixed checkout/SDK/staging passed and reported the same adapter and
+  owner blobs and generated bridge SHA256 as the first compile.
+  Actual SDK root /usr/local/lib/android/sdk. All four executable paths
+  (sdkmanager, avdmanager, platform-tools/adb, emulator/emulator) passed
+  test -x and realpath. Absolute ADB executed successfully: Android
+  Debug Bridge 1.0.41, platform-tools 37.0.3-16887417, installed as
+  /usr/local/lib/android/sdk/platform-tools/adb, Linux x86_64.
+  First actual failing command was emulator -version, before AVD
+  environment setup or avdmanager create: the loader reported
+  /usr/local/lib/android/sdk/emulator/qemu/linux-x86_64/qemu-system-x86_64:
+  error while loading shared libraries: libpulse.so.0: cannot open
+  shared object file: No such file or directory (exit 127,
+  2026-11-26T03:46:16Z). Thus AVD ini/config creation, discovery,
+  emulator boot, KVM access, and instrumentation were NOT exercised.
+  The preflight prevented the repeat APK compilation; prior successful
+  compile evidence above remains valid. No chmod/group/permission
+  change was performed. No native library was executed.
+  First recovery condition: provide the ordinary Ubuntu runtime package
+  for libpulse.so.0 (libpulse0) from the runner's official repository;
+  inspect the actual QEMU ELF's loader dependencies (ldd), verify no
+  missing libraries and emulator -version before creating the AVD.
+  Retain explicit AVD paths and serial-specific absolute ADB; verify
+  actual files/discovery and boot before recording instrumentation.
+  Installing libpulse0 and any further runtime dependencies has NOT
+  been attempted in this batch; it is a proposed recovery, not a
+  demonstrated fix. Existing KVM access only, no permission relaxation.
+  Per the single narrow retry scope, do not rerun here. Remove only
+  the one-time 93-mpv-stream-android-once.yml entry; preserve both runs,
+  raw logs, tested code and historical workflow links. ARM-only native
+  artifact is not a substitute for x86_64.
+
+**Current acceptance boundary:** Android source/adapter/test APK compilation
+passed in 45750156365; actual Android instrumentation remains unexecuted;
+native ABI-matched protocol/runtime and request-ID attribution remain
+unexecuted. No complete TV APK or device playback acceptance.
 
 ## Native/remaining dependency route, not a replacement build
 
