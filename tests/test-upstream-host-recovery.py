@@ -16,7 +16,7 @@ T = "tv-recovery/src/main/java/com/fingmi/tvrecovery/"
 D = "app/src/leanback/java/com/fingmi/integration/recovery/"
 SOURCES = {
     T + "TvNetworkLifecycle.java": "97a04e5cad533cd5d2b94a4a64c5fdaf500ada1a",
-    T + "NetworkRecoveryCoordinator.java": "6d335d87264379b037ee682d38fc1c4d85825af7",
+    T + "NetworkRecoveryCoordinator.java": "b235ea6f6bf19420d8b7cdb6e9ec7a5197c934be",
     P + "FongMiNetworkRecovery.java": "ae204d77c90d37d6fbcb32419adfdc55841db070",
     D + "TvDlnaLifecycle.java": "a0bc77a9ef7eed0453f924b98616c78ec6e2b20c",
 }

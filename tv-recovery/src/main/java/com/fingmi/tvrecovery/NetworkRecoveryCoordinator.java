@@ -21,6 +21,7 @@ public final class NetworkRecoveryCoordinator implements AutoCloseable {
     private int checks;
     private int stableChecks;
     private boolean recovering;
+    private boolean awaitingSpiderCompletion;
     private boolean closed;
 
     public NetworkRecoveryCoordinator(long initialGeneration, Hooks hooks) {
@@ -49,8 +50,10 @@ public final class NetworkRecoveryCoordinator implements AutoCloseable {
         if (closed) return;
         hooks.resetApiAndDns();
         if (closed) return;
+        awaitingSpiderCompletion = true;
         hooks.clearSpiders(() -> {
-            if (closed || !recovering || pendingGeneration != next) return;
+            if (closed || !recovering || pendingGeneration != next || !awaitingSpiderCompletion) return;
+            awaitingSpiderCompletion = false;
             // Released HomeActivity always posts the stability check after
             // spider cleanup. A changed generation is handled by that poll,
             // not inline inside the clear completion callback.
@@ -91,6 +94,7 @@ public final class NetworkRecoveryCoordinator implements AutoCloseable {
         if (closed) return;
         closed = true;
         recovering = false;
+        awaitingSpiderCompletion = false;
         hooks.unschedule(poll);
     }
 }

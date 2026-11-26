@@ -14,7 +14,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts/upstream-adaptation"))
 from recovery_loader import adapt_base_loader, git_blob
 
-COORDINATOR = "6d335d87264379b037ee682d38fc1c4d85825af7"
+COORDINATOR = "b235ea6f6bf19420d8b7cdb6e9ec7a5197c934be"
 ADAPTED = "9c2f598f91431cccf7de200c05f8473b8fc7e58f"
 P = "com/fongmi/android/tv/"
 L = P + "api/loader/"

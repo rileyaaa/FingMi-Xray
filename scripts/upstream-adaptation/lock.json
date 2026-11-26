@@ -589,7 +589,7 @@
     {
       "path": "tv-recovery/src/main/java/com/fingmi/tvrecovery/NetworkRecoveryCoordinator.java",
       "old": null,
-      "fork": "6d335d87264379b037ee682d38fc1c4d85825af7",
+      "fork": "b235ea6f6bf19420d8b7cdb6e9ec7a5197c934be",
       "target": null,
       "strategy": "module"
     },

@@ -66,6 +66,28 @@ public final class RecoveryReentryHarness {
                 "stale generation refreshed Home");
         f.recovery.close();
     }
+    static void duplicateSpiderCompletionKeepsStabilityDelay() {
+        Hooks f=new Hooks();f.setup();f.recovery.check();
+        Runnable completed=f.spiderDone;
+        f.finishSpider();f.networkReady=true;f.tick();
+        ok(f.events.get(f.events.size()-1).equals("schedule:500"),"missing stability delay");
+        int events=f.events.size();
+        completed.run();
+        ok(f.events.size()==events,"duplicate spider completion replaced the stability delay");
+        ok(f.recovery.recovering()&&f.recovery.appliedGeneration()==0,"duplicate completion committed recovery");
+        f.tick();
+        ok(f.recovery.appliedGeneration()==1,"stable generation not committed");
+        ok(f.events.stream().filter("refresh"::equals).count()==1,"duplicate completion refreshed twice");
+        completed.run();
+        ok(f.scheduled==null,"completed generation scheduled another poll");
+        f.generation=2;f.recovery.check();
+        completed.run();
+        ok(f.scheduled==null,"old completion scheduled poll for new generation");
+        f.finishSpider();f.tick();f.tick();
+        ok(f.recovery.appliedGeneration()==2,"next generation failed");
+        ok(f.events.stream().filter("refresh"::equals).count()==2,"next generation refresh count wrong");
+        f.recovery.close();
+    }
     static void boundedNetworkPoll() {
         Hooks f=new Hooks();f.setup();f.recovery.check();f.finishSpider();
         for(int i=0;i<13;i++) f.tick();
@@ -134,6 +156,7 @@ public final class RecoveryReentryHarness {
         normal();
         generationSupersedesStaleSpider();
         boundedNetworkPoll();
+        duplicateSpiderCompletionKeepsStabilityDelay();
         doubleClose();
         closeDuringCheck("generation","progress");
         closeDuringCheck("unschedule","progress");
