@@ -1,0 +1,100 @@
+name: Isolated MPV Media3 Android stream probe
+on:
+  push:
+    branches: [dev/fongmi-upstream-adaptation]
+    paths: [.github/workflows/93-mpv-stream-android-once.yml]
+permissions:
+  contents: read
+jobs:
+  probe:
+    if: github.repository == 'rileyaaa/FingMi-Xray' && github.ref == 'refs/heads/dev/fongmi-upstream-adaptation' && github.event.head_commit.message == 'test: run isolated Android Media3 MPV stream probe'
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          path: fork
+          persist-credentials: false
+      - uses: actions/checkout@v7
+        with:
+          repository: FongMi/media
+          ref: 3c2cbe8ac742c2fe15eff52f03eeb3b1b648848d
+          path: inputs/media
+          persist-credentials: false
+      - uses: actions/checkout@v7
+        with:
+          repository: FongMi/mpv-android
+          ref: 1bf892e3271e73d8649f2d209027f1fb17515d15
+          path: inputs/mpv
+          persist-credentials: false
+      - uses: actions/setup-java@v6
+        with:
+          distribution: jetbrains
+          java-version: '21'
+      - name: Stage fixed sources and install official compile SDK
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REF" = refs/heads/dev/fongmi-upstream-adaptation
+          sdkmanager="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
+          yes | "$sdkmanager" --licenses >/dev/null 2>&1 || true
+          "$sdkmanager" --install 'platforms;android-36' 'build-tools;36.0.0' 'platform-tools'
+          python3 fork/scripts/upstream-adaptation/mpv-stream/android/stage_android_probe.py inputs/media inputs/mpv
+      - name: Compile actual isolated Android module and test APK
+        working-directory: inputs/media
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash gradlew --no-daemon --max-workers=2 -Dorg.gradle.jvmargs=-Xmx4g -PexternalBuildDir="$RUNNER_TEMP/mpv-build" \
+            :mpv-stream-probe:assembleDebug :mpv-stream-probe:assembleDebugAndroidTest
+          bash gradlew --no-daemon --max-workers=2 -Dorg.gradle.jvmargs=-Xmx4g -PexternalBuildDir="$RUNNER_TEMP/mpv-build" \
+            :mpv-stream-probe:dependencyInsight --configuration debugAndroidTestRuntimeClasspath --dependency com.squareup.okhttp3:okhttp | tee "$RUNNER_TEMP/mpv-okhttp.txt"
+          grep -F 'com.squareup.okhttp3:okhttp:4.12.0' "$RUNNER_TEMP/mpv-okhttp.txt"
+          find "$RUNNER_TEMP/mpv-build/mpv-stream-probe/outputs/apk" -name '*.apk' -exec sha256sum {} +
+          echo PASS_ANDROID_ADAPTER_COMPILE
+      - name: Boot official SDK x86_64 emulator
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -e /dev/kvm
+          sudo chmod 666 /dev/kvm
+          sdkmanager="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
+          "$sdkmanager" --install emulator 'system-images;android-34;default;x86_64'
+          echo no | "$ANDROID_HOME/cmdline-tools/latest/bin/avdmanager" create avd --force -n mpv-probe -k 'system-images;android-34;default;x86_64'
+          "$ANDROID_HOME/emulator/emulator" -avd mpv-probe -no-window -no-audio -no-boot-anim -gpu swiftshader_indirect -no-snapshot -accel on -memory 2048 -no-metrics >"$RUNNER_TEMP/mpv-emulator.log" 2>&1 &
+          echo $! >"$RUNNER_TEMP/mpv-emulator.pid"
+          timeout 300 adb wait-for-device
+          timeout 300 bash -c 'until [ "$(adb shell getprop sys.boot_completed | tr -d "\r")" = 1 ]; do sleep 5; done'
+          adb shell getprop ro.build.version.sdk
+          adb shell getprop ro.product.cpu.abi
+          adb shell wm dismiss-keyguard
+      - name: Instrument real Media3 and OkHttp on Android
+        shell: bash
+        run: |
+          set -euo pipefail
+          dir="$RUNNER_TEMP/mpv-build/mpv-stream-probe/outputs/apk"
+          appfile="$(find "$dir/debug" -name '*.apk')"
+          testfile="$(find "$dir/androidTest/debug" -name '*.apk')"
+          test -f "$appfile"
+          test -f "$testfile"
+          adb install -t "$appfile"
+          adb install -t "$testfile"
+          adb logcat -c
+          timeout 480 adb shell am instrument -w -r -e class org.fingmi.mpvprobe.Media3MpvInputAndroidTest \
+            org.fingmi.mpvprobe.test/androidx.test.runner.AndroidJUnitRunner | tee "$RUNNER_TEMP/mpv-instrumentation.txt"
+          adb logcat -d -s MpvProbe:I AndroidRuntime:E '*:S' | tee "$RUNNER_TEMP/mpv-runtime.txt"
+          grep -F 'OK (5 tests)' "$RUNNER_TEMP/mpv-instrumentation.txt"
+          ! grep -E 'FAILURES!!!|INSTRUMENTATION_FAILED|Process crashed' "$RUNNER_TEMP/mpv-instrumentation.txt"
+          for marker in PASS_ANDROID_RANGE_SEEK_EOF_HEADERS PASS_ANDROID_AUTH_REDIRECT PASS_ANDROID_CANCEL_HEADERS PASS_ANDROID_CANCEL_BODY_OWNER_SWITCH PASS_ANDROID_STICKY_CANCEL_INVALID_RANGE_TRUNCATION; do
+            grep -F "$marker" "$RUNNER_TEMP/mpv-runtime.txt"
+          done
+          test "$(grep -c PASS_REAL_OKHTTP_RELEASE "$RUNNER_TEMP/mpv-runtime.txt")" -eq 5
+          echo PASS_ANDROID_REAL_MEDIA3_OKHTTP_NO_NATIVE
+      - name: Emulator diagnostics and cleanup
+        if: always()
+        shell: bash
+        run: |
+          adb logcat -d -s MpvProbe:I AndroidRuntime:E '*:S' 2>/dev/null || true
+          if test -f "$RUNNER_TEMP/mpv-emulator.log"; then tail -n 100 "$RUNNER_TEMP/mpv-emulator.log"; fi
+          adb emu kill || true
+          if test -f "$RUNNER_TEMP/mpv-emulator.pid"; then kill "$(cat "$RUNNER_TEMP/mpv-emulator.pid")" 2>/dev/null || true; fi
