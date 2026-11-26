@@ -39,7 +39,7 @@ def check_inputs(src,ndk):
     need(git(src/"reference","rev-parse","HEAD")==REFERENCE and not git(src/"reference","status","--porcelain"),"reference source")
     need(git(src/"media","rev-parse","HEAD")==MEDIA and not git(src/"media","status","--porcelain"),"media source")
     need("30.0.16248370" in (ndk/"source.properties").read_text(),"NDK revision")
-def build(src, ndk, work, abi="x86_64", font_profile=False):
+def build(src, ndk, work, abi="x86_64", font_profile=False, consumer=None):
     triple, sys_triple, ffarch, ffcpu, family, cpu, elfclass, machine = ABI[abi]
     arm_build = abi != "x86_64"
     need(abi=="x86_64","only official emulator ABI for this consumer probe")
@@ -150,6 +150,8 @@ def build(src, ndk, work, abi="x86_64", font_profile=False):
         need(Path(value).resolve()==prefix,"unexpected dependency origin "+dep)
         mark("ASS_PKG_ORIGIN",dep,value,subprocess.check_output(["pkg-config","--modversion",dep],text=True,env=env).strip())
     flags=subprocess.check_output(["pkg-config","--static","--cflags","--libs","libass"]+(["fontconfig"] if font_profile else []),text=True,env=env).split()
+    if consumer is not None:
+        return consumer(src, ndk, work, prefix, env, bindir, sysroot, sys_triple, flags)
     native=work/"libmedia3ass.so"
     env_run(env,cxx,"-std=c++17","-Wall","-Wextra","-Werror","-fPIC","-shared",
         *(["-DLIBASS_REFERENCE_FONT_PROFILE"] if font_profile else []),HERE/"libass_library.cpp",*flags,"-lc++_shared","-Wl,--no-undefined","-Wl,-z,max-page-size=16384",
