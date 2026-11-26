@@ -12,6 +12,8 @@ import androidx.media3.common.TrackGroup;
 import androidx.media3.common.Tracks;
 import androidx.media3.common.util.ParsableByteArray;
 import androidx.media3.extractor.*;
+import androidx.media3.extractor.text.CueDecoder;
+import androidx.media3.extractor.text.CuesWithTiming;
 import androidx.test.platform.app.InstrumentationRegistry;
 import io.github.peerless2012.ass.*;
 import io.github.peerless2012.ass.media.*;
@@ -28,14 +30,26 @@ public final class PeerlessMatroskaTest {
     static final String TAG="PeerlessAssProbe";
     static final class Sink implements TrackOutput {
         Format format; int committed; long lastTime;
+        final ByteArrayOutputStream cueBytes=new ByteArrayOutputStream();
+        final List<CuesWithTiming> cues=new ArrayList<>();
+        boolean ordinary(){return format!=null&&MimeTypes.APPLICATION_SUBRIP.equals(format.codecs);}
         public void format(Format value){format=value;}
         public int sampleData(DataReader in,int len,boolean allow,int part)throws IOException{
             byte[] b=new byte[Math.min(4096,len)];int n=in.read(b,0,b.length);
-            if(n<0&&!allow)throw new EOFException();return n;
+            if(n<0&&!allow)throw new EOFException();
+            if(n>0&&ordinary())cueBytes.write(b,0,n);return n;
         }
-        public void sampleData(ParsableByteArray in,int len,int part){in.skipBytes(len);}
+        public void sampleData(ParsableByteArray in,int len,int part){
+            if(ordinary()){byte[] b=new byte[len];in.readBytes(b,0,len);cueBytes.write(b,0,len);}
+            else in.skipBytes(len);
+        }
         public void sampleMetadata(long time,int flags,int size,int offset,CryptoData crypto){
             if(size>0){committed++;lastTime=time;}
+            if(ordinary()){
+                assertNull(crypto);assertEquals(0,offset);assertEquals(size,cueBytes.size());
+                assertTrue(size>0);cues.add(new CueDecoder().decode(time,cueBytes.toByteArray(),0,size));
+                cueBytes.reset();
+            }
         }
     }
     static final class Output implements ExtractorOutput {
@@ -102,8 +116,21 @@ public final class PeerlessMatroskaTest {
             empty(render,2600);assertSame(a,select(h,out.sinks.get(1).format));
             assertEquals(digest,pixels(render.renderFrame(1230,AssTexType.BITMAP_RGBA)));
             Sink ordinary=out.sinks.get(3);
-            assertEquals(MimeTypes.TEXT_SUBRIP,ordinary.format.codecs);assertTrue("ordinary parser emitted cues",ordinary.committed>0);
+            assertNotNull(ordinary);assertNotNull(ordinary.format);
+            assertEquals(MimeTypes.APPLICATION_SUBRIP,ordinary.format.codecs);
+            assertEquals(MimeTypes.APPLICATION_MEDIA3_CUES,ordinary.format.sampleMimeType);
+            assertTrue("ordinary parser emitted cues",ordinary.committed>0);
             assertEquals(4000000L,ordinary.lastTime);
+            assertEquals(1,ordinary.cues.size());
+            CuesWithTiming cue=ordinary.cues.get(0);
+            assertEquals(4000000L,cue.startTimeUs);assertEquals(500000L,cue.durationUs);
+            assertEquals(1,cue.cues.size());assertEquals("Ordinary SRT",cue.cues.get(0).text.toString());
+            h.onTracksChanged(new Tracks(Collections.singletonList(new Tracks.Group(
+                new TrackGroup("ordinary",ordinary.format),false,new int[]{C.FORMAT_HANDLED},new boolean[]{true}))));
+            assertNull(h.getTrack());empty(render,1230);
+            assertSame(a,select(h,out.sinks.get(1).format));
+            assertEquals(digest,pixels(render.renderFrame(1230,AssTexType.BITMAP_RGBA)));
+            Log.i(TAG,"PASS_PEERLESS_ORDINARY_SRT_DECODE_AND_SELECTION");
             Log.i(TAG,"PASS_PEERLESS_REAL_MATROSKA packets=3 tracks=2 no_duration_rejected=1 ordinary_cues="+ordinary.committed);
             Log.i(TAG,"PASS_PEERLESS_NATIVE_RGBA_TIMING first="+Long.toHexString(digest)+" second="+Long.toHexString(second)+" other="+Long.toHexString(other));
         }finally{ex.release();h.release();}
