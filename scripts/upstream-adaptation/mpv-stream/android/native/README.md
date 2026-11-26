@@ -233,3 +233,27 @@ HarfBuzz 15.0.0 harfbuzz/harfbuzz@35f656a1a2bab548ea7f54a6dd3fba2b09680d14
 (COPYING 1dd917e9f2e72167de69e3b5dadbc4e7db417da1).
 These are candidate source/license pins, not verified Android rebuilds.
 Exact producer gate and ARM ELF/ZIP gates remain unchanged.
+
+## Actual reduced headless Android runtime (terminal 2026-11-26)
+
+[45758162089 / 139701600685](https://github.com/rileyaaa/FingMi-Xray/actions/runs/45758162089/job/139701600685) completed success at 6e37175d26f500df6fd2a31e816c491c3c36bd3b. [Exact recipe](https://github.com/rileyaaa/FingMi-Xray/blob/6e37175d26f500df6fd2a31e816c491c3c36bd3b/.github/workflows/96-headless-native-once.yml); headless_native_diagnostic.py blob c50b2392d73f0dee21ebacb6c844b19f6f42eca5. Actual pinned-source build, six split FFmpeg libraries, static font and placebo dependencies, unchanged nine official wrapper units linked. LGPL FFmpeg configuration; no excluded codec compiled. Nine SOs ELF64 x86_64 ET_DYN, actual SONAME, NEEDED closure, 16KiB PT_LOAD and 24 exact Java JNI exports passed. APK ZIP alignment and uncompressed native byte equality passed. Original SO receipts (name, bytes, SHA256, NEEDED):
+
+```text
+libavcodec.so 417520 2b5161075016d99b9628aee9cc438b27e036f88ec5e8dd050184e41bdd9f2718 ['libavutil.so', 'libc.so']
+libavfilter.so 169520 9ad1bbe0beeaf7f470b2ccb561eadfb69c48d380ed5e32d02ded2f1c69b27219 ['libavutil.so', 'libc.so', 'libswresample.so']
+libavformat.so 302928 6714def2ecb092dbe6dc3bd2713f2058efc51870cbc490abd83806458a5880f7 ['libavcodec.so', 'libavutil.so', 'libc.so']
+libavutil.so 735368 dbbabce0432b8a1ad5c08e663eb35d02bbb9d04c80e8ddad31c37f43d25f6979 ['libc.so', 'libm.so']
+libc++_shared.so 9091400 7918ebd0b8074c312d0c610205d49760b98c008026e6b817cd92103a3e12241b ['libc.so', 'libdl.so', 'libm.so']
+libmpv.so 9221008 c2320398808ad3cd40989f499a662d154d0bd4e982517d07c5cfd0c6bd2410c5 ['libEGL.so', 'libGLESv2.so', 'libandroid.so', 'libavcodec.so', 'libavfilter.so', 'libavformat.so', 'libavutil.so', 'libc++_shared.so', 'libc.so', 'libm.so', 'libswresample.so', 'libswscale.so']
+libplayer.so 256368 95a01c9d80ad49ab6f300428d941c589cd641b5a4618ac8d5bafee3984eacf60 ['libavcodec.so', 'libc++_shared.so', 'libc.so', 'libdl.so', 'liblog.so', 'libm.so', 'libmpv.so', 'libswscale.so']
+libswresample.so 116744 8a67aa68e59eed7e39975064cd2e8a9284358b1240f3165b571329b8e9d7429b ['libavutil.so', 'libc.so', 'libm.so']
+libswscale.so 1345352 ecd4fa7f5b3ad4267676bdbf1769836c8842a9fb27ec8cf82673badb64428394 ['libavutil.so', 'libc.so', 'libm.so']
+```
+
+Original isolated APK receipts:
+```text
+2026-11-26T05:06:41.3609646Z 72af292636a80aa57186c3fc49de154b6cd3a798b88d4a32c236edf39f7e50a2  /home/runner/work/_temp/mpv-build/mpv-stream-probe/outputs/apk/debug/mpv-stream-probe-debug.apk
+2026-11-26T05:06:41.3612194Z bacf1e4abb804297f0b45f5e7ba4972c81503084df1286a698d7b6fa67cd00d0  /home/runner/work/_temp/mpv-build/mpv-stream-probe/outputs/apk/androidTest/debug/mpv-stream-probe-debug-androidTest.apk
+```
+
+Official Android API34 x86_64 emulator, TCG (no permission changes), boot 304s. Actual mpv v0.42.0-dev-gf964d1495, instrumentation OK (3 tests), code -1. Dump fixture 32044 bytes, 6 reads, 2 EOF, 1 open/close; seek old owner 73728 bytes, 9 reads, 3 seeks, 12 size calls, 1 cancel/close; new owner 1 read, 1 seek, 1 cancel/close. Stop blocked body 1 read, 0 bytes, 1 cancel/close. Actual tagged replies 1099511627777..1099511627785, old 1099511627780 and new 1099511627784; old reply deliberately held before Java owner delivery, not claimed late native arrival. Six real OkHttp Calls and six connection releases (1+1+4); cleanup log repeats not double counted. All three PASS_NATIVE_* tests and PASS_REDUCED_HEADLESS_ANDROID_NATIVE_STREAM_ONLY present. Prior 5/5 NO_NATIVE tests not rerun. This proves reduced-profile runtime only, not exact producer, ARM runtime, complete Media3 consumers, video/ISO/disc support, or TV APK. No artifact upload; delete only temporary 96 trigger and retain history.
