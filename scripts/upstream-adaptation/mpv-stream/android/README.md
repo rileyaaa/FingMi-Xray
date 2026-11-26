@@ -172,27 +172,38 @@ request ID, no native execution, no native attribution claim.
   process liveness, periodic ADB state/boot status, explicit timeout,
   API 34/x86_64 checks and a 45-minute job limit. Compile and
   instrumentation remain gated on boot. Candidate and tests unchanged.
-  At the recorded observation, job 139684568777 is in_progress; successful
-  steps include fixed checkout/SDK/staging and Validate SDK executables
-  and create isolated AVD; active step is Boot official SDK x86_64 emulator.
-  No terminal result or runtime log has been obtained; the live job log
-  endpoint returned BlobNotFound before completion. Neither Android boot
-  nor instrumentation is established by this observation. The original
-  run is not cancelled or rerun; remove the one-time trigger once its
-  immutable run is launched so no extra CI batch is created. Use its
-  original terminal job/log for the final result, not this snapshot.
-  If bounded TCG cannot boot, the recovery condition is an already
-  authorized ephemeral environment with usable KVM, or demonstrated
-  official software boot. No alternative runner or repeated trial begun.
+  Terminal success, original job 139684568777. TCG actually selected
+  (EMULATOR_ACCEL=off ANDROID_I_WANT_MY_TCG=yes), boot completed in
+  297 seconds, API 34/x86_64, PASS_ANDROID_EMULATOR_BOOT. Both Gradle
+  builds successful (3m16s and 18s). Adapter and owner blobs and bridge
+  SHA256 match the prior fixed inputs. APK SHA256
+  96966d7233261280486c2578420d4722738984cb33c6482ea9d83e14994cfc08;
+  test APK SHA256
+  f3c7cc1673493817d5e52518967483af8b0054629eff4bac77072675db1038a7.
+  Original instrumentation: OK (5 tests), INSTRUMENTATION_CODE: -1
+  (Android RESULT_OK), five distinct PASS_REAL_OKHTTP_RELEASE markers
+  and PASS_ANDROID_REAL_MEDIA3_OKHTTP_NO_NATIVE.
 
-**Current acceptance boundary (snapshot):** Android source/adapter/test
-APK compilation passed in 45750156365; official QEMU loader and AVD
-setup passed in 45751855168 and the new preflight completed successfully.
-The single TCG run 45752877349 remains in progress at the above observed
-stage; no new Android runtime result is verified. Previous instrumentation
-0/5 remains the last established count. Native ABI-matched protocol/runtime
-and request-ID attribution remain unexecuted. ARM producer artifacts do not
-substitute for x86_64. No complete TV APK or device playback acceptance.
+  | Test | Real calls | Connection releases |
+  | --- | ---: | ---: |
+  | cancelBlockedHeadersAndKeepOtherCallAlive | 2 | 2 |
+  | actualAuthenticationAndRedirectPolicy | 5 | 7 |
+  | cancelBlockedBodyOnOwnerSwitchAndRejectRetiredUri | 2 | 2 |
+  | realRangeSeekEofHeadersAndIgnoredRange | 6 | 6 |
+  | cancelBeforeCallRegistrationAndRejectInvalidRange | 3 | 2 |
+  | Total | 18 | 19 |
+
+  Connection acquisitions/releases are balanced per Call; redirects may
+  acquire more than one connection and pre-registration cancellation can
+  acquire none. The repeated logcat output is not counted twice.
+  No native library was loaded and no untagged callback was attributed.
+  Original trigger was already removed in 05763112; no rerun.
+
+**Current acceptance boundary:** isolated real Android Media3/OkHttp
+adapter compilation and instrumentation 5/5 passed. Native ABI-matched
+protocol/runtime and request-ID attribution remain independent gates.
+ARM producer artifacts do not substitute for x86_64. No complete TV APK
+or device playback acceptance.
 
 ## Native/remaining dependency route, not a replacement build
 
