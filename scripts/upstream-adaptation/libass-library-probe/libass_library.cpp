@@ -12,6 +12,11 @@
 #include <string>
 #include <unordered_map>
 #include <vector>
+#ifdef LIBASS_REFERENCE_FONT_PROFILE
+#include <fontconfig/fontconfig.h>
+#include <sys/stat.h>
+#include <cstdlib>
+#endif
 
 namespace {
 std::atomic<int> live_libraries{0};
@@ -70,6 +75,10 @@ struct FixtureTrack {
     bool reference_frame_dirty=true;
     int reference_storage_w=0, reference_storage_h=0;
     int reference_frame_w=0, reference_frame_h=0;
+#ifdef LIBASS_REFERENCE_FONT_PROFILE
+    std::string reference_font_directory;
+    std::string reference_initial_family;
+#endif
     explicit FixtureTrack(std::shared_ptr<Library> l):lib(std::move(l)){}
     ~FixtureTrack() {
         std::lock_guard<std::mutex> lock(lib->mutex);
@@ -198,6 +207,58 @@ Java_androidx_media3_exoplayer_libass_LibassLibraryProbe_liveLibraries(JNIEnv *,
  * The historical official media3ass implementation is MIT; this code is new.
  */
 namespace {
+#ifdef LIBASS_REFERENCE_FONT_PROFILE
+// This profile is deliberately separate from the already tested embedded-font
+// binary. The actual reference MediaSession fixes one directory per library;
+// TV includes this directory in the generated fontconfig. Do not repeatedly
+// load it into shared ASS_Library fontdata (ass_fontselect_init rescans it).
+bool reference_font_config(JNIEnv *env,Library &lib,const std::string &dir) {
+    if(lib.config.empty()){
+        if(dir.empty())return true;
+        fail(env,"java/lang/UnsupportedOperationException","directory requires explicit fontconfig in reference profile");return false;
+    }
+    struct stat st{};
+    if(stat(lib.config.c_str(),&st)||!S_ISREG(st.st_mode)){
+        fail(env,"java/lang/IllegalArgumentException","fontconfig is not a regular file");return false;
+    }
+    ASS_DefaultFontProvider *raw=nullptr;size_t n=0;
+    ass_get_available_font_providers(lib.ass,&raw,&n);
+    std::unique_ptr<ASS_DefaultFontProvider,decltype(&std::free)> providers(raw,&std::free);
+    bool available=false;
+    if(raw&&n!=static_cast<size_t>(-1))
+        for(size_t i=0;i<n;++i)available|=raw[i]==ASS_FONTPROVIDER_FONTCONFIG;
+    if(!available){
+        fail(env,"java/lang/UnsupportedOperationException","fontconfig provider not built");return false;
+    }
+    std::unique_ptr<FcConfig,decltype(&FcConfigDestroy)> config(FcConfigCreate(),&FcConfigDestroy);
+    if(!config){fail(env,"java/lang/OutOfMemoryError","FcConfigCreate");return false;}
+    if(!FcConfigParseAndLoad(config.get(),reinterpret_cast<const FcChar8*>(lib.config.c_str()),FcTrue)){
+        fail(env,"java/lang/IllegalArgumentException","unusable explicit fontconfig");return false;
+    }
+    if(dir.empty())return true;
+    if(stat(dir.c_str(),&st)||!S_ISDIR(st.st_mode)){
+        fail(env,"java/lang/IllegalArgumentException","font directory does not exist");return false;
+    }
+    std::unique_ptr<char,decltype(&std::free)> wanted(realpath(dir.c_str(),nullptr),&std::free);
+    std::unique_ptr<FcStrList,decltype(&FcStrListDone)> dirs(FcConfigGetFontDirs(config.get()),&FcStrListDone);
+    bool found=false;
+    if(wanted&&dirs){
+        for(FcChar8 *p;(p=FcStrListNext(dirs.get()));){
+            std::unique_ptr<char,decltype(&std::free)> actual(realpath(reinterpret_cast<const char*>(p),nullptr),&std::free);
+            if(actual&&!std::strcmp(actual.get(),wanted.get())){found=true;break;}
+        }
+    }
+    if(!found)fail(env,"java/lang/UnsupportedOperationException","directory is not listed in explicit fontconfig");
+    return found;
+}
+void reference_set_fonts(FixtureTrack &t,const std::string &family) {
+    const bool configured=!t.lib->config.empty();
+    ass_set_fonts(t.renderer,nullptr,family.empty()?"sans-serif":family.c_str(),
+        configured?ASS_FONTPROVIDER_FONTCONFIG:ASS_FONTPROVIDER_NONE,
+        configured?t.lib->config.c_str():nullptr,1);
+    t.reference_frame_dirty=true;
+}
+#endif
 bool copy_slice(JNIEnv *env,jbyteArray data,jint off,jint len,std::vector<char>& bytes) {
     if(!data){fail(env,"java/lang/NullPointerException","subtitle data");return false;}
     jsize size=env->GetArrayLength(data);
@@ -217,16 +278,25 @@ Java_androidx_media3_exoplayer_libass_LibassNative_nativeCreate(JNIEnv *env,jcla
         auto font=str(env,family);if(env->ExceptionCheck())return 0;
         // Do not mutate shared library font paths or pretend to implement
         // production Android font discovery in this embedded-font-only profile.
+#ifndef LIBASS_REFERENCE_FONT_PROFILE
         if(!dir.empty()||!l->config.empty()){
             fail(env,"java/lang/UnsupportedOperationException","embedded-font track probe only");return 0;
         }
+#endif
         auto t=std::make_shared<FixtureTrack>(l);
         {
             std::lock_guard<std::mutex> lock(l->mutex);
             t->renderer=ass_renderer_init(l->ass);
             t->track=ass_new_track(l->ass);
             if(!t->renderer||!t->track){fail(env,"java/lang/OutOfMemoryError","ass renderer/track");return 0;}
+#ifdef LIBASS_REFERENCE_FONT_PROFILE
+            if(!reference_font_config(env,*l,dir))return 0;
+            t->reference_font_directory=dir;
+            t->reference_initial_family=font;
+            reference_set_fonts(*t,font);
+#else
             ass_set_fonts(t->renderer,nullptr,font.empty()?"sans-serif":font.c_str(),ASS_FONTPROVIDER_NONE,nullptr,1);
+#endif
         }
         std::lock_guard<std::mutex> lock(handles_mutex);
         // Recheck retirement during creation, before publishing the track.
@@ -469,3 +539,47 @@ Java_androidx_media3_exoplayer_libass_LibassNative_nativeRenderFrame(
     });
     return result;
 }
+
+
+#ifdef LIBASS_REFERENCE_FONT_PROFILE
+// Fixed configuration / family change only. The reference Java caller always
+// passes MediaSession.fontsDirectory; null on an initially configured custom
+// family is not resolved by the available contract. No style or color override.
+extern "C" JNIEXPORT void JNICALL
+Java_androidx_media3_exoplayer_libass_LibassNative_nativeSetFonts(
+    JNIEnv *env,jclass,jlong id,jstring directory,jstring family) {
+    jni_void(env,[&]{
+        auto t=fixture(env,id);if(!t)return;
+        auto dir=str(env,directory);if(env->ExceptionCheck())return;
+        auto font=str(env,family);if(env->ExceptionCheck())return;
+        std::lock_guard<std::mutex> lock(t->lib->mutex);
+        if(dir!=t->reference_font_directory|| (font.empty()&&!t->reference_initial_family.empty())){
+            fail(env,"java/lang/UnsupportedOperationException","unestablished directory/default reset contract");return;
+        }
+        if(!reference_font_config(env,*t->lib,dir))return;
+        reference_set_fonts(*t,font);
+    });
+}
+// Historical author native_set_font_scale calls ass_set_font_scale.
+// Actual TV calls apply=true. For normal, non-positioned ASS dialogue this
+// scales script styling; retain libass's default selective policy, do not
+// invent changes to explicit positioning or style-override behavior.
+// false with unit scale is the actual no-scaling startup state; other false
+// values are deliberately unsupported. Bounded TV setting subset 0.5..4.
+extern "C" JNIEXPORT void JNICALL
+Java_androidx_media3_exoplayer_libass_LibassNative_nativeSetFontScale(
+    JNIEnv *env,jclass,jlong id,jfloat scale,jboolean apply) {
+    jni_void(env,[&]{
+        auto t=fixture(env,id);if(!t)return;
+        if(!std::isfinite(scale)||scale<=0){
+            fail(env,"java/lang/IllegalArgumentException","font scale must be finite and positive");return;
+        }
+        if(scale<0.5f||scale>4.0f||(!apply&&scale!=1.0f)){
+            fail(env,"java/lang/UnsupportedOperationException","reference ordinary-dialogue scale subset only");return;
+        }
+        std::lock_guard<std::mutex> lock(t->lib->mutex);
+        ass_set_font_scale(t->renderer,scale);
+        t->reference_frame_dirty=true;
+    });
+}
+#endif
