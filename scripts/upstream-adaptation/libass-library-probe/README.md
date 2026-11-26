@@ -122,3 +122,22 @@ seven complete Android methods, nor complete authenticated author
 contract. Remaining eleven declarations, font config/style/viewport,
 full nativeRenderFrame, GL ownership, Android AAR and subtitle controller
 are unverified. No placeholders, product integration or release.
+
+## Full data, storage geometry and cache subset (terminal 2026-11-26)
+
+[45760568036 / 139709302562](https://github.com/rileyaaa/FingMi-Xray/actions/runs/45760568036/job/139709302562) success at 6c0c1a42f791c96732a3488222cacead7c67e3d7, [exact recipe](https://github.com/rileyaaa/FingMi-Xray/blob/6c0c1a42f791c96732a3488222cacead7c67e3d7/.github/workflows/98-libass-data-once.yml). Actual source/author patch and license checks; libass 0.17.5 isolated host link, -Xcheck:jni. SO SHA256 f65a82901290c46598c9518c5ccd70c2943d19c51f9b93a1efa36396981c1b36. Tested blobs C++ a5690fe422fc4a399667b71106edf0a8ac107a80, LibassNative.java 8be968909fe51e196ee317ad8236bb54b2c1c880, LibassTrackProbe.java 18079e5881f88d456251647657d3fbfd4c8e9b99, LibassDataGeometryProbe.java 4d15d96bdb29b02bd7e658bd35ea3c3c0a041e19.
+
+| New reference JNI method | Descriptor | Actual C API |
+| --- | --- | --- |
+| nativeProcessData | (J[BII)V | ass_process_data |
+| nativeSetStorageSize | (JII)V | ass_set_storage_size |
+| nativeSetCacheLimits | (JII)V | ass_set_cache_limits |
+
+Historical official media3ass.c blob 949c5b0db7ca8a5867e52e895920518d82651376 lines 192-218,254-261,271-278 and registry 359-374; fixed reference LibassTrackSession blob bfbbdf79cfd83951c5ba7298308678f6ac1bf654 confirms embedded timestamps, positive storage sizes, nonnegative cache limits. Pinned ass.h (851ca7cb9614f8d5d3175bbcc2925dfb6521bc27) explicitly distinguishes full lines and Matroska chunks; do not mix them on one track (duplicate check limitations), separate fixture here. Actual ass_render_api.c ee1620ad1d1e26d232e96de8182fb84a018e1041 sets storage and cache limits, ass_render.c ff51510c95b6807b94541c946580563f1552a9fb cuts cache at frame start. New JNI rejects invalid range/overflow, stale handles, nonpositive dimensions and invalid limits. Actual full ASS embedded timestamps (not processChunk), two distinct image windows; storage 320x180 -> 160x180 changes rendered width 181 -> 209 and restores original pixel digest. Cache limits 1 glyph/1 MB followed by 40 real alternating renders with unchanged correct pixels, defaults 0/0 restore; no measured cache eviction counts or memory bound claim. Last library released. Prior test cases not repeated. Original markers:
+
+```text
+PASS_LIBASS_DATA_GEOMETRY_CACHE three_new_descriptors self_timed_windows=2 storage_widths=181,209 cache_limited_renders=40 live_libraries=0
+PASS_NEW_LIBASS_DATA_GEOMETRY_HOST_ONLY
+```
+
+Cumulative 10/18 scoped host JNI implementations, not Android AAR or full consumer. Remaining 8: nativeProcessTimedData (sample timestamp mapping), nativeRenderFrame (allowPartial/renderLast and texture/bitmap ownership), nativeSetBottomPositionFraction, nativeSetFontScale (boolean/style contract), nativeSetFonts (actual Android font directories/config), nativeSetFrameSize (viewport/pixel aspect), nativeSetStyleOverride, nativeSetVideoColorInfo. Need matching caller and actual behavior, no stub. No new product integration.

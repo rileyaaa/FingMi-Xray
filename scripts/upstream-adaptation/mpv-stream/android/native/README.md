@@ -259,3 +259,82 @@ Original isolated APK receipts:
 Official Android API34 x86_64 emulator, TCG (no permission changes), boot 304s. Actual mpv v0.42.0-dev-gf964d1495, instrumentation OK (3 tests), code -1. Dump fixture 32044 bytes, 6 reads, 2 EOF, 1 open/close; seek old owner 73728 bytes, 9 reads, 3 seeks, 12 size calls, 1 cancel/close; new owner 1 read, 1 seek, 1 cancel/close. Stop blocked body 1 read, 0 bytes, 1 cancel/close. Actual tagged replies 1099511627777..1099511627785, old 1099511627780 and new 1099511627784; old reply deliberately held before Java owner delivery, not claimed late native arrival. Six real OkHttp Calls and six connection releases (1+1+4); cleanup log repeats not double counted. All three PASS_NATIVE_* tests and PASS_REDUCED_HEADLESS_ANDROID_NATIVE_STREAM_ONLY present. Prior 5/5 NO_NATIVE tests not rerun. This proves reduced-profile runtime only, not exact producer, ARM runtime, complete Media3 consumers, video/ISO/disc support, or TV APK. No artifact upload; delete only temporary 96 trigger and retain history.
 
 See [exact producer feature/license delta and remaining artifacts](PRODUCER_DELTA.md). This does not grant release approval.
+
+## Independent reduced ARM build feasibility (terminal 2026-11-26)
+
+[45760464596](https://github.com/rileyaaa/FingMi-Xray/actions/runs/45760464596), source d0f7e9ea4fdb24bb0f1594ce56c971bd219b1f33, [exact recipe](https://github.com/rileyaaa/FingMi-Xray/blob/d0f7e9ea4fdb24bb0f1594ce56c971bd219b1f33/.github/workflows/97-arm-native-once.yml), headless_native_diagnostic.py blob edcc51d3b6b1be662361964c1dce61645c95fb4c. Separate matrix runners, same fixed inputs and license receipts, NDK30 API24 for both, no x86 replay. Builds six split FFmpeg SOs, static font/placebo, exact nine original JNI units and MPV. ARM64 ET_DYN ELF64 machine=183, ARMv7 ET_DYN ELF32 machine=40; actual per-SO SONAME and NEEDED against real same-ABI API24 NDK sysroot, no RPATH/RUNPATH/TEXTREL, actual imported MPV/FFmpeg symbol closure, 24 Java native exports. Temporary uncompressed diagnostic ZIP aligned with official build-tools36 zipalign -P 16 and checked by zipalign -c, independent raw local-header data-offset check and original SHA256 equality for all entries. No Android APK or runtime, no uploads; no production staging.
+
+- [ARMv7 139708965183](https://github.com/rileyaaa/FingMi-Xray/actions/runs/45760464596/job/139708965183): all nine SOs built/identified and 24 JNI symbols; eight SOs PT_LOAD 0x4000; unchanged original NDK libc++_shared.so all three LOAD alignments 0x1000. ZIP 9/9 and bytes pass, independent of ELF gate. Explicit BLOCK_ARM_ELF_16K and job failure, no APK staged. This is a project acceptance failure, not Android platform incompatibility. No ELF edit or alignment relaxation. Recovery requires a traceable compatible, legitimately built ARMv7 shared C++ runtime with 16KiB PT_LOAD, matching NDK C++ ABI and actual device regression (or a separately approved project requirement change, NOT in this dev scope); do not rerun same NDK bytes, change e.g. shared-to-static STL or rename another ABI as a shortcut.
+- [ARM64 139708965493](https://github.com/rileyaaa/FingMi-Xray/actions/runs/45760464596/job/139708965493): success, all nine SOs PT_LOAD 0x4000, actual SONAME/NEEDED/24 JNI, ZIP data offsets and bytes 9/9. PASS_ARM_BUILD_ELF_ZIP_ONLY arm64-v8a NO_DEVICE_NO_PRODUCT. No actual ARM device available, no runtime claim. x86 3/3 remains separate.
+
+### ARMv7 raw receipts
+```text
+PASS_HEADLESS_BUILD ffmpeg-six 975611ad5eba15212d9e1d5fca9d4fdf0daec6d2269b2fcab8e29af8667164bc
+ARM_PT_LOAD armeabi-v7a libavcodec.so alignments 0x4000,0x4000,0x4000 16KiB PASS
+HEADLESS_ELF libavcodec.so 310120 a73ab58ebabc1294ddb10fc00e516eac17a04bb45f6b11a8686155e348db1eb1 ['libavutil.so', 'libc.so', 'libm.so']
+ARM_PT_LOAD armeabi-v7a libavfilter.so alignments 0x4000,0x4000 16KiB PASS
+HEADLESS_ELF libavfilter.so 135156 814fc754a1528bda1b04162506f723e64e55d446ea0381929d2149eed0a5a317 ['libavutil.so', 'libc.so', 'libswresample.so']
+ARM_PT_LOAD armeabi-v7a libavformat.so alignments 0x4000,0x4000,0x4000 16KiB PASS
+HEADLESS_ELF libavformat.so 270496 384e6ab298ce2e9feb0495e46f98bdd2107dd25ca8b15f7efe0b70ad3820210e ['libavcodec.so', 'libavutil.so', 'libc.so', 'libm.so']
+ARM_PT_LOAD armeabi-v7a libavutil.so alignments 0x4000,0x4000,0x4000 16KiB PASS
+HEADLESS_ELF libavutil.so 647152 e8592e935cd0ddb34e311df44bb1dcd8aae1fd4d8fec6077675447b8f10979c1 ['libc.so', 'libm.so']
+ARM_PT_LOAD armeabi-v7a libc++_shared.so alignments 0x1000,0x1000,0x1000 16KiB FAIL
+HEADLESS_ELF libc++_shared.so 7567040 2ee592c9ba3372da027384deb1070def5ae76f3ea2246bd447360faa73ac22f4 ['libc.so', 'libdl.so', 'libm.so']
+ARM_PT_LOAD armeabi-v7a libmpv.so alignments 0x4000,0x4000,0x4000 16KiB PASS
+HEADLESS_ELF libmpv.so 7761312 77f86bd32709e14d33d3d72e7aa50f148471a7ab9d58766a6eea15415a9d31eb ['libEGL.so', 'libGLESv2.so', 'libandroid.so', 'libavcodec.so', 'libavfilter.so', 'libavformat.so', 'libavutil.so', 'libc++_shared.so', 'libc.so', 'libm.so', 'libswresample.so', 'libswscale.so']
+ARM_PT_LOAD armeabi-v7a libplayer.so alignments 0x4000,0x4000,0x4000 16KiB PASS
+HEADLESS_ELF libplayer.so 217292 49a8b5e10b1b7a0081d825ed1542c826a5d33e39f114372103d87a8c2077d5b2 ['libavcodec.so', 'libc++_shared.so', 'libc.so', 'libdl.so', 'liblog.so', 'libm.so', 'libmpv.so', 'libswscale.so']
+ARM_PT_LOAD armeabi-v7a libswresample.so alignments 0x4000,0x4000,0x4000 16KiB PASS
+HEADLESS_ELF libswresample.so 94040 4220922fa522569e32c88a194f65232fbcf3c7f0ccbb62e633e1672465963394 ['libavutil.so', 'libc.so', 'libm.so']
+ARM_PT_LOAD armeabi-v7a libswscale.so alignments 0x4000,0x4000,0x4000 16KiB PASS
+HEADLESS_ELF libswscale.so 995832 8879fd6aab9cb346eff8f48c721aa313faaa99fb61ebf694eae156c1c2763785 ['libavutil.so', 'libc.so', 'libm.so']
+ARM_ZIP_ENTRY armeabi-v7a lib/armeabi-v7a/libavcodec.so 16384 a73ab58ebabc1294ddb10fc00e516eac17a04bb45f6b11a8686155e348db1eb1
+ARM_ZIP_ENTRY armeabi-v7a lib/armeabi-v7a/libavfilter.so 327680 814fc754a1528bda1b04162506f723e64e55d446ea0381929d2149eed0a5a317
+ARM_ZIP_ENTRY armeabi-v7a lib/armeabi-v7a/libavformat.so 475136 384e6ab298ce2e9feb0495e46f98bdd2107dd25ca8b15f7efe0b70ad3820210e
+ARM_ZIP_ENTRY armeabi-v7a lib/armeabi-v7a/libavutil.so 753664 e8592e935cd0ddb34e311df44bb1dcd8aae1fd4d8fec6077675447b8f10979c1
+ARM_ZIP_ENTRY armeabi-v7a lib/armeabi-v7a/libc++_shared.so 1409024 2ee592c9ba3372da027384deb1070def5ae76f3ea2246bd447360faa73ac22f4
+ARM_ZIP_ENTRY armeabi-v7a lib/armeabi-v7a/libmpv.so 8978432 77f86bd32709e14d33d3d72e7aa50f148471a7ab9d58766a6eea15415a9d31eb
+ARM_ZIP_ENTRY armeabi-v7a lib/armeabi-v7a/libplayer.so 16744448 49a8b5e10b1b7a0081d825ed1542c826a5d33e39f114372103d87a8c2077d5b2
+ARM_ZIP_ENTRY armeabi-v7a lib/armeabi-v7a/libswresample.so 16973824 4220922fa522569e32c88a194f65232fbcf3c7f0ccbb62e633e1672465963394
+ARM_ZIP_ENTRY armeabi-v7a lib/armeabi-v7a/libswscale.so 17072128 8879fd6aab9cb346eff8f48c721aa313faaa99fb61ebf694eae156c1c2763785
+PASS_ARM_DIAGNOSTIC_ZIP_16K armeabi-v7a d56ba05b4f6a481344c3646242d806e3a0aeba7b0916bc366e0ab76b07e82915
+ARM_BUILD_AND_SYMBOLS armeabi-v7a 9 SO 24 JNI
+BLOCK_ARM_ELF_16K armeabi-v7a libc++_shared.so
+```
+
+### ARM64 raw receipts
+```text
+PASS_HEADLESS_BUILD ffmpeg-six 6d78a911a2128e926262114c9904209209674e3bc1a18c208c850ecbfc3393ec
+ARM_PT_LOAD arm64-v8a libavcodec.so alignments 0x4000,0x4000,0x4000 16KiB PASS
+HEADLESS_ELF libavcodec.so 391440 08beaafc9b465f33e176003369b834446b57a8ae6253636a84e82922086d49eb ['libavutil.so', 'libc.so']
+ARM_PT_LOAD arm64-v8a libavfilter.so alignments 0x4000,0x4000 16KiB PASS
+HEADLESS_ELF libavfilter.so 157752 e84e06e7c024e46e7450ae94aec873d0404e1467bf22ebd70671b6420de2dbbb ['libavutil.so', 'libc.so', 'libswresample.so']
+ARM_PT_LOAD arm64-v8a libavformat.so alignments 0x4000,0x4000,0x4000 16KiB PASS
+HEADLESS_ELF libavformat.so 288096 d22bba1147e651f106faa0503ec4f8a27caf2ac1378fd70b29f3deb6941d2bc5 ['libavcodec.so', 'libavutil.so', 'libc.so']
+ARM_PT_LOAD arm64-v8a libavutil.so alignments 0x4000,0x4000,0x4000 16KiB PASS
+HEADLESS_ELF libavutil.so 678152 3b113568990852176814926286d726a7b849fea417c580c8c6c9ce4bbce9958a ['libc.so', 'libm.so']
+ARM_PT_LOAD arm64-v8a libc++_shared.so alignments 0x4000,0x4000,0x4000 16KiB PASS
+HEADLESS_ELF libc++_shared.so 9485032 7466ed097631a564ed6bff0b47768caa76bf03270d2047b5a65c03f497b824df ['libc.so', 'libdl.so', 'libm.so']
+ARM_PT_LOAD arm64-v8a libmpv.so alignments 0x4000,0x4000,0x4000 16KiB PASS
+HEADLESS_ELF libmpv.so 9138472 2c2da5bdcb01799def15ae5c0eac9d5b72012c905fc8a9ce554f022baab2fa18 ['libEGL.so', 'libGLESv2.so', 'libandroid.so', 'libavcodec.so', 'libavfilter.so', 'libavformat.so', 'libavutil.so', 'libc++_shared.so', 'libc.so', 'libm.so', 'libswresample.so', 'libswscale.so']
+ARM_PT_LOAD arm64-v8a libplayer.so alignments 0x4000,0x4000,0x4000 16KiB PASS
+HEADLESS_ELF libplayer.so 294208 cfe03c0e363931a8fa75d7e13069c169471183c36b512bd09565b93f2f30bb35 ['libavcodec.so', 'libc++_shared.so', 'libc.so', 'libdl.so', 'liblog.so', 'libm.so', 'libmpv.so', 'libswscale.so']
+ARM_PT_LOAD arm64-v8a libswresample.so alignments 0x4000,0x4000,0x4000 16KiB PASS
+HEADLESS_ELF libswresample.so 96776 abc3d2224760f2d8f103a61f56dd87f19ddf073173036d80134b2367b54f15fd ['libavutil.so', 'libc.so', 'libm.so']
+ARM_PT_LOAD arm64-v8a libswscale.so alignments 0x4000,0x4000,0x4000 16KiB PASS
+HEADLESS_ELF libswscale.so 1134248 3160836b0e174c8efbffbbf2d5a3da5b5db84b2d4d16334cd644748c86b09a04 ['libavutil.so', 'libc.so', 'libm.so']
+ARM_ZIP_ENTRY arm64-v8a lib/arm64-v8a/libavcodec.so 16384 08beaafc9b465f33e176003369b834446b57a8ae6253636a84e82922086d49eb
+ARM_ZIP_ENTRY arm64-v8a lib/arm64-v8a/libavfilter.so 409600 e84e06e7c024e46e7450ae94aec873d0404e1467bf22ebd70671b6420de2dbbb
+ARM_ZIP_ENTRY arm64-v8a lib/arm64-v8a/libavformat.so 573440 d22bba1147e651f106faa0503ec4f8a27caf2ac1378fd70b29f3deb6941d2bc5
+ARM_ZIP_ENTRY arm64-v8a lib/arm64-v8a/libavutil.so 868352 3b113568990852176814926286d726a7b849fea417c580c8c6c9ce4bbce9958a
+ARM_ZIP_ENTRY arm64-v8a lib/arm64-v8a/libc++_shared.so 1556480 7466ed097631a564ed6bff0b47768caa76bf03270d2047b5a65c03f497b824df
+ARM_ZIP_ENTRY arm64-v8a lib/arm64-v8a/libmpv.so 11042816 2c2da5bdcb01799def15ae5c0eac9d5b72012c905fc8a9ce554f022baab2fa18
+ARM_ZIP_ENTRY arm64-v8a lib/arm64-v8a/libplayer.so 20185088 cfe03c0e363931a8fa75d7e13069c169471183c36b512bd09565b93f2f30bb35
+ARM_ZIP_ENTRY arm64-v8a lib/arm64-v8a/libswresample.so 20480000 abc3d2224760f2d8f103a61f56dd87f19ddf073173036d80134b2367b54f15fd
+ARM_ZIP_ENTRY arm64-v8a lib/arm64-v8a/libswscale.so 20578304 3160836b0e174c8efbffbbf2d5a3da5b5db84b2d4d16334cd644748c86b09a04
+PASS_ARM_DIAGNOSTIC_ZIP_16K arm64-v8a a798ddcbdebfa3212cb5d9ab00407c5ccff024f460047c91a471c2c60085a9b9
+ARM_BUILD_AND_SYMBOLS arm64-v8a 9 SO 24 JNI
+PASS_ARM_BUILD_ELF_ZIP_ONLY arm64-v8a NO_DEVICE_NO_PRODUCT
+```
+
+Keep exact producer and full product gates in place. See [feature and source/license delta](PRODUCER_DELTA.md); no unchanged CI rerun.

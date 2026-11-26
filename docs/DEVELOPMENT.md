@@ -1399,3 +1399,11 @@ python3 scripts/upstream-adaptation/stage_mpv_jni_bridge.py \
 #### 5.9.0 第五批：受限 x86_64 native Android runtime 闭合（2026-11-26）
 
 [45758162089 / 139701600685](https://github.com/rileyaaa/FingMi-Xray/actions/runs/45758162089/job/139701600685) success，6e37175d26f500df6fd2a31e816c491c3c36bd3b。固定源六个分立 FFmpeg SO、真实 libmpv/官方九个 wrapper 链接、9 SO/24 JNI/ELF/ZIP 16KiB 均通过。API34 x86_64 官方 TCG 304s，实际 native instrumentation 3/3：media3iso WAV dump 32044 bytes/EOF，前后 seek/显式 64-bit reply owner 隔离，stop/cancel/close，6 Calls/6 connection releases。只证明 headless WAV profile；非 exact producer、ARM 或 TV，不重复运行。详细原始摘要与限制见 [native README](../scripts/upstream-adaptation/mpv-stream/android/native/README.md)。清理本次 96 trigger，保留历史；正式版、main、门禁不动。
+
+#### 5.9.0 第六批：ARM 受限构建实证、Libass 10/18 与 exact 差异（2026-11-26）
+
+- 已固化上一批 x86 native 3/3，2ebb54602339710cddcc0473a820baa5eff118e1 删除一次性96入口，不重跑。
+- d0f7e9ea4fdb24bb0f1594ce56c971bd219b1f33 [45760464596](https://github.com/rileyaaa/FingMi-Xray/actions/runs/45760464596) 两个 ABI 独立编译，ARM64 139708965493 success：真实9 SO/24 JNI、SONAME/NEEDED、16KiB ELF/ZIP/字节校验；ARMv7 139708965183 failure：9 SO/24 JNI、依赖和ZIP 9/9，通过8/9 ELF，原装 NDK30 libc++_shared.so 0x1000 是唯一门禁失败；未改ELF/门禁、未stage APK。都是隔离诊断ZIP，无ARM runtime、无上传、不当完整产品。详见 [native 实测记录](../scripts/upstream-adaptation/mpv-stream/android/native/README.md)。
+- 6c0c1a42f791c96732a3488222cacead7c67e3d7 [45760568036/139709302562](https://github.com/rileyaaa/FingMi-Xray/actions/runs/45760568036/job/139709302562) success：真实 Libass host JNI 新增3项 (processData/storage/cache)，两自带时间戳区间，像素宽181->209->恢复，40次cache设置下真实渲染，最终library归零。累计10/18，非正式Android AAR；[详细证据](../scripts/upstream-adaptation/libass-library-probe/README.md)。
+- 5b6aaeac439a33658602044d6a2a4195115fe7b0 [exact producer 功能/来源/授权差异](../scripts/upstream-adaptation/mpv-stream/android/native/PRODUCER_DELTA.md)：AVS3-P2 video BSD-3-Clause uavs3d 并非AV3A audio；新搜索候选 MOLAN 同UWA policy、Dreamello同参考谱系、归档泄露路线拒绝。按原固定 recipe 及实际日志明确缺少统一FFmpeg/格式/音频滤镜/GL/Vulkan/motion/fontconfig/unibreak/网络/光盘，列版本来源和已读取license blob与仍缺完整闭合。不把受限 profile 当正式版。
+- 两个新增 Actions 都有终态证据，保留历史，删除本批97/98一次性入口。仅dev独立probe及记录，main/.2/签名/原Xray/Exo/待机/普通播放器/现有ELF/ZIP门禁不动。
