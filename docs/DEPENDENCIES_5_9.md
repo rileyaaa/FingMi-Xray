@@ -2,6 +2,53 @@
 
 仅用于 dev/fongmi-upstream-adaptation；正式 main / .2 不变。用户重新授权逐项用成熟、合法、可维护的源码替代，先完成隔离功能切片，确认等效后才接产品。以下“沿用”是 5.9 候选构建/探针实际沿用，不是已替换正式 APK。每个原始证据链接均为固定源码或历史 run；license header/NOTICE 不等同整个组合发行许可。回切统一要求：取得适用授权的匹配上游源码/工件、固定 hash/ABI/行为证据，经同一门禁及现有两模块回归再替换；不得自动切版本。
 
+## 2026-11-26：官方 5.9.0 / MPV 1.1.3 只读相容性对照（起点 5741d131）
+
+目标仍是完整 5.9.0，不以 5.6.3 重新发行替代。用户授权合法公开、版本匹配的官方 APK/runtime 仅用于最小静态接口/ABI/依赖对照，不将 APK、抽出 SO、反编译实现或不明受限资产当作构建输入；源码接线仍必须独立依据合法、固定公开原件，保留所有原有功能及门禁。本轮没有取得 APK 实体，新增的是可回查发布元数据、版本时间差和源码合同，不是二进制检验结论。
+
+### 1. 官方发布组及固定下载身份
+
+[FongMi/Release 5.9.0](https://github.com/FongMi/Release/releases/tag/5.9.0) / [Release API](https://api.github.com/repos/FongMi/Release/releases/tags/5.9.0) release ID 454351615，immutable=true，draft/prerelease=false，published_at 2026-11-22T10:02:03Z；官方更新说明要求更新 MPV。[Modules](https://github.com/FongMi/Release/releases/tag/module) / [module API](https://api.github.com/repos/FongMi/Release/releases/tags/module) release ID 406516802。MPV 1.1.3 两个上传资产 created 2026-11-22T09:58:55Z / updated 09:58:58Z。所有表内 SHA256 是发布 API 的 digest 字段，未计算本地文件 SHA256，未读 APK manifest、证书、DEX、ELF 或 runtime.json；同日配套与更新说明是匹配候选证据，不是运行时兼容已经验证。
+
+| 只读官方资产（原始下载 URL） | asset ID / bytes | 发布 SHA256 |
+|---|---|---|
+| [leanback-arm64_v8a.apk](https://github.com/FongMi/Release/releases/download/5.9.0/leanback-arm64_v8a.apk) | 778614154 / 57808878 | accb6e04a2952ed67158b0fee587bc7fcf6a8f4d657b00810b5ddd024d9510c2 |
+| [leanback-armeabi_v7a.apk](https://github.com/FongMi/Release/releases/download/5.9.0/leanback-armeabi_v7a.apk) | 778614151 / 49034944 | 736d257a54496e52001ec8dc1b5b385e725914819fdb806697577feaa7b8efd9 |
+| [runtime-mpv-1.1.3-arm64-v8a.apk](https://github.com/FongMi/Release/releases/download/module/runtime-mpv-1.1.3-arm64-v8a.apk) | 778607408 / 18284822 | a99e5e300473894451eb4891abbe017e44c2042b0e499279927c72f6e7a67040 |
+| [runtime-mpv-1.1.3-armeabi-v7a.apk](https://github.com/FongMi/Release/releases/download/module/runtime-mpv-1.1.3-armeabi-v7a.apk) | 778607409 / 15041504 | d26766d1fe0057c4bcc11c6e3eed4f742d16cb9e9115ddfc322c67858c7d9146 |
+| [catalog.json](https://github.com/FongMi/Release/releases/download/module/catalog.json) | 790146949 / 5844 | 69b57265bb814bdabb2c03ae6ec63e9cbd0e845d1e9f9cdc00a793af34b4f86b |
+
+catalog 是 11-25T05:07:49Z 更新后的可变 module 目录快照，非 11-22 当时内容，尚未获取 JSON 实体；同名资产日后若更新，不接受只按文件名替换。正式 release API 同时列 mobile 双 ABI，但本项目优先 Leanback；未下载 mobile。逐资产 API 可回查：[/778607408](https://api.github.com/repos/FongMi/Release/releases/assets/778607408)、[/778607409](https://api.github.com/repos/FongMi/Release/releases/assets/778607409)、[/790146949](https://api.github.com/repos/FongMi/Release/releases/assets/790146949)。作者 TV 与 mpv-android release 列表均为空，Release 的 5.9.0 tag 指向 Release 仓自身 ca6641c0（完整 tree 仅 .gitignore），不是 TV/Media3/MPV 的构建来源证明；TV 5.9.0 同名 git tag 查询 404。未发现对应完整 AAR 的新发布原件，不能将正式 APK 当成 AAR 来源或推定所有内部组件的再分发许可。
+
+### 2. 发布时源与当前锁的差异（新增精确对照）
+
+按固定 TV 目标 d3a0b84b 的祖先查询 release published_at 以前最后一个 commit 为 [7f6d0ad0172c9a8c434fb21fe8b00a6a60d6125e](https://github.com/FongMi/TV/commit/7f6d0ad0172c9a8c434fb21fe8b00a6a60d6125e)（Bump app version to 5.9.0，2026-11-22T09:41:03Z）；当前 [d3a0b84b](https://github.com/FongMi/TV/commit/d3a0b84b24cf6628d72a4dbc2be453875b005536) 是 2026-11-24T09:28:07Z，晚于正式 APK。实际 [compare](https://github.com/FongMi/TV/compare/7f6d0ad0172c9a8c434fb21fe8b00a6a60d6125e...d3a0b84b24cf6628d72a4dbc2be453875b005536) ahead=2 behind=0、12 文件：QuickJS AAR 刷新 a8473a42 和速度/历史恢复 d3a0b84b；PlayerManager、PlaySpec、PlaybackService 等有变化，不能声称整个宿主源码一致。两次完整非截断 git tree 的以下 12 个实际文件 blob 相同：
+
+| TV 路径（相对根） | 两树相同 Git blob |
+|---|---|
+| app/build.gradle | 4db9cae3dcf725ee039bcfe8307dd320039d2f83 |
+| settings.gradle | 2676642e1bf14dda12ecf06aca1321b0a05a6fa3 |
+| gradle/libs.versions.toml | ffe897ef8fb96cc9e722893100d404fa66b186ce |
+| buildSrc/src/main/groovy/com/fongmi/gradle/AbiApkPackaging.groovy | 3bc5f446c770d26de0091010aa201338692feb57 |
+| buildSrc/src/main/groovy/com/fongmi/gradle/MpvNativeLibraries.groovy | 726d9dd79b9daee0b968c8a83eea510383f040f1 |
+| buildSrc/src/main/groovy/com/fongmi/gradle/PrepareRuntimeTask.groovy | 29dee59ab4b2054e72a6cc48b975a33404bfd684 |
+| runtime/build.gradle | ec26527b2e102c84fe26a4db40913d2c99d90491 |
+| catvod/src/main/java/com/github/catvod/utils/RuntimeModule.java | db7608c986c22d0a5031827c3eb80c2853d405ad |
+| app/src/main/java/com/fongmi/android/tv/player/mpv/MpvPlayerEngine.java | cdd833c714e878850c2a192d1fe426c3f0b5a532 |
+| app/src/main/java/com/fongmi/android/tv/player/mpv/MpvUtil.java | 23a5812369a20c978b4cd7015af31c0cbb6a16f1 |
+| app/src/main/java/com/fongmi/android/tv/player/exo/ExoUtil.java | 3854f2c178a2a0c73af4a258543ccb3950de7da9 |
+| app/src/main/java/com/fongmi/android/tv/player/exo/ExoPlayerSession.java | dfde10b51a6605c6656126847b9c582a032e8c82 |
+
+因此官方 5.9.0 可作相关接口的版本参照，不是已认证的 d3a0b84b 构建；既有 lock 不变。[mpv-android 1bf892e3](https://github.com/FongMi/mpv-android/commit/1bf892e3271e73d8649f2d209027f1fb17515d15) producer commit 2026-11-21T08:37:34Z，tree 2c1dba848427d098ba9bf8ab7e86d5308a85e1e7，时间上早于两资产上传，但发布元数据未证明 producer 或 Media3 的准确 build commit；不以日期巧合宣称 native 精确来源。
+
+### 3. 实际 runtime 消费合同与二进制对照范围
+
+读取 [RuntimeModule.java](https://github.com/FongMi/TV/blob/d3a0b84b24cf6628d72a4dbc2be453875b005536/catvod/src/main/java/com/github/catvod/utils/RuntimeModule.java)（上述相同 blob）：71-83、143-150、668-674 确定 package com.fongmi.runtime.mpv / compatibilityId mpv-jni-ffmpeg-shared-v1，MPV 不走 Java entryClass，native 顺序 libmpv.so、libplayer.so。289-335 load 先 require/verifyHostLibrary、prepare/pinAssets，再逐个 load；LinkageError 缓存、metadata digest/目录改变要求重启。395-459、478-530、568-579 校验 package/version/ABI、同 host signer、runtime.json、唯一逐文件 payload/size/SHA256、SO 存储方式，以及 hostLibraries 唯一 libc++_shared.so SHA256 对主 APK 对应 ABI entry。hostLibraries 本身**不**含 libffmpeg.so 的 hash；不能仅据 libc++ 一致声称 FFmpeg 全 ABI/符号相容。官方发布工件的实际 signer 和 payload 尚未读取。保持现有签名/验证/加载所有权，官方 runtime 只读对照、不移入 fork、不改 signer 检查或签署，正式 module 构建日后仍须走原授权与兼容门禁。
+
+取得上述四个合法本地只读工件后，先校验完整 SHA256/size 和真实包 versionName/versionCode/ABI/证书，再读取 runtime.json（只记录必要兼容字段与摘要）；按实际 ZIP entries 记录 host libffmpeg.so/libffmpegJNI.so/libc++_shared.so、Dovi 若有及 runtime libmpv.so/libplayer.so 的存在性、hash、ELF class/machine/SONAME/DT_NEEDED/LOAD 对齐、存储及 ZIP 对齐；比较 host/runtime libc++ 合同，并核对统一 FFmpeg 及无分立库，保留已登记原门禁。以 DEX 公共/受保护接口、native 声明及 descriptor/可见 JNI exports（动态注册或混淆导致不可见则明确未知）对照固定公开 Media3 与 producer 及 TV consumer；不能把 DEX 类别存在、导出名、反编译或 ELF 接口当完整实现、源码授权或实际解码证明。不需反编译方法体；必要时只用接口证据，不复制代码、不执行官方 APK/不拆包回填 AAR。任何实际差异只作证据，独立实现必须可追溯至合法公开源码并能做真实验证。待取到匹配的统一 FFmpeg/MPV 完整公开源/构件，才继续原隔离构建与合成离线媒体/双 ABI 测试。
+
+**实际停止点（本轮）**：容器 curl 官方 Leanback ARM64 URL 返回 status 6 (Could not resolve host: github.com)，只读 web 访问 runtime ARM64 URL 与 catalog 返回 cache miss，下载工具未能取得实际 runtime；GitHub connector 成功读官方发布 JSON，但不支持 release 二进制下载。容器有 Python/readelf，未发现 apksigner/aapt2/dexdump/jadx/adb 命令或本地 APK。无实际字节即停止 APK 内容对照；未使用任何非官方镜像、替代二进制、反编译、APK 执行、Android 测试或新构建。没有证据成立的相容接线，所以仅更新依赖登记。下一步最小输入为上述 host/runtime 两 ABI 官方原件（或可授权直接读取这四文件的环境）与合法匹配的 source/producer；可先对齐一个 ABI 的静态证据，但不替代最终双 ABI。后续如获明确 CI 权限，仅保留短期必要小摘要/可回查原始证据，不上传原 APK、反编译内容、抽出二进制或完整暂存，不改现有/被拒 workflow。本轮不发起 CI、不改签名/main/正式发版、播放器、lock，不重复既有扫描和探针。
+
 ## 2026-11-26 构建缺件总账与重启门禁（起点 26cfbc00）
 
 本节是一次固定构建清单对账，不是重新搜索已收束的 ISO/UDF、双字幕或旧 pin。以 [lock.json](../scripts/upstream-adaptation/lock.json) blob 66ad06803b9600cadc8ea83640203f0d89505c48、[prepare_candidate.py](../scripts/upstream-adaptation/prepare_candidate.py) blob 2b234019c352e7ce5ed0f2eda42b76fafbd1e50a、[DEVELOPMENT §12](DEVELOPMENT.md) 的实际历史回执与本登记为依据；本轮只读固定 TV/Media3 的 Gradle/Manifest，未重跑 source gate、host probe、Actions 或 Android，未新增匹配原件。
