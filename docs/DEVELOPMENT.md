@@ -1373,3 +1373,8 @@ python3 scripts/upstream-adaptation/stage_mpv_jni_bridge.py \
 本地 JDK 21、gcc 实际运行通过，脚本 Git blob 5bf3d7e65b2604ac18ec577bee04cd3b0d936979，生成 Java SHA-256 d5e4c9249b88bbc8b562008c79bbf44e9e57b0fcbe789cc5c96fcb7594045f0b。24/24 public static native method descriptors 与固定官方声明合同一致；host JNI C fixture 在 -Xcheck:jni 下真实查找九个 static event callbacks、openStream 和五个 Stream methods、读取 direct ByteBuffer（含 seek/EOF）、size/cancel/close、三参数回调的 64-bit request/result、旧 observer 兼容、observer 移除、URI registry 新 cursor/未注册 URI；修改输入 blob 的负向试验被拒绝。Android 类型仅为测试 fixture，C probe 不代替 libplayer.so、不调用那 24 个 native 实现，不能称 Android AAR/设备播放已验。不新增 AC，当前连接器无新 workflow dispatch 且本地合同验收已完成；不改自动触发规则、不重跑旧 19/19 和 producer。
 
 **下一批最小缺口：** 底层 MPV Java bridge 可独立复用，但没有把 Stream 注册接入真正的 Media3 DataSource。需补匹配新版 MpvPlayer/loader 的 range/seek/size/cancel/close、异常/认证/headers、每播放 owner 唯一 URI 与 generation 退役，防止旧 owner unregister 删除新 owner；当前 registry 仅是官方 exact URI -> factory 映射，不宣称线程/owner 网络隔离已验证。普通 MPV 仍保持上游；Xray 单播放 owner 仍走现有 ExoPlayerEngine 路径，不把此 bridge 改为全局代理。FFmpeg 补帧 controller/factory/renderer、统一 libffmpegJNI 与 Dovi、Libass 新合同、ISO/UDF/BD-J 完整 JNI 和相应源码/许可仍未取得可集成版本，不能以其他播放器功能替代。两项未解宿主冲突、五项旧媒体待审、ARMv7 既有 ELF 门禁和完整 APK/真机门禁原样。阶段结果只表示第一段真实 Java glue 已通过 host 合同测试，完整 5.9.0 不可交付；main、Release、签名、原 AC 历史和 Core 保持不动。
+
+
+#### 5.9.0 第二批：MPV HTTP stream owner 局部补件（2026-11-26）
+
+新增 [独立候选与可复现验证记录](../scripts/upstream-adaptation/mpv-stream/README.md)，包括真实 HTTP WAV host 试验、单播放 owner/cursor 与作者 OkHttpDataSource/MPV Stream 接线候选。最终 host 源码连续五次通过，11/11 source close；Media3 adapter 尚未实际编译、未执行 Android/native 或整 APK，不进入 prepare_candidate/Gradle。原 Exo/Xray、TV 恢复、普通上游、Core、main 和正式版不动。详见该记录的源合同、回调归属限制及 FFmpeg/Libass/ISO 搜索边界。
