@@ -2,6 +2,57 @@
 
 仅用于 dev/fongmi-upstream-adaptation；正式 main / .2 不变。用户重新授权逐项用成熟、合法、可维护的源码替代，先完成隔离功能切片，确认等效后才接产品。以下“沿用”是 5.9 候选构建/探针实际沿用，不是已替换正式 APK。每个原始证据链接均为固定源码或历史 run；license header/NOTICE 不等同整个组合发行许可。回切统一要求：取得适用授权的匹配上游源码/工件、固定 hash/ABI/行为证据，经同一门禁及现有两模块回归再替换；不得自动切版本。
 
+## 2026-11-26：ARM64 两 AAR 源码连结合同与版本门禁（起点 5d0502f1）
+
+官方四资产身份沿用下节，不重复获取发布元数据。本轮在容器对已固定官方 ARM64 host URL 执行普通直接 HTTPS HEAD（curl --head --location --fail，限时），实际返回 status 6 / Could not resolve host: github.com；runtime 同一 host，不继续无效下载。/mnt/data 无 APK；Python/readelf/javac/CMake/Ninja/Clang 可用，PATH 未发现 aapt2/apksigner/dexdump/adb/gradle。未用其他下载路径、未请求上传、未取得 APK 字节或执行、未核对本地 APK SHA/DEX/ELF/ZIP。以下全是公开源导出的接口与预期连结边，不是目标二进制内实际存在的类、JNI 或 DT_NEEDED。
+
+### 1. lib-decoder-ffmpeg-release.aar：现成真实 decoder 与新统一库的差异
+
+固定 [FongMi/media@3c2cbe8a](https://github.com/FongMi/media/tree/3c2cbe8ac742c2fe15eff52f03eeb3b1b648848d/libraries/decoder_ffmpeg) Apache-2.0。该公开树不是只有音频：FfmpegAudioRenderer (86b6aa4b58e84654f54f0bae715d59398d03a24c)、FfmpegVideoRenderer (017aeb038ae25325307d9817279cbbe16852dd38)、FfmpegVideoRecoveryController (9f3cd2340486c1f8c61666ab21a851d40a209762)、FfmpegLibrary (9852a4bbbf483ccc47869bdf00af00452ee3c3dc) 与真实 audio/video decoder 和 GL/libplacebo 实现均可保留；FfmpegLibrary:48-54 System.loadLibrary("ffmpegJNI")，supportsFormat/supportsVideoOutput 是实际查询，不能换成常量。build.gradle.kts c7825ea21e01522a122603d8f15997dd684ca11e:27-50 支持两 ARM ABI，只有匹配 headers 存在才启用 CMake，依赖 lib-decoder/exoplayer；仅生成 Java AAR 不能充当完整 native AAR。
+
+本轮以固定 Java 声明与 C 导出函数名逐项匹配（静态名字检查，不是新 ELF/descriptor ABI 验证），三组 4+8+10=22，缺/多均为 0：
+| Java owner（blob） | 原始 native 名称（每类 ffmpeg 前缀省略） | 对应真实 JNI C 源 blob |
+|---|---|---|
+| FfmpegLibrary 9852a4bbbf483ccc47869bdf00af00452ee3c3dc | GetVersion, GetInputBufferPaddingSize, HasDecoder, SupportsVideoOutput | ffmain.cc d09cacbf8a08d7c9b550a0ed174c0a8746818c5d |
+| FfmpegAudioDecoder a75dfa267b99bcc0b7bec3ffcd241a3cbf5b9bc2 | Initialize, Decode, Drain, GetChannelCount, GetSampleRate, GetLastOutputTimeUs, Reset, Release | ffaudio.cc 3e84061051d0967f45a8a4fc6b30c62dfdd06224 |
+| FfmpegVideoDecoder 572e497551668602ccb71938ae1f23c27042d76f | Initialize, Reset, Release, DetachSurface, FlushSurface, ReleaseFrame, RenderFrame, SendPacket, SendEndOfStream, ReceiveFrame | ffvideo.cc f974e722f8f8f7ea94421b2419f2260430d2fa6d |
+
+实际反向调用也必须保留：audio growOutputBuffer，video decoderPrivate (J)、initForPrivateFrame (II)V、init (JILjava/nio/ByteBuffer;)V、setFlags (I)V；对应 Java owner、类型和回调不能因替换库而省略。旧 #45672857780 的22个 JNI/双 ABI/ELF receipts 已在 lock，此轮不重验或冒称新版。
+
+**新确认的精确版本硬阻塞**：[ffmain.cc](https://github.com/FongMi/media/blob/3c2cbe8ac742c2fe15eff52f03eeb3b1b648848d/libraries/decoder_ffmpeg/src/main/jni/ffmain.cc):16-43 的 hasExpectedVersion 比较完整 runtimeVersion==headerVersion；JNI_OnLoad 检查 avcodec_version、avutil_version、swresample_version，任一不一致返回 JNI_ERR。按旧 consumer manifest ec9f8c76c66cdf5b50bdf4bf031cfab51f336551 和两套固定 headers 实读宏值：
+
+| 库 | 旧 Media3 headers（相对 libraries/decoder_ffmpeg/src/main/ffmpeg/include） | 新 [FongMi/FFmpeg@963c8cbb](https://github.com/FongMi/FFmpeg/tree/963c8cbbebb0250f747f0019516bda55bc638da9) headers |
+|---|---|---|
+| libavcodec | 63.3.100; version.h 43794ea58856f3c956098d8844ba650d538e6f97 / version_major.h 166646eb6d72018e17989eedf7b92e976ea8c753 | 63.22.100; version.h 9411511e0431292c0e74f7f359c12c6fabbb0d98 / version_major.h f30563c117e0c3e8e1e782ca79653a76f57fcb08 |
+| libavutil | 61.1.100; version.h c815a722e0f55b43dd9ec86d884618b193b66f46 | 61.17.100; version.h 5a359d0297d8c5e37e5769d82b2f85fa89a2f711 |
+| libswresample | 7.1.100; version.h 9c223e1426f9ae999e9924cc1f71edc66fd0ecb1 | 7.4.100; version.h 9a514e6d6ff5f9e8f784927eab6343f6bb5b9b9b |
+| libplacebo API | 373 (manifest), OpenGL=true/Vulkan=false, old NDK29.0.14206865 | 399 (固定 [dc98e2fceb82233b3bb75e9c6249e581c57f3f2d](https://github.com/FongMi/libplacebo/tree/dc98e2fceb82233b3bb75e9c6249e581c57f3f2d)/meson.build blob 0fcafaffb24a7b8c45bb636b9c6c22e568809b5b 的 API 字典实际 399 个不同键，1–399)，新版 SDK recipe 要求 OpenGL+Vulkan+shaderc |
+
+swresample 两边 major header 同 blob 0dc51de32479b7b4367a89f9e7cff6f2e16ec493。上述 source 版本差异不是实际 APK 内版本的读数；若用旧 headers 编译的 JNI 配新 producer 运行库，即使 major 相同也会触发原版的拒绝条件。保持该检查，不改成 major-only 或忽略错误；须同一 source build 的全套 headers 与运行库重编。
+
+**连结输入的新精确差异**：旧 [CMakeLists.txt](https://github.com/FongMi/media/blob/3c2cbe8ac742c2fe15eff52f03eeb3b1b648848d/libraries/decoder_ffmpeg/src/main/jni/CMakeLists.txt) 086fe3a78b1c6f7dcb70faf133e8fa22e4b83479:28-70,78-121 导入 avutil/swresample/avcodec/avformat 四 split SO 与静态 libplacebo.a，构建 ffmain/ffcommon/ffaudio/ffvideo/ffvideo_frame/ffvideo_gles/ffvideo_libav/ffvideo_placebo 八个真实编译单元，链接 Android/EGL/GLESv3/dl/m/log、PL_STATIC、pthread、arm64 -Bsymbolic。producer [ffmpeg-shared.py](https://github.com/FongMi/mpv-android/blob/1bf892e3271e73d8649f2d209027f1fb17515d15/buildscripts/include/ffmpeg-shared.py) bd849b950facc1b296d8e726b8c3bcd1295eb472:38-131 用各新版 split 参考导出表生成七库 aggregate version map，逐名字+版本校验全部 export、SONAME libffmpeg.so、禁止 split NEEDED、要求 shared libc++、四个 av_dovi_rpu_parser_(alloc/parse/flush/free)；连结后移除安装目录 split SO/a，七 .pc 的 Libs 均指向 -lffmpeg。不能仅把旧 CMake 路径改名后继续使用旧 SDK。新版 [export-renderer-sdk.sh](https://github.com/FongMi/mpv-android/blob/1bf892e3271e73d8649f2d209027f1fb17515d15/buildscripts/export-renderer-sdk.sh) ad7d2cfc37b4931644d28fcd6303a458d0731340:64-160,205-243 要求匹配 libplacebo.a/libshaderc.a/libmpv-motion.a、headers、motion receipt/许可、双 backend 和能力标记；实际 producer manifest renderer-sdk.link.libraries=shaderc,vulkan,android,mediandk,log,dl,m,c++。旧只接 OpenGL archive 的依赖表不足以证明新版静态 archive 闭合；静态 archive 不等于新增 DT_NEEDED。FFmpeg 新 Dovi 专用 JNI / motion Java renderer/controller 与真正播放行为依旧缺失，不以四 RPU API 或旧 video decoder 替代。
+
+### 2. lib-mpvplayer-release.aar：公开 Java wrapper 与真实 producer 差异
+
+固定 Media3 MpvPlayer 773b1560def27c628974a498dab3de6e8cc1e58f、MpvLibrary e2b5248a997c2825f6f0ce8df47622d1260a92bb (System.loadLibrary mpv/player)、nativebridge lifecycle/registry/client 仍是真实基础；module build.gradle.kts abf50d475ba2908baf28b145f19c8277d1d8a10b 依赖 common/decoder-ffmpeg/exoplayer。对 [旧 MPVLib.java](https://github.com/FongMi/media/blob/3c2cbe8ac742c2fe15eff52f03eeb3b1b648848d/libraries/mpvplayer/src/main/java/is/xyz/mpv/MPVLib.java) blob 36da8033843061ffbcbf560ed77566ffdca4dd98 与 [同源 MPVLib.kt](https://github.com/FongMi/mpv-android/blob/1bf892e3271e73d8649f2d209027f1fb17515d15/app/src/main/java/is/xyz/mpv/MPVLib.kt) blob 58656ed251ddec0d07ac416149428cbb22524fc8 做声明名字集合对比：Java 17 / Kotlin 24，17 共同（create/init/destroy、六 surface 方法、enqueueCommand、setOptionString、五 getProperty、observeProperty），七个仅 producer：command、enqueueCommandLongResult、grabThumbnail、setPropertyInt/Double/Boolean/String。另有非 native Stream/read/seek/close registry 及真实回调；旧 eventCommandReply(JI)V 对应 producer jni_utils.cpp 51a1ebfbf69ec871300a281a009f805a925d8f47:220-221 查找 (JIJ)V，必须使用匹配完整 bridge/owner 而非把 SO 放入旧 AAR。该名字集合是本次成对清单的源码来源，旧24 JNI独立回执继续有效、不重验。Android.mk adb27cc7c030541adc70fca2de689ffa8a293612:17-44 真实导入 libffmpeg/libmpv，libplayer LOCAL_SHARED_LIBRARIES=ffmpeg mpv。MIT wrapper 与 MPV/FFmpeg/libplacebo 实际组合授权分别闭合，不能移植未经认证 fork 实现。
+
+### 3. ARM64 成对 AAR 连结清单（目标预期，非 APK 实测）
+
+| 工件 / 运行位置 | 应具备的原生连结边与来源 | 逐项缺口 |
+|---|---|---|
+| decoder AAR / host libffmpeg.so | 同一 producer 七库版本化导出 aggregate；libc++_shared.so，禁止 split | 合法完整 producer 及其 actual ELF64 AArch64、SONAME/NEEDED、版本化 export/headers/NOTICE 实体未获 |
+| decoder AAR / host libffmpegJNI.so | 22 个现有 JNI 的完整真实源重编，指向统一 libffmpeg.so，保留 Android/GL/renderer SDK 系统依赖及版本检查 | 旧有 split build receipts 不等价；缺新匹配 headers/SDK/统一库及实际编译、ART/播放；新 motion consumer 未闭合 |
+| decoder AAR / host libffmpegDoviJNI.so（原产品需要时） | 统一 libffmpeg.so 与匹配 Dovi 真实 JNI | 原件/描述符/consumer/行为证据不足；不因条件检查而删除功能 |
+| mpv AAR / runtime libmpv.so | 原生 MPV→同一 libffmpeg.so；实际 system dependency closure 待 readelf | reduced split ARM64 通过不是完整 aggregate；需完整合法功能构建 |
+| mpv AAR / runtime libplayer.so | libmpv.so + libffmpeg.so；24 native declarations/真实回调匹配 | 需配套新版 Java consumer、owner、完整 ELF/运行证据 |
+| mpv AAR / host libc++_shared.so | 同一 Android producer NDK、实际 ABI；runtime.json hostLibraries 绑定其 SHA | 不混用旧 NDK29/new NDK30、官方 runtime 不作 fork 成品；ARMv7 现有项目 16KiB ELF stop 不变 |
+
+实际 TV gate 两 AAR/统一依赖已登记。以上是 source/Gradle/producer-derived required edges，不是穷尽的 ELF NEEDED 输出；只有取得合法实际工件才核查 ELF class/machine/SONAME/DT_NEEDED、symbol versions、undefined symbols、16KiB LOAD/ZIP、逐库 digest、实际 Java/ART 调用及完整资源闭合。本次不改 AAR、lock 或产品代码。
+
+### 4. 选定下一独立构建工作：重编既有 FFmpeg JNI，先 ARM64 统一链接
+
+比重写 motion/Dovi/MPV consumer 更小、且有同源真实现：使用当前固定 Media3 八个 native 源和22个实际 JNI（原 Apache-2.0、保留归属）、新版作者 FFmpeg aggregate recipe 与配套 renderer SDK，保留原始 Java API、exact JNI_OnLoad version check 和全部原有音/视频/GL 源，不裁成 audio-only JNI。首先依法取得同一 producer 源/配置/生成 headers、libffmpeg.so、匹配 NDK libc++ 与 libplacebo/shaderc SDK、逐文件 hash/许可；若完整 producer 仍有 AV3A 等许可缺口，不引入受限资产、不以缩减配置冒称完整。只在隔离候选内审查最小 CMake imported target/新 SDK dependency closure、必要的公开 API 兼容变更；使用真实编译结果核对22 JNI/反向回调/版本检查、实际 NEEDED/SONAME/exports/no split/--no-undefined/16KiB，随后在合法 Android 入口使用合成离线素材验证真实音频解码、drain/reset 和视频/GL（含生命周期），再补 ARMv7 及完整定制新功能。不得编造 motion/Dovi API 或绕过门禁。已有源码可复用，不代表上述匹配构件已取得；当前仅完成源级对账，不提交未经编译的 link patch、不重跑旧探针。待可用合法工具链及匹配 source/artifact 才开放这一具体步骤。无 CI、无二进制或整份反编译分析上传；仅提交本登记新证据，main/正式发布/签名/被拒 workflow 不动。
+
 ## 2026-11-26：官方 5.9.0 / MPV 1.1.3 只读相容性对照（起点 5741d131）
 
 目标仍是完整 5.9.0，不以 5.6.3 重新发行替代。用户授权合法公开、版本匹配的官方 APK/runtime 仅用于最小静态接口/ABI/依赖对照，不将 APK、抽出 SO、反编译实现或不明受限资产当作构建输入；源码接线仍必须独立依据合法、固定公开原件，保留所有原有功能及门禁。本轮没有取得 APK 实体，新增的是可回查发布元数据、版本时间差和源码合同，不是二进制检验结论。
