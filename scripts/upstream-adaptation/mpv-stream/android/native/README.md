@@ -340,3 +340,5 @@ PASS_ARM_BUILD_ELF_ZIP_ONLY arm64-v8a NO_DEVICE_NO_PRODUCT
 Keep exact producer and full product gates in place. See [feature and source/license delta](PRODUCER_DELTA.md); no unchanged CI rerun.
 
 See [ARMv7 runtime support boundary](ARMV7_RUNTIME_BOUNDARY.md): no matching supported alternative established; stop unchanged rebuilds, continue consumer work.
+
+[5.9.0 public consumer stop point](CONSUMER_STOP_POINT.md): final targeted source recheck and independent recovery gates; no repeat ARM/native probe.
