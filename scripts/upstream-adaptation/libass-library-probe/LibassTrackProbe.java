@@ -16,14 +16,14 @@ public final class LibassTrackProbe {
             this.x=x;this.y=y;this.w=w;this.h=h;this.color=color;this.bitmap=bitmap;this.textureId=textureId;
         }
     }
-    private static native void setFixtureFrame(long track);
-    private static native Image[] snapshot(long track,long time);
+    static native void setFixtureFrame(long track);
+    static native Image[] snapshot(long track,long time);
     private static void check(boolean value,String label){if(!value)throw new AssertionError(label);}
     private static void rejects(Class<? extends Throwable> type,Runnable action){
         try{action.run();}catch(Throwable error){if(type.isInstance(error))return;throw error;}
         throw new AssertionError("expected "+type.getName());
     }
-    private static final String HEADER=
+    static final String HEADER=
         "[Script Info]\nScriptType: v4.00+\nPlayResX: 320\nPlayResY: 180\n"
         +"[V4+ Styles]\n"
         +"Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding\n"

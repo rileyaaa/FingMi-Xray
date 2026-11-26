@@ -320,3 +320,42 @@ Java_androidx_media3_exoplayer_libass_LibassTrackProbe_snapshot(JNIEnv *env,jcla
     });
     return result;
 }
+
+/* Three unchanged historical Media3 descriptors, with real pinned libass
+ * calls. See FongMi/media@9dae39e, media3ass.c (MIT), and the reference
+ * LibassTrackSession. Do not mix ass_process_data with ass_process_chunk
+ * on one track: libass explicitly warns about duplicate checking.
+ */
+extern "C" JNIEXPORT void JNICALL
+Java_androidx_media3_exoplayer_libass_LibassNative_nativeProcessData(JNIEnv *env,jclass,jlong id,jbyteArray data,jint off,jint len) {
+    jni_void(env,[&]{
+        auto t=fixture(env,id);if(!t)return;
+        std::vector<char> bytes;if(!copy_slice(env,data,off,len,bytes))return;
+        std::lock_guard<std::mutex> lock(t->lib->mutex);
+        if(len)ass_process_data(t->track,bytes.data(),len);
+    });
+}
+extern "C" JNIEXPORT void JNICALL
+Java_androidx_media3_exoplayer_libass_LibassNative_nativeSetStorageSize(JNIEnv *env,jclass,jlong id,jint w,jint h) {
+    jni_void(env,[&]{
+        auto t=fixture(env,id);if(!t)return;
+        // Match positive sizes in the Java consumer; reject silent reset due
+        // to overflow in the actual pinned ass_set_storage_size.
+        if(w<=0||h<=0||w>std::numeric_limits<int>::max()/h){
+            fail(env,"java/lang/IllegalArgumentException","invalid storage size");return;
+        }
+        std::lock_guard<std::mutex> lock(t->lib->mutex);
+        ass_set_storage_size(t->renderer,w,h);
+    });
+}
+extern "C" JNIEXPORT void JNICALL
+Java_androidx_media3_exoplayer_libass_LibassNative_nativeSetCacheLimits(JNIEnv *env,jclass,jlong id,jint glyphs,jint mb) {
+    jni_void(env,[&]{
+        auto t=fixture(env,id);if(!t)return;
+        if(glyphs<0||mb<0||static_cast<size_t>(mb)>std::numeric_limits<size_t>::max()/(1024U*1024U)){
+            fail(env,"java/lang/IllegalArgumentException","invalid cache limits");return;
+        }
+        std::lock_guard<std::mutex> lock(t->lib->mutex);
+        ass_set_cache_limits(t->renderer,glyphs,mb);
+    });
+}

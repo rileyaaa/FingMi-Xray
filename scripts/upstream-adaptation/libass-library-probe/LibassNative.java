@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 package androidx.media3.exoplayer.libass;
 
-/** Seven descriptor candidates in an isolated embedded-font profile, not the complete 18-method class. */
+/** Ten descriptor candidates in an isolated embedded-font profile, not the complete 18-method class. */
 final class LibassNative {
     public static native long nativeCreateLibrary(String fontConfig);
     public static native void nativeReleaseLibrary(long libraryPtr);
@@ -10,4 +10,7 @@ final class LibassNative {
     public static native void nativeRelease(long trackPtr);
     public static native void nativeProcessCodecPrivate(long trackPtr,byte[] data,int offset,int length);
     public static native void nativeProcessChunk(long trackPtr,byte[] data,int offset,int length,long startTimeMs,long durationMs);
+    public static native void nativeProcessData(long trackPtr,byte[] data,int offset,int length);
+    public static native void nativeSetStorageSize(long trackPtr,int width,int height);
+    public static native void nativeSetCacheLimits(long trackPtr,int maximumGlyphCount,int maximumBitmapCacheSizeMb);
 }
