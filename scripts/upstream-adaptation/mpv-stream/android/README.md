@@ -158,13 +158,41 @@ request ID, no native execution, no native attribution claim.
   single CI batch, remove only the temporary workflow after recording
   actual evidence, preserve run and logs. No further run started.
 
-**Current acceptance boundary:** Android source/adapter/test APK compilation
-passed in 45750156365; official QEMU loader and AVD setup passed in
-45751855168; Android boot failed at CPU acceleration, so actual Android
-instrumentation is 0/5 executed and remains unverified. Native ABI-matched
-protocol/runtime and request-ID attribution remain unexecuted. ARM producer
-artifacts do not substitute for x86_64. No complete TV APK or device
-playback acceptance.
+- [45752877349](https://github.com/rileyaaa/FingMi-Xray/actions/runs/45752877349),
+  [job 139684568777](https://github.com/rileyaaa/FingMi-Xray/actions/runs/45752877349/job/139684568777),
+  head 9a6147a759007537aacb376c77d8d80fbfdc2823.
+  [Exact one-time workflow](https://github.com/rileyaaa/FingMi-Xray/blob/9a6147a759007537aacb376c77d8d80fbfdc2823/.github/workflows/93-mpv-stream-android-once.yml).
+  Single authorized continuation using the same official Ubuntu 24.04
+  runner, same source/SDK/loader/AVD preparation and same five tests.
+  Only if existing KVM access/accel-check is unavailable, the launcher
+  exports ANDROID_I_WANT_MY_TCG=yes with -accel off, as explicitly
+  advertised by the official emulator in 45751855168. No chmod, group
+  change, elevated emulator, paid/external runner, or persistent host.
+  Boot budget 1200 seconds in software mode (600 in KVM mode), with
+  process liveness, periodic ADB state/boot status, explicit timeout,
+  API 34/x86_64 checks and a 45-minute job limit. Compile and
+  instrumentation remain gated on boot. Candidate and tests unchanged.
+  At the recorded observation, job 139684568777 is in_progress; successful
+  steps include fixed checkout/SDK/staging and Validate SDK executables
+  and create isolated AVD; active step is Boot official SDK x86_64 emulator.
+  No terminal result or runtime log has been obtained; the live job log
+  endpoint returned BlobNotFound before completion. Neither Android boot
+  nor instrumentation is established by this observation. The original
+  run is not cancelled or rerun; remove the one-time trigger once its
+  immutable run is launched so no extra CI batch is created. Use its
+  original terminal job/log for the final result, not this snapshot.
+  If bounded TCG cannot boot, the recovery condition is an already
+  authorized ephemeral environment with usable KVM, or demonstrated
+  official software boot. No alternative runner or repeated trial begun.
+
+**Current acceptance boundary (snapshot):** Android source/adapter/test
+APK compilation passed in 45750156365; official QEMU loader and AVD
+setup passed in 45751855168 and the new preflight completed successfully.
+The single TCG run 45752877349 remains in progress at the above observed
+stage; no new Android runtime result is verified. Previous instrumentation
+0/5 remains the last established count. Native ABI-matched protocol/runtime
+and request-ID attribution remain unexecuted. ARM producer artifacts do not
+substitute for x86_64. No complete TV APK or device playback acceptance.
 
 ## Native/remaining dependency route, not a replacement build
 
