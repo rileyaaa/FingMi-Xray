@@ -1,6 +1,6 @@
 Peerless v0.5.1 source adapter (MIT)
 Original repository: https://github.com/peerless2012/libass-android/tree/504f64a325059ab5188c4c9d0eddc99c9356a23a
-Original AssTrackOutput.kt blob 38a83589114ed5fa9aaeac4f68d30d1e5f647b4c. Modified bounds, missing-duration guard and format tracking; no delegate behavior change. Original license follows.
+Original AssTrackOutput.kt blob 38a83589114ed5fa9aaeac4f68d30d1e5f647b4c. Modified bounds, missing-duration guard and format tracking; no delegate behavior change. ALPHA_8 native candidate: alpha8_candidate.py derives only createAlphaBitmap from AssKt.c blob c6913278e244c87e4abe30ebcf633d681284fa97. Added checked row spans, valid-pixel copies and bitmap layout/lock checks; the original source and JNI registrations remain pinned. Original license follows.
 
 MIT License
 
