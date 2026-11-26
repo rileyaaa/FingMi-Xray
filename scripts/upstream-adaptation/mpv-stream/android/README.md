@@ -284,3 +284,15 @@ remain unchanged. No binary downloaded or loaded in this batch.
 No additional FFmpeg/Libass/ISO product code, binary, or dependency
 introduced; source provenance and contract gaps above are scoped to
 existing 5.9 functions.
+
+## Subsequent isolated native consumer batch (2026-11-26)
+
+See [native probe and terminal evidence](native/README.md) and
+[Libass host renderer](../../libass-library-probe/README.md). Android
+Media3/OkHttp 5/5 remains closed, not rerun. Native producer authorization
+closure is still blocked; actual Android NDK official JNI 8/9 translation
+units compiled (thumbnail missing genuine FFmpeg header closure), final
+request-gate host 5 repeated passes, new native instrumentation Java
+compile-only success, real three-method Libass host JNI render success.
+No matching native SO set staged or loaded, 0/3 native tests executed,
+no product integration. See original job links for terminal results.

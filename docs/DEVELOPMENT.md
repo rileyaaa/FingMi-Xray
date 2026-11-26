@@ -1378,3 +1378,13 @@ python3 scripts/upstream-adaptation/stage_mpv_jni_bridge.py \
 #### 5.9.0 第二批：MPV HTTP stream owner 局部补件（2026-11-26）
 
 新增 [独立候选与可复现验证记录](../scripts/upstream-adaptation/mpv-stream/README.md)，包括真实 HTTP WAV host 试验、单播放 owner/cursor 与作者 OkHttpDataSource/MPV Stream 接线候选。最终 host 源码连续五次通过，11/11 source close；Media3 adapter 尚未实际编译、未执行 Android/native 或整 APK，不进入 prepare_candidate/Gradle。原 Exo/Xray、TV 恢复、普通上游、Core、main 和正式版不动。详见该记录的源合同、回调归属限制及 FFmpeg/Libass/ISO 搜索边界。
+
+
+#### 5.9.0 第三批：真实 Android HTTP 验收闭合、MPV native / Libass 独立消费端（2026-11-26）
+
+- [Android 原始终态](https://github.com/rileyaaa/FingMi-Xray/actions/runs/45752877349/job/139684568777) success：API34 x86_64 官方 TCG 297s boot、实际 instrumentation 5/5、18 Calls/19 connection releases、逐 Call 平衡，PASS_ANDROID_REAL_MEDIA3_OKHTTP_NO_NATIVE；更新 [详细记录](../scripts/upstream-adaptation/mpv-stream/android/README.md)，本批不重跑旧五项。
+- [MPV native 独立候选及复现记录](../scripts/upstream-adaptation/mpv-stream/android/native/README.md)：固定 producer 1bf892e3、实际 NDK30 x86_64 八个 JNI translation units 已编译成 ELF relocatable objects；[45755692922 / 139693660966](https://github.com/rileyaaa/FingMi-Xray/actions/runs/45755692922/job/139693660966) failure 的第九个 thumbnail.cpp 缺 libswscale/swscale.h，当前 sparse 输入不完整且 header closure 需要真实生成 avconfig.h，不造 header、不把对象编译当 SO 链接通过。新的明确授权门禁：固定 FFmpeg recipe 强制 AVS3A，实际 Huawei 源文件声明 UWA Code Sharing Policy，未验证本项目适用授权及组合许可闭合，不执行完整 producer rebuild，不拿 ARM 冒充 x86_64。保留现有 ELF 门禁。
+- 单调 64-bit request ID 跨 gate/context 重建、owner publish 检查、重复/退役/遗忘拒绝，最终 Java8 host 测试连续五次通过（synthetic replies）；真实 libplayer 依赖的 stream-dump/seek/tagged reply/stop cancel 三项 Android probe 已编写，[45755965950 / 139694526161](https://github.com/rileyaaa/FingMi-Xray/actions/runs/45755965950/job/139694526161) success，最终 blob 的真实 Gradle Android instrumentation Java compile-only 通过；未加载四个 SO，native runtime 0/3 执行，不把 global event 自动归属 owner。
+- [Libass 局部消费端](../scripts/upstream-adaptation/libass-library-probe/README.md) 实现三个参考新版 JNI 描述符 nativeCreateLibrary/nativeAddFont/nativeReleaseLibrary；固定 libass a6613d25 + 官方 font-size-em patch，[45755692922 / 139693660621](https://github.com/rileyaaa/FingMi-Xray/actions/runs/45755692922/job/139693660621) success，真实 host libass 0.17.5 + JNI -Xcheck:jni，两 track/两不同字幕 bitmap/两时窗、最后 library 释放归零。不是完整 18 方法作者合同、Android AAR、字幕控制器或真机通过；其余 15 不填空壳。
+
+本批新增源码仅独立 probe，不接入 prepare_candidate/正式 Gradle，FFmpeg motion/ISO 消费端无新实现；保留历史两个 CI run，删除本次临时 94 trigger，主线、.2、正式签名及流程、Exo/Xray、普通播放器和待机恢复均不动。
