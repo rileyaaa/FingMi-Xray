@@ -234,6 +234,66 @@ Android job 139721389970 in the same batch starts only after this host success. 
 
 [45764161542 / 139721389970](https://github.com/rileyaaa/FingMi-Xray/actions/runs/45764161542/job/139721389970) failure, original 1e6102e2. Actual SDK install and all extra source/license pins passed; shell printed exactly 1.11.0 (Meson source 6ac66b9c), gperf 3.1, ninja 1.11.1. First failure is Python need(out("meson","--version")=="1.11.0"): reduced_ffmpeg_diagnostic.out returns raw check_output text including trailing newline; guard rejected the correct pinned version before native build. Correct only strip() + observed version log and still require exact 1.11.0. No native/source/ELF/ZIP gate relaxation. Android 0 tests, no APK produced. Independent corrected host 139720931749 success remains recorded; no host rerun. Remove terminal 102 trigger, run only corrected Android job using same source, test and fixed dependencies. Original 99 Android CPU result unchanged.
 
-### Exact Android-only retry checkpoint
+### Exact Android-only retry: terminal FAILURE, seven actual runtime assertions reached (final stop 2026-11-26)
 
-[45764500880 / 139722038861](https://github.com/rileyaaa/FingMi-Xray/actions/runs/45764500880/job/139722038861) at 95989d989ad892e8e836fe1cc068f5ef02158d99; only Android (host job already terminal pass). Job API checkpoint: Stage fixed sources and install official compile SDK=success; Build pinned Android fontconfig, libxml2, unibreak and Libass caller=in_progress; Validate SDK executables and create isolated AVD=pending; Boot official SDK x86_64 emulator=pending; Compile actual isolated Android module and test APK=pending; Execute actual Android fontconfig writer, timing and scale caller=pending; Emulator diagnostics and cleanup=pending. No terminal Android runtime result claimed at this checkpoint. Retain 103 trigger only until terminal log receipt; do not duplicate it. Actual host dependency was Ubuntu libfontconfig1 2.15.0-1.1ubuntu2, not Android 2.18.3. Prior Android 102 raw pin checks include fontconfig COPYING SHA256 51a51aa9823704fd90bccc616cdd17ebabb5b2b3e9cbde886ca02c7002288067, libxml2 Copyright 5d4873884a890122a4b9b20ad56ac6f7da1d796a5bfcf04a427970ac96217626, libunibreak LICENCE 0c57e2ec42ece17791a75d2f9b2f8e0663181be008667a507f765b3ef22522db, Meson COPYING cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30. Additional source-level notice verification: libxml2 dict.c b872214811244c99e85c25c685f5c04d2422162e and list.c c112ab9c3c616865733c19174974c7a33edc67d6 carry separate permissive notices; fontconfig COPYING includes Unicode data terms; libunibreak linebreak.c e15e4c26036c3ce3baa4d510d9e36586b9b73583 references Unicode 17.0.0/UAX14 and Unicode Terms of Use. Preserve these and all used file/dependency notices; no complete distribution permission or Unicode wrapping runtime acceptance claimed. No build or device substitute for the remaining four Libass methods or full producer.
+[45764500880 / 139722038861](https://github.com/rileyaaa/FingMi-Xray/actions/runs/45764500880/job/139722038861), tested commit 95989d989ad892e8e836fe1cc068f5ef02158d99. [Historical 103 recipe](https://github.com/rileyaaa/FingMi-Xray/blob/95989d989ad892e8e836fe1cc068f5ef02158d99/.github/workflows/103-libass-font-android-once.yml) blob 128bd3cf8ca5595ea25dc03cebddeedbc09be719; native blob 698343518e776e6914688dffc926517589ce45e1, build script 24ef46c334287d633631935780c66103096d3700, Android test 41777956283330b3163a56b6dfc17c6181dd5c15. Job API: completed/failure; steps 15–19 (SDK, native build and reference staging, AVD, boot, Gradle and APK verification) success; step 20 instrumentation failure; step 21 emulator diagnostics and cleanup success. Independently read raw 4702-line job log (line numbers below refer to that decoded log, not workflow source).
+
+**Build evidence.** 1891–1895 fixed fontconfig/libxml2/unibreak/Meson commits and notices, actual Meson 1.11.0. 3289–3295 actual isolated pkg-config prefix for libass 0.17.5, HarfBuzz 15.0.0, FreeType pkg-config 26.7.20, FriBidi 1.0.17, fontconfig 2.18.3, libxml2 2.15.4, libunibreak 8.0. 3296–3309 actual 2 SOs/14 JNI exports/18 reference declarations, 9 unchanged Java source blobs (new LibassFontConfig.java a65938f9a4627678f7aa1bfe6292b4a8db52d3e0, staged SHA256 220631e73464fcc00a85e124884531753284b704b24749e164b62137ab00b757), two actual font fixtures. NDK30 x86_64 API24 target, ELF/ABI/SONAME/NEEDED/16KiB gate passed. libmedia3ass.so 7212944 bytes SHA256 a89b6c8178a6e24c24fb4a5bc467654b145291227ba03fe9cc09d6fc112e13b4, NEEDED libc++_shared.so/libc.so/libdl.so/libm.so; libc++_shared.so 9091400 bytes SHA256 7918ebd0b8074c312d0c610205d49760b98c008026e6b817cd92103a3e12241b, NEEDED libc.so/libdl.so/libm.so. 4032–4033 actual official emulator boot 314s, Android API34 x86_64. 4245–4246 actual isolated debug APK SHA256 9d8696bc9a6fe4d5414b7ffdc0e7418f5bbd3192e41969670f3b93ad0678888f, test APK dcad0d5c28d4dd04df05de52a7f2b2a648fd89931a5af5115472be5100f4a707; 4285–4286 PASS_REFERENCE_APK_NATIVE_BYTES_ZIP_16K and PASS_REFERENCE_ANDROID_BUILD. 4323–4326 both install Success. No product APK, release or artifact upload.
+
+**Actual instrumentation behavior, not an overall pass.** Raw log 4378–4384, actual Logcat messages from PID 2567/TID 2629, not echoed shell source; duplicate diagnostic dump at 4407–4413 is the same run, not another test:
+
+```text
+PASS_REFERENCE_TIMED_CHUNK start_ms=1234 end_ms=1801 duplicate=1 backward=1 zero_duration=1
+PASS_REFERENCE_CONFIGURED_FAMILY_CHANGE sans=6d94d061404ad206 serif=4176a232afa3a7da restored=1 isolated=1
+PASS_REFERENCE_ORDINARY_FONT_SCALE base=169 large=239 small=85 restored=1
+PASS_REFERENCE_TIMED_EXPLICIT_GEOMETRY top1=71 top2=211 delta=140
+PASS_REFERENCE_FONT_TIMING_LIFETIME retired=1 saved=1 other_track=1
+PASS_REFERENCE_FONTCONFIG_WRITER_SYSTEM_AND_EXTERNAL system=47e9c9e25dc6fdf0 external=6d94d061404ad206
+PASS_REFERENCE_ANDROID_FONT_TIMING_ONLY live_libraries=0
+```
+
+The actual unchanged TrackSession forwards processChunk microsecond timing to native milliseconds; the authored ASS packet, duplicate/zero duration, fallback family, ordinary scaling, explicit position and release assertions completed. Actual reference fontconfig writer generated config with system/product/external directories; Roboto and DejaVu Sans pixel digests differ. This establishes that comparison, not every fallback/font/face selection or Unicode wrapping behavior. Final native library counter is zero (not proof that all possible native allocations/files are released). The new two scoped methods have actual Android behavior evidence in addition to host success. Same limitations as host: no arbitrary font directory/default reset, complete apply flag/position/style behavior, timedData/extractor integration, color/GL/ARM/TV.
+
+**Exact failure and shell boundary.** At raw 4339–4345, and repeated JUnit report 4364–4370, actual AssertionError:
+```text
+at androidx.media3.exoplayer.libass.LibassFontTimingAndroidTest.delete(LibassFontTimingAndroidTest.java:65)
+at androidx.media3.exoplayer.libass.LibassFontTimingAndroidTest.delete(LibassFontTimingAndroidTest.java:64)
+at androidx.media3.exoplayer.libass.LibassFontTimingAndroidTest.actualConfiguredFontTimingAndScale(LibassFontTimingAndroidTest.java:59)
+INSTRUMENTATION_STATUS_CODE: -2
+FAILURES!!!
+Tests run: 1,  Failures: 1
+INSTRUMENTATION_CODE: -1
+```
+Actual test source line 58 logs live_libraries=0; 59 finally calls delete(root); 64 recursively deletes children; 65 asserts !f.exists() || f.delete(). This is a real failed instrumentation cleanup assertion, not merely a false-negative shell result. The child path, OS error, and reason for failed deletion were not logged; cannot conclude fontconfig lock, leaked native handle or permission/race. Lines 60–61 final root absence and PASS_REFERENCE_FONT_FIXTURE_CLEANED were not reached. No actual OK (1 test), PASS_REFERENCE_FONT_FIXTURE_CLEANED or PASS_REFERENCE_ANDROID_FONT_BATCH in the log (shell-echo text excluded).
+
+Workflow source 313 captures PIPESTATUS[0], 316 tests it is zero, 317 requires OK (1 test), 318 rejects FAILURES!!!, 319–322 require all eight markers and emit batch success. Raw 4300–4309 shows that script; after actual logcat at 4378–4384, raw 4385 is Process completed with exit code 1. With errexit, failure is at the status check if adb returned nonzero, otherwise the missing OK grep; actual instrument_status was not printed, so cannot distinguish those two commands from the log. Marker loop did not establish a pass; INSTRUMENTATION_CODE is not the shell status. Step 21 separately reports OK: killing emulator, bye bye (4407–4413 repeat runtime log, 4414 shutdown) and cleanup success; this does not repair failed fixture cleanup. Preserve actual FAILURE, seven real assertions, successful build stages, prior successful host and prior separate CPU-only Android job.
+
+**Final implementation inventory.** Independently compared fixed reference LibassNative.java blob a08a6b94b48f2582048dda07ae6ffebf8c801dc2 (18 declarations) with current native source (14 unique entry points) and actual 103 ELF stage (14 exports). Implemented scoped methods:
+- `nativeAddFont`
+- `nativeCreate`
+- `nativeCreateLibrary`
+- `nativeProcessChunk`
+- `nativeProcessCodecPrivate`
+- `nativeProcessData`
+- `nativeRelease`
+- `nativeReleaseLibrary`
+- `nativeRenderFrame`
+- `nativeSetCacheLimits`
+- `nativeSetFontScale`
+- `nativeSetFonts`
+- `nativeSetFrameSize`
+- `nativeSetStorageSize`
+
+Original embedded profile remains 12; font profile adds nativeSetFonts and nativeSetFontScale. Four deliberately absent:
+- nativeProcessTimedData: no actual upper caller payload/relative timing/duration/reset contract.
+- nativeSetBottomPositionFraction: TV signed values vs ASS anchor/explicit-event contract unknown; tested explicit ASS pos is not this method.
+- nativeSetStyleOverride: missing matching override semantics.
+- nativeSetVideoColorInfo: missing matching color/transfer/matrix and rendering contract.
+
+14/18 is cumulative scoped implementation and behavior evidence, NOT 14 independently passed Android tests or complete author compatibility. Whole new instrumentation is 0/1 pass (1 failure); previous #45761605851 CPU-only 1/1 and #45764161542 host job 139720931749 success remain separate. Do not fix/retry harness in this closing round. 103 temporary workflow removed after terminal audit; keep all run history, original code/fixtures and historical workflow at tested commit. No new CI.
+
+Actual host dependency was Ubuntu libfontconfig1 2.15.0-1.1ubuntu2, not Android 2.18.3. Prior Android 102 raw pin checks include fontconfig COPYING SHA256 51a51aa9823704fd90bccc616cdd17ebabb5b2b3e9cbde886ca02c7002288067, libxml2 Copyright 5d4873884a890122a4b9b20ad56ac6f7da1d796a5bfcf04a427970ac96217626, libunibreak LICENCE 0c57e2ec42ece17791a75d2f9b2f8e0663181be008667a507f765b3ef22522db, Meson COPYING cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30. Additional source-level notice verification: libxml2 dict.c b872214811244c99e85c25c685f5c04d2422162e and list.c c112ab9c3c616865733c19174974c7a33edc67d6 carry separate permissive notices; fontconfig COPYING includes Unicode data terms; libunibreak linebreak.c e15e4c26036c3ce3baa4d510d9e36586b9b73583 references Unicode 17.0.0/UAX14 and Unicode Terms of Use. Preserve these and all used file/dependency notices; no complete distribution permission or Unicode wrapping runtime acceptance claimed. No build or device substitute for the remaining four Libass methods or full producer.
+
+### Final adaptation stop decision
+
+User directed closure: stop this adaptation line, including speculative additional probes and emulator/ARMv7 reruns, until new matching and lawfully usable full upstream dependencies/contracts are available. Retain [consumer stop point](../mpv-stream/android/native/CONSUMER_STOP_POINT.md), [producer delta](../mpv-stream/android/native/PRODUCER_DELTA.md), [ARMv7 runtime boundary](../mpv-stream/android/native/ARMV7_RUNTIME_BOUNDARY.md). No complete 5.9 APK or release. Existing dev only; main f03faa5d6e5abb1be87f66eab7e406094790457f, signed v5.6.3-xray.2, original product workflows, Xray/Exo, TV standby and ordinary player unchanged. No source, fixture, gate or signature modification in this closing commit.
