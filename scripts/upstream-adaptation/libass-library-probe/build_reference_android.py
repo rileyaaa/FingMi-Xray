@@ -51,7 +51,9 @@ def build(src, ndk, work, abi="x86_64", font_profile=False):
             need(git(root,"rev-parse","HEAD")==commit and not git(root,"status","--porcelain"),"source "+name)
             need(git(root,"hash-object",notice)==blob,"notice "+name)
             mark("ASS_FONT_PROFILE_SOURCE",name,commit,blob,sha(root/notice))
-        need(out("meson","--version")=="1.11.0","fixed Meson 1.11.0")
+        version=out("meson","--version").strip()
+        need(version=="1.11.0","fixed Meson 1.11.0, got "+repr(version))
+        mark("ASS_FONT_PROFILE_MESON",version)
     work.mkdir(parents=True, exist_ok=False)
     prefix=work/"prefix"; prefix.mkdir()
     tc=ndk/"toolchains/llvm/prebuilt/linux-x86_64"
