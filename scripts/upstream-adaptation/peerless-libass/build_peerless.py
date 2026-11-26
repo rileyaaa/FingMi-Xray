@@ -9,6 +9,7 @@ import build_reference_android as common
 from reduced_ffmpeg_diagnostic import run,out,need,sha,symbols
 from headless_native_diagnostic import mark,env_run,git
 from make_fixture import build as fixture
+from alpha8_candidate import stage_alpha8
 PIN="504f64a325059ab5188c4c9d0eddc99c9356a23a"
 MIT="da5ff16aa97b20ed185424bda125b1ca65f7183a"
 NATIVE="lib_ass_kt/src/main/cpp/AssKt.c"
@@ -44,6 +45,7 @@ def stage(src):
     (assets/"timed.mkv").write_bytes(fixture(font.read_bytes()))
     shutil.copyfile(notice,assets/"DejaVu-LICENSE.txt")
     shutil.copyfile(root/"LICENSE",assets/"peerless-MIT.txt")
+    shutil.copyfile(HERE/"NOTICE",assets/"peerless-adapter-NOTICE.txt")
     mark("PEERLESS_FIXTURE",sha(font),sha(notice),sha(assets/"timed.mkv"))
     test=module/"src/androidTest/java/org/fingmi/peerlessprobe";test.mkdir(parents=True)
     shutil.copyfile(HERE/"PeerlessMatroskaTest.java",test/"PeerlessMatroskaTest.java")
@@ -81,7 +83,10 @@ def native(src,ndk,work,prefix,env,bindir,sysroot,sys_triple,flags):
     root=src/"peerless"
     native=work/"libasskt.so"
     cc=bindir/"x86_64-linux-android24-clang"
-    env_run(env,cc,"-fPIC","-shared",root/NATIVE,*flags,"-lc++_shared","-lGLESv2","-ljnigraphics","-landroid","-llog",
+    staged=work/"AssKt.alpha8.c"
+    staged_sha=stage_alpha8(root/NATIVE,staged)
+    mark("PEERLESS_ALPHA8_STAGED",NATIVE_BLOB,sha(HERE/"alpha8_candidate.py"),staged_sha)
+    env_run(env,cc,"-fPIC","-shared",staged,*flags,"-lc++_shared","-lGLESv2","-ljnigraphics","-landroid","-llog",
         "-Wl,--no-undefined","-Wl,-z,max-page-size=16384","-Wl,-soname,libasskt.so","-o",native)
     files={native.name:native,"libc++_shared.so":sysroot/"usr/lib"/sys_triple/"libc++_shared.so"}
     syslib=sysroot/"usr/lib"/sys_triple/"24"
@@ -100,6 +105,7 @@ def native(src,ndk,work,prefix,env,bindir,sysroot,sys_triple,flags):
     need("JNI_OnLoad" in symbols(bindir/"llvm-nm",native,True,True),"real registration entry")
     methods=re.findall(r'\{"(native\w+)",\s*"([^"]+)"',(root/NATIVE).read_text())
     need(len(methods)==19 and len(set(methods))==19,"19 real registered JNI signatures")
+    need(re.findall(r'\{"(native\w+)",\s*"([^"]+)"',staged.read_text())==methods,"staged registration unchanged")
     mark("PEERLESS_REGISTERED_SOURCE",methods)
     dst=src/"media/peerless-ass-probe/src/main/jniLibs/x86_64";dst.mkdir(parents=True)
     for name,path in files.items():shutil.copyfile(path,dst/name)
