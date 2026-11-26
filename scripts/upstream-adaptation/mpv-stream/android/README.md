@@ -111,10 +111,60 @@ request ID, no native execution, no native attribution claim.
   raw logs, tested code and historical workflow links. ARM-only native
   artifact is not a substitute for x86_64.
 
+- [45751855168](https://github.com/rileyaaa/FingMi-Xray/actions/runs/45751855168),
+  [job 139681265681](https://github.com/rileyaaa/FingMi-Xray/actions/runs/45751855168/job/139681265681),
+  head 59a682520ac615a622b38592f9aa04a80961874c, completed/failure.
+  [Exact one-time workflow](https://github.com/rileyaaa/FingMi-Xray/blob/59a682520ac615a622b38592f9aa04a80961874c/.github/workflows/93-mpv-stream-android-once.yml).
+  This independent batch selected the official ephemeral ubuntu-24.04
+  image instead of the former ubuntu-latest/26.04. Same fixed candidate,
+  owner, bridge and test source. Actual SDK root /usr/local/lib/android/sdk.
+  Official SDK emulator package revision 37.3.10, emulator version
+  37.3.10.0 (build 16970787); system image android-34/default/x86_64
+  revision 2. SHA256 from actual runner files:
+  emulator launcher 5c48296df39c35bad694a361312e3c9915e47d4061eed475b061c98625599173;
+  qemu-system-x86_64 3c64d59c1a29010336d777d7f9354ac5a0cae151e4dbd2278ef3173538b1c5b3.
+  The exact x86-64 QEMU ELF ldd scan with SDK bundled library dirs
+  initially reported libpulse.so.0 => not found. Official Ubuntu
+  noble-updates/main amd64 libpulse0 1:16.1+dfsg1-2ubuntu10.1 was installed
+  with ordinary package dependencies, without changing KVM or runner
+  permissions. Post-install scan had no missing entries, resolved
+  libpulse.so.0 at /lib/x86_64-linux-gnu/libpulse.so.0; emulator -version
+  succeeded (PASS_OFFICIAL_QEMU_LOADER). Absolute ADB and all SDK
+  executable checks also succeeded. The isolated ANDROID_AVD_HOME
+  /home/runner/work/_temp/mpv-probe-avd contained mpv-probe.ini and
+  mpv-probe.avd/config.ini, with exact path, abi.type=x86_64,
+  hw.device.name=pixel_2, image.sysdir.1=system-images/android-34/default/x86_64/,
+  tag.id=default. avdmanager list avd and emulator -list-avds confirmed
+  mpv-probe (PASS_ANDROID_AVD_CREATED_AND_DISCOVERABLE).
+  These close the previous loader and AVD setup failures for this run.
+  New first blocker at boot: /dev/kvm mode 660 root:kvm; existing
+  runner access check did not permit hardware acceleration; fallback
+  selected -accel off without changing permissions. Emulator exited
+  before device boot, exit 1, 2026-11-26T03:56:07Z:
+  "Software CPU emulation (-accel off) is not supported. A hardware CPU
+  accelerator is required (or set ANDROID_I_WANT_MY_TCG=yes to force TCG
+  software emulation)."
+  Real Android boot and all 5 instrumentation methods were not executed
+  (0 executed, 0 passed, 0 application failures; all 5 pending).
+  Boot-first ordering skipped the repeat APK compilation, preserving
+  the existing successful Android compile evidence. No source defect
+  observed, no changes to adapter/owner/test, no native or product APK.
+  Recovery condition: use an authorized ephemeral runner with existing
+  usable KVM access, or separately validate the official emulator's
+  explicitly advertised ANDROID_I_WANT_MY_TCG=yes software option with
+  -accel off and bounded boot/runtime; the option was not used or proved
+  in this run, and must not be counted as runtime acceptance. No chmod,
+  group changes, elevated emulator or persistent runner. Respect this
+  single CI batch, remove only the temporary workflow after recording
+  actual evidence, preserve run and logs. No further run started.
+
 **Current acceptance boundary:** Android source/adapter/test APK compilation
-passed in 45750156365; actual Android instrumentation remains unexecuted;
-native ABI-matched protocol/runtime and request-ID attribution remain
-unexecuted. No complete TV APK or device playback acceptance.
+passed in 45750156365; official QEMU loader and AVD setup passed in
+45751855168; Android boot failed at CPU acceleration, so actual Android
+instrumentation is 0/5 executed and remains unverified. Native ABI-matched
+protocol/runtime and request-ID attribution remain unexecuted. ARM producer
+artifacts do not substitute for x86_64. No complete TV APK or device
+playback acceptance.
 
 ## Native/remaining dependency route, not a replacement build
 
