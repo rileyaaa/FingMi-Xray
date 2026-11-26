@@ -2,6 +2,51 @@
 
 仅用于 dev/fongmi-upstream-adaptation；正式 main / .2 不变。用户重新授权逐项用成熟、合法、可维护的源码替代，先完成隔离功能切片，确认等效后才接产品。以下“沿用”是 5.9 候选构建/探针实际沿用，不是已替换正式 APK。每个原始证据链接均为固定源码或历史 run；license header/NOTICE 不等同整个组合发行许可。回切统一要求：取得适用授权的匹配上游源码/工件、固定 hash/ABI/行为证据，经同一门禁及现有两模块回归再替换；不得自动切版本。
 
+## 2026-11-26 构建缺件总账与重启门禁（起点 26cfbc00）
+
+本节是一次固定构建清单对账，不是重新搜索已收束的 ISO/UDF、双字幕或旧 pin。以 [lock.json](../scripts/upstream-adaptation/lock.json) blob 66ad06803b9600cadc8ea83640203f0d89505c48、[prepare_candidate.py](../scripts/upstream-adaptation/prepare_candidate.py) blob 2b234019c352e7ce5ed0f2eda42b76fafbd1e50a、[DEVELOPMENT §12](DEVELOPMENT.md) 的实际历史回执与本登记为依据；本轮只读固定 TV/Media3 的 Gradle/Manifest，未重跑 source gate、host probe、Actions 或 Android，未新增匹配原件。
+
+### 1. 实际构建入口（不是旧 5.6.3 的 app/libs）
+
+- [TV 5.9.0 d3a0b84b](https://github.com/FongMi/TV/tree/d3a0b84b24cf6628d72a4dbc2be453875b005536) app/build.gradle blob 4db9cae3dcf725ee039bcfe8307dd320039d2f83:18-49,92-136：versionCode 590、leanback/mobile 两 flavor、arm64-v8a/armeabi-v7a split（无 universal）、Java21；主 app 以 fileTree(app/libs/*.aar)、catvod 及版本目录依赖构建，Media3 并非普通 Maven 坐标自动解析。settings.gradle 2676642e1bf14dda12ecf06aca1321b0a05a6fa3 包含 app/catvod/chaquo/nodejs/quickjs/thunder；后四个被 include 不等于全部直接打进主 app。libs.versions.toml ffe897ef8fb96cc9e722893100d404fa66b186ce：AGP 9.5.1、SDK compile/target 37/min24、Build Tools 37.0.0、OkHttp 5.5.1、Chaquopy 17.2.0；gradle-wrapper.properties b5720b64300eaa3fe50d7f0548e9da82ce067a24 固定 Gradle 9.7.1。native 工具链还须按各已登记 producer 的锁，不把不同 NDK/ABI 混装。
+- 此轮实际对比两棵完整非截断 tree：dev 26cfbc00 为 2131 entries，目标 TV d3a0b84b 为 1632 entries。目标 app/libs 仅跟踪 hook-release.aar（179856a41a3e03ce569f00a66b8a82ca1071830c，5816 B）、tvbus-release.aar（2fda22082087a1702436717c72efe05b65efe5ca，3184 B）；原 dev 的 app/build.gradle 2d3e19cbd41ad4fadbc039c9daa22534d1883b96 仍为 v5.6.3-xray.1 基线，app/libs 含旧 forcetech/jianpian/thunder/tvbus 等五个 AAR（旧 tvbus blob e58c69089ca7f649ad208810549c0bacafe7cad1 与新版不同），不能把它们当 5.9 工件。prepare_candidate.overlay:65-165 从目标固定树复制到隔离工作目录、按 110 行 fork_scope 严格核对 blob、追加 xray/tv-recovery/libxray 的 Gradle wiring，未动其他目标文件；不把现 dev checkout 当已经迁移完的 5.9 app。
+- **两个实际强制文件输入**：[AbiApkPackaging.groovy](https://github.com/FongMi/TV/blob/d3a0b84b24cf6628d72a4dbc2be453875b005536/buildSrc/src/main/groovy/com/fongmi/gradle/AbiApkPackaging.groovy) 3bc5f446c770d26de0091010aa201338692feb57:46-55，在所有 host variant 的 mergeNativeLibs 前注册 VerifyMpvNativeTask，要求 app/libs/lib-mpvplayer-release.aar 和 app/libs/lib-decoder-ffmpeg-release.aar；两者均不在目标树。VerifyMpvNativeTask 2c7f1d37590c0430320f1dc77b0f9062fcbef13d 为每 ABI 调用 [MpvNativeLibraries.groovy](https://github.com/FongMi/TV/blob/d3a0b84b24cf6628d72a4dbc2be453875b005536/buildSrc/src/main/groovy/com/fongmi/gradle/MpvNativeLibraries.groovy) 726d9dd79b9daee0b968c8a83eea510383f040f1:12-45：MPV AAR 必有 libmpv.so/libplayer.so/libc++_shared.so，前两者依赖统一 libffmpeg.so、libplayer 另依赖 libmpv；FFmpeg AAR 必有 libffmpegJNI.so/libffmpeg.so，若含 libffmpegDoviJNI.so 同样校验统一链接；禁止七种分立 FFmpeg SO；真实 ELF/ABI/DT_NEEDED 校验，记录 host libc++ SHA。Dovi 的条件检查不是删除其原功能的许可。即使主 APK 排除 MPV_LIBRARIES，任务仍强制两个 AAR，另须满足项目原 16KiB ELF/ZIP 与完整行为门禁。
+- **AAR 传递闭合的新对账结果**：锁中的 4+10=14 个 verified_build 是明确独立 AAR receipts（见下表），rebuild_public_media.py b2ea54af953c28ef4e96c5242ee2b0892d89f1b5 只按这两组 assemble/stage 并标注 partial，绝不填充 TV app/libs。此次对照固定公开 Media3 各模块真实 build.gradle.kts：exoplayer (82d224d5976679e5f79deb574b069095a3c2ba6d) api common/container/datasource/decoder/extractor/database，datasource api common/database，extractor api common/container、implementation decoder，四个网络播放协议模块 api exoplayer；这些项目边均有现存14项记录。但 ui (4e6b59ea116605a0d647a58a72abe987b4ae51a9):31-32 明确 api lib-ui-danmaku，而 ui_danmaku (c5f06b78b92d8b44b0467a3cd022b1f386ed53a1):22-27 又需 common/datasource/datasource-okhttp 及 OkHttp/Brotli；14项不含单独 ui-danmaku receipt。effect (5700a2b0a74b5b207641d8060311705b41174cb7) api common、implementation datasource，亦不在14项清单（已有隔离使用，不等于单独最终工件）。mpvplayer (abf50d475ba2908baf28b145f19c8277d1d8a10b) implementation decoder-ffmpeg/exoplayer，两个 native decoder 亦依赖 decoder/exoplayer。不能因 Gradle 构建了依赖方就假定本地 flat AAR 的 classes.jar 含完整传递模块；最终需实际全 class/resource/native closure 与 DEX 引用/定义核验，防止历史 DecoderInputBuffer 漏包再现。这是静态包输入缺口而非已复现新 APK 故障。公开同源 ui-danmaku/effect 的基线构建可在工具链可用时独立验证；新版定制 controller/effect 接口仍须真源，不能把标准 AAR 填入即称等价。未将未验模块加入 verified_build；不凭这份部分项目边列表声称穷尽最终定制依赖。
+
+### 2. 原件／候选／硬阻塞分层
+
+| 组 | 已取得的固定原件与实际证据（沿用已有回执，不重复查 pin） | 还缺什么／影响边界 |
+|---|---|---|
+| 基础 Java 与 wrapper | FongMi/TV GPL-3.0 固定源、FongMi/media 3c2cbe8a Apache-2.0 固定公开源码及14项构建；database 与官方 Maven 摘要一致；Hook/TVBus 从 TV 同源重建（Hook API相同非字节相同，TVBus 字节相同），原摘要见 DEVELOPMENT §12.2–12.3 | 这些是真实基线，不是完整新版定制 AAR；TVBus 外部 native engine 仍未获合法对应源/构建条款。 |
+| MPEG-H / FFmpeg audio | Fraunhofer r3.0.2 + 同源 Media3 wrapper；MPEG-H lock 的 aar_candidate 验证 #45653208817，双 ABI AAR 791681 B SHA256 80883a31661ec8c84a09e7a85a0a4fcf6441b95aba6c82d5fc2f306d8f3da995；公开 FFmpeg 旧 consumer JNI 双 ABI #45672857780 | MPEG-H 软件授权不授予专利许可，真实播放/发行仍待核；旧 FFmpeg 合同/分立 SO 不等于新版 unified JNI/renderer/Dovi。 |
+| 官方相邻原生 producer | FongMi/mpv-android 1bf892e3、mpv f964d149、FFmpeg 963c8cbb、libplacebo dc98e2fc 及相应字体/光盘 recipe；有真实源、既有原生工件审计/局部 link/runtime receipts，授权按实际 LGPL/GPL/MIT/NOTICE 与配置 | 同源 producer 不是新版 Media3 consumer；完整配置/FFmpeg GPL 与 AV3A 适用许可、matching libplayer/统一 libffmpeg 两 ABI、ARMv7 对齐仍阻塞。旧 reduced WAV/HTTP x86 Android、ARM64 reduced 和 8/9 ARMv7 ELF 不算完整版本。 |
+| 新定制 Java/JNI | 可保留 public common/exoplayer/hls/datasource/effect/ui/ui-danmaku/mpvplayer/decoder 架构；缺口总清单与历史 50/66 missing imports 见 DEVELOPMENT §12.4–12.5（存在性结果含嵌套名，不是本轮统计） | 必须取得 DecoderManager/DecoderMode、Disc/AudioEffects、定制 motion/FFmpeg/Dovi/CMG、字幕 transcript/双轨/Libass/GL、ISO 导航及 cache、MPV config/stream/owner 等完整实际合同；不能用同名声明、旧 compat、或标准 1.11.0 全量覆盖。 |
+| 成熟或相似替代 | Peerless 0.5.1 隔离候选、原 ALPHA_8 host 修正；作者 ISO 基础 Java/libudfread 公版源、MPV 双 offset 原生；两已查 fork、其他 renderer/producer 候选均依原登记 | 只承认已验切片；Peerless 真 Android ASS/SRT 与双轨/样式等仍欠，ISO/JNI 与 MPV 双字幕子项按已记录停止点收住；不重复探针、不引入未经验证的实现/未知 SO。 |
+| 两个自有模块 | dev 固定 Xray Core v26.7.28 成套 JNI/bindings 及恢复模块，上一轮 102 assertions/12 mutations 已验，旧 Android library/Robolectric 19/19 是修正前证据；旧 Xray parity 记录仍保留 | 真 5.9 完整宿主、双 ABI native 匯入/分享/单播放和真实待机/网络恢复需验；不再以 Core 升级作为此轮前提。 |
+
+### 3. 独立 runtime 与完整功能不是同一个 host 编译门槛
+
+TV [runtime/build.gradle](https://github.com/FongMi/TV/blob/d3a0b84b24cf6628d72a4dbc2be453875b005536/runtime/build.gradle) ec26527b2e102c84fe26a4db40913d2c99d90491:10-24,124-156 / runtime/settings.gradle f2f052ac9114ec52a6516b24e1c296c8cd934e36 明确独立项目按模块/ABI 构建；AbiApkPackaging:13-20 定义 6 个 package/compatibilityId，PrepareRuntimeTask.groovy 29dee59ab4b2054e72a6cc48b975a33404bfd684:90-167 记录 runtime.json 的 ABI、entryClass、javaApi、版本、每文件 sha256/size，MPV 带 hostLibraries。主 Manifest ee7161e815d4b95a5a99e1964a8bba29f3b991d0:13-14,21-27,140 声明 runtime 包查询、安装相关权限及 catalog；不是本次要扩大权限的依据。区分如下：
+
+| runtime / 实际输入 | 来源现状、最小缺件 |
+|---|---|
+| mpv / mpv-jni-ffmpeg-shared-v1 | 从上述两个 AAR 分离 libmpv/libplayer，host libc++ hash 绑定；这组既是 host Gradle 强制输入又是 MPV runtime 硬阻塞。 |
+| bdj / libbluray-1.4.1-openjdk8-zero-v1 | tvBdjRuntimeDirectory/j2re-zero-{abi}.zip；FongMi/bdj-runtime 固定源/recipe 已登记，未有可验实际 ZIP；完整 Java/JNI 导航、许可及真菜单不闭合。不再重查 ISO。 |
+| python / catvod-python-plugin-v4 | chaquo/runtime 的 python-runtime-{flavor}-{buildType}.aar、Chaquopy 17.2.0 和 wheels，prepare 时与 MPV AAR libc++ 一致性校验；需要锁定构建/来源、依赖 notices 与实际 runtime。 |
+| nodejs / catvod-nodejs-plugin-v3 | 源 TV 有 bridge 及两个 libnode.so 精确文件摘要（DEVELOPMENT §12.3），需要匹配 Node 源版本/NDK/配置/许可及 bridge/runtime 验证；不将已跟踪的二进制当 source-build。 |
+| quickjs / fongmi-quickjs-ng-0.17-v13 | 源 TV 的 runtime-release.aar、wrapper-java.jar 与 helpers；作者 FongMi/quickjs 764294b MIT 引擎候选不证明 Android wrapper/ABI 精确生产链；需要对应源/NOTICE/实际 runtime。 |
+| thunder / catvod-thunder-plugin-v1 | TV 跟踪两 ABI 各两份 Xunlei native 库，摘要已验但 SDK 来源/许可/再分发及完整运行未闭合；不因有文件就认作可合法发行。 |
+
+这些独立 runtime 的全部 APK 不必先全部构建才能编译 host；但保全相应上游功能及可交付完整产品需要匹配模块和真实验证。不得用独立 runtime APK 反填主程序缺失 AAR/JNI；不得用原厂应用 APK 自更新覆盖 fork。既有 FongMi/Release / FongMi/FongMi / Box、两个 fork 与 producer 查找结论沿用 DEVELOPMENT 及 consumer stop record，不重复搜索；未发现或收到新可取的确切匹配 5.9 单件，不宣称所有公开源码永久不存在。
+
+### 4. 最小推进材料与唯一完整验收路径
+
+1. **先闭合 source+artifact 合同**：同一 5.9.0 对应的定制 Media3 完整 source commit/tree、Gradle/模块及依赖 manifest、适用 license/NOTICE、匹配 native producer 版本/配置/headers/toolchain/各 ABI 真实 AAR/SO SHA 与对应源、统一 FFmpeg 两 AAR 及完整模块集合（含非传递导出的 UI/danmaku/effect/decoder 依赖）。若逐件替代，则须真实功能、JNI 描述符、依赖/owner、实际帧/读写/字幕输出均等价才纳入隔离候选；不要求必须拿到作者私有材料才研究，但没有合法等效件不能声称闭合。明确 AV3A/其他受限源与 MPEG-H/SDK 分发许可边界。对已通过的14项、wrapper 等仅按 hash/版本复用或在最终同一构建输入中核对，不单独反复测试。
+2. **宿主门槛独立存在**：最新历史实测 #45689744405 为 2 unresolved（主 AndroidManifest.xml 的安装权限边界、MpvPlayerEngine.java）/5 old-media-review（LibassFontFile、SecondaryTextOutput、SecondaryTextTrackSelector、DanmakuPlayerViewController、MpvUtil）；当前 lock 仍有这两个 three-way 项和这五个待审策略，并非此次重新运行计数。prepare_candidate.main:245-263 只做源存在性/overlay 门禁，即使全绿也显式停止要求 matching native/full build，不是 assemble 入口。需要真实 5.9 consumer 后再解宿主冲突与旧 compat 去留，安装 runtime 与禁止应用自更新的权限边界须按用户授权确认，不能靠扩大权限或删除功能、恢复旧播放器处理。主分支/签名/正式工作流不可改。
+3. **环境与完整验收**：需要可合法使用的固定 source/artifact 下载与构建环境（Java21、SDK37/Build Tools37.0.0、Gradle9.7.1/AGP9.5.1、各自锁定 NDK/CMake/依赖），独立非正式构建入口、可用真 Android/ARM TV 设备。上轮本地环境限制不变更为已取得；本轮未重新探测或申请 CI。拿齐上述匹配输入后先闭合候选完整 javac、依赖/DEX/Manifest/native ELF/SONAME/NEEDED/16KiB ZIP、双 ABI APK，再同一候选真实普通播放与 MPV/Exo/字幕/媒体格式、独立 runtime、Xray 单播放/旧匯入分享、待机及网络恢复。不能把 host metadata、隔离测试或旧版 APK 算完整验收。仅有新单件时可按其实际可验范围做独立切片；没有新合法输入和可执行环境则保持当前停止点，不为次数反复搜旧 pin/开子题。
+
+本轮只有总账文档更新，无新源码接线、lock 变更、构建/运行证据或 Actions；main/.2/签名/播放器与既有门槛保持原状。上述历史回执与逐件登记继续有效。
+
 ## 本批选择及独立限制
 
 | 项目 | 类别／缺件和理由 | 原始固定来源 | 授权/NOTICE | 证据、差异、回切 |
