@@ -1407,3 +1407,9 @@ python3 scripts/upstream-adaptation/stage_mpv_jni_bridge.py \
 - 6c0c1a42f791c96732a3488222cacead7c67e3d7 [45760568036/139709302562](https://github.com/rileyaaa/FingMi-Xray/actions/runs/45760568036/job/139709302562) success：真实 Libass host JNI 新增3项 (processData/storage/cache)，两自带时间戳区间，像素宽181->209->恢复，40次cache设置下真实渲染，最终library归零。累计10/18，非正式Android AAR；[详细证据](../scripts/upstream-adaptation/libass-library-probe/README.md)。
 - 5b6aaeac439a33658602044d6a2a4195115fe7b0 [exact producer 功能/来源/授权差异](../scripts/upstream-adaptation/mpv-stream/android/native/PRODUCER_DELTA.md)：AVS3-P2 video BSD-3-Clause uavs3d 并非AV3A audio；新搜索候选 MOLAN 同UWA policy、Dreamello同参考谱系、归档泄露路线拒绝。按原固定 recipe 及实际日志明确缺少统一FFmpeg/格式/音频滤镜/GL/Vulkan/motion/fontconfig/unibreak/网络/光盘，列版本来源和已读取license blob与仍缺完整闭合。不把受限 profile 当正式版。
 - 两个新增 Actions 都有终态证据，保留历史，删除本批97/98一次性入口。仅dev独立probe及记录，main/.2/签名/原Xray/Exo/待机/普通播放器/现有ELF/ZIP门禁不动。
+
+
+#### 5.9.0 第七批：ARMv7 支持边界及 Libass 真 frame ownership（2026-11-26）
+
+- 6059e511e0998e6f2591000e3adc94d2d7b312a7：[ARMv7 官方 runtime 支持边界](../scripts/upstream-adaptation/mpv-stream/android/native/ARMV7_RUNTIME_BOUNDARY.md)。原装 r30 4KiB 不是已证实的 Android 平台缺陷，项目 16KiB 门禁仍失败；未发现受支持且精确匹配的替代。原多 SO 共享 C++ ABI / NEEDED 合同无法靠静态 STL 开关证明安全，停止该路线，不重跑 ARM。
+- ec66dcb04a56214367a5d82f69ebe7fe6ec450a3：在独立 Libass probe 增加 actual reference nativeSetFrameSize/nativeRenderFrame 的有限同步 CPU 路径，真实参考 Java Frame/Image 构造与内存所有权，不补其余空方法、不接产品。ba68010c033fe15cbfdebf526103300a0c82cec7 的 [45761932045/139713727766](https://github.com/rileyaaa/FingMi-Xray/actions/runs/45761932045/job/139713727766) 已终态 success，242 renders/2 tracks/2 retired handles/2 saved arrays/live libraries=0，真实参考类、Guava 与 -Xcheck:jni；并行生命周期非 Android/TV。已清理 100 临时 trigger，保留历史。见 [细节及余下消费端合同](../scripts/upstream-adaptation/libass-library-probe/README.md)。FFmpeg motion/ISO 无新匹配公开消费端，不重跑 producer，不写猜测实现。Android 验收另行记录，不以 host 结果代替。
