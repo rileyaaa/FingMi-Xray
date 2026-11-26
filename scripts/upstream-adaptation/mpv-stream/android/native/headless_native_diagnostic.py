@@ -73,15 +73,25 @@ def check_inputs(src, ndk):
     mark("PASS_HEADLESS_INPUTS_ONLY")
 
 
-def build(src, ndk, work, media):
+# Keep the proven x86_64 path as default; ARM is build-only and separately gated.
+ABI = {
+    "x86_64": ("x86_64-linux-android","x86_64-linux-android","x86_64","generic","x86_64","x86_64",2,62),
+    "arm64-v8a": ("aarch64-linux-android","aarch64-linux-android","aarch64","generic","aarch64","aarch64",2,183),
+    "armeabi-v7a": ("armv7a-linux-androideabi","arm-linux-androideabi","arm","armv7-a","arm","armv7a",1,40),
+}
+
+def build(src, ndk, work, media, abi="x86_64"):
+    triple, sys_triple, ffarch, ffcpu, family, cpu, elfclass, machine = ABI[abi]
+    arm_build = abi != "x86_64"
+    mark("HEADLESS_TARGET", abi, triple, "API24", "BUILD_ONLY" if arm_build else "RUNTIME_CANDIDATE")
     check_inputs(src, ndk)
     work.mkdir(parents=True, exist_ok=False)
     prefix=work/"prefix"; prefix.mkdir()
     tc=ndk/"toolchains/llvm/prebuilt/linux-x86_64"
     bindir=tc/"bin"
-    cc=bindir/"x86_64-linux-android24-clang"; cxx=bindir/"x86_64-linux-android24-clang++"
+    cc=bindir/(triple+"24-clang"); cxx=bindir/(triple+"24-clang++")
     ar=bindir/"llvm-ar"; ranlib=bindir/"llvm-ranlib"; nm=bindir/"llvm-nm"; strip=bindir/"llvm-strip"
-    sysroot=tc/"sysroot"; syslib=sysroot/"usr/lib/x86_64-linux-android/24"
+    sysroot=tc/"sysroot"; syslib=sysroot/"usr/lib"/sys_triple/"24"
     need(syslib.is_dir(), "actual NDK sysroot")
     jobs=str(min(4, os.cpu_count() or 2))
     pcdir=str(prefix/"lib/pkgconfig")
@@ -92,7 +102,7 @@ def build(src, ndk, work, media):
     cross=work/"android.cross"
     cross.write_text("[binaries]\nc = "+repr(str(cc))+"\ncpp = "+repr(str(cxx))+
         "\nar = "+repr(str(ar))+"\nstrip = "+repr(str(strip))+"\npkg-config = '/usr/bin/pkg-config'\n"
-        "[host_machine]\nsystem = 'android'\ncpu_family = 'x86_64'\ncpu = 'x86_64'\nendian = 'little'\n"
+        "[host_machine]\nsystem = 'android'\ncpu_family = "+repr(family)+"\ncpu = "+repr(cpu)+"\nendian = 'little'\n"
         "[properties]\nneeds_exe_wrapper = true\npkg_config_libdir = ["+repr(pcdir)+"]\n"
         "[built-in options]\nc_args = ['-fPIC']\ncpp_args = ['-fPIC']\n"
         "c_link_args = ['-Wl,-z,max-page-size=16384', '-Wl,--no-undefined', '-lc++_shared']\n"
@@ -112,7 +122,7 @@ def build(src, ndk, work, media):
     b=work/"build-ffmpeg"; b.mkdir()
     mark("HEADLESS_STAGE","ffmpeg-six")
     env_run(env,src/"ffmpeg/configure","--prefix="+str(prefix),"--libdir="+str(prefix/"lib"),
-        "--target-os=android","--enable-cross-compile","--arch=x86_64","--cpu=generic",
+        "--target-os=android","--enable-cross-compile","--arch="+ffarch,"--cpu="+ffcpu,
         "--cc="+str(cc),"--cxx="+str(cxx),"--ld="+str(cc),"--ar="+str(ar),"--ranlib="+str(ranlib),
         "--nm="+str(nm),"--strip="+str(strip),"--pkg-config=false",
         "--disable-autodetect","--disable-everything","--disable-network","--disable-gpl","--disable-nonfree",
@@ -134,7 +144,7 @@ def build(src, ndk, work, media):
     ft=work/"build-freetype"
     env_run(env,"cmake","-S",src/"freetype","-B",ft,"-G","Ninja",
         "-DCMAKE_TOOLCHAIN_FILE="+str(ndk/"build/cmake/android.toolchain.cmake"),
-        "-DANDROID_ABI=x86_64","-DANDROID_PLATFORM=android-24","-DCMAKE_BUILD_TYPE=Release",
+        "-DANDROID_ABI="+abi,"-DANDROID_PLATFORM=android-24","-DCMAKE_BUILD_TYPE=Release",
         "-DCMAKE_INSTALL_PREFIX="+str(prefix),"-DCMAKE_INSTALL_LIBDIR=lib","-DBUILD_SHARED_LIBS=OFF",
         "-DCMAKE_POSITION_INDEPENDENT_CODE=ON",
         *["-DFT_DISABLE_"+x+"=ON" for x in ("ZLIB","BZIP2","PNG","HARFBUZZ","BROTLI","HVF")])
@@ -155,7 +165,7 @@ def build(src, ndk, work, media):
     a=work/"build-ass"; a.mkdir()
     assenv=dict(env,CC=str(cc),CXX=str(cxx),AR=str(ar),NM=str(nm),RANLIB=str(ranlib),STRIP=str(strip),
         CFLAGS="-O2 -fPIC",CXXFLAGS="-O2 -fPIC",LDFLAGS="-lc++_shared",PKG_CONFIG="/usr/bin/pkg-config")
-    env_run(assenv,ass/"configure","--build=x86_64-linux-gnu","--host=x86_64-linux-android",
+    env_run(assenv,ass/"configure","--build=x86_64-linux-gnu","--host="+sys_triple,
         "--prefix="+str(prefix),"--libdir="+str(prefix/"lib"),"--with-pic","--enable-static","--disable-shared",
         "--disable-asm","--disable-fontconfig","--disable-libunibreak","--disable-require-system-font-provider",cwd=a)
     env_run(assenv,"make","-j"+jobs,cwd=a)
@@ -188,16 +198,21 @@ def build(src, ndk, work, media):
     mark("PASS_HEADLESS_BUILD","official-wrapper-link")
     names={"lib"+n+".so" for n in FF_NAMES}|{"libmpv.so","libplayer.so","libc++_shared.so"}
     files={n:libdir/n for n in names}
-    files["libc++_shared.so"]=sysroot/"usr/lib/x86_64-linux-android/libc++_shared.so"
+    files["libc++_shared.so"]=sysroot/"usr/lib"/sys_triple/"libc++_shared.so"
     readelf=bindir/"llvm-readelf"
-    exports={}; imports={}
+    exports={}; imports={}; alignment_failures=[]
     for name,path in sorted(files.items()):
         need(path.is_file(),"missing "+str(path))
         data=path.read_bytes()
-        need(data[:6]==b"\x7fELF\x02\x01" and struct.unpack_from("<HH",data,16)==(3,62),"ABI "+name)
+        need(data[:6]==b"\x7fELF"+bytes((elfclass,1)) and struct.unpack_from("<HH",data,16)==(3,machine),"ABI "+name)
         ph=out(readelf,"--program-headers","--wide",path)
         loads=[l.split() for l in ph.splitlines() if l.strip().startswith("LOAD ")]
-        need(loads and all(int(l[-1],16)>=16384 and (int(l[1],16)-int(l[2],16))%16384==0 for l in loads),"16KiB ELF gate "+name)
+        aligned=bool(loads) and all(int(l[-1],16)>=16384 and (int(l[1],16)-int(l[2],16))%16384==0 for l in loads)
+        if arm_build:
+            mark("ARM_PT_LOAD",abi,name,"alignments",",".join(l[-1] for l in loads),"16KiB", "PASS" if aligned else "FAIL")
+            if not aligned: alignment_failures.append(name)
+        else:
+            need(aligned,"16KiB ELF gate "+name)
         dyn=out(readelf,"--dynamic",path)
         soname=re.findall(r"\(SONAME\).*?\[([^\]]+)\]",dyn)
         need(soname==[name],"actual SONAME not Android package name "+name+" "+str(soname))
@@ -218,6 +233,37 @@ def build(src, ndk, work, media):
     jni_names={"Java_is_xyz_mpv_MPVLib_"+n for n in re.findall(r"public static native [^;\n]+?\s+(\w+)\(",bridge.read_text())}
     actual={s for s in exports["libplayer.so"] if s.startswith("Java_is_xyz_mpv_MPVLib_")}
     need(len(jni_names)==24 and jni_names==actual,"24 actual JNI exports mismatch "+str(jni_names^actual))
+    if arm_build:
+        # Independently verify ZIP storage, 16KiB offsets and byte identity
+        # even if a built ELF fails the project gate. This is a temporary ZIP,
+        # not an APK and not a product acceptance or published artifact.
+        import zipfile
+        z=work/"diagnostic-unaligned.zip"; aligned_zip=work/"diagnostic-aligned.zip"
+        expected={"lib/"+abi+"/"+name:path for name,path in files.items()}
+        with zipfile.ZipFile(z,"w",compression=zipfile.ZIP_STORED) as archive:
+            for name,path in sorted(expected.items()): archive.write(path,name)
+        zipalign=ndk.parent.parent/"build-tools/36.0.0/zipalign"
+        run(zipalign,"-f","-P","16","4",z,aligned_zip)
+        run(zipalign,"-c","-P","16","-v","4",aligned_zip)
+        with zipfile.ZipFile(aligned_zip) as archive, aligned_zip.open("rb") as raw:
+            need(set(archive.namelist())==set(expected),"ZIP entry set")
+            for name,path in sorted(expected.items()):
+                info=archive.getinfo(name)
+                raw.seek(info.header_offset)
+                head=raw.read(30)
+                need(head[:4]==b"PK\x03\x04","ZIP local header")
+                nlen,xlen=struct.unpack_from("<HH",head,26)
+                offset=info.header_offset+30+nlen+xlen
+                need(info.compress_type==zipfile.ZIP_STORED and offset%16384==0,"ZIP native alignment "+name)
+                need(hashlib.sha256(archive.read(name)).hexdigest()==sha(path),"ZIP byte identity "+name)
+                mark("ARM_ZIP_ENTRY",abi,name,offset,sha(path))
+        mark("PASS_ARM_DIAGNOSTIC_ZIP_16K",abi,sha(aligned_zip))
+        mark("ARM_BUILD_AND_SYMBOLS",abi,len(names),"SO",len(actual),"JNI")
+        if alignment_failures:
+            mark("BLOCK_ARM_ELF_16K",abi,",".join(alignment_failures))
+            raise SystemExit("existing ELF 16KiB gate failed; no APK staged")
+        mark("PASS_ARM_BUILD_ELF_ZIP_ONLY",abi,"NO_DEVICE_NO_PRODUCT")
+        return
     dst=module/"src/main/jniLibs/x86_64"
     dst.mkdir(parents=True,exist_ok=False)
     for name,path in files.items(): shutil.copyfile(path,dst/name)
@@ -238,5 +284,5 @@ def build(src, ndk, work, media):
 
 
 if __name__=="__main__":
-    if len(sys.argv)!=5: raise SystemExit("usage: headless_native_diagnostic.py inputs ndk work disposable_media")
-    build(*(Path(x).resolve() for x in sys.argv[1:]))
+    if len(sys.argv) not in (5,6): raise SystemExit("usage: headless_native_diagnostic.py inputs ndk work disposable_media [abi]")
+    build(*(Path(x).resolve() for x in sys.argv[1:5]), abi=sys.argv[5] if len(sys.argv)==6 else "x86_64")
