@@ -257,3 +257,5 @@ Original isolated APK receipts:
 ```
 
 Official Android API34 x86_64 emulator, TCG (no permission changes), boot 304s. Actual mpv v0.42.0-dev-gf964d1495, instrumentation OK (3 tests), code -1. Dump fixture 32044 bytes, 6 reads, 2 EOF, 1 open/close; seek old owner 73728 bytes, 9 reads, 3 seeks, 12 size calls, 1 cancel/close; new owner 1 read, 1 seek, 1 cancel/close. Stop blocked body 1 read, 0 bytes, 1 cancel/close. Actual tagged replies 1099511627777..1099511627785, old 1099511627780 and new 1099511627784; old reply deliberately held before Java owner delivery, not claimed late native arrival. Six real OkHttp Calls and six connection releases (1+1+4); cleanup log repeats not double counted. All three PASS_NATIVE_* tests and PASS_REDUCED_HEADLESS_ANDROID_NATIVE_STREAM_ONLY present. Prior 5/5 NO_NATIVE tests not rerun. This proves reduced-profile runtime only, not exact producer, ARM runtime, complete Media3 consumers, video/ISO/disc support, or TV APK. No artifact upload; delete only temporary 96 trigger and retain history.
+
+See [exact producer feature/license delta and remaining artifacts](PRODUCER_DELTA.md). This does not grant release approval.
