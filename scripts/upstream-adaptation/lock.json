@@ -73,10 +73,10 @@
     {
       "path": "app/src/leanback/java/com/fongmi/android/tv/ui/activity/HomeActivity.java",
       "old": "e7f5942d6378a9bf8b5d5bbf25163c18fade7405",
-      "fork": "15e5ab20cceef25b6a979961b8edd13cee109f0e",
+      "fork": "3ff83b25abf3862fbc912cd3a6fa0254ac388368",
       "target": "4b8a2c24a794a57a56d6ac411315de89bed7c7d5",
       "strategy": "reviewed-recovery-host",
-      "resolved": "4263c1b1a715aabcdbbaef652ab5a62802542f5b"
+      "resolved": "2f4be2da401ee81e91f792fc534a4f7bb67ca8e8"
     },
     {
       "path": "app/src/leanback/java/com/fongmi/android/tv/ui/activity/LiveActivity.java",
@@ -235,10 +235,10 @@
     {
       "path": "app/src/main/java/com/fingmi/integration/recovery/FongMiNetworkRecovery.java",
       "old": null,
-      "fork": "4ffe7c5ee180341df70decdf90a5f43a9227bbb9",
+      "fork": "6294b1327c88f35a8e6300995548939246eef30d",
       "target": null,
       "strategy": "reviewed-recovery-host",
-      "resolved": "ae204d77c90d37d6fbcb32419adfdc55841db070"
+      "resolved": "6b4495c6fdc7fab013cc2f38ab37a7937dfc6a72"
     },
     {
       "path": "app/src/main/java/com/fingmi/integration/xray/XrayArtworkBitmapLoader.java",
@@ -589,7 +589,7 @@
     {
       "path": "tv-recovery/src/main/java/com/fingmi/tvrecovery/NetworkRecoveryCoordinator.java",
       "old": null,
-      "fork": "b235ea6f6bf19420d8b7cdb6e9ec7a5197c934be",
+      "fork": "657dd853d5cb93e317b3ab5d81c988c55dfc09b2",
       "target": null,
       "strategy": "module"
     },
@@ -604,7 +604,7 @@
     {
       "path": "tv-recovery/src/test/java/com/fingmi/tvrecovery/NetworkRecoveryCoordinatorTest.java",
       "old": null,
-      "fork": "e0e1049aeff61bb86b4497438de062f90b323a86",
+      "fork": "c330280813a4fbe38af0281867ba4b2dfd521a20",
       "target": null,
       "strategy": "module"
     },

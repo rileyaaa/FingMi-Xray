@@ -24,7 +24,7 @@ public final class FongMiNetworkRecovery implements AutoCloseable {
             Application application,
             Runnable cancelRequests,
             Runnable showProgress,
-            BooleanSupplier ownerAlive,
+            BooleanSupplier homeRecoverable,
             Runnable refreshHome) {
         TvNetworkLifecycle.get(application, new TvNetworkLifecycle.Renderer() {
             @Override public void start() { TvDlnaLifecycle.start(application); }
@@ -34,6 +34,7 @@ public final class FongMiNetworkRecovery implements AutoCloseable {
                 TvNetworkLifecycle.recoveredGeneration(),
                 new NetworkRecoveryCoordinator.Hooks() {
                     @Override public long generation() { return TvNetworkLifecycle.generation(); }
+                    @Override public boolean canRecoverHome() { return homeRecoverable.getAsBoolean(); }
                     @Override public void cancelRequests() { cancelRequests.run(); }
                     @Override public void resetApiAndDns() {
                         OkHttp.resetApiNetworkForResume();
@@ -45,7 +46,7 @@ public final class FongMiNetworkRecovery implements AutoCloseable {
                     @Override public void unschedule(Runnable action) { App.removeCallbacks(action); }
                     @Override public void showProgress() { showProgress.run(); }
                     @Override public void refreshHome() {
-                        if (!ownerAlive.getAsBoolean()) return;
+                        if (!homeRecoverable.getAsBoolean()) return;
                         TvNetworkLifecycle.markRecovered(TvNetworkLifecycle.generation());
                         refreshHome.run();
                     }

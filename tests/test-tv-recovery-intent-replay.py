@@ -86,6 +86,7 @@ public final class HomeRecoveryIntentHarness {
         final Runnable refresh;
         Hooks(Runnable refresh) { this.refresh=refresh; }
         public long generation() { return generation; }
+        public boolean canRecoverHome() { return true; }
         public void cancelRequests() { }
         public void resetApiAndDns() { }
         public void clearSpiders(Runnable after) { clears++; clearDone=after; }

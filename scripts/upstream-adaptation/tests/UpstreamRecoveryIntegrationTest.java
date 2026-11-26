@@ -46,6 +46,7 @@ public class UpstreamRecoveryIntegrationTest {
             OkHttpClient bound=xray.client();
             NetworkRecoveryCoordinator recovery=new NetworkRecoveryCoordinator(first,new NetworkRecoveryCoordinator.Hooks(){
                 public long generation(){return TvNetworkLifecycle.generation();}
+                public boolean canRecoverHome(){return true;}
                 public void cancelRequests(){cancels.incrementAndGet();}
                 public void resetApiAndDns(){OkHttp.resetApiNetworkForResume();}
                 public void clearSpiders(Runnable after){clears.incrementAndGet();clear[0]=after;}

@@ -16,8 +16,8 @@ T = "tv-recovery/src/main/java/com/fingmi/tvrecovery/"
 D = "app/src/leanback/java/com/fingmi/integration/recovery/"
 SOURCES = {
     T + "TvNetworkLifecycle.java": "97a04e5cad533cd5d2b94a4a64c5fdaf500ada1a",
-    T + "NetworkRecoveryCoordinator.java": "b235ea6f6bf19420d8b7cdb6e9ec7a5197c934be",
-    P + "FongMiNetworkRecovery.java": "ae204d77c90d37d6fbcb32419adfdc55841db070",
+    T + "NetworkRecoveryCoordinator.java": "657dd853d5cb93e317b3ab5d81c988c55dfc09b2",
+    P + "FongMiNetworkRecovery.java": "6b4495c6fdc7fab013cc2f38ab37a7937dfc6a72",
     D + "TvDlnaLifecycle.java": "a0bc77a9ef7eed0453f924b98616c78ec6e2b20c",
 }
 STUBS = {
@@ -96,9 +96,10 @@ STUBS = {
         import com.fongmi.android.tv.service.DLNARendererService;
         public class HostRecoveryTest {
             static int checks,refreshes;
+            static boolean homeReady=true;
             static void check(boolean b,String s){checks++;if(!b)throw new AssertionError(s);}
             static void screen(Application app,String s){app.receiver.onReceive(app,new Intent(s));}
-            static FongMiNetworkRecovery owner(Application app){return new FongMiNetworkRecovery(app,()->App.events.add("cancel"),()->App.events.add("progress"),()->true,()->refreshes++);}
+            static FongMiNetworkRecovery owner(Application app){return new FongMiNetworkRecovery(app,()->App.events.add("cancel"),()->App.events.add("progress"),()->homeReady,()->refreshes++);}
             static void complete(Application app){BaseLoader.get().after.run();app.network.capabilities.ready=false;App.tick();
                 int count=refreshes;app.network.capabilities.ready=true;App.tick();check(refreshes==count,"one ready sample refreshed");App.tick();}
             public static void main(String[] args){
@@ -133,6 +134,24 @@ STUBS = {
                 next.close();app.lifecycle.onActivityStopped(home);app.permission=-1;Build.VERSION.SDK_INT=36;
                 app.lifecycle.onActivityStarted(home);app.lifecycle.onActivityResumed(home);
                 check(DLNARendererService.starts==4,"pre-37 permission gate changed legacy renderer behavior");
+                FongMiNetworkRecovery f1=owner(app);App.events.clear();f1.check();
+                long first=TvNetworkLifecycle.generation(),previous=TvNetworkLifecycle.recoveredGeneration();
+                check(first==previous+1&&App.events.size()==5,"first wake did not start slow clear");
+                Runnable slow=BaseLoader.get().after;
+                app.lifecycle.onActivityStarted(video);homeReady=false;app.lifecycle.onActivityPaused(home);
+                app.lifecycle.onActivityResumed(video);app.lifecycle.onActivityStopped(home);
+                screen(app,Intent.ACTION_SCREEN_OFF);screen(app,Intent.ACTION_SCREEN_ON);
+                check(TvNetworkLifecycle.generation()==first+1,"second wake while Live active was lost");
+                slow.run();App.tick();
+                check(App.events.size()==5&&refreshes==2&&TvNetworkLifecycle.recoveredGeneration()==previous,"background Home reset or consumed the latest generation");
+                slow.run();check(App.queue.isEmpty(),"duplicate completion scheduled hidden recovery");
+                app.lifecycle.onActivityStarted(home);homeReady=true;app.lifecycle.onActivityResumed(home);app.lifecycle.onActivityStopped(video);
+                f1.check();f1.check();check(App.queue.size()==1,"resume/focus did not coalesce deferred poll");
+                App.tick();check(App.events.size()==10&&refreshes==2,"return to Home did not start exactly one new clear");
+                slow.run();check(App.queue.isEmpty(),"old callback completed the new clear");
+                complete(app);f1.check();
+                check(refreshes==3&&TvNetworkLifecycle.recoveredGeneration()==first+1&&App.events.size()==10,"latest generation not recovered exactly once");
+                f1.close();
                 System.out.println("PASS "+checks+" actual candidate recovery/renderer lifecycle assertions");
             }
         }''',
@@ -170,6 +189,7 @@ def main():
                 assert result.returncode != 0 and "AssertionError" in result.stderr, result.stdout+result.stderr
         run(sources, True)
         mutations = [
+            ("FongMiNetworkRecovery.java", b"public boolean canRecoverHome() { return homeRecoverable.getAsBoolean(); }", b"public boolean canRecoverHome() { return true; }"),
             ("TvDlnaLifecycle.java", b"Build.VERSION.SDK_INT >= 37", b"Build.VERSION.SDK_INT >= 99"),
             ("TvNetworkLifecycle.java", b"if (startedActivities.isEmpty() || backgroundPending) return;", b"if (false) return;"),
             ("FongMiNetworkRecovery.java", b"public void onLocalNetworkPermissionGranted() { lifecycle.startRendererIfNeeded(); }", b"public void onLocalNetworkPermissionGranted() {}"),
@@ -180,7 +200,7 @@ def main():
             changed = dict(sources)
             changed[name] = sources[name].replace(old,new)
             run(changed, False)
-        print("PASS 4 negative controls rejected; Android and network boundaries are doubles")
+        print("PASS 5 negative controls rejected; Android and network boundaries are doubles")
 
 
 if __name__ == "__main__":

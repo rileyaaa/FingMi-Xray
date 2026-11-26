@@ -69,7 +69,11 @@ def main():
         init = method(text(home),"protected void initView(Bundle savedInstanceState)")
         assert init.index("setAdapter();") < init.index("new FongMiNetworkRecovery(") < init.index("checkPermission();")
         assert "consumeAction()" not in init
-        assert "actionReady && recoveryResumed" in method(text(home),"private void checkNetworkGeneration()")
+        assert "actionReady && recoveryResumed && !isFinishing() && !isDestroyed()" in method(text(home),"private boolean canRecoverHome()")
+        assert "if (canRecoverHome() && mNetworkRecovery != null)" in method(text(home),"private void checkNetworkGeneration()")
+        assert "this::canRecoverHome" in init
+        assert "recoveryResumed = false;" in method(text(home),"protected void onPause()")
+        assert "recoveryResumed = false;" in method(text(home),"protected void onDestroy()")
         assert "tasks.cancel(TaskType.RESULT);" in method(text(vm),"public void cancelResultRequest()")
         assert "loadingHome = false;" in method(text(vm),"public void cancelResultRequest()")
         assert blob(candidate/runner) == blob(tv/runner)

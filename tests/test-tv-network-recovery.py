@@ -277,7 +277,8 @@ for needle in (
 
 coordinator = COORDINATOR.read_text(encoding="utf-8")
 for needle in (
-    "if (recovering) return;",
+    "if (!waitingForHome || !hooks.canRecoverHome() || closed) return;",
+    "if (deferForHome()) return;",
     "hooks.schedule(poll, 0);",
     "recovering = false;\n            check();",
 ):
@@ -310,6 +311,7 @@ public final class NetworkRecoveryParityTest {
         final List<String> events = new ArrayList<>();
 
         @Override public long generation() { return generation; }
+        @Override public boolean canRecoverHome() { return true; }
         @Override public void cancelRequests() { events.add("cancel"); }
         @Override public void resetApiAndDns() { events.add("api-dns"); }
         @Override public void clearSpiders(Runnable after) {

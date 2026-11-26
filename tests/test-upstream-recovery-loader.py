@@ -14,7 +14,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts/upstream-adaptation"))
 from recovery_loader import adapt_base_loader, git_blob
 
-COORDINATOR = "b235ea6f6bf19420d8b7cdb6e9ec7a5197c934be"
+COORDINATOR = "657dd853d5cb93e317b3ab5d81c988c55dfc09b2"
 ADAPTED = "9c2f598f91431cccf7de200c05f8473b8fc7e58f"
 P = "com/fongmi/android/tv/"
 L = P + "api/loader/"
@@ -106,6 +106,7 @@ STUBS = {
                 final NetworkRecoveryCoordinator core=new NetworkRecoveryCoordinator(0,this);
                 final Queue<Runnable> polls=new ArrayDeque<>(); int refreshed;
                 public long generation(){return 1;}
+                public boolean canRecoverHome(){return true;}
                 public void cancelRequests(){} public void resetApiAndDns(){}
                 public void clearSpiders(Runnable after){BaseLoader.get().clear(after);}
                 public boolean networkReady(){return true;}

@@ -90,6 +90,7 @@ public class HomeActivity extends BaseActivity implements CustomTitleView.Listen
     private Clock mClock;
 
     private FongMiNetworkRecovery mNetworkRecovery;
+    private boolean recoveryResumed;
 
     private Site getHome() {
         return VodConfig.get().getHome();
@@ -122,7 +123,7 @@ public class HomeActivity extends BaseActivity implements CustomTitleView.Listen
                 getApplication(),
                 () -> { if (mViewModel != null) mViewModel.cancelResultRequest(); },
                 () -> mBinding.progressLayout.showProgress(),
-                () -> !isFinishing() && !isDestroyed(),
+                this::canRecoverHome,
                 () -> {
                     // Refresh Home without replaying its already-handled launch Intent.
                     mBinding.progressLayout.showContent();
@@ -463,14 +464,19 @@ public class HomeActivity extends BaseActivity implements CustomTitleView.Listen
         return super.dispatchKeyEvent(event);
     }
 
+    private boolean canRecoverHome() {
+        return recoveryResumed && !isFinishing() && !isDestroyed();
+    }
+
     private void checkNetworkGeneration() {
-        if (mNetworkRecovery != null) mNetworkRecovery.check();
+        if (canRecoverHome() && mNetworkRecovery != null) mNetworkRecovery.check();
     }
 
     @Override
     protected void onResume() {
         super.onResume();
         mClock.start();
+        recoveryResumed = true;
         checkNetworkGeneration();
     }
 
@@ -482,6 +488,7 @@ public class HomeActivity extends BaseActivity implements CustomTitleView.Listen
 
     @Override
     protected void onPause() {
+        recoveryResumed = false;
         super.onPause();
         mClock.stop();
     }
@@ -502,6 +509,7 @@ public class HomeActivity extends BaseActivity implements CustomTitleView.Listen
 
     @Override
     protected void onDestroy() {
+        recoveryResumed = false;
         if (mNetworkRecovery != null) mNetworkRecovery.close();
         LiveConfig.get().clear();
         VodConfig.get().clear();

@@ -58,6 +58,7 @@ public final class StateAudit {
         final List<String> order=new ArrayList<>(); final List<Long> delays=new ArrayList<>();
         final Set<Long> refreshed=new HashSet<>(); NetworkRecoveryCoordinator owner;
         public long generation(){return generation;}
+        public boolean canRecoverHome(){return true;}
         public void cancelRequests(){order.add("cancel");}
         public void resetApiAndDns(){order.add("reset");}
         public void clearSpiders(Runnable after){

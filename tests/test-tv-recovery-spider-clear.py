@@ -156,6 +156,7 @@ STUBS = {
                 final Queue<Runnable> polls=new ArrayDeque<>();
                 int refreshes;
                 public long generation(){return 1;}
+                public boolean canRecoverHome(){return true;}
                 public void cancelRequests(){}
                 public void resetApiAndDns(){}
                 public void clearSpiders(Runnable after){BaseLoader.get().clear(after);}
