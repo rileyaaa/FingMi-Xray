@@ -1,0 +1,195 @@
+diff --git a/app/src/main/java/com/fongmi/android/tv/browse/BrowseTree.java b/app/src/main/java/com/fongmi/android/tv/browse/BrowseTree.java
+index b907ff3702d0afe6854e8ad040769d84aa0654c8..634d79b333f288334bebbe2f712bdce7ebaec58a 100644
+--- a/app/src/main/java/com/fongmi/android/tv/browse/BrowseTree.java
++++ b/app/src/main/java/com/fongmi/android/tv/browse/BrowseTree.java
+@@ -18,6 +18,10 @@ import com.fongmi.android.tv.player.media.MediaItemFactory;
+ import com.fongmi.android.tv.utils.ResUtil;
+ import com.google.common.collect.ImmutableList;
+ 
++import java.util.concurrent.Callable;
++import java.util.function.BooleanSupplier;
++import java.util.function.Supplier;
++
+ public class BrowseTree {
+ 
+     private static final String CONTENT_STYLE_BROWSABLE_HINT = "android.media.browse.CONTENT_STYLE_BROWSABLE_HINT";
+@@ -136,9 +140,16 @@ public class BrowseTree {
+         return LiveBrowse.navigate(mediaId, delta);
+     }
+ 
++    // Snapshot and apply on the service main thread; only the Callables run on workers.
++    public interface LiveMetadataRequest {
++        boolean isCurrent();
++        @Nullable Callable<BooleanSupplier> prepareXml();
++        Callable<Supplier<MediaMetadata>> prepareEpg();
++    }
++
+     @Nullable
+-    public static MediaMetadata loadLiveMetadata(String mediaId) {
+-        return LiveBrowse.loadMetadata(mediaId);
++    public static LiveMetadataRequest prepareLiveMetadata(String mediaId) {
++        return LiveBrowse.prepareMetadata(mediaId);
+     }
+ 
+     @Nullable
+diff --git a/app/src/main/java/com/fongmi/android/tv/browse/LiveBrowse.java b/app/src/main/java/com/fongmi/android/tv/browse/LiveBrowse.java
+index 3d6c8646c2565f1e5f6deef7f269750c8498cdff..82a6ad25e4ef3e33c04ad31e225fb94fa7407992 100644
+--- a/app/src/main/java/com/fongmi/android/tv/browse/LiveBrowse.java
++++ b/app/src/main/java/com/fongmi/android/tv/browse/LiveBrowse.java
+@@ -24,6 +24,9 @@ import com.google.common.collect.ImmutableList;
+ import java.util.HashSet;
+ import java.util.List;
+ import java.util.Set;
++import java.util.concurrent.Callable;
++import java.util.function.BooleanSupplier;
++import java.util.function.Supplier;
+ import java.util.stream.IntStream;
+ 
+ class LiveBrowse {
+@@ -71,14 +74,37 @@ class LiveBrowse {
+     }
+ 
+     @Nullable
+-    static MediaMetadata loadMetadata(String mediaId) {
+-        LiveEntry entry = findEntry(mediaId);
++    static BrowseTree.LiveMetadataRequest prepareMetadata(String mediaId) {
++        // An LC refresh must not load/parse a retiring playlist as a side effect.
++        // Browse resolution has already loaded the source before playback.
++        LiveEntry entry = findEntry(mediaId, false);
+         if (entry == null) return null;
+-        Live live = entry.live;
+-        Channel channel = entry.channel;
+-        if (channel.getData(live.getZoneId()).getList().isEmpty() && !live.getEpgXml().isEmpty()) LiveApi.parseXml(live);
+-        LiveApi.getEpg(channel, live.getZoneId());
+-        return metadata(entry.live, channel);
++        return new BrowseTree.LiveMetadataRequest() {
++            @Override public boolean isCurrent() {
++                LiveEntry current = findEntry(mediaId, false);
++                return current != null && current.live == entry.live
++                        && current.group == entry.group && current.channel == entry.channel;
++            }
++
++            @Override public Callable<BooleanSupplier> prepareXml() {
++                Live live = entry.live;
++                Channel channel = entry.channel;
++                if (!channel.getData(live.getZoneId()).getList().isEmpty() || live.getEpgXml().isEmpty()) return null;
++                return LiveApi.prepareXml(live, null);
++            }
++
++            @Override public Callable<Supplier<MediaMetadata>> prepareEpg() {
++                // Called after the admitted XML update so cached days are not fetched again.
++                Callable<Supplier<Epg>> pending = LiveApi.prepareEpg(entry.channel, entry.live.getZoneId(), null);
++                return () -> {
++                    Supplier<Epg> update = pending.call();
++                    return () -> {
++                        update.get();
++                        return metadata(entry.live, entry.channel);
++                    };
++                };
++            }
++        };
+     }
+ 
+     private static MediaMetadata metadata(Live live, Channel channel) {
+@@ -123,10 +149,15 @@ class LiveBrowse {
+ 
+     @Nullable
+     private static LiveEntry findEntry(@NonNull String mediaId) {
++        return findEntry(mediaId, true);
++    }
++
++    @Nullable
++    private static LiveEntry findEntry(@NonNull String mediaId, boolean load) {
+         if (!mediaId.startsWith(LIVE_CH)) return null;
+         int separator = mediaId.lastIndexOf('|');
+         if (separator < LIVE_CH.length()) return null;
+-        Live live = liveHome();
++        Live live = load ? liveHome() : LiveConfig.get().getHome();
+         Group group = findGroup(live, mediaId.substring(LIVE_CH.length(), separator));
+         if (group == null) return null;
+         int index;
+diff --git a/app/src/main/java/com/fongmi/android/tv/service/LiveMetadata.java b/app/src/main/java/com/fongmi/android/tv/service/LiveMetadata.java
+index 43b908e5ca364d132dc10e87aa6f7064be54fe7d..f106d211ef63070db9b1eb39fd7272d162e6268f 100644
+--- a/app/src/main/java/com/fongmi/android/tv/service/LiveMetadata.java
++++ b/app/src/main/java/com/fongmi/android/tv/service/LiveMetadata.java
+@@ -10,7 +10,11 @@ import com.fongmi.android.tv.browse.BrowseTree;
+ import com.fongmi.android.tv.player.PlayerManager;
+ import com.github.catvod.utils.Task;
+ 
++import java.util.concurrent.Callable;
+ import java.util.concurrent.Future;
++import java.util.function.BooleanSupplier;
++import java.util.function.Consumer;
++import java.util.function.Supplier;
+ 
+ final class LiveMetadata {
+ 
+@@ -31,30 +35,60 @@ final class LiveMetadata {
+         MediaItem item = player.getCurrentMediaItem();
+         if (item == null || !item.mediaId.startsWith("LC:")) return;
+         long currentGeneration = generation;
++        BrowseTree.LiveMetadataRequest target = attempt(() -> BrowseTree.prepareLiveMetadata(item.mediaId));
++        if (target == null) {
++            App.post(() -> onLoaded(item, currentGeneration, null, null));
++            return;
++        }
++        Callable<BooleanSupplier> xml = attempt(target::prepareXml);
++        if (xml == null) loadEpg(item, currentGeneration, target);
++        else load(xml, update -> {
++            if (!isCurrent(item, currentGeneration, target)) return;
++            if (update != null) attempt(update::getAsBoolean);
++            loadEpg(item, currentGeneration, target);
++        });
++    }
++
++    private void loadEpg(MediaItem item, long currentGeneration, BrowseTree.LiveMetadataRequest target) {
++        if (!isCurrent(item, currentGeneration, target)) return;
++        Callable<Supplier<MediaMetadata>> epg = attempt(target::prepareEpg);
++        if (epg == null) onLoaded(item, currentGeneration, target, null);
++        else load(epg, update -> onLoaded(item, currentGeneration, target, update));
++    }
++
++    private <T> void load(Callable<T> task, Consumer<T> delivery) {
+         request = Task.submit(() -> {
+-            MediaMetadata metadata = loadMetadata(item.mediaId);
+-            App.post(() -> onLoaded(item, currentGeneration, metadata));
++            T result = attempt(task);
++            App.post(() -> delivery.accept(result));
+         });
+     }
+ 
+-    private MediaMetadata loadMetadata(String mediaId) {
++    private static <T> T attempt(Callable<T> task) {
+         try {
+-            return BrowseTree.loadLiveMetadata(mediaId);
++            return task.call();
+         } catch (Exception error) {
+             Log.w("LiveMetadata", "Unable to load live programme information", error);
+             return null;
+         }
+     }
+ 
+-    private void onLoaded(MediaItem item, long currentGeneration, MediaMetadata metadata) {
+-        if (currentGeneration != generation) return;
++    private boolean isCurrent(MediaItem item, long currentGeneration, BrowseTree.LiveMetadataRequest target) {
++        if (currentGeneration != generation) return false;
+         MediaItem current = player.getCurrentMediaItem();
+-        if (current == null || !item.mediaId.equals(current.mediaId)) return;
++        return current != null && item.mediaId.equals(current.mediaId)
++                && (target == null || Boolean.TRUE.equals(attempt(target::isCurrent)));
++    }
++
++    private void onLoaded(MediaItem item, long currentGeneration, BrowseTree.LiveMetadataRequest target, Supplier<MediaMetadata> update) {
++        if (!isCurrent(item, currentGeneration, target)) return;
++        MediaMetadata metadata = update == null ? null : attempt(update::get);
+         if (metadata != null) player.setMetadata(metadata);
++        if (!isCurrent(item, currentGeneration, target)) return;
+         String parent = BrowseTree.getLiveGroupId(item.mediaId);
+         if (parent != null) library.notifyChildrenChanged(parent);
++        if (!isCurrent(item, currentGeneration, target)) return;
+         library.notifyChildrenChanged(BrowseTree.LIVE_KEEP);
+-        App.post(refreshTask, 30_000);
++        if (isCurrent(item, currentGeneration, target)) App.post(refreshTask, 30_000);
+     }
+ 
+     void cancel() {

@@ -1,0 +1,78 @@
+{
+  "app/src/main/java/com/fongmi/android/tv/api/parser/EpgParser.java": {
+    "old_resolved": "8819406efc21deeb900dd5d86a68260edba43980",
+    "resolved": "10da8a80d0baaa57cdaae3da70d8a32cf8f49726",
+    "edits": [
+      [
+        "        Map<String, Set<String>> map = new HashMap<>();\n        List<Channel> channels = live.getGroups().stream().flatMap(group -> group.getChannel().stream()).toList();\n        for (Channel channel : channels)",
+        "        return prepareLiveChannels(live.getGroups().stream().flatMap(group -> group.getChannel().stream()).toList());\n    }\n\n    private static Map<String, Set<String>> prepareLiveChannels(List<Channel> channels) {\n        Map<String, Set<String>> map = new HashMap<>();\n        for (Channel channel : channels)"
+      ],
+      [
+        "    public static Epg getEpg(String xml, String key, ZoneId zoneId) {\n",
+        "    /** Capture the playlist targets before handing XML work to a worker. */\n    public static final class XmlTarget {\n        private final List<Channel> channels;\n        private final Map<String, Set<String>> aliases;\n        private final ZoneId zoneId;\n\n        private XmlTarget(Live live) {\n            channels = live.getGroups().stream().flatMap(group -> group.getChannel().stream()).toList();\n            aliases = prepareLiveChannels(channels);\n            zoneId = live.getZoneId();\n        }\n    }\n\n    public static XmlTarget snapshot(Live live) {\n        return new XmlTarget(live);\n    }\n\n    /** Parse/cache on the worker; apply only after the caller admits this request. */\n    public static synchronized Runnable prepare(XmlTarget target, String url, OkHttpClient client, String tag) throws Exception {\n        checkInterrupted();\n        XmlData data = loadXml(url, Path.epg(Crypto.md5(url) + \".xml\"), client, tag);\n        ProgrammeResult result = processProgramme(data, target.aliases, target.zoneId);\n        checkInterrupted();\n        return () -> bindResultsToChannels(target.channels, result);\n    }\n\n    public static Epg getEpg(String xml, String key, ZoneId zoneId) {\n"
+      ],
+      [
+        "    private static void bindResultsToLive(Live live, ProgrammeResult result) {\n        int withEpg = 0;\n        int withoutEpg = 0;\n        for (Group group : live.getGroups()) {\n            for (Channel channel : group.getChannel()) {\n                if (bindChannel(channel, result)) withEpg++;\n                else withoutEpg++;\n            }\n        }",
+        "    private static void bindResultsToLive(Live live, ProgrammeResult result) {\n        bindResultsToChannels(live.getGroups().stream().flatMap(group -> group.getChannel().stream()).toList(), result);\n    }\n\n    private static void bindResultsToChannels(List<Channel> channels, ProgrammeResult result) {\n        int withEpg = 0;\n        int withoutEpg = 0;\n        for (Channel channel : channels) {\n            if (bindChannel(channel, result)) withEpg++;\n            else withoutEpg++;\n        }"
+      ]
+    ]
+  },
+  "app/src/main/java/com/fongmi/android/tv/api/LiveApi.java": {
+    "old_resolved": "df0138ae3c510e853bbc113128f61375e422ca2c",
+    "resolved": "b22eb5e770fc36107d94c7b18400deea757c8792",
+    "edits": [
+      [
+        "import java.time.ZoneId;",
+        "import java.time.ZoneId;\nimport java.util.ArrayList;\nimport java.util.HashSet;\nimport java.util.List;\nimport java.util.Set;\nimport java.util.concurrent.Callable;\nimport java.util.function.BooleanSupplier;\nimport java.util.function.Supplier;"
+      ],
+      [
+        "    @NonNull\n    public static Epg getEpg(@NonNull Channel item, @NonNull ZoneId zoneId) {\n",
+        "    /** Snapshot on main; workers return updates without mutating shared channels. */\n    public static Callable<BooleanSupplier> prepareXml(@NonNull Live item, OkHttpClient client) {\n        List<String> urls = List.copyOf(item.getEpgXml());\n        EpgParser.XmlTarget target = EpgParser.snapshot(item);\n        return () -> {\n            List<Runnable> updates = new ArrayList<>();\n            for (String url : urls) {\n                if (Thread.currentThread().isInterrupted()) break;\n                try {\n                    updates.add(EpgParser.prepare(target, url, client, client == null ? url : METADATA_TAG));\n                } catch (Exception e) {\n                    e.printStackTrace();\n                }\n            }\n            return () -> {\n                boolean parsed = false;\n                for (Runnable update : updates) {\n                    try {\n                        update.run();\n                        parsed = true;\n                    } catch (Exception e) {\n                        e.printStackTrace();\n                    }\n                }\n                return parsed;\n            };\n        };\n    }\n\n    @NonNull\n    public static Epg getEpg(@NonNull Channel item, @NonNull ZoneId zoneId) {\n"
+      ],
+      [
+        "    @NonNull\n    public static Result getUrl(@NonNull Channel item) throws Exception {\n",
+        "    /** Snapshot cache keys, not shared EpgData objects; select only on delivery. */\n    public static Callable<Supplier<Epg>> prepareEpg(@NonNull Channel item, @NonNull ZoneId zoneId, OkHttpClient client) {\n        String template = item.getEpg();\n        String key = item.getTvgId();\n        LocalDate today = LocalDate.now(zoneId);\n        Set<String> cached = new HashSet<>();\n        item.getDataList().forEach(epg -> cached.add(epg.getDate()));\n        return () -> {\n            List<Epg> updates = new ArrayList<>();\n            for (int offset = -1; offset <= 1; offset++) {\n                if (Thread.currentThread().isInterrupted()) break;\n                String date = today.plusDays(offset).format(Formatters.DATE);\n                String url = template.replace(\"{date}\", date);\n                if (!url.startsWith(\"http\") || cached.contains(date)) continue;\n                Epg day = readEpgDay(url, key, date, zoneId, client);\n                if (day == null) continue;\n                updates.add(day);\n                cached.add(day.getDate());\n            }\n            return () -> {\n                // An authorized XML refresh may have filled this day meanwhile.\n                for (Epg day : updates) {\n                    if (item.getDataList().stream().noneMatch(epg -> epg.equal(day.getDate()))) item.setData(day);\n                }\n                return item.getData(zoneId).selected();\n            };\n        };\n    }\n\n    @NonNull\n    public static Result getUrl(@NonNull Channel item) throws Exception {\n"
+      ],
+      [
+        "        if (!need) return;\n        if (client == null) {\n            item.setData(Epg.objectFrom(OkHttp.string(url), item.getTvgId(), date, zoneId));\n            return;\n        }\n        if (Thread.currentThread().isInterrupted()) return;\n        try (Response response = OkHttp.newCall(client, url, METADATA_TAG).execute()) {\n            if (response.body() == null || Thread.currentThread().isInterrupted()) return;\n            String body = response.body().string();\n            if (!Thread.currentThread().isInterrupted()) item.setData(Epg.objectFrom(body, item.getTvgId(), date, zoneId));\n        } catch (Exception e) {\n            e.printStackTrace();\n        }",
+        "        if (!need) return;\n        Epg data = readEpgDay(url, item.getTvgId(), date, zoneId, client);\n        if (data != null) item.setData(data);\n    }\n\n    private static Epg readEpgDay(String url, String key, String date, ZoneId zoneId, OkHttpClient client) {\n        if (client == null) return Epg.objectFrom(OkHttp.string(url), key, date, zoneId);\n        if (Thread.currentThread().isInterrupted()) return null;\n        try (Response response = OkHttp.newCall(client, url, METADATA_TAG).execute()) {\n            if (response.body() == null || Thread.currentThread().isInterrupted()) return null;\n            String body = response.body().string();\n            if (!Thread.currentThread().isInterrupted()) return Epg.objectFrom(body, key, date, zoneId);\n        } catch (Exception e) {\n            e.printStackTrace();\n        }\n        return null;"
+      ]
+    ]
+  },
+  "app/src/main/java/com/fongmi/android/tv/model/LiveViewModel.java": {
+    "old_resolved": "367f6c10fc6c583887cf08d4a2d8ab7d50f76d0a",
+    "resolved": "6fc6cc0cc614165de8f8eeda2fce10b07bbd1c67",
+    "edits": [
+      [
+        "import java.util.function.Consumer;",
+        "import java.util.function.BooleanSupplier;\nimport java.util.function.Consumer;\nimport java.util.function.Supplier;"
+      ],
+      [
+        "    public void parse(Live item) {\n        error.setValue(null);",
+        "    public void parse(Live item) {\n        if (xrayLiveDeliveryGuard) cancelPlaybackMetadata();\n        error.setValue(null);"
+      ],
+      [
+        "        execute(TaskType.XML, () -> LiveApi.parseXml(item, client), result -> postXml(generation, result), error -> postXml(generation, false));\n    }\n\n    private void postXml(long generation, boolean result) {\n        App.post(() -> {\n            if (xmlGeneration == generation) xml.setValue(result);\n        });\n    }",
+        "        execute(TaskType.XML, LiveApi.prepareXml(item, client), result -> postXml(generation, result), error -> postXml(generation, () -> false));\n    }\n\n    private void postXml(long generation, BooleanSupplier result) {\n        App.post(() -> {\n            if (xmlGeneration == generation) xml.setValue(result.getAsBoolean());\n        });\n    }"
+      ],
+      [
+        "        execute(TaskType.EPG, () -> LiveApi.getEpg(item, zoneId, client), result -> postEpg(generation, result), error -> postEpg(generation, new Epg()));\n    }\n\n    private void postEpg(long generation, Epg result) {\n        App.post(() -> {\n            if (epgGeneration == generation) epg.setValue(result);\n        });\n    }",
+        "        execute(TaskType.EPG, LiveApi.prepareEpg(item, zoneId, client), result -> postEpg(generation, result), error -> postEpg(generation, Epg::new));\n    }\n\n    private void postEpg(long generation, Supplier<Epg> result) {\n        App.post(() -> {\n            if (epgGeneration != generation) return;\n            Epg value;\n            try {\n                value = result.get();\n            } catch (RuntimeException e) {\n                value = new Epg();\n            }\n            epg.setValue(value);\n        });\n    }"
+      ]
+    ]
+  },
+  "app/src/leanback/java/com/fongmi/android/tv/ui/activity/LiveActivity.java": {
+    "old_resolved": "f636c8e185c1976e736af3d5249960ae70fd1cf4",
+    "resolved": "6ac3d00e5e5bc34a5304757e19dc6b75baec6d5c",
+    "edits": [
+      [
+        "    protected void onXrayBindingReplaced() {\n        if (mLiveAuto.isAwaitingPlayback()) {",
+        "    protected void onXrayBindingReplaced() {\n        mViewModel.cancelPlaybackMetadata();\n        if (mLiveAuto.isAwaitingPlayback()) {"
+      ],
+      [
+        "    public void setLive(Live item) {\n        boolean retiringAuto",
+        "    public void setLive(Live item) {\n        mViewModel.cancelPlaybackMetadata();\n        boolean retiringAuto"
+      ]
+    ]
+  }
+}
