@@ -10,6 +10,7 @@ import argparse
 import hashlib
 import json
 from pathlib import Path
+import os
 from recovery_loader import adapt_base_loader
 from reviewed_recovery_host import adapt_reviewed_host
 import re
@@ -33,6 +34,46 @@ def blob(path):
     return hashlib.sha1(b"blob " + str(len(data)).encode() + b"\0" + data).hexdigest()
 
 
+def tracked_tree(path, commit="HEAD"):
+    raw = subprocess.check_output(["git", "-C", str(path), "ls-tree", "-r", "-z", "--full-tree", commit])
+    entries = {}
+    for record in raw.split(b"\0"):
+        if not record:
+            continue
+        header, name = record.split(b"\t", 1)
+        mode, kind, oid = header.decode("ascii").split()
+        rel = os.fsdecode(name)
+        if "\\" in rel or any(part.casefold() in ("", ".", "..", ".git") for part in rel.split("/")):
+            raise RuntimeError("Unsupported Git path: " + rel)
+        entries[rel] = (mode, kind, oid)
+    return entries
+
+
+def regular_mode(rel, entry):
+    mode, kind, _ = entry
+    if kind != "blob" or mode not in ("100644", "100755"):
+        raise RuntimeError("Unsupported Git entry: " + rel + " " + mode + " " + kind)
+    return int(mode, 8) & 0o777
+
+
+def tracked_blob(path, rel, entry):
+    regular_mode(rel, entry)
+    return subprocess.check_output(["git", "-C", str(path), "cat-file", "blob", entry[2]])
+
+
+def materialize(path, entries, dest):
+    # Read raw committed blobs, not checkout files (nor git-archive attributes).
+    # Refuse symlinks/gitlinks instead of importing outside-tree contents.
+    for rel, entry in entries.items():
+        regular_mode(rel, entry)
+    dest.mkdir(parents=True)
+    for rel, entry in entries.items():
+        output = dest / rel
+        output.parent.mkdir(parents=True, exist_ok=True)
+        output.write_bytes(tracked_blob(path, rel, entry))
+        output.chmod(regular_mode(rel, entry))
+
+
 def verified_checkout(path, name):
     p = LOCK["upstream"][name]
     if git(path, "rev-parse", "HEAD") != p["ref"]:
@@ -41,13 +82,14 @@ def verified_checkout(path, name):
         raise RuntimeError(name + ": public tree mismatch")
     if git(path, "status", "--porcelain"):
         raise RuntimeError(name + ": expected clean source input")
-    license_paths = [x for x in path.iterdir() if x.is_file() and
-                     x.name.upper().startswith(("LICENSE", "COPYING"))]
+    entries = tracked_tree(path, p["ref"])
+    license_paths = [rel for rel in entries if "/" not in rel and
+                     rel.upper().startswith(("LICENSE", "COPYING"))]
     if not license_paths:
         raise RuntimeError(name + ": no tracked license file")
     print("SOURCE", name, p["repo"], p["ref"], p["tree"], p["license"],
-          "license_sha256=" + ",".join(hashlib.sha256(x.read_bytes()).hexdigest()
-                                      for x in sorted(license_paths)), flush=True)
+          "license_sha256=" + ",".join(hashlib.sha256(tracked_blob(path, rel, entries[rel])).hexdigest()
+                                      for rel in sorted(license_paths)), flush=True)
 
 
 def guard_fork():
@@ -60,13 +102,40 @@ def guard_fork():
 
 
 def overlay(old, target, dest):
-    # Work on a separate actual public source tree. Never stage a mixed
-    # upstream tree as the production checkout or mutate the frozen sources.
-    shutil.copytree(target, dest, ignore=shutil.ignore_patterns(".git"), symlinks=True)
+    # Freeze each input at its commit; ignored/untracked files are not inputs.
+    roots = (old, ROOT, target)
+    heads = [git(root, "rev-parse", "HEAD") for root in roots]
+    trees = [tracked_tree(root, head) for root, head in zip(roots, heads)]
+    scope = LOCK["fork_scope"]
+    for root, head, tree, key in zip(roots, heads, trees, ("old", "fork", "target")):
+        for row in scope:
+            rel = row["path"]
+            entry = tree.get(rel)
+            if (entry[2] if entry else None) != row[key]:
+                raise RuntimeError("Scope drift: " + rel)
+            if entry:
+                regular_mode(rel, entry)
+        # Keep the tracked scope-drift guard, including staged changes;
+        # absent ignored paths are deliberately not filesystem inputs.
+        if scope and subprocess.run(["git", "--literal-pathspecs", "-C", str(root),
+                                     "diff", "--quiet", "--no-ext-diff", "--no-textconv",
+                                     "--ignore-submodules=none", head, "--",
+                                     *(row["path"] for row in scope)]).returncode:
+            raise RuntimeError("Scope drift: tracked checkout " + key)
+    with tempfile.TemporaryDirectory(prefix="fingmi-locked-overlay-") as tmp:
+        snapshots = [Path(tmp) / key for key in ("old", "fork")]
+        for root, tree, snapshot in zip(roots[:2], trees[:2], snapshots):
+            materialize(root, {row["path"]: tree[row["path"]] for row in scope
+                               if row["path"] in tree}, snapshot)
+        materialize(target, trees[2], dest)
+        return apply_overlay(*snapshots, dest, trees[2])
+
+
+def apply_overlay(old, fork, dest, target_entries):
     merged, conflicts, manual = [], [], []
     for row in LOCK["fork_scope"]:
         p, strategy = row["path"], row["strategy"]
-        a, b, c = old / p, ROOT / p, target / p
+        a, b, c = old / p, fork / p, dest / p
         for source, expected in ((a, row["old"]), (b, row["fork"]), (c, row["target"])):
             if blob(source) != expected:
                 raise RuntimeError("Scope drift: " + p)
@@ -108,6 +177,7 @@ def overlay(old, target, dest):
                 continue
             output.parent.mkdir(parents=True, exist_ok=True)
             shutil.copyfile(b, output)
+            output.chmod(b.stat().st_mode & 0o777)
             merged.append(p)
             print("TRANSFER_FORK", p)
             continue
@@ -153,9 +223,13 @@ def overlay(old, target, dest):
     # Keep every untouched upstream runtime file byte-identical. Check source
     # independently of the upstream APK release and track all permitted deltas.
     allowed = set(merged) | {"app/build.gradle", "settings.gradle"}
-    for p in git(target, "ls-files").splitlines():
-        if p not in allowed and blob(target / p) != blob(dest / p):
+    for p, entry in target_entries.items():
+        if p not in allowed and (blob(dest / p) != entry[2] or
+                                 (dest / p).stat().st_mode & 0o777 != regular_mode(p, entry)):
             raise RuntimeError("Unscoped upstream change: " + p)
+    actual = {p.relative_to(dest).as_posix() for p in dest.rglob("*") if p.is_file()}
+    if actual != set(target_entries) | set(merged):
+        raise RuntimeError("Unexpected candidate file set")
     for row in LOCK["fork_scope"]:
         if row["strategy"] == "module" and blob(dest / row["path"]) != row["fork"]:
             raise RuntimeError("Independent module not transferred: " + row["path"])
@@ -169,23 +243,27 @@ def media_contract(tv, media, label):
     # Source-level import existence gate, not a substitute for javac.
     # Consider enclosing source files for nested classes; ignore wildcard
     # and static imports. Print names only, not complete source or configs.
+    tv_entries = tracked_tree(tv)
+    media_entries = tracked_tree(media)
     source_types = set()
-    for p in (media / "libraries").rglob("*"):
-        if p.suffix not in (".java", ".kt"):
+    for rel, entry in media_entries.items():
+        p = Path(rel)
+        if not rel.startswith("libraries/") or p.suffix not in (".java", ".kt"):
             continue
         if "main" not in p.parts or ("java" not in p.parts and "kotlin" not in p.parts):
             continue
-        data = p.read_text(encoding="utf-8", errors="replace")
+        data = tracked_blob(media, rel, entry).decode("utf-8", errors="replace")
         m = re.search(r"(?m)^\s*package\s+(androidx\.media3[\w.]*)", data)
         if m:
             source_types.add(m.group(1) + "." + p.stem)
     refs = {}
-    for p in (tv / "app/src").rglob("*.java"):
-        if not any(s in p.parts for s in ("main", "leanback")):
+    for rel, entry in tv_entries.items():
+        p = Path(rel)
+        if not rel.startswith("app/src/") or p.suffix != ".java" or not any(s in p.parts for s in ("main", "leanback")):
             continue
-        data = p.read_text(encoding="utf-8", errors="replace")
+        data = tracked_blob(tv, rel, entry).decode("utf-8", errors="replace")
         for imp in re.findall(r"(?m)^\s*import\s+(androidx\.media3[\w.]+)\s*;", data):
-            refs.setdefault(imp, set()).add(str(p.relative_to(tv)))
+            refs.setdefault(imp, set()).add(rel)
     def exists(name):
         while name.startswith("androidx.media3."):
             if name in source_types:
@@ -199,7 +277,7 @@ def media_contract(tv, media, label):
         print("MISSING_MEDIA_SOURCE", label, name, "callers", ",".join(sorted(refs[name])))
     expected_archives = ("lib-mpvplayer-release.aar", "lib-decoder-ffmpeg-release.aar")
     for name in expected_archives:
-        if not (tv / "app/libs" / name).is_file():
+        if "app/libs/" + name not in tv_entries:
             print("MISSING_REQUIRED_AAR", name)
     for label2, name, symbol in (
         ("decoder", "androidx.media3.exoplayer.DefaultRenderersFactory", "setDecoderManager"),
@@ -208,9 +286,11 @@ def media_contract(tv, media, label):
         if name not in source_types:
             continue
         path = name.replace(".", "/") + ".java"
-        files = [p for p in (media / "libraries").rglob(path.rsplit("/", 1)[-1])
-                 if p.as_posix().endswith(path) and "main" in p.parts]
-        if files and not any(re.search(r"\b" + symbol + r"\s*\(", p.read_text(errors="replace")) for p in files):
+        files = [rel for rel in media_entries if rel.startswith("libraries/")
+                 and rel.endswith(path) and "main" in Path(rel).parts]
+        if files and not any(re.search(r"\b" + symbol + r"\s*\(",
+                                       tracked_blob(media, rel, media_entries[rel]).decode("utf-8", errors="replace"))
+                             for rel in files):
             print("METHOD_REVIEW_REQUIRED", label, label2, name, symbol)
     return missing
 
@@ -230,12 +310,12 @@ def verified_shared_media(media, media_default):
 
 def public_inputs(tv):
     # Inventory exact tracked public AAR/SO/JAR inputs without executing any.
-    for rel in git(tv, "ls-files").splitlines():
+    for rel, entry in tracked_tree(tv).items():
         if not rel.endswith((".aar", ".so", ".jar")):
             continue
-        p = tv / rel
-        print("UPSTREAM_BINARY_INPUT", rel, "bytes", p.stat().st_size,
-              "sha256", hashlib.sha256(p.read_bytes()).hexdigest())
+        data = tracked_blob(tv, rel, entry)
+        print("UPSTREAM_BINARY_INPUT", rel, "bytes", len(data),
+              "sha256", hashlib.sha256(data).hexdigest())
     for candidate in LOCK["public_native_candidates"]:
         print("PUBLIC_NATIVE_SOURCE_CANDIDATE", json.dumps(candidate, ensure_ascii=True))
 
