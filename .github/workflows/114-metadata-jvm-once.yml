@@ -1,0 +1,214 @@
+name: EPG metadata targeted JVM (one time)
+
+on:
+  push:
+    branches: [dev/fongmi-upstream-adaptation]
+    paths: [.github/workflows/114-metadata-jvm-once.yml]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: fingmi-epg-metadata-jvm-114
+  cancel-in-progress: false
+
+jobs:
+  metadata-jvm:
+    if: >-
+      github.repository == 'rileyaaa/FingMi-Xray' &&
+      github.ref == 'refs/heads/dev/fongmi-upstream-adaptation' &&
+      github.event_name == 'push' &&
+      github.event.before == '94fa834d6b0ea14986a651230d25859037648c36' &&
+      github.event.after == github.sha &&
+      github.run_attempt == '1' &&
+      !github.event.created && !github.event.deleted && !github.event.forced &&
+      github.event.head_commit.message == 'test: verify frozen EPG metadata JVM harness once'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 3
+          persist-credentials: false
+          fetch-tags: false
+          lfs: false
+          submodules: false
+          path: event
+      - name: Verify exact push and frozen inputs
+        shell: bash
+        run: |
+          set -euo pipefail
+          umask 022
+          cd "$GITHUB_WORKSPACE/event"
+          parent=94fa834d6b0ea14986a651230d25859037648c36
+          base=a02429c0e06f07a667fcee5e698bd22adb241a48
+          new=scripts/upstream-adaptation/tests/114-metadata-jvm
+          workflow=.github/workflows/114-metadata-jvm-once.yml
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          test "$(git rev-list --parents -n1 HEAD)" = "$GITHUB_SHA $parent"
+          test "$(git rev-list --parents -n1 "$parent")" = "$parent $base"
+          test "$(git rev-parse "$parent^{tree}")" = ef8fe3ba3287410ba713546599a0d137c1403ef1
+          test "$(git rev-parse "$base^{tree}")" = 46ce297ec3504d175cfe5bdec0a7c2fb8bae8f8f
+          test "$(git log -1 --format=%B)" = 'test: verify frozen EPG metadata JVM harness once'
+          actual=$(git diff-tree --no-commit-id --name-status --no-renames -r "$parent" HEAD | LC_ALL=C sort)
+          expected=$(printf 'A\t%s\n' "$workflow" "$new/metadata_114_jvm.py" "$new/patched-test.py" | LC_ALL=C sort)
+          test "$actual" = "$expected"
+          printf '%s\n' "$actual"
+          test "$(git rev-parse --is-shallow-repository)" = true
+          test -z "$(git status --porcelain --ignored --untracked-files=all)"
+          test ! -e signing
+          test "$(git ls-tree HEAD -- "$workflow" | cut -d' ' -f1)" = 100644
+          while read -r size sha oid path; do
+            test "$(git ls-tree HEAD -- "$path" | cut -d' ' -f1)" = 100644
+            test "$(git rev-parse "HEAD:$path")" = "$oid"
+            test "$(wc -c < "$path")" -eq "$size"
+            test "$(sha256sum "$path" | cut -d' ' -f1)" = "$sha"
+            test "$(git hash-object --no-filters "$path")" = "$oid"
+            printf 'EXACT_INPUT %s %s %s %s\n' "$path" "$size" "$sha" "$oid"
+          done <<'PINS'
+          5609 ac8fa32a4d6c79583b50098273a7194503b4b510557fb9be0db2b8662a9ab1d1 8e36d54b223bfaa0fe19dd5969297f3d128076ae .github/workflows/114-epg-full-source-once.yml
+          15948 5f160d1ec196fa2feb4a6430539c3bc8e1acf1ff46e93046b8bc3aec9e751949 4c85491e459347d480aa955fa759cb1ad05cba01 scripts/upstream-adaptation/tests/114-epg/replay_source.py
+          3783 85104d2cc08e21c9d91887cccfdef666b7c5e890bd31746482b887266834ddbe 61d2a5569eea00114968635ba1e53881d312485b scripts/upstream-adaptation/tests/114-epg/apply_review_plan.py
+          6326 c998838e2b2b804de26a5ed1563c91f0c5bb3be1ee91035acc6f3437cd444f80 80af405fc4b46a8241d5c48d8127747b151640ed scripts/upstream-adaptation/tests/114-epg/prepare_browse_review.py
+          11252 e8c29192039f40d13dae290a590f9df8ffad8565f3f27bc2b81fd38e938ab7ce 6d9036ef7056fb3dc5ecb2f123cadf8a08971f0f scripts/upstream-adaptation/tests/114-epg/epg-review-edits.json
+          9323 32b5548504075bd8060172a01df4910781e6a15d65e4e6e820549792c14d29a6 0513216ae1c316c32bb6126884f9a4fa7b6ea9d9 scripts/upstream-adaptation/tests/114-epg/browse-reviewed-source.diff
+          19074 d54be32dcc1c39437df3b6d8985290dfd62763fe8625e9180c0996b001abd278 6b68b17760a2111c49ece9e8b77507aa86aa1dc9 scripts/upstream-adaptation/tests/114-metadata-jvm/metadata_114_jvm.py
+          16365 56aacd6b63a7f4f9909ca8ab558d370c2db12ad7c5d28ecfcb8eb78ffa874e04 509c248336fa6ebc498d0fed10752751d85f53b9 scripts/upstream-adaptation/tests/114-metadata-jvm/patched-test.py
+          PINS
+          echo PASS_EXACT_114_JVM_PUSH_INPUTS
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          repository: FongMi/TV
+          ref: c616c0aa3613e87529791587a9f71b78c278c991
+          path: inputs/old-tv
+          fetch-depth: 1
+          persist-credentials: false
+          fetch-tags: false
+          lfs: false
+          submodules: false
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          repository: FongMi/TV
+          ref: d3a0b84b24cf6628d72a4dbc2be453875b005536
+          path: inputs/tv
+          fetch-depth: 1
+          persist-credentials: false
+          fetch-tags: false
+          lfs: false
+          submodules: false
+      - name: Replay exact review rules and run metadata JVM only
+        shell: bash
+        run: |
+          set -euo pipefail
+          umask 022
+          export JAVA_HOME="${JAVA_HOME_21_X64:?JDK 21 runner prerequisite}"
+          export PATH="$JAVA_HOME/bin:$PATH"
+          unset PYTHONOPTIMIZE PYTHONPATH PYTHONHOME JAVA_TOOL_OPTIONS JDK_JAVA_OPTIONS _JAVA_OPTIONS
+          export PYTHONDONTWRITEBYTECODE=1 TZ=UTC LC_ALL=C.UTF-8
+          git --version
+          python3 --version
+          java -version
+          javac -version
+          event="$GITHUB_WORKSPACE/event"
+          old="$GITHUB_WORKSPACE/inputs/old-tv"
+          tv="$GITHUB_WORKSPACE/inputs/tv"
+          rule=scripts/upstream-adaptation
+          frozen="$event/$rule/tests/114-epg"
+          harness="$event/$rule/tests/114-metadata-jvm"
+          work=$(mktemp -d "$RUNNER_TEMP/epg114-metadata.XXXXXX")
+          base=a02429c0e06f07a667fcee5e698bd22adb241a48
+          base_tree=46ce297ec3504d175cfe5bdec0a7c2fb8bae8f8f
+          base_listing=28085e938dcbf4ae4f33b8b22f6abbbc35831ef645be96812cb1b4e0e517ac60
+          review_tree=af76fa263697befd7648d11a21fee817b19558fe
+          review_listing=e599a02ab853316a7b525f784debf686972c459b5cfc4c670a6e150de7bf26d0
+          old_head=c616c0aa3613e87529791587a9f71b78c278c991
+          old_tree=8aa6eebcf6bdf320841ef1158f0434faabc7a61f
+          old_listing=36ef51761d782521d1b52d962942c229bd7ddb3ccd28bb212cc02e99fe4f7e68
+          tv_head=d3a0b84b24cf6628d72a4dbc2be453875b005536
+          tv_tree=82953e314d3009f039bb220db05ca537e0eadc92
+          tv_listing=56ddcc8c232b563af44733b31031683e4fc60611af8fb55ffd44b2d7adaa12d6
+          check_checkout() {
+            local root=$1 head=$2 tree=$3 listing=$4
+            test "$(git -C "$root" rev-parse HEAD)" = "$head"
+            test "$(git -C "$root" rev-parse 'HEAD^{tree}')" = "$tree"
+            test "$(git -C "$root" rev-parse --is-shallow-repository)" = true
+            test -z "$(git -C "$root" status --porcelain --ignored --untracked-files=all)"
+            test "$(git -C "$root" ls-tree -r -z --full-tree "$head" | sha256sum | cut -d' ' -f1)" = "$listing"
+            git -C "$root" rev-list --objects --missing=print "$head" > "$work/objects"
+            if grep -q '^?' "$work/objects"; then echo MISSING_GIT_OBJECTS; exit 1; fi
+            printf 'COMPLETE_INPUT %s %s %s %s\n' "$root" "$head" "$tree" "$listing"
+          }
+          git -C "$event" worktree add --detach "$work/baseline" "$base"
+          git -C "$event" worktree add --detach "$work/reviewed" "$base"
+          check_checkout "$work/baseline" "$base" "$base_tree" "$base_listing"
+          check_checkout "$work/reviewed" "$base" "$base_tree" "$base_listing"
+          check_checkout "$old" "$old_head" "$old_tree" "$old_listing"
+          check_checkout "$tv" "$tv_head" "$tv_tree" "$tv_listing"
+          python3 -I -B "$frozen/prepare_browse_review.py" \
+            --dev "$work/baseline" --old-tv "$old" --tv "$tv" \
+            --p2 "$frozen" --diff "$frozen/browse-reviewed-source.diff" --out "$work/rules"
+          while read -r size sha oid name; do
+            file="$work/rules/$name"
+            test "$(wc -c < "$file")" -eq "$size"
+            test "$(sha256sum "$file" | cut -d' ' -f1)" = "$sha"
+            test "$(git hash-object --no-filters "$file")" = "$oid"
+            printf 'EXACT_REVIEW_RULE %s %s %s %s\n' "$name" "$size" "$sha" "$oid"
+            cp -- "$file" "$work/reviewed/$rule/$name"
+          done <<'RULES'
+          149107 2fedcc5ebc497320b51392e00e672a78e2747df1aec78d2a69a95b4fb669a954 41d4ba8fa4e4efe71fc21d28d34422382a24997b reviewed_media_host.json
+          34751 67f0d10ef88c0f6b744fb589ba9b5385cfd277bd0894c8f465fc99db03b4764e a0c87206a9a73171906524c01aa6a2e5d63a519a reviewed_live_host.json
+          53583 4e504209d35001ed862d7b9771ee6aa2e3ae2c95d2e7c12200b82077cb000f60 9e609009050dafb81d46bb1acda953c21374cd1d lock.json
+          RULES
+          review="$work/reviewed"
+          git -C "$review" diff --check
+          git -C "$review" add -- "$rule/reviewed_media_host.json" "$rule/reviewed_live_host.json" "$rule/lock.json"
+          git -C "$review" -c user.name='Local review' -c user.email=local-review@invalid \
+            -c core.hooksPath=/dev/null -c commit.gpgsign=false commit --no-gpg-sign -m 'local: replay exact EPG rules'
+          review_head=$(git -C "$review" rev-parse HEAD)
+          test "$(git -C "$review" rev-list --parents -n1 HEAD)" = "$review_head $base"
+          check_checkout "$review" "$review_head" "$review_tree" "$review_listing"
+          echo PASS_114_EXACT_REVIEW_TREE
+          test_entry=tests/test-upstream-live-metadata-vod.py
+          helper=tests/metadata_114_jvm.py
+          for stage in baseline reviewed; do
+            root="$work/$stage"
+            test ! -e "$root/signing"
+            test "$(git -C "$root" hash-object --no-filters "$rule/prepare_candidate.py")" = 3d5b90296ef1fe40aa2e93f7418a4553cc8610a0
+            test "$(git -C "$root" hash-object --no-filters "$rule/verify_recovery_batch.py")" = 3b8b351178c939a120c945542a9c31355f125b48
+            test "$(git -C "$root" hash-object --no-filters "$test_entry")" = 7fbbfe9a62dd71a341eeccb8d5e940ff7b9570de
+            test ! -e "$root/$helper"
+            install -m 0644 "$harness/patched-test.py" "$root/$test_entry"
+            install -m 0644 "$harness/metadata_114_jvm.py" "$root/$helper"
+            cmp "$harness/patched-test.py" "$root/$test_entry"
+            cmp "$harness/metadata_114_jvm.py" "$root/$helper"
+            echo "BEGIN_114_METADATA_JVM $stage"
+            log="$work/$stage.log"
+            python3 -B "$root/$test_entry" --old-tv "$old" --tv "$tv" | tee "$log"
+            require_line() { test "$(grep -Fxc -- "$1" "$log")" = 1; }
+            require_line 'existing PASS actual candidate Live metadata/URL and VOD Danmaku methods: 19 assertions'
+            require_line 'old-neg-url EXPECTED_REJECTION latest URL only'
+            require_line 'old-neg-xml EXPECTED_REJECTION explicit XML client and tag'
+            require_line 'old-neg-danmaku EXPECTED_REJECTION retired owner cannot cancel new Danmaku'
+            require_line 'REMAINING_SCOPE 2 unresolved 5 old-media-review'
+            if [ "$stage" = baseline ]; then
+              require_line 'race-baseline EXPECTED_REJECTION OLD_WORKER_MUTATED_BEFORE_ADMISSION'
+              echo PASS_114_METADATA_BASELINE_19_OLD_NEG_3_RACE_NEG_1
+            else
+              require_line 'race-reviewed PASS paused-worker XML/EPG/cached shared selection/notification: 18 assertions'
+              require_line 'race-neg-xml EXPECTED_REJECTION STALE_EPG_DATA'
+              require_line 'race-neg-epg EXPECTED_REJECTION STALE_SELECTED_MUTATION'
+              echo PASS_114_METADATA_REVIEWED_19_RACE_18_OLD_NEG_3_RACE_NEG_2
+            fi
+            cmp "$harness/patched-test.py" "$root/$test_entry"
+            cmp "$harness/metadata_114_jvm.py" "$root/$helper"
+            git -C "$root" restore --source=HEAD --worktree -- "$test_entry"
+            rm -- "$root/$helper"
+          done
+          check_checkout "$work/baseline" "$base" "$base_tree" "$base_listing"
+          check_checkout "$review" "$review_head" "$review_tree" "$review_listing"
+          check_checkout "$old" "$old_head" "$old_tree" "$old_listing"
+          check_checkout "$tv" "$tv_head" "$tv_tree" "$tv_listing"
+          test -z "$(git -C "$event" status --porcelain --ignored --untracked-files=all)"
+          echo 'PASS_114_METADATA_JVM_TARGETED_ONLY'
+          echo 'ANDROID_NOT_STARTED; Browse runtime and actual Guava cancellation not tested'
