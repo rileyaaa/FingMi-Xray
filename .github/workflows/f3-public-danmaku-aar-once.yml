@@ -1,0 +1,385 @@
+name: F3 pinned public Danmaku AAR only
+
+on:
+  push:
+    branches:
+      - dev/fongmi-upstream-adaptation
+    paths:
+      - '.github/workflows/f3-public-danmaku-aar-once.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: fingmi-f3-public-danmaku-aar-once
+  cancel-in-progress: false
+
+jobs:
+  public-danmaku-aar:
+    if: >-
+      github.repository == 'rileyaaa/FingMi-Xray' &&
+      github.event_name == 'push' &&
+      github.ref == 'refs/heads/dev/fongmi-upstream-adaptation' &&
+      github.event.before == 'ada3895fccfc684d91d16c30ac21a93f00909e94' &&
+      github.event.after == github.sha &&
+      github.event.head_commit.id == github.sha &&
+      github.event.forced == false &&
+      github.event.created == false &&
+      github.event.deleted == false &&
+      github.run_attempt == 1 &&
+      github.event.head_commit.message == 'ci: verify pinned public F3 danmaku AAR once'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Verify exact single non-forced push
+        shell: bash
+        env:
+          F3_READ_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json
+          import os
+          import re
+          import urllib.request
+
+          def require(ok, message):
+              if not ok:
+                  raise SystemExit('F3_BLOCKED_PUSH: ' + message)
+
+          before = 'ada3895fccfc684d91d16c30ac21a93f00909e94'
+          path = '.github/workflows/f3-public-danmaku-aar-once.yml'
+          message = 'ci: verify pinned public F3 danmaku AAR once'
+          after = os.environ['GITHUB_SHA']
+          with open(os.environ['GITHUB_EVENT_PATH']) as f:
+              event = json.load(f)
+          require(re.fullmatch(r'[0-9a-f]{40}', after) and after != before, 'after')
+          require(os.environ['GITHUB_RUN_ATTEMPT'] == '1', 'attempt')
+          require(os.environ['GITHUB_EVENT_NAME'] == 'push', 'event')
+          require(event.get('ref') == 'refs/heads/dev/fongmi-upstream-adaptation', 'ref')
+          require(event.get('before') == before and event.get('after') == after, 'before/after')
+          require(all(event.get(k) is False for k in ('forced', 'created', 'deleted')), 'push flags')
+          head = event.get('head_commit') or {}
+          require(head.get('id') == after and head.get('message') == message, 'head commit')
+          commits = event.get('commits') or []
+          require(len(commits) == 1 and commits[0].get('id') == after, 'single pushed commit')
+
+          url = 'https://api.github.com/repos/rileyaaa/FingMi-Xray/commits/' + after
+          request = urllib.request.Request(url, headers={
+              'Accept': 'application/vnd.github+json',
+              'Authorization': 'Bearer ' + os.environ['F3_READ_TOKEN'],
+              'X-GitHub-Api-Version': '2022-11-28',
+          })
+          with urllib.request.urlopen(request, timeout=30) as response:
+              commit = json.load(response)
+          require(commit.get('sha') == after, 'REST after')
+          require([p['sha'] for p in commit['parents']] == [before], 'single exact parent')
+          require(commit['commit']['message'] == message, 'REST message')
+          files = commit.get('files') or []
+          require(len(files) == 1 and files[0].get('filename') == path
+                  and files[0].get('status') == 'added', 'only one added workflow')
+          blob = files[0].get('sha', '')
+          require(re.fullmatch(r'[0-9a-f]{40}', blob), 'workflow blob')
+          print('F3_PUSH_VERIFIED', before, after, 'attempt=1', 'forced=false')
+          print('F3_WORKFLOW_BLOB', blob)
+          PY
+
+      - name: Check existing public Android SDK without installing
+        shell: bash
+        run: |
+          set -euo pipefail
+          blocked() { echo "F3_BLOCKED_SDK_PRECHECK $*"; exit 1; }
+          test -n "${ANDROID_HOME:-}" || blocked 'ANDROID_HOME missing'
+          sdk="$(realpath -e "$ANDROID_HOME")" || blocked 'SDK path missing'
+          if [ -n "${ANDROID_SDK_ROOT:-}" ]; then
+            root="$(realpath -e "$ANDROID_SDK_ROOT")" || blocked 'ANDROID_SDK_ROOT missing'
+            test "$sdk" = "$root" || blocked 'SDK roots differ'
+          fi
+          platform="$sdk/platforms/android-36"
+          tools="$sdk/build-tools/36.0.0"
+          test -s "$platform/android.jar" || blocked "platforms;android-36: $platform/android.jar"
+          test -s "$platform/source.properties" || blocked "platforms;android-36: source.properties"
+          grep -Eq '^AndroidVersion\.ApiLevel[[:space:]]*=[[:space:]]*36[[:space:]]*$' \
+            "$platform/source.properties" || blocked 'platform API mismatch'
+          test -s "$tools/source.properties" || blocked "build-tools;36.0.0: $tools/source.properties"
+          grep -Eq '^Pkg\.Revision[[:space:]]*=[[:space:]]*36\.0\.0[[:space:]]*$' \
+            "$tools/source.properties" || blocked 'build tools revision mismatch'
+          for binary in aapt2 aidl zipalign; do
+            test -x "$tools/$binary" || blocked "build-tools;36.0.0: $tools/$binary"
+          done
+          cat "$platform/source.properties" "$tools/source.properties"
+          echo "F3_SDK_EXISTING $sdk"
+
+          # The historical full project configuration installed this NDK.
+          # Report its presence, never install it or substitute another NDK.
+          ndk="$sdk/ndk/28.2.13676358"
+          if [ -s "$ndk/source.properties" ] && \
+             grep -Eq '^Pkg\.Revision[[:space:]]*=[[:space:]]*28\.2\.13676358[[:space:]]*$' \
+               "$ndk/source.properties"; then
+            echo "F3_HISTORICAL_NDK_PRESENT $ndk"
+          else
+            echo "F3_HISTORICAL_NDK_ABSENT $ndk; no SDK download permitted"
+          fi
+          echo 'F3_SDK_PRECHECK_PASS_NO_INSTALL_NO_LICENSE_CHANGE'
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          repository: FongMi/media
+          ref: 3c2cbe8ac742c2fe15eff52f03eeb3b1b648848d
+          path: inputs/media
+          fetch-depth: 1
+          persist-credentials: false
+          submodules: false
+          lfs: false
+
+      - name: Select exact historical JetBrains JDK
+        id: jbr
+        uses: actions/setup-java@d1374f8ac74474200d16ef8ecee22c7ae7a51880
+        with:
+          distribution: jetbrains
+          java-version: '21.0.11+1163.125'
+          java-package: jdk
+          architecture: x64
+          check-latest: false
+          force-download: false
+          cache-jdk: false
+
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0
+        with:
+          python-version: '3.10.22'
+
+      - name: Verify pinned source and exact toolchain
+        working-directory: inputs/media
+        shell: bash
+        env:
+          F3_JBR_VERSION: ${{ steps.jbr.outputs.version }}
+        run: |
+          set -euo pipefail
+          test "$F3_JBR_VERSION" = '21.0.11+1163.125' || {
+            echo 'F3_BLOCKED_JBR exact build unavailable'; exit 1;
+          }
+          java -version 2>&1 | tee "$RUNNER_TEMP/f3-java-version.txt"
+          grep -F '21.0.11+1163.125' "$RUNNER_TEMP/f3-java-version.txt" || {
+            echo 'F3_BLOCKED_JBR runtime identity mismatch'; exit 1;
+          }
+          javac -version
+          python3 --version
+          test "$(git rev-parse HEAD)" = \
+            3c2cbe8ac742c2fe15eff52f03eeb3b1b648848d
+          test "$(git rev-parse 'HEAD^{tree}')" = \
+            b7a4d78a2168bd5065034d37a242b7e51785ea4e
+          test "$(git rev-parse HEAD:libraries/ui_danmaku)" = \
+            29836ee83fd4eaed28170e547141e71127284ea2
+          test -z "$(git status --porcelain)"
+          echo 'cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30  LICENSE' \
+            | sha256sum -c -
+          test ! -e libraries/decoder_ffmpeg/src/main/ffmpeg/include/libavcodec/avcodec.h
+          test ! -e "$GITHUB_WORKSPACE/fork/signing"
+          git rev-parse HEAD
+          git rev-parse 'HEAD^{tree}'
+          grep -F 'gradle-9.1.0-all.zip' gradle/wrapper/gradle-wrapper.properties
+          echo 'F3_PINNED_PUBLIC_SOURCE_VERIFIED'
+
+      - name: Build one real AAR and audit its task boundary
+        working-directory: inputs/media
+        shell: bash
+        run: |
+          set -euo pipefail
+          export F3_CLASSPATH_FILE="$RUNNER_TEMP/f3-javac-classpath.txt"
+          test ! -e "$F3_CLASSPATH_FILE"
+
+          cat > "$RUNNER_TEMP/f3-audit.gradle" <<'GRADLE'
+          import org.gradle.api.tasks.compile.JavaCompile
+
+          gradle.projectsEvaluated {
+              if (gradle.rootProject.name != 'androidx.media3') {
+                  return
+              }
+              def target = gradle.rootProject.project(':lib-ui-danmaku')
+              target.tasks.named('compileReleaseJavaWithJavac', JavaCompile).configure {
+                  doLast {
+                      def output = new File(System.getenv('F3_CLASSPATH_FILE'))
+                      output.text = classpath.files
+                          .collect { it.canonicalPath }
+                          .unique()
+                          .sort()
+                          .join('\n') + '\n'
+                  }
+              }
+          }
+
+          gradle.taskGraph.whenReady { graph ->
+              if (gradle.rootProject.name != 'androidx.media3') {
+                  return
+              }
+              def allowed = [
+                  ':lib-common',
+                  ':lib-database',
+                  ':lib-datasource',
+                  ':lib-datasource-okhttp',
+                  ':lib-ui-danmaku'
+              ] as Set
+              def target = ':lib-ui-danmaku:bundleReleaseAar'
+              if (!graph.hasTask(target)) {
+                  throw new GradleException("F3 target missing: ${target}")
+              }
+              graph.allTasks.each { task ->
+                  println("F3_TASK ${task.path}")
+                  if (!allowed.contains(task.project.path)) {
+                      throw new GradleException("Unexpected project task: ${task.path}")
+                  }
+                  if (task.name =~ /(?i)(externalNativeBuild|CMake|ndkBuild|publish|sign)/) {
+                      throw new GradleException("Forbidden task: ${task.path}")
+                  }
+              }
+              println('F3_TASK_GRAPH_OK')
+          }
+          GRADLE
+
+          # No sdkmanager, license acceptance, SDK auto-download, or native build.
+          if ! bash gradlew \
+            --no-daemon \
+            --no-build-cache \
+            --no-configuration-cache \
+            --console=plain \
+            --max-workers=2 \
+            -Pandroid.builder.sdkDownload=false \
+            "-Dorg.gradle.jvmargs=-Xmx4g -XX:MaxMetaspaceSize=768m" \
+            --init-script "$RUNNER_TEMP/f3-audit.gradle" \
+            :lib-ui-danmaku:bundleReleaseAar 2>&1 | tee "$RUNNER_TEMP/f3-gradle.log"; then
+            if grep -qx 'F3_TASK_GRAPH_OK' "$RUNNER_TEMP/f3-gradle.log"; then
+              echo 'F3_STOPPED_AFTER_TASK_GRAPH; inspect first actual error'
+            else
+              echo 'F3_BLOCKED_CONFIGURATION_OR_TASK_GRAPH; no AAR verdict'
+            fi
+            exit 1
+          fi
+
+          grep -qx 'F3_TASK_GRAPH_OK' "$RUNNER_TEMP/f3-gradle.log"
+          test -s "$F3_CLASSPATH_FILE"
+          test -z "$(git status --porcelain --untracked-files=no)"
+
+      - name: Inspect original public AAR and typed classes
+        working-directory: inputs/media
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from collections import Counter
+          from io import BytesIO
+          from pathlib import Path
+          from zipfile import ZipFile
+          import hashlib
+          import os
+          import subprocess
+          import tempfile
+
+          def require(ok, message):
+              if not ok:
+                  raise SystemExit(message)
+
+          def digest(data):
+              return hashlib.sha256(data).hexdigest()
+
+          def class_names(z, label):
+              entries = [x for x in z.namelist() if x.endswith('.class')]
+              duplicates = [name for name, count in Counter(entries).items() if count > 1]
+              require(not duplicates, f'DUPLICATE_CLASS_IN {label}: {duplicates}')
+              require(z.testzip() is None, f'CORRUPT_ZIP {label}')
+              require(not any(x.lower().endswith('.so') for x in z.namelist()),
+                      f'UNEXPECTED_NATIVE_PAYLOAD {label}')
+              return set(entries)
+
+          module = Path('libraries/ui_danmaku')
+          aars = [p for p in module.rglob('*.aar') if 'outputs' in p.parts]
+          require(len(aars) == 1, f'Missing or ambiguous release AAR: {aars}')
+          aar = aars[0]
+          require(aar.name == 'lib-ui-danmaku-release.aar',
+                  f'Unexpected AAR filename: {aar.name}')
+          aar_bytes = aar.read_bytes()
+
+          with ZipFile(aar) as z:
+              require(z.testzip() is None, 'CORRUPT_AAR')
+              names = z.namelist()
+              require(len(names) == len(set(names)), 'DUPLICATE_AAR_ENTRY')
+              require('AndroidManifest.xml' in names, 'MISSING_ANDROID_MANIFEST')
+              require('classes.jar' in names, 'MISSING_CLASSES_JAR')
+              require(not any(n.lower().endswith('.so') or n.startswith('jni/')
+                              or n.startswith('prefab/') for n in names),
+                      'UNEXPECTED_NATIVE_AAR_CONTENT')
+              classes_bytes = z.read('classes.jar')
+              with ZipFile(BytesIO(classes_bytes)) as jar:
+                  main_classes = class_names(jar, 'classes.jar')
+              all_classes = set(main_classes)
+              for name in names:
+                  if not (name.startswith('libs/') and name.endswith('.jar')):
+                      continue
+                  with ZipFile(BytesIO(z.read(name))) as jar:
+                      embedded = class_names(jar, name)
+                  require(not all_classes.intersection(embedded),
+                          f'DUPLICATE_EMBEDDED_CLASSES {name}')
+                  all_classes.update(embedded)
+
+          prefix = 'libraries/ui_danmaku/src/main/java/'
+          files = subprocess.check_output(
+              ['git', 'ls-tree', '-r', '--name-only', 'HEAD', prefix],
+              text=True).splitlines()
+          expected = {x.removeprefix(prefix).removesuffix('.java') + '.class'
+                      for x in files if x.endswith('.java')}
+          require(len(expected) == 32, f'Unexpected Java source inventory: {len(expected)}')
+          require(expected.issubset(main_classes),
+                  f'MISSING_SOURCE_CLASSES {sorted(expected-main_classes)}')
+
+          base = 'androidx/media3/ui/danmaku/'
+          for name in ('Danmaku', 'DanmakuController', 'DanmakuTimeline',
+                       'DanmakuView', 'DanmakuRenderPool'):
+              require(base + name + '.class' in main_classes, f'MISSING_TYPED_CLASS {name}')
+          require(base + 'DanmakuPlayerViewController.class' not in all_classes,
+                  'UNEXPECTED_CUSTOM_COMPAT_CONTROLLER')
+
+          cp = Path(os.environ['F3_CLASSPATH_FILE'])
+          dependency_paths = sorted({Path(line).resolve()
+                                     for line in cp.read_text().splitlines() if line.strip()})
+          require(dependency_paths, 'EMPTY_JAVAC_CLASSPATH')
+          for path in dependency_paths:
+              require(path.exists(), f'MISSING_CLASSPATH {path}')
+              if path.is_dir():
+                  dependency_classes = {x.relative_to(path).as_posix()
+                                        for x in path.rglob('*.class')}
+              elif path.suffix == '.jar':
+                  with ZipFile(path) as jar:
+                      dependency_classes = {x for x in jar.namelist() if x.endswith('.class')}
+              else:
+                  raise SystemExit(f'UNSUPPORTED_CLASSPATH_ENTRY {path}')
+              overlap = all_classes.intersection(dependency_classes)
+              require(not overlap,
+                      f'DUPLICATE_WITH_JAVAC_DEPENDENCY {path}: {sorted(overlap)}')
+
+          with tempfile.TemporaryDirectory(prefix='f3-public-typed-') as tmp:
+              jar = Path(tmp) / 'classes.jar'
+              jar.write_bytes(classes_bytes)
+              for name in ('DanmakuController', 'DanmakuView'):
+                  qualified = 'androidx.media3.ui.danmaku.' + name
+                  api = subprocess.check_output(
+                      ['javap', '-p', '-s', '-classpath', str(jar), qualified], text=True)
+                  print(api, flush=True)
+                  require('void sendNow(androidx.media3.ui.danmaku.Danmaku);' in api,
+                          f'MISSING_TYPED_SEND_NOW {qualified}')
+                  if name == 'DanmakuController':
+                      require('getItems(' not in api, 'UNEXPECTED_PATCHED_SNAPSHOT_API')
+                      require('void post(androidx.media3.ui.danmaku.Danmaku);' not in api,
+                              'UNEXPECTED_PATCHED_POST_API')
+
+          print('F3_SOURCE_JAVA_CLASSES', len(expected))
+          print('F3_AAR_CLASS_COUNT', len(all_classes))
+          print('F3_JAVAC_CLASSPATH_ENTRIES', len(dependency_paths))
+          print('PASS_NO_DUPLICATE_WITH_JAVAC_CLASSPATH')
+          print('PASS_ORIGINAL_TYPED_SEND_NOW')
+          print('PASS_ORIGINAL_SOURCE_CLASS_INVENTORY')
+          print('F3_AAR_FILE', aar.name)
+          print('F3_AAR_BYTES', len(aar_bytes))
+          print('F3_AAR_SHA256', digest(aar_bytes))
+          print('F3_CLASSES_JAR_SHA256', digest(classes_bytes))
+          print('PASS_F3_PINNED_PUBLIC_DANMAKU_AAR_ONLY')
+          PY
