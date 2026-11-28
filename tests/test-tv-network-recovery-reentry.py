@@ -45,12 +45,33 @@ MUTATIONS = (
     ('orphan delayed stability poll on close',
      '            hooks.schedule(poll, 500L);\n            if (closed) hooks.unschedule(poll);',
      '            hooks.schedule(poll, 500L);'),
-    ('refresh Home after generation callback retired owner',
-     '        if (!closed && hooks.generation() == appliedGeneration && !closed) hooks.refreshHome();',
-     '        if (hooks.generation() == appliedGeneration) hooks.refreshHome();'),
+    ('read Home state after commit generation callback retired owner',
+     '        long commitGeneration = hooks.generation();\n        if (closed) return;',
+     '        long commitGeneration = hooks.generation();'),
+    ('accept duplicate spider completion',
+     '            if (closed || !recovering || pendingGeneration != next || !awaitingSpiderCompletion) return;',
+     '            if (closed || !recovering || pendingGeneration != next) return;'),
     ('repeat unschedule on duplicate close',
      '    @Override public void close() {\n        if (closed) return;',
      '    @Override public void close() {'),
+    ('start recovery while Home is hidden',
+     '        if (!hooks.canRecoverHome() || closed) return;\n        pendingGeneration = next;',
+     '        pendingGeneration = next;'),
+    ('poll hidden Home',
+     '        if (deferForHome()) return;\n        if (latest != pendingGeneration) {',
+     '        if (latest != pendingGeneration) {'),
+    ('commit hidden Home',
+     '        if (deferForHome()) return;\n        appliedGeneration = pendingGeneration;',
+     '        appliedGeneration = pendingGeneration;'),
+    ('resume deferred poll while Home is hidden',
+     '            if (!waitingForHome || !hooks.canRecoverHome() || closed) return;',
+     '            if (!waitingForHome || closed) return;'),
+    ('reuse pre-pause stability sample',
+     '            waitingForHome = false;\n            checks = 0;\n            stableChecks = 0;',
+     '            waitingForHome = false;\n            checks = 0;'),
+    ('commit stale generation after readiness callback',
+     '        if (commitGeneration != pendingGeneration) {',
+     '        if (false) {'),
 )
 
 
@@ -85,7 +106,7 @@ def main() -> None:
     match = re.fullmatch(
         r'PASS: (\d+) owner teardown/TV network recovery lifecycle assertions with actual Java Coordinator',
         base.stdout.strip())
-    if base.returncode or not match or int(match.group(1)) < 87:
+    if base.returncode or not match or int(match.group(1)) < 143:
         raise AssertionError('TV recovery baseline failed:\n' + base.stdout + base.stderr)
     print(base.stdout.strip())
     original = SOURCE.read_text(encoding='utf-8')

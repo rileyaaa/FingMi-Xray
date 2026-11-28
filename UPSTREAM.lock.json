@@ -1,0 +1,269 @@
+{
+  "schema": 1,
+  "state": "BOOTSTRAP_ONLY_UPSTREAM_NOT_IMPORTED",
+  "history_anchor": "f03faa5d6e5abb1be87f66eab7e406094790457f",
+  "read_only_reference": "572fb8ecbb8ecd3382c358ebd02691ba633bfadb",
+  "upstream": {
+    "repository": "FongMi/TV",
+    "version": "5.9.0",
+    "commit": "d3a0b84b24cf6628d72a4dbc2be453875b005536",
+    "tree": "82953e314d3009f039bb220db05ca537e0eadc92",
+    "root_entries": [
+      {
+        "path": ".gitignore",
+        "mode": "100644",
+        "type": "blob",
+        "sha": "58c0fb97d6f329a0af195b8c50d652226dde22f7",
+        "bytes": 704
+      },
+      {
+        "path": "LICENSE.md",
+        "mode": "100644",
+        "type": "blob",
+        "sha": "f288702d2fa16d3cdf0035b15a9fcbc552cd88e7",
+        "bytes": 35149
+      },
+      {
+        "path": "README.md",
+        "mode": "100644",
+        "type": "blob",
+        "sha": "85bf116b73d9ed74220d08f5fa18fba4612c79dd",
+        "bytes": 1081
+      },
+      {
+        "path": "app",
+        "mode": "040000",
+        "type": "tree",
+        "sha": "f7b473ec80d576522dd85e0df6da410cd93c732a"
+      },
+      {
+        "path": "build.gradle",
+        "mode": "100644",
+        "type": "blob",
+        "sha": "e75bf126cf8e166daf53b2e7605b812cb5987275",
+        "bytes": 1753
+      },
+      {
+        "path": "buildSrc",
+        "mode": "040000",
+        "type": "tree",
+        "sha": "8a45a58b1542b7d90d17a9e47c38a27c84b16223"
+      },
+      {
+        "path": "catvod",
+        "mode": "040000",
+        "type": "tree",
+        "sha": "357ef63ca1f9108dcecbfa36ee95fa1b10cbec47"
+      },
+      {
+        "path": "chaquo",
+        "mode": "040000",
+        "type": "tree",
+        "sha": "ef35cac5a8bfe862996437232a414d0ed7b15308"
+      },
+      {
+        "path": "gradle.properties",
+        "mode": "100644",
+        "type": "blob",
+        "sha": "64dce92f990a8a41dfcc0da6ce1f9f7201620588",
+        "bytes": 208
+      },
+      {
+        "path": "gradle",
+        "mode": "040000",
+        "type": "tree",
+        "sha": "5725f7beff9cf870519b8878a67703a9896d57dc"
+      },
+      {
+        "path": "gradlew",
+        "mode": "100644",
+        "type": "blob",
+        "sha": "4f906e0c811fc9e230eb44819f509cd0627f2600",
+        "bytes": 5766
+      },
+      {
+        "path": "gradlew.bat",
+        "mode": "100644",
+        "type": "blob",
+        "sha": "107acd32c4e687021ef32db511e8a206129b88ec",
+        "bytes": 2674
+      },
+      {
+        "path": "hook",
+        "mode": "040000",
+        "type": "tree",
+        "sha": "ee9c7959e9eae37e8f33e865205916007821975e"
+      },
+      {
+        "path": "nodejs",
+        "mode": "040000",
+        "type": "tree",
+        "sha": "f96d95378033d34519de0a663ecf0dd44e2b1d19"
+      },
+      {
+        "path": "other",
+        "mode": "040000",
+        "type": "tree",
+        "sha": "8982afd7f47cd698a2ed04b2c82ae916d23e55f6"
+      },
+      {
+        "path": "quickjs",
+        "mode": "040000",
+        "type": "tree",
+        "sha": "ff840c329de14e5507a470e779334294a1924ab1"
+      },
+      {
+        "path": "runtime",
+        "mode": "040000",
+        "type": "tree",
+        "sha": "6fe642526b03b6b937f950d735fc75d217a381a1"
+      },
+      {
+        "path": "scripts",
+        "mode": "040000",
+        "type": "tree",
+        "sha": "7d12ac6433a193131e6f71420b651a7f8300b23e"
+      },
+      {
+        "path": "settings.gradle",
+        "mode": "100644",
+        "type": "blob",
+        "sha": "2676642e1bf14dda12ecf06aca1321b0a05a6fa3",
+        "bytes": 590
+      },
+      {
+        "path": "thunder",
+        "mode": "040000",
+        "type": "tree",
+        "sha": "cd34193d8fcede318e66a82bc88b7b350a957a1b"
+      },
+      {
+        "path": "tvbus",
+        "mode": "040000",
+        "type": "tree",
+        "sha": "42becbc80b3d3e54d1b412cfa4b41f3acdedd730"
+      },
+      {
+        "path": "website",
+        "mode": "040000",
+        "type": "tree",
+        "sha": "fbd5a658ef744e17357c12c3b137f7f95ba01f8e"
+      }
+    ],
+    "exclude_root": [
+      ".github"
+    ],
+    "expected_blob_paths": 1363
+  },
+  "retained": [
+    {
+      "path": "LICENSE.md",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "f288702d2fa16d3cdf0035b15a9fcbc552cd88e7",
+      "source": "f03faa5d6e5abb1be87f66eab7e406094790457f"
+    },
+    {
+      "path": "xray",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "67da107fb2fce559d13268e34a26268b5e66d45f",
+      "source": "f03faa5d6e5abb1be87f66eab7e406094790457f"
+    },
+    {
+      "path": "libxray",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "d7666d242cac45eaed027af17e81656916043f0a",
+      "source": "f03faa5d6e5abb1be87f66eab7e406094790457f"
+    },
+    {
+      "path": "tv-recovery",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "f973034043554d729b939c9f19dbd1fe2bad2fdd",
+      "source": "572fb8ecbb8ecd3382c358ebd02691ba633bfadb"
+    },
+    {
+      "path": "tests/xray-session",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "640ee73cf70db63d99c0041f9f0ca157d9175bb2",
+      "source": "f03faa5d6e5abb1be87f66eab7e406094790457f"
+    },
+    {
+      "path": "tests/test-tv-network-recovery-reentry.py",
+      "sha": "88a58dec587f2e3e60e73695352b4d09c0c5e5d1",
+      "mode": "100644",
+      "type": "blob",
+      "source": "572fb8ecbb8ecd3382c358ebd02691ba633bfadb"
+    },
+    {
+      "path": "tests/tv-recovery/RecoveryReentryHarness.java",
+      "sha": "3ee6e1eef72cb752e4fe74886b5248be2d362285",
+      "mode": "100644",
+      "type": "blob",
+      "source": "572fb8ecbb8ecd3382c358ebd02691ba633bfadb"
+    },
+    {
+      "path": "tests/test-xray-error-sanitizer.py",
+      "sha": "d6ca9faff308936688d34ead80abd35a809c5d93",
+      "mode": "100644",
+      "type": "blob",
+      "source": "f03faa5d6e5abb1be87f66eab7e406094790457f"
+    },
+    {
+      "path": "tests/test-xray-normalizer-parity.py",
+      "sha": "6bc818b0fa49219671a25fa076c4b1b6e4ca8f97",
+      "mode": "100644",
+      "type": "blob",
+      "source": "f03faa5d6e5abb1be87f66eab7e406094790457f"
+    },
+    {
+      "path": "tests/test-xray-session-races.py",
+      "sha": "4825fb9e83cf80a00a6d6673cb3554928592aafb",
+      "mode": "100644",
+      "type": "blob",
+      "source": "f03faa5d6e5abb1be87f66eab7e406094790457f"
+    },
+    {
+      "path": "recovery/legacy-src/com/fongmi/android/tv/xray/legacy/LegacyXrayShareLinkNormalizer.java",
+      "sha": "a1302c49b18f3db471eb2a69bc7d5a75336f10c7",
+      "mode": "100644",
+      "type": "blob",
+      "source": "f03faa5d6e5abb1be87f66eab7e406094790457f"
+    },
+    {
+      "path": "recovery/legacy-src/com/fongmi/android/tv/xray/legacy/LegacyXrayDisplay.java",
+      "sha": "0603b2733c26709aaf1a4027502f18d84498f0ed",
+      "mode": "100644",
+      "type": "blob",
+      "source": "f03faa5d6e5abb1be87f66eab7e406094790457f"
+    },
+    {
+      "path": "recovery/native-tests/chain-inputs.json",
+      "sha": "1515ff51bb2b5ae351651aaeffda6e1a8aa76cec",
+      "mode": "100644",
+      "type": "blob",
+      "source": "f03faa5d6e5abb1be87f66eab7e406094790457f"
+    },
+    {
+      "path": "recovery/native-tests/published-v7-chain.json",
+      "sha": "c91f136ab6fe9673a7036b6e3d28203a225d9d81",
+      "mode": "100644",
+      "type": "blob",
+      "source": "f03faa5d6e5abb1be87f66eab7e406094790457f"
+    }
+  ],
+  "stable_core_candidate": {
+    "libxray_repository": "XTLS/libXray",
+    "libxray_tag": "v26.11.9",
+    "libxray_commit": "5a0f7d8d1c28b34afb5727b04b26a10f6dbac7e3",
+    "core_repository": "XTLS/Xray-core",
+    "core_tag": "v26.11.9",
+    "core_commit": "676eaf66f8f05d4d558ee7a74b4736623d3feeb9",
+    "status": "NOT_ADOPTED"
+  },
+  "build_status": "BLOCKED_UPSTREAM_OBJECT_IMPORT_AND_MATCHED_DEPENDENCIES",
+  "workflow_status": "NONE_UNTIL_NORMAL_BUILD_ENTRY_IS_COMPATIBLE"
+}

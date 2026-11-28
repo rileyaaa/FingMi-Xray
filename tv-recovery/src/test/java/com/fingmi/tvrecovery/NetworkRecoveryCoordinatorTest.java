@@ -14,6 +14,7 @@ public class NetworkRecoveryCoordinatorTest {
         int refreshes;
         final List<String> events = new ArrayList<>();
         @Override public long generation() { return generation; }
+        @Override public boolean canRecoverHome() { return true; }
         @Override public void cancelRequests() { events.add("cancel"); }
         @Override public void resetApiAndDns() { events.add("api-dns"); }
         @Override public void clearSpiders(Runnable after) { events.add("spider"); spiderDone = after; }
